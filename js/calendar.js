@@ -4,6 +4,7 @@ let selectedSlot = null;
 let selectedMobileDay = null;
 
 function spotsColorClass(n) {
+    if (n >= 5) return 'spots-dark';
     if (n === 1) return 'spots-red';
     if (n === 2) return 'spots-orange';
     return 'spots-green';
