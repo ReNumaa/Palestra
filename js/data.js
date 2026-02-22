@@ -6,9 +6,9 @@ const SLOT_TYPES = {
 };
 
 const SLOT_MAX_CAPACITY = {
-    'personal-training': 1,
-    'small-group': 4,
-    'group-class': 5
+    'personal-training': 5,
+    'small-group': 5,
+    'group-class': 0
 };
 
 const SLOT_PRICES = {
