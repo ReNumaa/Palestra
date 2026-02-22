@@ -364,14 +364,14 @@ function drawTypeChart(filteredBookings) {
     });
 
     chart.drawPieChart({
-        labels: ['Personal Training', 'Small Group', 'Lezione di Gruppo'],
+        labels: ['Allenamento in autonomia', 'Lezione PT gruppo', 'Slot prenotato'],
         values: [
             distribution[SLOT_TYPES.PERSONAL] || 0,
             distribution[SLOT_TYPES.SMALL_GROUP] || 0,
             distribution[SLOT_TYPES.GROUP_CLASS] || 0
         ]
     }, {
-        colors: ['#ff6b6b', '#4ecdc4', '#ffd93d']
+        colors: ['#22c55e', '#fbbf24', '#ef4444']
     });
 }
 
@@ -906,9 +906,9 @@ function renderAllTimeSlots() {
                 <div class="schedule-slot-dropdown">
                     <select onchange="updateSlotType('${timeSlot}', this.value)" class="slot-type-select">
                         <option value="">-- Nessuna lezione --</option>
-                        <option value="${SLOT_TYPES.PERSONAL}" ${currentType === SLOT_TYPES.PERSONAL ? 'selected' : ''}>Personal Training</option>
-                        <option value="${SLOT_TYPES.SMALL_GROUP}" ${currentType === SLOT_TYPES.SMALL_GROUP ? 'selected' : ''}>Small Group</option>
-                        <option value="${SLOT_TYPES.GROUP_CLASS}" ${currentType === SLOT_TYPES.GROUP_CLASS ? 'selected' : ''}>Lezione di Gruppo</option>
+                        <option value="${SLOT_TYPES.PERSONAL}" ${currentType === SLOT_TYPES.PERSONAL ? 'selected' : ''}>Allenamento in autonomia</option>
+                        <option value="${SLOT_TYPES.SMALL_GROUP}" ${currentType === SLOT_TYPES.SMALL_GROUP ? 'selected' : ''}>Lezione personal training gruppo</option>
+                        <option value="${SLOT_TYPES.GROUP_CLASS}" ${currentType === SLOT_TYPES.GROUP_CLASS ? 'selected' : ''}>Slot prenotato</option>
                     </select>
                 </div>
                 ${currentType ? `<div class="current-type-badge ${currentType}">${SLOT_NAMES[currentType]}</div>` : ''}
