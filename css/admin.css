@@ -254,8 +254,6 @@
 .dashboard-card h3 {
     color: var(--dark-bg);
     margin-bottom: 1.5rem;
-    padding-bottom: 0.75rem;
-    border-bottom: 2px solid var(--primary-cyan);
 }
 
 /* Chart Container */
