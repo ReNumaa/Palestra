@@ -91,12 +91,18 @@ const DEFAULT_WEEKLY_SCHEDULE = {
 function getWeeklySchedule() {
     const saved = localStorage.getItem('weeklyScheduleTemplate');
     if (saved) {
-        return JSON.parse(saved);
-    } else {
-        // Initialize with default schedule
-        localStorage.setItem('weeklyScheduleTemplate', JSON.stringify(DEFAULT_WEEKLY_SCHEDULE));
-        return DEFAULT_WEEKLY_SCHEDULE;
+        const parsed = JSON.parse(saved);
+        // Migration check: if stored slots don't match current TIME_SLOTS format, reset
+        const storedTimes = Object.values(parsed).flat().map(s => s.time);
+        const isCurrentFormat = storedTimes.length === 0 || storedTimes.every(t => TIME_SLOTS.includes(t));
+        if (isCurrentFormat) {
+            return parsed;
+        }
+        // Outdated slot format detected — clear overrides too
+        localStorage.removeItem('scheduleOverrides');
     }
+    localStorage.setItem('weeklyScheduleTemplate', JSON.stringify(DEFAULT_WEEKLY_SCHEDULE));
+    return DEFAULT_WEEKLY_SCHEDULE;
 }
 
 // Global variable that will be used throughout the app
@@ -165,7 +171,19 @@ class BookingStorage {
     static initializeDemoData() {
         // Skip if user explicitly cleared all data
         if (localStorage.getItem('dataClearedByUser') === 'true') return;
-        // Only initialize if no data exists
+
+        // Migration check: if existing bookings use old time slot format, regenerate
+        const existing = this.getAllBookings();
+        if (existing.length > 0) {
+            const hasOutdatedSlots = existing.some(b => !TIME_SLOTS.includes(b.time));
+            if (hasOutdatedSlots) {
+                localStorage.removeItem(this.BOOKINGS_KEY);
+                localStorage.removeItem(this.STATS_KEY);
+            } else {
+                return; // Data is current, nothing to do
+            }
+        }
+
         if (this.getAllBookings().length === 0) {
             // 30 fixed clients with consistent contact info
             const clients = [
