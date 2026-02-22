@@ -686,21 +686,37 @@ body {
 /* Desktop scale-down */
 @media (min-width: 769px) {
     html {
-        font-size: 13px;
+        font-size: 12px;
     }
 
     .calendar-grid {
-        grid-template-columns: 62px repeat(7, 1fr);
+        grid-template-columns: 58px repeat(7, 1fr);
     }
 
     .calendar-slot {
-        min-height: 62px;
-        padding: 0.5rem;
+        min-height: 58px;
+        padding: 0.4rem;
     }
 
     .calendar-time {
-        padding: 0.5rem 0.3rem;
-        font-size: 0.78rem;
+        padding: 0.4rem 0.25rem;
+        font-size: 0.75rem;
+    }
+
+    .nav-logo {
+        height: 44px;
+    }
+
+    .hero {
+        padding: 2.5rem 0 2rem;
+    }
+
+    .calendar-section {
+        padding: 1.5rem 0;
+    }
+
+    .booking-section {
+        padding: 1.5rem 0;
     }
 }
 
