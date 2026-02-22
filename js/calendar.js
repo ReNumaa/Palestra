@@ -153,7 +153,7 @@ function createSlot(dateInfo, timeSlot) {
 
         slot.innerHTML = `
             <div class="slot-type">${SLOT_NAMES[slotType]}</div>
-            <div class="slot-spots">${maxCapacity - remainingSpots}/${maxCapacity} prenotati</div>
+            ${slotType !== SLOT_TYPES.GROUP_CLASS ? `<div class="slot-spots">${maxCapacity - remainingSpots}/${maxCapacity} prenotati</div>` : ''}
         `;
 
         // Only allow booking if not full and not in the past
@@ -302,10 +302,11 @@ function createMobileSlotCard(dateInfo, scheduledSlot) {
             🕐 ${timeSlot}
         </div>
         <div class="mobile-slot-type">${SLOT_NAMES[slotType]}</div>
+        ${slotType !== SLOT_TYPES.GROUP_CLASS ? `
         <div class="mobile-slot-spots">
             ${spotsHTML}
             <span>${maxCapacity - remainingSpots}/${maxCapacity} prenotati</span>
-        </div>
+        </div>` : ''}
     `;
 
     // Check if slot is in the past
