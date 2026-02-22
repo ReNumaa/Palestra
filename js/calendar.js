@@ -211,10 +211,9 @@ function renderMobileCalendar() {
         mobilePrev.disabled = currentWeekOffset === 0;
     }
 
-    renderMobileDaySelector(weekDates);
-
-    // Select first day of the displayed week by default
+    // Set selected day BEFORE rendering the selector so active class is applied correctly
     selectedMobileDay = weekDates[0];
+    renderMobileDaySelector(weekDates);
     renderMobileSlots(selectedMobileDay);
 }
 
