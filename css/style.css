@@ -1095,6 +1095,46 @@ body {
     opacity: 0.95;
 }
 
+.cal-buttons {
+    display: flex;
+    gap: 0.6rem;
+    margin-top: 1rem;
+    flex-wrap: wrap;
+}
+
+.cal-btn {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.4rem;
+    padding: 0.55rem 0.9rem;
+    border-radius: 8px;
+    font-size: 0.85rem;
+    font-weight: 600;
+    cursor: pointer;
+    border: none;
+    text-decoration: none;
+    flex: 1;
+    justify-content: center;
+}
+
+.cal-btn svg {
+    width: 16px;
+    height: 16px;
+    flex-shrink: 0;
+}
+
+.cal-btn-google {
+    background: #fff;
+    color: #444;
+    border: 1.5px solid rgba(255,255,255,0.5);
+}
+
+.cal-btn-apple {
+    background: rgba(255,255,255,0.15);
+    color: #fff;
+    border: 1.5px solid rgba(255,255,255,0.5);
+}
+
 @media (max-width: 600px) {
     /* Bottom sheet layout */
     .modal-overlay {
