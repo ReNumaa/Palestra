@@ -1019,8 +1019,12 @@ body {
 
 .modal-spots {
     font-size: 0.9rem;
-    font-weight: 600;
+    font-weight: 700;
 }
+
+.modal-spots.spots-green  { color: #16a34a; }
+.modal-spots.spots-orange { color: #ea7b0a; }
+.modal-spots.spots-red    { color: #dc2626; }
 
 .modal-box .booking-form {
     display: flex;
