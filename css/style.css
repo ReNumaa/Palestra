@@ -6,9 +6,9 @@
     --light-gray: #f8f9fa;
     --text-white: #ffffff;
     --text-dark: #333333;
-    --personal-training: #ff6b6b;
-    --small-group: #4ecdc4;
-    --group-class: #ffd93d;
+    --personal-training: #22c55e;
+    --small-group: #fbbf24;
+    --group-class: #ef4444;
     --success: #06d6a0;
     --warning: #f77f00;
 }
@@ -146,6 +146,15 @@ body {
     background-color: var(--group-class);
 }
 
+.legend-note {
+    text-align: center;
+    font-size: 0.9rem;
+    color: #666;
+    margin-top: -0.5rem;
+    margin-bottom: 1.5rem;
+    font-style: italic;
+}
+
 /* Calendar Controls */
 .calendar-controls {
     display: flex;
@@ -233,15 +242,15 @@ body {
 }
 
 .calendar-slot.has-booking.personal-training {
-    background: linear-gradient(135deg, var(--personal-training) 0%, #ff5252 100%);
+    background: linear-gradient(135deg, var(--personal-training) 0%, #16a34a 100%);
 }
 
 .calendar-slot.has-booking.small-group {
-    background: linear-gradient(135deg, var(--small-group) 0%, #45b7af 100%);
+    background: linear-gradient(135deg, var(--small-group) 0%, #d97706 100%);
 }
 
 .calendar-slot.has-booking.group-class {
-    background: linear-gradient(135deg, var(--group-class) 0%, #ffc107 100%);
+    background: linear-gradient(135deg, var(--group-class) 0%, #dc2626 100%);
 }
 
 .calendar-slot.selected {
@@ -451,17 +460,17 @@ body {
 
 .mobile-slot-card.personal-training {
     border-left-color: var(--personal-training);
-    background: linear-gradient(to right, rgba(255, 107, 107, 0.1), white);
+    background: linear-gradient(to right, rgba(34, 197, 94, 0.1), white);
 }
 
 .mobile-slot-card.small-group {
     border-left-color: var(--small-group);
-    background: linear-gradient(to right, rgba(78, 205, 196, 0.1), white);
+    background: linear-gradient(to right, rgba(251, 191, 36, 0.1), white);
 }
 
 .mobile-slot-card.group-class {
     border-left-color: var(--group-class);
-    background: linear-gradient(to right, rgba(255, 217, 61, 0.1), white);
+    background: linear-gradient(to right, rgba(239, 68, 68, 0.1), white);
 }
 
 .mobile-slot-card.slot-full {
@@ -768,9 +777,9 @@ body {
     letter-spacing: 0.04em;
 }
 
-.modal-slot-badge.personal-training { background-color: #ff6b6b; }
-.modal-slot-badge.small-group       { background-color: #4ecdc4; }
-.modal-slot-badge.group-class       { background-color: #e0a800; }
+.modal-slot-badge.personal-training { background-color: #22c55e; }
+.modal-slot-badge.small-group       { background-color: #fbbf24; }
+.modal-slot-badge.group-class       { background-color: #ef4444; }
 
 .modal-slot-info h3 {
     font-size: 1.25rem;

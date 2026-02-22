@@ -18,9 +18,9 @@ const SLOT_PRICES = {
 };
 
 const SLOT_NAMES = {
-    'personal-training': 'Personal Training (1-to-1)',
-    'small-group': 'Small Group (2-4 persone)',
-    'group-class': 'Lezione di Gruppo (5+ persone)'
+    'personal-training': 'Allenamento in autonomia',
+    'small-group': 'Lezione personal training gruppo',
+    'group-class': 'Slot prenotato'
 };
 
 // Time slots configuration (matching the website schedule)
