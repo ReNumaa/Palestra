@@ -1227,28 +1227,234 @@ canvas {
     transform: translateX(5px);
 }
 
-/* Responsive */
+/* ===== Mobile Responsive ===== */
 @media (max-width: 768px) {
-    .stats-grid {
-        grid-template-columns: 1fr;
+
+    /* Dashboard container */
+    .dashboard-section {
+        padding: 0.75rem 0;
     }
 
-    .dashboard-grid {
-        grid-template-columns: 1fr;
+    /* Login box */
+    .login-box {
+        padding: 1.5rem 1.25rem;
     }
 
-    .bookings-table {
+    /* Tabs: horizontal scroll instead of wrapping */
+    .admin-tabs {
+        flex-wrap: nowrap;
+        overflow-x: auto;
+        -webkit-overflow-scrolling: touch;
+        justify-content: flex-start;
+        gap: 0;
+        padding-bottom: 0;
+        scrollbar-width: none;
+    }
+
+    .admin-tabs::-webkit-scrollbar { display: none; }
+
+    .admin-tab {
+        flex-shrink: 0;
+        padding: 0.65rem 0.85rem;
+        font-size: 0.78rem;
+        white-space: nowrap;
+    }
+
+    /* Calendar controls */
+    .admin-calendar-controls {
+        gap: 0.4rem;
+    }
+
+    .admin-calendar-controls .btn-control {
+        padding: 0.45rem 0.6rem;
+        font-size: 0.72rem;
+    }
+
+    .admin-calendar-controls h4 {
         font-size: 0.85rem;
     }
 
+    /* Day selector cards */
+    .admin-day-selector {
+        gap: 0.25rem;
+        padding: 0.4rem 0;
+        margin-bottom: 0.75rem;
+    }
+
+    .admin-day-card {
+        min-width: 0;
+        padding: 0.4rem 0.2rem;
+        border-radius: 8px;
+    }
+
+    .admin-day-name  { font-size: 0.62rem; }
+    .admin-day-date  { font-size: 0.95rem; }
+    .admin-day-count { font-size: 0.55rem; }
+
+    /* Slot cards */
+    .admin-slot-card {
+        padding: 0.9rem 1rem;
+    }
+
+    .admin-slot-time {
+        font-size: 1rem;
+    }
+
+    /* Dashboard cards */
+    .dashboard-card {
+        padding: 1rem;
+    }
+
+    /* Stats grid */
+    .stats-grid {
+        grid-template-columns: 1fr 1fr;
+        gap: 0.75rem;
+        margin-bottom: 1.5rem;
+    }
+
+    .stat-card {
+        padding: 1rem 0.75rem;
+    }
+
+    .stat-icon {
+        font-size: 1.6rem;
+        margin-bottom: 0.4rem;
+    }
+
+    .stat-card h3 {
+        font-size: 0.72rem;
+    }
+
+    .stat-value {
+        font-size: 1.4rem;
+    }
+
+    .stat-change {
+        font-size: 0.75rem;
+        padding: 0.15rem 0.5rem;
+    }
+
+    /* Dashboard grid */
+    .dashboard-grid {
+        grid-template-columns: 1fr;
+        gap: 1rem;
+        margin-bottom: 1rem;
+    }
+
+    /* Analytics filter bar: horizontal scroll */
+    .analytics-filter-bar {
+        flex-wrap: nowrap;
+        overflow-x: auto;
+        -webkit-overflow-scrolling: touch;
+        justify-content: flex-start;
+        padding: 0.65rem 0.75rem;
+        gap: 0.35rem;
+        scrollbar-width: none;
+    }
+
+    .analytics-filter-bar::-webkit-scrollbar { display: none; }
+
+    .filter-btn {
+        flex-shrink: 0;
+        padding: 0.3rem 0.65rem;
+        font-size: 0.78rem;
+    }
+
+    .filter-custom-dates {
+        flex-shrink: 0;
+    }
+
+    /* Bookings table */
     .bookings-table th,
     .bookings-table td {
-        padding: 0.5rem;
+        padding: 0.45rem 0.4rem;
+        font-size: 0.76rem;
+    }
+
+    /* Hide WhatsApp column on mobile (too narrow) */
+    .bookings-table th:nth-child(5),
+    .bookings-table td:nth-child(5) {
+        display: none;
+    }
+
+    /* Payments */
+    .payments-stats {
+        grid-template-columns: 1fr 1fr;
+        gap: 0.75rem;
+        margin-bottom: 1.25rem;
+    }
+
+    .payment-stat-card {
+        padding: 0.9rem 0.75rem;
+    }
+
+    .payment-stat-card h4 {
+        font-size: 0.82rem;
+    }
+
+    .payment-total {
+        font-size: 1.5rem;
+    }
+
+    .debtor-card-header {
+        padding: 0.85rem 1rem;
+        gap: 0.5rem;
+    }
+
+    .debtor-name {
+        font-size: 0.95rem;
+    }
+
+    .debtor-contact {
+        font-size: 0.8rem;
+        gap: 0.5rem;
+    }
+
+    .debtor-amount {
+        font-size: 0.9rem;
+        padding: 0.35rem 0.6rem;
+    }
+
+    .debtor-card-body {
+        padding: 0 1rem 1rem;
+    }
+
+    /* Schedule: day tabs horizontal scroll */
+    .schedule-day-tabs {
+        flex-wrap: nowrap;
+        overflow-x: auto;
+        -webkit-overflow-scrolling: touch;
+        justify-content: flex-start;
+        gap: 0.3rem;
+        padding-bottom: 0.4rem;
+        scrollbar-width: none;
+    }
+
+    .schedule-day-tabs::-webkit-scrollbar { display: none; }
+
+    .schedule-day-tab {
+        flex-shrink: 0;
+        min-width: 68px;
+        padding: 0.4rem 0.5rem;
+        font-size: 0.76rem;
+    }
+
+    .schedule-day-tab small {
+        font-size: 0.65rem;
+    }
+
+    .schedule-slot-item {
+        padding: 0.9rem 1rem;
+    }
+
+    .schedule-slot-time {
+        font-size: 0.95rem;
     }
 
     .schedule-slot-item-selector {
         flex-direction: column;
         align-items: stretch;
+        padding: 0.75rem;
     }
 
     .schedule-slot-dropdown {
@@ -1259,23 +1465,30 @@ canvas {
         text-align: center;
     }
 
-    .admin-tabs {
-        font-size: 0.85rem;
+    .form-row {
+        grid-template-columns: 1fr;
     }
 
-    .admin-tab {
-        padding: 0.75rem 1rem;
-        font-size: 0.85rem;
+    /* Prevent iOS zoom on inputs */
+    .form-group-schedule select,
+    .form-group-schedule input,
+    .search-input-group input,
+    .filter-custom-dates input[type="date"] {
+        font-size: 16px;
     }
 
-    /* Mobile: Stack participants vertically */
+    /* Participants grid */
     .admin-participants-grid {
         grid-template-columns: 1fr;
+        gap: 0.6rem;
     }
 
     .admin-participant-card {
         padding: 0.75rem;
     }
+
+    .participant-name    { font-size: 0.88rem; }
+    .participant-contact { font-size: 0.78rem; }
 
     .btn-delete-booking {
         width: 24px;
@@ -1283,11 +1496,24 @@ canvas {
         font-size: 0.75rem;
     }
 
-    .participant-name {
+    /* Action buttons */
+    .btn-action {
+        padding: 0.75rem;
         font-size: 0.9rem;
+        margin-bottom: 0.6rem;
     }
 
-    .participant-contact {
+    /* Time bars (popular times) */
+    .time-label {
+        min-width: 70px;
         font-size: 0.8rem;
+    }
+
+    .time-progress {
+        height: 22px;
+    }
+
+    .time-progress-fill {
+        font-size: 0.75rem;
     }
 }
