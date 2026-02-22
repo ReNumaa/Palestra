@@ -627,28 +627,32 @@ body {
     transform: scale(1.02);
 }
 
-.mobile-slot-time {
-    font-size: 1.3rem;
-    font-weight: bold;
-    color: var(--dark-bg);
-    margin-bottom: 0.5rem;
+.mobile-slot-header {
     display: flex;
     align-items: center;
-    gap: 0.5rem;
+    justify-content: space-between;
+    margin-bottom: 0.4rem;
+}
+
+.mobile-slot-time {
+    font-size: 1.1rem;
+    font-weight: bold;
+    color: var(--dark-bg);
+}
+
+.mobile-slot-available {
+    font-size: 0.85rem;
+    font-weight: 600;
+    color: var(--success);
+    background: rgba(34, 197, 94, 0.1);
+    padding: 0.15rem 0.5rem;
+    border-radius: 20px;
+    white-space: nowrap;
 }
 
 .mobile-slot-type {
-    font-size: 1rem;
+    font-size: 0.95rem;
     font-weight: 600;
-    margin-bottom: 0.5rem;
-}
-
-.mobile-slot-spots {
-    font-size: 0.9rem;
-    display: flex;
-    align-items: center;
-    gap: 0.5rem;
-    margin-top: 0.5rem;
 }
 
 .spots-indicator {
