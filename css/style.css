@@ -365,9 +365,13 @@ body {
 
 .slot-spots {
     font-size: 0.75rem;
-    opacity: 0.9;
+    font-weight: 700;
     margin-top: 0.25rem;
 }
+
+.spots-green { color: #16a34a; }
+.spots-orange { color: #ea7b0a; }
+.spots-red { color: #dc2626; }
 
 .slot-full {
     opacity: 0.5;
@@ -643,12 +647,14 @@ body {
 .mobile-slot-available {
     font-size: 0.85rem;
     font-weight: 600;
-    color: var(--success);
-    background: rgba(34, 197, 94, 0.1);
     padding: 0.15rem 0.5rem;
     border-radius: 20px;
     white-space: nowrap;
 }
+
+.mobile-slot-available.spots-green  { color: #16a34a; background: rgba(22, 163, 74, 0.1); }
+.mobile-slot-available.spots-orange { color: #ea7b0a; background: rgba(234, 123, 10, 0.1); }
+.mobile-slot-available.spots-red    { color: #dc2626; background: rgba(220, 38, 38, 0.1); }
 
 .mobile-slot-type {
     font-size: 0.95rem;
