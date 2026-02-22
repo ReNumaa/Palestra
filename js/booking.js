@@ -28,6 +28,13 @@ function openBookingModal(dateInfo, timeSlot, slotType, remainingSpots) {
     document.getElementById('bookingForm').style.display = 'flex';
     document.getElementById('confirmationMessage').style.display = 'none';
 
+    // Pre-fill if user is logged in
+    const user = typeof getCurrentUser === 'function' ? getCurrentUser() : null;
+    if (user) {
+        document.getElementById('name').value    = user.name  || '';
+        document.getElementById('email').value   = user.email || '';
+    }
+
     // Show modal
     document.getElementById('bookingModal').style.display = 'flex';
     document.body.style.overflow = 'hidden';
