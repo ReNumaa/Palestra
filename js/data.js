@@ -23,71 +23,66 @@ const SLOT_NAMES = {
     'group-class': 'Slot prenotato'
 };
 
-// Time slots configuration (matching the website schedule)
+// Time slots configuration — 80 min each, 05:20 → 20:00
 const TIME_SLOTS = [
-    '06:00 - 07:00',
-    '07:00 - 08:00',
-    '08:00 - 09:00',
-    '09:00 - 10:00',
-    '10:00 - 11:00',
-    '11:00 - 12:00',
-    '12:00 - 13:00',
-    '13:00 - 14:00',
-    '17:00 - 18:00',
-    '18:00 - 19:00',
-    '19:00 - 20:00',
-    '20:00 - 21:00'
+    '05:20 - 06:40',
+    '06:40 - 08:00',
+    '08:00 - 09:20',
+    '09:20 - 10:40',
+    '10:40 - 12:00',
+    '12:00 - 13:20',
+    '13:20 - 14:40',
+    '14:40 - 16:00',
+    '16:00 - 17:20',
+    '17:20 - 18:40',
+    '18:40 - 20:00'
 ];
 
 // Default weekly schedule template (used only if no custom schedule exists)
 const DEFAULT_WEEKLY_SCHEDULE = {
     'Lunedì': [
-        { time: '06:00 - 07:00', type: SLOT_TYPES.PERSONAL },
-        { time: '07:00 - 08:00', type: SLOT_TYPES.SMALL_GROUP },
-        { time: '08:00 - 09:00', type: SLOT_TYPES.GROUP_CLASS },
-        { time: '09:00 - 10:00', type: SLOT_TYPES.PERSONAL },
-        { time: '17:00 - 18:00', type: SLOT_TYPES.SMALL_GROUP },
-        { time: '18:00 - 19:00', type: SLOT_TYPES.GROUP_CLASS },
-        { time: '19:00 - 20:00', type: SLOT_TYPES.GROUP_CLASS },
-        { time: '20:00 - 21:00', type: SLOT_TYPES.SMALL_GROUP }
+        { time: '05:20 - 06:40', type: SLOT_TYPES.PERSONAL },
+        { time: '06:40 - 08:00', type: SLOT_TYPES.SMALL_GROUP },
+        { time: '08:00 - 09:20', type: SLOT_TYPES.GROUP_CLASS },
+        { time: '09:20 - 10:40', type: SLOT_TYPES.PERSONAL },
+        { time: '17:20 - 18:40', type: SLOT_TYPES.SMALL_GROUP },
+        { time: '18:40 - 20:00', type: SLOT_TYPES.GROUP_CLASS }
     ],
     'Martedì': [
-        { time: '06:00 - 07:00', type: SLOT_TYPES.PERSONAL },
-        { time: '08:00 - 09:00', type: SLOT_TYPES.GROUP_CLASS },
-        { time: '10:00 - 11:00', type: SLOT_TYPES.PERSONAL },
-        { time: '18:00 - 19:00', type: SLOT_TYPES.GROUP_CLASS },
-        { time: '19:00 - 20:00', type: SLOT_TYPES.SMALL_GROUP },
-        { time: '20:00 - 21:00', type: SLOT_TYPES.GROUP_CLASS }
+        { time: '05:20 - 06:40', type: SLOT_TYPES.PERSONAL },
+        { time: '08:00 - 09:20', type: SLOT_TYPES.GROUP_CLASS },
+        { time: '10:40 - 12:00', type: SLOT_TYPES.PERSONAL },
+        { time: '17:20 - 18:40', type: SLOT_TYPES.GROUP_CLASS },
+        { time: '18:40 - 20:00', type: SLOT_TYPES.SMALL_GROUP }
     ],
     'Mercoledì': [
-        { time: '07:00 - 08:00', type: SLOT_TYPES.SMALL_GROUP },
-        { time: '08:00 - 09:00', type: SLOT_TYPES.GROUP_CLASS },
-        { time: '09:00 - 10:00', type: SLOT_TYPES.PERSONAL },
-        { time: '17:00 - 18:00', type: SLOT_TYPES.SMALL_GROUP },
-        { time: '18:00 - 19:00', type: SLOT_TYPES.GROUP_CLASS },
-        { time: '19:00 - 20:00', type: SLOT_TYPES.GROUP_CLASS }
+        { time: '06:40 - 08:00', type: SLOT_TYPES.SMALL_GROUP },
+        { time: '08:00 - 09:20', type: SLOT_TYPES.GROUP_CLASS },
+        { time: '09:20 - 10:40', type: SLOT_TYPES.PERSONAL },
+        { time: '16:00 - 17:20', type: SLOT_TYPES.SMALL_GROUP },
+        { time: '17:20 - 18:40', type: SLOT_TYPES.GROUP_CLASS },
+        { time: '18:40 - 20:00', type: SLOT_TYPES.GROUP_CLASS }
     ],
     'Giovedì': [
-        { time: '06:00 - 07:00', type: SLOT_TYPES.PERSONAL },
-        { time: '08:00 - 09:00', type: SLOT_TYPES.GROUP_CLASS },
-        { time: '10:00 - 11:00', type: SLOT_TYPES.PERSONAL },
-        { time: '18:00 - 19:00', type: SLOT_TYPES.GROUP_CLASS },
-        { time: '19:00 - 20:00', type: SLOT_TYPES.SMALL_GROUP },
-        { time: '20:00 - 21:00', type: SLOT_TYPES.GROUP_CLASS }
+        { time: '05:20 - 06:40', type: SLOT_TYPES.PERSONAL },
+        { time: '08:00 - 09:20', type: SLOT_TYPES.GROUP_CLASS },
+        { time: '10:40 - 12:00', type: SLOT_TYPES.PERSONAL },
+        { time: '17:20 - 18:40', type: SLOT_TYPES.GROUP_CLASS },
+        { time: '18:40 - 20:00', type: SLOT_TYPES.SMALL_GROUP }
     ],
     'Venerdì': [
-        { time: '07:00 - 08:00', type: SLOT_TYPES.SMALL_GROUP },
-        { time: '08:00 - 09:00', type: SLOT_TYPES.GROUP_CLASS },
-        { time: '09:00 - 10:00', type: SLOT_TYPES.PERSONAL },
-        { time: '17:00 - 18:00', type: SLOT_TYPES.SMALL_GROUP },
-        { time: '18:00 - 19:00', type: SLOT_TYPES.GROUP_CLASS },
-        { time: '19:00 - 20:00', type: SLOT_TYPES.GROUP_CLASS }
+        { time: '06:40 - 08:00', type: SLOT_TYPES.SMALL_GROUP },
+        { time: '08:00 - 09:20', type: SLOT_TYPES.GROUP_CLASS },
+        { time: '09:20 - 10:40', type: SLOT_TYPES.PERSONAL },
+        { time: '16:00 - 17:20', type: SLOT_TYPES.SMALL_GROUP },
+        { time: '17:20 - 18:40', type: SLOT_TYPES.GROUP_CLASS },
+        { time: '18:40 - 20:00', type: SLOT_TYPES.GROUP_CLASS }
     ],
     'Sabato': [
-        { time: '08:00 - 09:00', type: SLOT_TYPES.GROUP_CLASS },
-        { time: '09:00 - 10:00', type: SLOT_TYPES.SMALL_GROUP },
-        { time: '10:00 - 11:00', type: SLOT_TYPES.GROUP_CLASS },
-        { time: '11:00 - 12:00', type: SLOT_TYPES.PERSONAL }
+        { time: '08:00 - 09:20', type: SLOT_TYPES.GROUP_CLASS },
+        { time: '09:20 - 10:40', type: SLOT_TYPES.SMALL_GROUP },
+        { time: '10:40 - 12:00', type: SLOT_TYPES.GROUP_CLASS },
+        { time: '12:00 - 13:20', type: SLOT_TYPES.PERSONAL }
     ],
     'Domenica': []
 };
@@ -231,10 +226,10 @@ class BookingStorage {
                     const shuffled = [...clients.keys()].sort(() => Math.random() - 0.5);
                     const selected = shuffled.slice(0, Math.min(fillCount, capacity));
 
-                    // Parse end hour to decide if booking is in the past
-                    const endHourStr = slot.time.split(' - ')[1].split(':')[0];
+                    // Parse end time (HH:MM) to decide if booking is in the past
+                    const endParts = slot.time.split(' - ')[1].split(':').map(Number);
                     const endDateTime = new Date(current);
-                    endDateTime.setHours(parseInt(endHourStr), 0, 0, 0);
+                    endDateTime.setHours(endParts[0], endParts[1], 0, 0);
                     const isPast = new Date() >= endDateTime;
 
                     selected.forEach(idx => {
