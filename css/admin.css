@@ -1,7 +1,7 @@
 /* Admin Styles */
 
 .container {
-    max-width: 780px;
+    max-width: 620px;
 }
 
 .login-section {
@@ -383,12 +383,11 @@ canvas {
     padding: 1rem 0;
     margin-bottom: 1.5rem;
     -webkit-overflow-scrolling: touch;
-    justify-content: center;
 }
 
 .admin-day-card {
     flex: 0 0 auto;
-    min-width: 100px;
+    min-width: 108px;
     padding: 1rem;
     background-color: var(--light-gray);
     border-radius: 12px;
@@ -614,7 +613,6 @@ canvas {
     gap: 0.5rem;
     margin-bottom: 1.5rem;
     flex-wrap: wrap;
-    justify-content: center;
 }
 
 .schedule-day-tab {
