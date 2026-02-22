@@ -168,10 +168,9 @@ function showConfirmation(booking) {
 
     const confirmationDiv = document.getElementById('confirmationMessage');
     confirmationDiv.innerHTML = `
-        <h3>✓ Prenotazione Confermata!</h3>
+        <h3>✓ Prenotazione ${SLOT_NAMES[booking.slotType]} Confermata!</h3>
         <p><strong>${booking.name}</strong></p>
         <p>📅 ${booking.dateDisplay} &nbsp;·&nbsp; 🕐 ${booking.time}</p>
-        <p>${SLOT_NAMES[booking.slotType]}</p>
         <p style="margin-top: 0.75rem; font-size: 0.85rem; opacity: 0.9;">Riceverai un promemoria WhatsApp al numero <strong>${booking.whatsapp}</strong></p>
         <div class="cal-buttons">
             <a href="${googleCalendarUrl(booking)}" target="_blank" rel="noopener" class="cal-btn cal-btn-google">
