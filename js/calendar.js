@@ -269,6 +269,8 @@ function renderMobileSlots(dateInfo) {
     }
 
     scheduledSlots.forEach(scheduledSlot => {
+        const remainingSpots = BookingStorage.getRemainingSpots(dateInfo.formatted, scheduledSlot.time, scheduledSlot.type);
+        if (remainingSpots <= 0) return;
         const slotCard = createMobileSlotCard(dateInfo, scheduledSlot);
         slotsList.appendChild(slotCard);
     });
