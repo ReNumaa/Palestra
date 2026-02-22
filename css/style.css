@@ -689,7 +689,7 @@ body {
     }
 
     .nav-logo {
-        height: 36px;
+        height: 52px;
     }
 
     .nav-menu {
@@ -839,7 +839,7 @@ body {
 /* Extra small devices */
 @media (max-width: 380px) {
     .nav-logo {
-        height: 30px;
+        height: 44px;
     }
 
     .nav-menu a {
