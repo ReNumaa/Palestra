@@ -18,8 +18,8 @@ const SLOT_PRICES = {
 };
 
 const SLOT_NAMES = {
-    'personal-training': 'Allenamento in autonomia',
-    'small-group': 'Lezione personal training gruppo',
+    'personal-training': 'Autonomia',
+    'small-group': 'Lezione di Gruppo',
     'group-class': 'Slot prenotato'
 };
 
