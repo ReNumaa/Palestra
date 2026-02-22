@@ -15,10 +15,13 @@
                 <a href="index.html"><img src="images/logo-tb---nero.jpg" alt="Thomas Bresciani Personal Trainer" class="nav-logo"></a>
                 <span style="color:#00AEEF; font-size:0.85rem; font-weight:700; letter-spacing:2px; text-transform:uppercase;">Admin</span>
             </div>
-            <ul class="nav-menu">
-                <li><a href="index.html">Torna al Sito</a></li>
-                <li><a href="#" id="logoutBtn">Logout</a></li>
-            </ul>
+            <div class="nav-right">
+                <button class="nav-hamburger" id="navHamburger" aria-label="Menu">
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round">
+                        <line x1="3" y1="6" x2="21" y2="6"/><line x1="3" y1="12" x2="21" y2="12"/><line x1="3" y1="18" x2="21" y2="18"/>
+                    </svg>
+                </button>
+            </div>
         </div>
     </nav>
 
@@ -220,8 +223,34 @@
         </div>
     </div>
 
+    <!-- Sidebar -->
+    <div class="nav-sidebar-overlay" id="navSidebarOverlay" onclick="toggleAdminNav()"></div>
+    <nav class="nav-sidebar" id="navSidebar">
+        <div class="nav-sidebar-header">
+            <img src="images/logo-tb---nero.jpg" alt="Thomas Bresciani" class="nav-sidebar-logo">
+            <button class="nav-sidebar-close" onclick="toggleAdminNav()">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
+            </button>
+        </div>
+        <ul class="nav-sidebar-links">
+            <li><a href="index.html">Calendario</a></li>
+            <li><a href="chi-sono.html">Chi sono</a></li>
+            <li><a href="#" id="logoutBtn">Logout Admin</a></li>
+        </ul>
+    </nav>
+
     <script src="js/data.js"></script>
     <script src="js/chart-mini.js"></script>
     <script src="js/admin.js"></script>
+    <script>
+        function toggleAdminNav() {
+            var sidebar = document.getElementById('navSidebar');
+            var overlay = document.getElementById('navSidebarOverlay');
+            var isOpen = sidebar.classList.toggle('open');
+            overlay.classList.toggle('open', isOpen);
+            document.body.classList.toggle('nav-open', isOpen);
+        }
+        document.getElementById('navHamburger').addEventListener('click', toggleAdminNav);
+    </script>
 </body>
 </html>
