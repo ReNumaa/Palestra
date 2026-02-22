@@ -112,6 +112,7 @@
     flex-wrap: wrap;
     gap: 0.5rem;
     align-items: center;
+    justify-content: center;
     margin-bottom: 1.5rem;
     padding: 1rem 1.25rem;
     background: white;
