@@ -159,7 +159,7 @@ function createSlot(dateInfo, timeSlot) {
 
         slot.innerHTML = `
             <div class="slot-type">${SLOT_NAMES[slotType]}</div>
-            ${slotType !== SLOT_TYPES.GROUP_CLASS ? `<div class="slot-spots ${spotsColorClass(remainingSpots)}">${remainingSpots} ${remainingSpots === 1 ? 'disponibile' : 'disponibili'}</div>` : ''}
+            ${slotType !== SLOT_TYPES.GROUP_CLASS && remainingSpots > 0 ? `<div class="slot-spots ${spotsColorClass(remainingSpots)}">${remainingSpots} ${remainingSpots === 1 ? 'disponibile' : 'disponibili'}</div>` : ''}
         `;
 
         // Only allow booking if not full and not in the past
