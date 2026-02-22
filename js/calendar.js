@@ -10,6 +10,7 @@ function initCalendar() {
 }
 
 function setupCalendarControls() {
+    // Desktop controls
     document.getElementById('prevWeek').addEventListener('click', () => {
         if (currentWeekOffset > 0) {
             currentWeekOffset--;
@@ -23,6 +24,28 @@ function setupCalendarControls() {
         renderCalendar();
         renderMobileCalendar();
     });
+
+    // Mobile controls
+    const mobilePrev = document.getElementById('mobilePrevWeek');
+    const mobileNext = document.getElementById('mobileNextWeek');
+
+    if (mobilePrev) {
+        mobilePrev.addEventListener('click', () => {
+            if (currentWeekOffset > 0) {
+                currentWeekOffset--;
+                renderCalendar();
+                renderMobileCalendar();
+            }
+        });
+    }
+
+    if (mobileNext) {
+        mobileNext.addEventListener('click', () => {
+            currentWeekOffset++;
+            renderCalendar();
+            renderMobileCalendar();
+        });
+    }
 }
 
 function getWeekDates(offset = 0) {
@@ -173,15 +196,26 @@ function createDiv(className, innerHTML) {
 // Mobile Calendar Functions
 function renderMobileCalendar() {
     const weekDates = getWeekDates(currentWeekOffset);
+
+    // Update mobile week label
+    const mobileWeekLabel = document.getElementById('mobileWeekLabel');
+    if (mobileWeekLabel) {
+        const first = weekDates[0].date;
+        const last = weekDates[6].date;
+        mobileWeekLabel.textContent = `${first.getDate()}/${first.getMonth() + 1} – ${last.getDate()}/${last.getMonth() + 1}`;
+    }
+
+    // Update mobile prev button state
+    const mobilePrev = document.getElementById('mobilePrevWeek');
+    if (mobilePrev) {
+        mobilePrev.disabled = currentWeekOffset === 0;
+    }
+
     renderMobileDaySelector(weekDates);
 
-    // Select first day by default
-    if (!selectedMobileDay || currentWeekOffset !== 0) {
-        selectedMobileDay = weekDates[0];
-        renderMobileSlots(selectedMobileDay);
-    } else {
-        renderMobileSlots(selectedMobileDay);
-    }
+    // Select first day of the displayed week by default
+    selectedMobileDay = weekDates[0];
+    renderMobileSlots(selectedMobileDay);
 }
 
 function renderMobileDaySelector(weekDates) {

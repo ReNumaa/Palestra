@@ -24,6 +24,7 @@ body {
     background-color: var(--light-gray);
     color: var(--text-dark);
     line-height: 1.6;
+    overflow-x: hidden;
 }
 
 .container {
@@ -494,6 +495,45 @@ body {
     display: none;
 }
 
+/* Mobile week navigation */
+.mobile-week-nav {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 0.5rem;
+    margin-bottom: 0.75rem;
+}
+
+.mobile-week-btn {
+    background: var(--primary-cyan);
+    color: white;
+    border: none;
+    padding: 0.5rem 1rem;
+    border-radius: 8px;
+    cursor: pointer;
+    font-size: 0.85rem;
+    font-weight: 700;
+    transition: background 0.2s;
+    flex-shrink: 0;
+}
+
+.mobile-week-btn:hover:not(:disabled) {
+    background: var(--primary-cyan-dark);
+}
+
+.mobile-week-btn:disabled {
+    opacity: 0.3;
+    cursor: not-allowed;
+}
+
+.mobile-week-label {
+    font-size: 0.85rem;
+    font-weight: 600;
+    color: #555;
+    text-align: center;
+    flex: 1;
+}
+
 .mobile-day-selector {
     display: flex;
     overflow-x: auto;
@@ -798,8 +838,8 @@ body {
 
 /* Extra small devices */
 @media (max-width: 380px) {
-    .nav-brand h1 {
-        font-size: 1.1rem;
+    .nav-logo {
+        height: 30px;
     }
 
     .nav-menu a {
@@ -807,8 +847,18 @@ body {
         font-size: 0.75rem;
     }
 
-    .hero h2 {
-        font-size: 1.3rem;
+    .hero-name {
+        font-size: 1.6rem;
+    }
+
+    .hero-role {
+        font-size: 0.75rem;
+        letter-spacing: 2px;
+    }
+
+    .btn-whatsapp {
+        font-size: 0.85rem;
+        padding: 0.75rem 1.25rem;
     }
 
     .mobile-day-card {
@@ -822,6 +872,11 @@ body {
 
     .mobile-slot-type {
         font-size: 0.9rem;
+    }
+
+    .mobile-week-btn {
+        font-size: 0.75rem;
+        padding: 0.4rem 0.75rem;
     }
 }
 
