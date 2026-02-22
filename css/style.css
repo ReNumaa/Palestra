@@ -689,6 +689,10 @@ body {
         font-size: 12px;
     }
 
+    .container {
+        max-width: 900px;
+    }
+
     .calendar-grid {
         grid-template-columns: 58px repeat(7, 1fr);
     }
