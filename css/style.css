@@ -683,6 +683,27 @@ body {
     background-color: var(--success);
 }
 
+/* Desktop scale-down */
+@media (min-width: 769px) {
+    html {
+        font-size: 13px;
+    }
+
+    .calendar-grid {
+        grid-template-columns: 62px repeat(7, 1fr);
+    }
+
+    .calendar-slot {
+        min-height: 62px;
+        padding: 0.5rem;
+    }
+
+    .calendar-time {
+        padding: 0.5rem 0.3rem;
+        font-size: 0.78rem;
+    }
+}
+
 /* Responsive */
 @media (max-width: 768px) {
     /* Hide desktop calendar */
