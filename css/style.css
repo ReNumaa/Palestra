@@ -1059,81 +1059,103 @@ body {
 }
 
 @media (max-width: 600px) {
+    /* Bottom sheet layout */
     .modal-overlay {
-        padding: 0.5rem;
+        padding: 0;
+        align-items: flex-end;
+        justify-content: center;
     }
 
     .modal-box {
-        padding: 0.9rem 0.85rem;
-        border-radius: 12px;
-        max-height: 95vh;
+        padding: 1rem 1rem 1.25rem;
+        border-radius: 16px 16px 0 0;
+        max-height: 80vh;
+        width: 100%;
+        max-width: 100%;
+    }
+
+    /* Drag handle visual */
+    .modal-box::before {
+        content: '';
+        display: block;
+        width: 36px;
+        height: 4px;
+        background: #ccc;
+        border-radius: 2px;
+        margin: 0 auto 0.75rem;
     }
 
     .modal-close {
-        top: 0.6rem;
-        right: 0.6rem;
-        width: 28px;
-        height: 28px;
-        font-size: 0.85rem;
-    }
-
-    .modal-slot-info {
-        margin-bottom: 0.75rem;
-        padding-bottom: 0.75rem;
-    }
-
-    .modal-slot-badge {
-        font-size: 0.7rem;
-        padding: 0.2rem 0.55rem;
-        margin-bottom: 0.35rem;
-    }
-
-    .modal-slot-info h3 {
-        font-size: 1rem;
-    }
-
-    .modal-slot-time {
-        font-size: 0.85rem;
-    }
-
-    .modal-spots {
+        top: 0.75rem;
+        right: 0.75rem;
+        width: 26px;
+        height: 26px;
         font-size: 0.8rem;
     }
 
+    .modal-slot-info {
+        margin-bottom: 0.6rem;
+        padding-bottom: 0.6rem;
+    }
+
+    .modal-slot-badge {
+        font-size: 0.68rem;
+        padding: 0.15rem 0.5rem;
+        margin-bottom: 0.3rem;
+    }
+
+    .modal-slot-info h3 {
+        font-size: 0.95rem;
+    }
+
+    .modal-slot-time {
+        font-size: 0.82rem;
+    }
+
+    .modal-spots {
+        font-size: 0.78rem;
+    }
+
     .modal-box .booking-form {
-        gap: 0.35rem;
+        gap: 0.3rem;
+    }
+
+    .modal-box .form-group {
+        margin-bottom: 0;
     }
 
     .modal-box .form-group label {
-        font-size: 0.78rem;
+        font-size: 0.75rem;
+        margin-bottom: 0.2rem;
     }
 
     .modal-box .form-group input,
     .modal-box .form-group textarea {
-        padding: 0.35rem 0.6rem;
-        font-size: 0.85rem;
-    }
-
-    .modal-box .form-group textarea {
-        min-height: 48px;
-    }
-
-    .modal-box .btn-primary {
-        padding: 0.6rem;
+        padding: 0.4rem 0.6rem;
         font-size: 0.9rem;
     }
 
+    .modal-box .form-group textarea {
+        min-height: 44px;
+    }
+
+    .modal-box .btn-primary {
+        padding: 0.65rem;
+        font-size: 0.9rem;
+        margin-top: 0.4rem;
+    }
+
     .modal-box .confirmation-message {
-        padding: 1rem;
-        margin-top: 0.6rem;
+        padding: 0.85rem;
+        margin-top: 0.5rem;
     }
 
     .modal-box .confirmation-message h3 {
-        font-size: 1.1rem;
-        margin-bottom: 0.5rem;
+        font-size: 1rem;
+        margin-bottom: 0.4rem;
     }
 
     .modal-box .confirmation-message p {
-        font-size: 0.85rem;
+        font-size: 0.82rem;
     }
 }
