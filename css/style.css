@@ -337,7 +337,7 @@ body {
 }
 
 .calendar-slot.has-booking {
-    color: white;
+    color: #111;
     font-weight: 500;
 }
 
