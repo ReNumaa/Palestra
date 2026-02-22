@@ -39,9 +39,9 @@ const TIME_SLOTS = [
 ];
 
 // Bump this whenever DEFAULT_WEEKLY_SCHEDULE changes — forces a reset for all clients
-const SCHEDULE_VERSION = 'v3';
+const SCHEDULE_VERSION = 'v4';
 
-// Default weekly schedule template — mapped from image (80-min slots)
+// Default weekly schedule — all 11 slots assigned every day
 // GREEN = personal-training | YELLOW = small-group | RED = group-class
 const DEFAULT_WEEKLY_SCHEDULE = {
     'Lunedì': [
@@ -49,6 +49,7 @@ const DEFAULT_WEEKLY_SCHEDULE = {
         { time: '06:40 - 08:00', type: SLOT_TYPES.PERSONAL },
         { time: '08:00 - 09:20', type: SLOT_TYPES.SMALL_GROUP },
         { time: '09:20 - 10:40', type: SLOT_TYPES.PERSONAL },
+        { time: '10:40 - 12:00', type: SLOT_TYPES.SMALL_GROUP },
         { time: '12:00 - 13:20', type: SLOT_TYPES.PERSONAL },
         { time: '13:20 - 14:40', type: SLOT_TYPES.PERSONAL },
         { time: '14:40 - 16:00', type: SLOT_TYPES.PERSONAL },
@@ -59,17 +60,42 @@ const DEFAULT_WEEKLY_SCHEDULE = {
     'Martedì': [
         { time: '05:20 - 06:40', type: SLOT_TYPES.SMALL_GROUP },
         { time: '06:40 - 08:00', type: SLOT_TYPES.SMALL_GROUP },
+        { time: '08:00 - 09:20', type: SLOT_TYPES.SMALL_GROUP },
         { time: '09:20 - 10:40', type: SLOT_TYPES.SMALL_GROUP },
         { time: '10:40 - 12:00', type: SLOT_TYPES.SMALL_GROUP },
-        { time: '14:40 - 16:00', type: SLOT_TYPES.GROUP_CLASS }
+        { time: '12:00 - 13:20', type: SLOT_TYPES.SMALL_GROUP },
+        { time: '13:20 - 14:40', type: SLOT_TYPES.SMALL_GROUP },
+        { time: '14:40 - 16:00', type: SLOT_TYPES.GROUP_CLASS },
+        { time: '16:00 - 17:20', type: SLOT_TYPES.SMALL_GROUP },
+        { time: '17:20 - 18:40', type: SLOT_TYPES.SMALL_GROUP },
+        { time: '18:40 - 20:00', type: SLOT_TYPES.SMALL_GROUP }
     ],
     'Mercoledì': [
         { time: '05:20 - 06:40', type: SLOT_TYPES.SMALL_GROUP },
         { time: '06:40 - 08:00', type: SLOT_TYPES.SMALL_GROUP },
+        { time: '08:00 - 09:20', type: SLOT_TYPES.SMALL_GROUP },
         { time: '09:20 - 10:40', type: SLOT_TYPES.SMALL_GROUP },
-        { time: '14:40 - 16:00', type: SLOT_TYPES.SMALL_GROUP }
+        { time: '10:40 - 12:00', type: SLOT_TYPES.SMALL_GROUP },
+        { time: '12:00 - 13:20', type: SLOT_TYPES.SMALL_GROUP },
+        { time: '13:20 - 14:40', type: SLOT_TYPES.SMALL_GROUP },
+        { time: '14:40 - 16:00', type: SLOT_TYPES.SMALL_GROUP },
+        { time: '16:00 - 17:20', type: SLOT_TYPES.SMALL_GROUP },
+        { time: '17:20 - 18:40', type: SLOT_TYPES.SMALL_GROUP },
+        { time: '18:40 - 20:00', type: SLOT_TYPES.SMALL_GROUP }
     ],
-    'Giovedì': [],
+    'Giovedì': [
+        { time: '05:20 - 06:40', type: SLOT_TYPES.SMALL_GROUP },
+        { time: '06:40 - 08:00', type: SLOT_TYPES.SMALL_GROUP },
+        { time: '08:00 - 09:20', type: SLOT_TYPES.SMALL_GROUP },
+        { time: '09:20 - 10:40', type: SLOT_TYPES.SMALL_GROUP },
+        { time: '10:40 - 12:00', type: SLOT_TYPES.SMALL_GROUP },
+        { time: '12:00 - 13:20', type: SLOT_TYPES.SMALL_GROUP },
+        { time: '13:20 - 14:40', type: SLOT_TYPES.SMALL_GROUP },
+        { time: '14:40 - 16:00', type: SLOT_TYPES.SMALL_GROUP },
+        { time: '16:00 - 17:20', type: SLOT_TYPES.SMALL_GROUP },
+        { time: '17:20 - 18:40', type: SLOT_TYPES.SMALL_GROUP },
+        { time: '18:40 - 20:00', type: SLOT_TYPES.SMALL_GROUP }
+    ],
     'Venerdì': [
         { time: '05:20 - 06:40', type: SLOT_TYPES.GROUP_CLASS },
         { time: '06:40 - 08:00', type: SLOT_TYPES.PERSONAL },
@@ -77,19 +103,37 @@ const DEFAULT_WEEKLY_SCHEDULE = {
         { time: '09:20 - 10:40', type: SLOT_TYPES.SMALL_GROUP },
         { time: '10:40 - 12:00', type: SLOT_TYPES.SMALL_GROUP },
         { time: '12:00 - 13:20', type: SLOT_TYPES.SMALL_GROUP },
+        { time: '13:20 - 14:40', type: SLOT_TYPES.SMALL_GROUP },
         { time: '14:40 - 16:00', type: SLOT_TYPES.GROUP_CLASS },
-        { time: '17:20 - 18:40', type: SLOT_TYPES.SMALL_GROUP }
+        { time: '16:00 - 17:20', type: SLOT_TYPES.SMALL_GROUP },
+        { time: '17:20 - 18:40', type: SLOT_TYPES.SMALL_GROUP },
+        { time: '18:40 - 20:00', type: SLOT_TYPES.SMALL_GROUP }
     ],
     'Sabato': [
+        { time: '05:20 - 06:40', type: SLOT_TYPES.SMALL_GROUP },
+        { time: '06:40 - 08:00', type: SLOT_TYPES.SMALL_GROUP },
         { time: '08:00 - 09:20', type: SLOT_TYPES.SMALL_GROUP },
         { time: '09:20 - 10:40', type: SLOT_TYPES.SMALL_GROUP },
         { time: '10:40 - 12:00', type: SLOT_TYPES.SMALL_GROUP },
         { time: '12:00 - 13:20', type: SLOT_TYPES.PERSONAL },
-        { time: '14:40 - 16:00', type: SLOT_TYPES.SMALL_GROUP }
+        { time: '13:20 - 14:40', type: SLOT_TYPES.SMALL_GROUP },
+        { time: '14:40 - 16:00', type: SLOT_TYPES.SMALL_GROUP },
+        { time: '16:00 - 17:20', type: SLOT_TYPES.SMALL_GROUP },
+        { time: '17:20 - 18:40', type: SLOT_TYPES.SMALL_GROUP },
+        { time: '18:40 - 20:00', type: SLOT_TYPES.SMALL_GROUP }
     ],
     'Domenica': [
         { time: '05:20 - 06:40', type: SLOT_TYPES.PERSONAL },
-        { time: '08:00 - 09:20', type: SLOT_TYPES.PERSONAL }
+        { time: '06:40 - 08:00', type: SLOT_TYPES.SMALL_GROUP },
+        { time: '08:00 - 09:20', type: SLOT_TYPES.PERSONAL },
+        { time: '09:20 - 10:40', type: SLOT_TYPES.SMALL_GROUP },
+        { time: '10:40 - 12:00', type: SLOT_TYPES.SMALL_GROUP },
+        { time: '12:00 - 13:20', type: SLOT_TYPES.SMALL_GROUP },
+        { time: '13:20 - 14:40', type: SLOT_TYPES.SMALL_GROUP },
+        { time: '14:40 - 16:00', type: SLOT_TYPES.SMALL_GROUP },
+        { time: '16:00 - 17:20', type: SLOT_TYPES.SMALL_GROUP },
+        { time: '17:20 - 18:40', type: SLOT_TYPES.SMALL_GROUP },
+        { time: '18:40 - 20:00', type: SLOT_TYPES.SMALL_GROUP }
     ]
 };
 
