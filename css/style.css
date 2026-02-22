@@ -1,5 +1,6 @@
 :root {
-    --primary-red: #e63946;
+    --primary-cyan: #00AEEF;
+    --primary-cyan-dark: #0098d4;
     --dark-bg: #1a1a1a;
     --dark-gray: #2d2d2d;
     --light-gray: #f8f9fa;
@@ -47,11 +48,11 @@ body {
     align-items: center;
 }
 
-.nav-brand h1 {
-    color: var(--primary-red);
-    font-size: 1.8rem;
-    font-weight: bold;
-    letter-spacing: 2px;
+.nav-logo {
+    height: 48px;
+    width: auto;
+    display: block;
+    border-radius: 6px;
 }
 
 .nav-menu {
@@ -71,12 +72,12 @@ body {
 
 .nav-menu a:hover,
 .nav-menu a.active {
-    color: var(--primary-red);
-    background-color: rgba(230, 57, 70, 0.1);
+    color: var(--primary-cyan);
+    background-color: rgba(0, 174, 239, 0.1);
 }
 
 .admin-link {
-    border: 1px solid var(--primary-red);
+    border: 1px solid var(--primary-cyan);
 }
 
 /* Hero Section */
@@ -90,7 +91,7 @@ body {
 .hero h2 {
     font-size: 2.5rem;
     margin-bottom: 1rem;
-    color: var(--primary-red);
+    color: var(--primary-cyan);
 }
 
 .hero p {
@@ -161,7 +162,7 @@ body {
 }
 
 .btn-control {
-    background-color: var(--primary-red);
+    background-color: var(--primary-cyan);
     color: white;
     border: none;
     padding: 0.75rem 1.5rem;
@@ -172,9 +173,9 @@ body {
 }
 
 .btn-control:hover {
-    background-color: #d62839;
+    background-color: var(--primary-cyan-dark);
     transform: translateY(-2px);
-    box-shadow: 0 4px 8px rgba(230, 57, 70, 0.3);
+    box-shadow: 0 4px 8px rgba(0, 174, 239, 0.3);
 }
 
 /* Calendar Grid */
@@ -244,8 +245,8 @@ body {
 }
 
 .calendar-slot.selected {
-    border: 3px solid var(--primary-red);
-    box-shadow: 0 0 20px rgba(230, 57, 70, 0.4);
+    border: 3px solid var(--primary-cyan);
+    box-shadow: 0 0 20px rgba(0, 174, 239, 0.4);
 }
 
 .slot-type {
@@ -281,11 +282,11 @@ body {
     padding: 1.5rem;
     border-radius: 8px;
     margin-bottom: 2rem;
-    border-left: 4px solid var(--primary-red);
+    border-left: 4px solid var(--primary-cyan);
 }
 
 .selected-slot-info h3 {
-    color: var(--primary-red);
+    color: var(--primary-cyan);
     margin-bottom: 0.5rem;
 }
 
@@ -328,11 +329,11 @@ body {
 .form-group input:focus,
 .form-group textarea:focus {
     outline: none;
-    border-color: var(--primary-red);
+    border-color: var(--primary-cyan);
 }
 
 .btn-primary {
-    background-color: var(--primary-red);
+    background-color: var(--primary-cyan);
     color: white;
     border: none;
     padding: 1rem 2rem;
@@ -345,9 +346,9 @@ body {
 }
 
 .btn-primary:hover {
-    background-color: #d62839;
+    background-color: var(--primary-cyan-dark);
     transform: translateY(-2px);
-    box-shadow: 0 4px 12px rgba(230, 57, 70, 0.3);
+    box-shadow: 0 4px 12px rgba(0, 174, 239, 0.3);
 }
 
 .btn-primary:disabled {
@@ -409,9 +410,10 @@ body {
 }
 
 .mobile-day-card.active {
-    background: linear-gradient(135deg, var(--primary-red), #d62839);
+    background: linear-gradient(135deg, var(--primary-cyan), var(--primary-cyan-dark));
+
     color: white;
-    border-color: var(--primary-red);
+    border-color: var(--primary-cyan);
     transform: scale(1.05);
 }
 
@@ -468,8 +470,8 @@ body {
 }
 
 .mobile-slot-card.selected {
-    border: 2px solid var(--primary-red);
-    box-shadow: 0 4px 16px rgba(230, 57, 70, 0.3);
+    border: 2px solid var(--primary-cyan);
+    box-shadow: 0 4px 16px rgba(0, 174, 239, 0.3);
     transform: scale(1.02);
 }
 
@@ -510,7 +512,7 @@ body {
 }
 
 .spot-dot.filled {
-    background-color: var(--primary-red);
+    background-color: var(--primary-cyan);
 }
 
 .spot-dot.available {
@@ -538,9 +540,8 @@ body {
         padding: 0 10px;
     }
 
-    .nav-brand h1 {
-        font-size: 1.3rem;
-        letter-spacing: 1px;
+    .nav-logo {
+        height: 36px;
     }
 
     .nav-menu {
@@ -824,7 +825,7 @@ body {
 
 .modal-box .form-group input:focus,
 .modal-box .form-group textarea:focus {
-    border-color: var(--primary-red);
+    border-color: var(--primary-cyan);
 }
 
 .modal-box .btn-primary {
