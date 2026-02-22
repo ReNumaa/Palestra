@@ -1,0 +1,1288 @@
+/* Admin Styles */
+
+.login-section {
+    min-height: calc(100vh - 200px);
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    padding: 2rem;
+}
+
+.login-box {
+    background-color: white;
+    padding: 3rem;
+    border-radius: 12px;
+    box-shadow: 0 8px 24px rgba(0,0,0,0.15);
+    max-width: 400px;
+    width: 100%;
+}
+
+.login-box h2 {
+    color: var(--primary-red);
+    margin-bottom: 2rem;
+    text-align: center;
+}
+
+.hint {
+    text-align: center;
+    color: #666;
+    font-size: 0.85rem;
+    margin-top: 1rem;
+}
+
+/* Dashboard Section */
+.dashboard-section {
+    padding: 2rem 0;
+    min-height: calc(100vh - 200px);
+}
+
+.dashboard-section .container {
+    max-width: 1400px;
+    width: 95%;
+}
+
+.dashboard-section h2 {
+    margin-bottom: 2rem;
+    color: var(--dark-bg);
+}
+
+/* Admin Tabs */
+.admin-tabs {
+    display: flex;
+    gap: 0.5rem;
+    margin-bottom: 2rem;
+    border-bottom: 2px solid #ddd;
+    flex-wrap: wrap;
+}
+
+.admin-tab {
+    background: none;
+    border: none;
+    padding: 1rem 1.5rem;
+    font-size: 1rem;
+    font-weight: 600;
+    color: #666;
+    cursor: pointer;
+    transition: all 0.3s;
+    border-bottom: 3px solid transparent;
+    position: relative;
+    bottom: -2px;
+}
+
+.admin-tab:hover {
+    color: var(--primary-red);
+    background-color: rgba(230, 57, 70, 0.05);
+}
+
+.admin-tab.active {
+    color: var(--primary-red);
+    border-bottom-color: var(--primary-red);
+}
+
+.tab-content {
+    display: none;
+    animation: fadeIn 0.3s ease;
+}
+
+.tab-content.active {
+    display: block;
+}
+
+@keyframes fadeIn {
+    from {
+        opacity: 0;
+        transform: translateY(10px);
+    }
+    to {
+        opacity: 1;
+        transform: translateY(0);
+    }
+}
+
+.section-description {
+    color: #666;
+    margin-bottom: 1.5rem;
+    font-size: 0.95rem;
+}
+
+/* Analytics Filter Bar */
+.analytics-filter-bar {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.5rem;
+    align-items: center;
+    margin-bottom: 1.5rem;
+    padding: 1rem 1.25rem;
+    background: white;
+    border-radius: 12px;
+    box-shadow: 0 2px 8px rgba(0,0,0,0.08);
+}
+
+.filter-btn {
+    background: var(--light-gray);
+    border: 2px solid #ddd;
+    padding: 0.45rem 1rem;
+    border-radius: 20px;
+    cursor: pointer;
+    font-size: 0.9rem;
+    font-weight: 600;
+    color: #666;
+    transition: all 0.2s;
+}
+
+.filter-btn:hover {
+    border-color: var(--primary-red);
+    color: var(--primary-red);
+}
+
+.filter-btn.active {
+    background: var(--primary-red);
+    border-color: var(--primary-red);
+    color: white;
+}
+
+.filter-custom-dates {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    flex-wrap: wrap;
+}
+
+.filter-custom-dates input[type="date"] {
+    padding: 0.4rem 0.75rem;
+    border: 2px solid #ddd;
+    border-radius: 8px;
+    font-size: 0.9rem;
+    outline: none;
+    transition: border-color 0.2s;
+}
+
+.filter-custom-dates input[type="date"]:focus {
+    border-color: var(--primary-red);
+}
+
+.btn-apply-filter {
+    background: var(--primary-red);
+    color: white;
+    border: none;
+    padding: 0.4rem 1rem;
+    border-radius: 8px;
+    cursor: pointer;
+    font-size: 0.9rem;
+    font-weight: 600;
+    transition: background 0.2s;
+}
+
+.btn-apply-filter:hover {
+    background: #d62839;
+}
+
+/* Stats Grid */
+.stats-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+    gap: 1.5rem;
+    margin-bottom: 3rem;
+}
+
+.stat-card {
+    background: linear-gradient(135deg, white 0%, var(--light-gray) 100%);
+    padding: 2rem;
+    border-radius: 12px;
+    box-shadow: 0 4px 12px rgba(0,0,0,0.1);
+    transition: transform 0.3s;
+}
+
+.stat-card:hover {
+    transform: translateY(-5px);
+    box-shadow: 0 8px 20px rgba(0,0,0,0.15);
+}
+
+.stat-icon {
+    font-size: 2.5rem;
+    margin-bottom: 1rem;
+}
+
+.stat-card h3 {
+    font-size: 0.95rem;
+    color: #666;
+    margin-bottom: 0.5rem;
+    text-transform: uppercase;
+    letter-spacing: 1px;
+}
+
+.stat-value {
+    font-size: 2rem;
+    font-weight: bold;
+    color: var(--dark-bg);
+    margin-bottom: 0.5rem;
+}
+
+.stat-change {
+    font-size: 0.9rem;
+    font-weight: 600;
+    padding: 0.25rem 0.75rem;
+    border-radius: 20px;
+    display: inline-block;
+}
+
+.stat-change.positive {
+    color: var(--success);
+    background-color: rgba(6, 214, 160, 0.1);
+}
+
+.stat-change.negative {
+    color: var(--primary-red);
+    background-color: rgba(230, 57, 70, 0.1);
+}
+
+/* Dashboard Grid */
+.dashboard-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+    gap: 2rem;
+    margin-bottom: 2rem;
+}
+
+.dashboard-card {
+    background-color: white;
+    padding: 2rem;
+    border-radius: 12px;
+    box-shadow: 0 4px 12px rgba(0,0,0,0.1);
+}
+
+.dashboard-card h3 {
+    color: var(--dark-bg);
+    margin-bottom: 1.5rem;
+    padding-bottom: 0.75rem;
+    border-bottom: 2px solid var(--primary-red);
+}
+
+/* Chart Container */
+canvas {
+    max-width: 100%;
+    height: 250px !important;
+}
+
+/* Table */
+.table-responsive {
+    overflow-x: auto;
+}
+
+.bookings-table {
+    width: 100%;
+    border-collapse: collapse;
+    margin-top: 1rem;
+}
+
+.bookings-table th {
+    background-color: var(--dark-bg);
+    color: white;
+    padding: 1rem;
+    text-align: left;
+    font-weight: 600;
+}
+
+.bookings-table td {
+    padding: 1rem;
+    border-bottom: 1px solid #eee;
+}
+
+.bookings-table tr:hover {
+    background-color: var(--light-gray);
+}
+
+.status-badge {
+    padding: 0.25rem 0.75rem;
+    border-radius: 20px;
+    font-size: 0.85rem;
+    font-weight: 600;
+    display: inline-block;
+}
+
+.status-badge.confirmed {
+    background-color: rgba(6, 214, 160, 0.2);
+    color: var(--success);
+}
+
+.status-badge.pending {
+    background-color: rgba(255, 193, 7, 0.2);
+    color: var(--warning);
+}
+
+/* Popular Times */
+#popularTimes {
+    display: flex;
+    flex-direction: column;
+    gap: 1rem;
+}
+
+.time-bar {
+    display: flex;
+    align-items: center;
+    gap: 1rem;
+}
+
+.time-label {
+    min-width: 100px;
+    font-weight: 600;
+    color: var(--dark-bg);
+}
+
+.time-progress {
+    flex: 1;
+    height: 30px;
+    background-color: var(--light-gray);
+    border-radius: 15px;
+    overflow: hidden;
+    position: relative;
+}
+
+.time-progress-fill {
+    height: 100%;
+    background: linear-gradient(90deg, var(--primary-red) 0%, #ff6b6b 100%);
+    border-radius: 15px;
+    display: flex;
+    align-items: center;
+    justify-content: flex-end;
+    padding-right: 10px;
+    color: white;
+    font-size: 0.85rem;
+    font-weight: bold;
+    transition: width 0.5s ease;
+}
+
+/* Admin Calendar Styles */
+.admin-calendar-card {
+    margin-bottom: 2rem;
+}
+
+.admin-calendar-controls {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 1.5rem;
+    gap: 1rem;
+}
+
+.admin-calendar-controls h4 {
+    color: var(--dark-bg);
+    flex: 1;
+    text-align: center;
+    margin: 0;
+}
+
+.admin-day-selector {
+    display: flex;
+    overflow-x: auto;
+    gap: 0.75rem;
+    padding: 1rem 0;
+    margin-bottom: 1.5rem;
+    -webkit-overflow-scrolling: touch;
+}
+
+.admin-day-card {
+    flex: 0 0 auto;
+    min-width: 100px;
+    padding: 1rem;
+    background-color: var(--light-gray);
+    border-radius: 12px;
+    text-align: center;
+    cursor: pointer;
+    transition: all 0.3s;
+    border: 2px solid #ddd;
+}
+
+.admin-day-card.active {
+    background: linear-gradient(135deg, var(--primary-red), #d62839);
+    color: white;
+    border-color: var(--primary-red);
+    transform: scale(1.05);
+}
+
+.admin-day-card:hover {
+    transform: translateY(-3px);
+    box-shadow: 0 4px 8px rgba(0,0,0,0.15);
+}
+
+.admin-day-name {
+    font-size: 0.9rem;
+    font-weight: bold;
+    margin-bottom: 0.25rem;
+}
+
+.admin-day-date {
+    font-size: 1.3rem;
+    font-weight: bold;
+}
+
+.admin-day-count {
+    font-size: 0.75rem;
+    margin-top: 0.25rem;
+    opacity: 0.8;
+}
+
+.admin-day-view {
+    display: flex;
+    flex-direction: column;
+    gap: 1rem;
+}
+
+.admin-slot-card {
+    background-color: var(--light-gray);
+    border-radius: 12px;
+    padding: 1.5rem;
+    border-left: 5px solid #ddd;
+    transition: all 0.3s;
+}
+
+.admin-slot-card:hover {
+    box-shadow: 0 4px 12px rgba(0,0,0,0.1);
+    transform: translateX(3px);
+}
+
+.admin-slot-card.personal-training {
+    border-left-color: var(--personal-training);
+}
+
+.admin-slot-card.small-group {
+    border-left-color: var(--small-group);
+}
+
+.admin-slot-card.group-class {
+    border-left-color: var(--group-class);
+}
+
+.admin-slot-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 1rem;
+    flex-wrap: wrap;
+    gap: 0.5rem;
+}
+
+.admin-slot-time {
+    font-size: 1.2rem;
+    font-weight: bold;
+    color: var(--dark-bg);
+}
+
+.admin-slot-type {
+    font-size: 0.9rem;
+    padding: 0.25rem 0.75rem;
+    border-radius: 20px;
+    background-color: white;
+    font-weight: 600;
+}
+
+.admin-slot-capacity {
+    font-size: 0.9rem;
+    color: #666;
+}
+
+.admin-participants {
+    display: flex;
+    flex-direction: column;
+    gap: 0.75rem;
+}
+
+/* Horizontal Grid Layout for Participants */
+.admin-participants-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
+    gap: 1rem;
+    margin-top: 0.5rem;
+}
+
+.admin-participant-card {
+    background-color: white;
+    border-radius: 8px;
+    padding: 1rem;
+    border: 2px solid #e0e0e0;
+    transition: all 0.3s;
+    position: relative;
+}
+
+.admin-participant-card:hover {
+    border-color: var(--primary-red);
+    box-shadow: 0 4px 12px rgba(230, 57, 70, 0.15);
+    transform: translateY(-3px);
+}
+
+
+.participant-card-content {
+    display: flex;
+    flex-direction: column;
+    gap: 0.5rem;
+}
+
+.participant-name {
+    font-weight: 700;
+    color: var(--dark-bg);
+    font-size: 1rem;
+    padding-right: 30px; /* Space for number badge */
+}
+
+.participant-contact {
+    font-size: 0.85rem;
+    color: #666;
+    display: flex;
+    align-items: center;
+    gap: 0.25rem;
+}
+
+.participant-notes {
+    font-size: 0.8rem;
+    color: #999;
+    font-style: italic;
+    padding: 0.25rem 0.5rem;
+    background-color: #f8f9fa;
+    border-radius: 4px;
+}
+
+.participant-details {
+    font-size: 0.85rem;
+    color: #666;
+    display: flex;
+    gap: 1rem;
+    flex-wrap: wrap;
+}
+
+/* Legacy vertical layout (kept for backwards compatibility) */
+.admin-participant {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 0.75rem;
+    background-color: white;
+    border-radius: 8px;
+    transition: all 0.2s;
+}
+
+.admin-participant:hover {
+    background-color: #f0f0f0;
+    transform: translateX(5px);
+}
+
+.participant-info {
+    flex: 1;
+}
+
+.empty-slot {
+    text-align: center;
+    padding: 2rem;
+    color: #999;
+    font-style: italic;
+}
+
+/* Payment Checkbox */
+.payment-checkbox {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    margin-top: 0.5rem;
+}
+
+.payment-checkbox input[type="checkbox"] {
+    width: 20px;
+    height: 20px;
+    cursor: pointer;
+    accent-color: var(--success);
+}
+
+.payment-checkbox label {
+    cursor: pointer;
+    font-size: 0.9rem;
+    color: #666;
+    user-select: none;
+}
+
+.payment-checkbox input[type="checkbox"]:checked + label {
+    color: var(--success);
+    font-weight: 600;
+}
+
+/* Schedule Manager Styles */
+.schedule-day-tabs {
+    display: flex;
+    gap: 0.5rem;
+    margin-bottom: 1.5rem;
+    flex-wrap: wrap;
+}
+
+.schedule-day-tab {
+    background-color: var(--light-gray);
+    border: 2px solid #ddd;
+    padding: 0.75rem 1rem;
+    border-radius: 8px;
+    cursor: pointer;
+    transition: all 0.3s;
+    font-weight: 600;
+    color: #666;
+    text-align: center;
+    min-width: 90px;
+}
+
+.schedule-day-tab small {
+    display: block;
+    font-size: 0.75rem;
+    margin-top: 0.25rem;
+    opacity: 0.8;
+}
+
+.schedule-day-tab:hover {
+    background-color: #e0e0e0;
+    transform: translateY(-2px);
+}
+
+.schedule-day-tab.active {
+    background: linear-gradient(135deg, var(--primary-red), #d62839);
+    color: white;
+    border-color: var(--primary-red);
+}
+
+.schedule-day-tab.active small {
+    opacity: 1;
+}
+
+.schedule-slots-list {
+    display: flex;
+    flex-direction: column;
+    gap: 1rem;
+    margin-bottom: 1.5rem;
+}
+
+.schedule-slot-item {
+    background-color: var(--light-gray);
+    padding: 1.25rem;
+    border-radius: 8px;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    gap: 1rem;
+    flex-wrap: wrap;
+}
+
+.schedule-slot-info {
+    flex: 1;
+    display: flex;
+    gap: 1.5rem;
+    align-items: center;
+    flex-wrap: wrap;
+}
+
+.schedule-slot-time {
+    font-weight: 600;
+    color: var(--dark-bg);
+    font-size: 1.1rem;
+}
+
+.schedule-slot-type-badge {
+    padding: 0.4rem 1rem;
+    border-radius: 20px;
+    font-size: 0.85rem;
+    font-weight: 600;
+}
+
+.schedule-slot-type-badge.personal-training {
+    background-color: var(--personal-training);
+    color: white;
+}
+
+.schedule-slot-type-badge.small-group {
+    background-color: var(--small-group);
+    color: white;
+}
+
+.schedule-slot-type-badge.group-class {
+    background-color: var(--group-class);
+    color: #333;
+}
+
+.schedule-slot-actions {
+    display: flex;
+    gap: 0.5rem;
+}
+
+.btn-delete {
+    background-color: #dc3545;
+    color: white;
+    border: none;
+    padding: 0.5rem 1rem;
+    border-radius: 5px;
+    cursor: pointer;
+    transition: all 0.3s;
+}
+
+.btn-delete:hover {
+    background-color: #c82333;
+    transform: scale(1.05);
+}
+
+.add-slot-form {
+    background-color: var(--light-gray);
+    padding: 1.5rem;
+    border-radius: 12px;
+    margin-top: 1.5rem;
+}
+
+.add-slot-form h4 {
+    margin-bottom: 1rem;
+    color: var(--dark-bg);
+}
+
+.form-row {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+    gap: 1rem;
+    margin-bottom: 1rem;
+}
+
+.form-group-schedule {
+    display: flex;
+    flex-direction: column;
+    gap: 0.5rem;
+}
+
+.form-group-schedule label {
+    font-weight: 600;
+    color: var(--dark-bg);
+    font-size: 0.9rem;
+}
+
+.form-group-schedule select,
+.form-group-schedule input {
+    padding: 0.75rem;
+    border: 2px solid #ddd;
+    border-radius: 5px;
+    font-size: 1rem;
+}
+
+.form-group-schedule select:focus,
+.form-group-schedule input:focus {
+    outline: none;
+    border-color: var(--primary-red);
+}
+
+.btn-add-slot {
+    background-color: var(--success);
+    color: white;
+    border: none;
+    padding: 0.75rem 1.5rem;
+    border-radius: 5px;
+    cursor: pointer;
+    font-size: 1rem;
+    font-weight: 600;
+    transition: all 0.3s;
+}
+
+.btn-add-slot:hover {
+    background-color: #05b886;
+    transform: translateY(-2px);
+    box-shadow: 0 4px 8px rgba(6, 214, 160, 0.3);
+}
+
+/* Schedule Slot Item with Dropdown Selector */
+.schedule-slot-item-selector {
+    background-color: white;
+    padding: 1.25rem;
+    border-radius: 8px;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    gap: 1rem;
+    flex-wrap: wrap;
+    border: 2px solid #ddd;
+    transition: all 0.3s;
+}
+
+.schedule-slot-item-selector:hover {
+    border-color: var(--primary-red);
+    box-shadow: 0 2px 8px rgba(230, 57, 70, 0.15);
+}
+
+.schedule-slot-dropdown {
+    flex: 1;
+    min-width: 200px;
+}
+
+.slot-type-select {
+    width: 100%;
+    padding: 0.75rem 1rem;
+    border: 2px solid #ddd;
+    border-radius: 5px;
+    font-size: 1rem;
+    font-weight: 500;
+    background-color: white;
+    cursor: pointer;
+    transition: all 0.3s;
+}
+
+.slot-type-select:hover {
+    border-color: var(--primary-red);
+    background-color: rgba(230, 57, 70, 0.05);
+}
+
+.slot-type-select:focus {
+    outline: none;
+    border-color: var(--primary-red);
+    box-shadow: 0 0 0 3px rgba(230, 57, 70, 0.1);
+}
+
+.current-type-badge {
+    padding: 0.5rem 1rem;
+    border-radius: 20px;
+    font-size: 0.85rem;
+    font-weight: 600;
+    white-space: nowrap;
+}
+
+.current-type-badge.personal-training {
+    background-color: var(--personal-training);
+    color: white;
+}
+
+.current-type-badge.small-group {
+    background-color: var(--small-group);
+    color: white;
+}
+
+.current-type-badge.group-class {
+    background-color: var(--group-class);
+    color: #333;
+}
+
+/* Payments Section */
+.payments-stats {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+    gap: 1.5rem;
+    margin-bottom: 2rem;
+}
+
+.payment-stat-card {
+    background: linear-gradient(135deg, #ff6b6b, #ee5a6f);
+    padding: 1.5rem;
+    border-radius: 12px;
+    color: white;
+    text-align: center;
+}
+
+.payment-stat-card h4 {
+    margin: 0 0 0.5rem 0;
+    font-size: 1rem;
+    opacity: 0.9;
+}
+
+.payment-stat-card--clickable {
+    cursor: pointer;
+    transition: transform 0.2s, box-shadow 0.2s;
+}
+
+.payment-stat-card--clickable:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 6px 20px rgba(0,0,0,0.2);
+}
+
+.debtors-toggle-hint {
+    display: block;
+    font-size: 0.78rem;
+    opacity: 0.8;
+    margin-top: 0.4rem;
+    letter-spacing: 0.03em;
+}
+
+/* Search Dropdown */
+.payment-search {
+    position: relative;
+    margin-bottom: 1.5rem;
+}
+
+.debtor-search-dropdown {
+    position: absolute;
+    top: 100%;
+    left: 0;
+    right: 80px;
+    background: white;
+    border: 2px solid #ff6b6b;
+    border-top: none;
+    border-radius: 0 0 10px 10px;
+    box-shadow: 0 6px 20px rgba(0,0,0,0.12);
+    z-index: 100;
+    max-height: 260px;
+    overflow-y: auto;
+}
+
+.dropdown-item {
+    padding: 0.65rem 1rem;
+    cursor: pointer;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    font-size: 0.95rem;
+    border-bottom: 1px solid #f0f0f0;
+    transition: background 0.15s;
+}
+
+.dropdown-item:last-child { border-bottom: none; }
+
+.dropdown-item:hover { background-color: #fff0f0; }
+
+.dropdown-item-name {
+    font-weight: 600;
+    color: var(--dark-bg);
+}
+
+.dropdown-item-debt {
+    font-size: 0.85rem;
+    color: #ff6b6b;
+    font-weight: 700;
+}
+
+.dropdown-no-results {
+    padding: 0.75rem 1rem;
+    color: #999;
+    font-size: 0.9rem;
+    text-align: center;
+}
+
+.payment-total {
+    font-size: 2rem;
+    font-weight: bold;
+    margin: 0;
+}
+
+.debtors-list {
+    display: flex;
+    flex-direction: column;
+    gap: 1rem;
+}
+
+
+.debtor-info {
+    flex: 1;
+}
+
+.debtor-name {
+    font-size: 1.2rem;
+    font-weight: bold;
+    color: var(--dark-bg);
+    margin-bottom: 0.25rem;
+}
+
+.debtor-contact {
+    font-size: 0.9rem;
+    color: #666;
+    display: flex;
+    gap: 1rem;
+    flex-wrap: wrap;
+}
+
+.debtor-amount {
+    background-color: #ff6b6b;
+    color: white;
+    padding: 0.5rem 1rem;
+    border-radius: 8px;
+    font-size: 1.1rem;
+    font-weight: bold;
+    white-space: nowrap;
+}
+
+.debtor-bookings {
+    display: flex;
+    flex-direction: column;
+    gap: 0.5rem;
+}
+
+.debtor-booking-item {
+    background-color: #f8f9fa;
+    padding: 0.75rem;
+    border-radius: 6px;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    flex-wrap: wrap;
+    gap: 0.5rem;
+}
+
+.debtor-booking-details {
+    flex: 1;
+    font-size: 0.9rem;
+    color: #333;
+}
+
+.debtor-booking-price {
+    font-weight: bold;
+    color: #ff6b6b;
+}
+
+.btn-mark-paid {
+    background-color: var(--success);
+    color: white;
+    border: none;
+    padding: 0.5rem 1rem;
+    border-radius: 5px;
+    cursor: pointer;
+    font-size: 0.85rem;
+    transition: all 0.3s;
+}
+
+.btn-mark-paid:hover {
+    background-color: #05b886;
+    transform: scale(1.05);
+}
+
+.btn-delete-booking {
+    position: absolute;
+    top: 0.5rem;
+    right: 0.5rem;
+    background: linear-gradient(135deg, var(--primary-red), #d62839);
+    color: white;
+    width: 28px;
+    height: 28px;
+    border-radius: 50%;
+    border: none;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-weight: bold;
+    font-size: 0.85rem;
+    cursor: pointer;
+    transition: transform 0.2s, opacity 0.2s;
+    line-height: 1;
+}
+
+.btn-delete-booking:hover {
+    opacity: 0.85;
+    transform: scale(1.15);
+}
+
+.debt-warning {
+    background-color: #fff3cd;
+    border-left: 4px solid #ff6b6b;
+    padding: 0.75rem 1rem;
+    border-radius: 6px;
+    margin-top: 0.5rem;
+    font-size: 0.9rem;
+    color: #856404;
+    font-weight: 600;
+}
+
+/* Payment Search Bar */
+.payment-search {
+    margin-bottom: 1.5rem;
+}
+
+.search-input-group {
+    display: flex;
+    gap: 0.5rem;
+}
+
+.search-input-group input {
+    flex: 1;
+    padding: 0.75rem 1rem;
+    border: 2px solid #e0e0e0;
+    border-radius: 8px;
+    font-size: 1rem;
+    transition: border-color 0.2s;
+    outline: none;
+}
+
+.search-input-group input:focus {
+    border-color: #ff6b6b;
+}
+
+.btn-search {
+    background-color: var(--primary-red);
+    color: white;
+    border: none;
+    padding: 0.75rem 1.25rem;
+    border-radius: 8px;
+    font-size: 1rem;
+    cursor: pointer;
+    transition: all 0.2s;
+    white-space: nowrap;
+}
+
+.btn-search:hover {
+    background-color: #d62839;
+    transform: scale(1.03);
+}
+
+/* Search Results Section */
+.debtor-search-results {
+    background-color: #fff8f8;
+    border: 2px solid #ff6b6b;
+    border-radius: 12px;
+    padding: 1rem 1.25rem;
+    margin-bottom: 1.5rem;
+}
+
+.search-results-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 1rem;
+}
+
+.search-results-header h4 {
+    margin: 0;
+    color: var(--dark-bg);
+}
+
+.btn-clear-search {
+    background: none;
+    border: 1px solid #ccc;
+    padding: 0.25rem 0.6rem;
+    border-radius: 6px;
+    cursor: pointer;
+    font-size: 0.85rem;
+    color: #666;
+    transition: all 0.2s;
+}
+
+.btn-clear-search:hover {
+    background-color: #f0f0f0;
+    color: #333;
+}
+
+/* Collapsible Debtor Cards */
+.debtor-card {
+    background-color: white;
+    border-radius: 12px;
+    border-left: 5px solid #ff6b6b;
+    overflow: hidden;
+    transition: box-shadow 0.3s;
+}
+
+.debtor-card:hover {
+    box-shadow: 0 4px 12px rgba(255, 107, 107, 0.2);
+}
+
+.debtor-card-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 1.25rem 1.5rem;
+    cursor: pointer;
+    user-select: none;
+    flex-wrap: wrap;
+    gap: 0.75rem;
+    transition: background-color 0.2s;
+}
+
+.debtor-card-header:hover {
+    background-color: #fef5f5;
+}
+
+.debtor-card-header .debtor-info {
+    flex: 1;
+}
+
+.debtor-toggle {
+    font-size: 1.1rem;
+    color: #ff6b6b;
+    transition: transform 0.25s;
+    line-height: 1;
+}
+
+.debtor-card.open .debtor-toggle {
+    transform: rotate(180deg);
+}
+
+.debtor-card-body {
+    display: none;
+    padding: 0 1.5rem 1.25rem;
+    border-top: 1px solid #f0f0f0;
+}
+
+.debtor-card.open .debtor-card-body {
+    display: block;
+}
+
+/* Action Buttons */
+.btn-action {
+    display: block;
+    width: 100%;
+    padding: 1rem;
+    margin-bottom: 1rem;
+    background-color: var(--primary-red);
+    color: white;
+    border: none;
+    border-radius: 8px;
+    cursor: pointer;
+    font-size: 1rem;
+    transition: all 0.3s;
+    text-align: left;
+}
+
+.btn-action:hover {
+    background-color: #d62839;
+    transform: translateX(5px);
+}
+
+/* Responsive */
+@media (max-width: 768px) {
+    .stats-grid {
+        grid-template-columns: 1fr;
+    }
+
+    .dashboard-grid {
+        grid-template-columns: 1fr;
+    }
+
+    .bookings-table {
+        font-size: 0.85rem;
+    }
+
+    .bookings-table th,
+    .bookings-table td {
+        padding: 0.5rem;
+    }
+
+    .schedule-slot-item-selector {
+        flex-direction: column;
+        align-items: stretch;
+    }
+
+    .schedule-slot-dropdown {
+        min-width: 100%;
+    }
+
+    .current-type-badge {
+        text-align: center;
+    }
+
+    .admin-tabs {
+        font-size: 0.85rem;
+    }
+
+    .admin-tab {
+        padding: 0.75rem 1rem;
+        font-size: 0.85rem;
+    }
+
+    /* Mobile: Stack participants vertically */
+    .admin-participants-grid {
+        grid-template-columns: 1fr;
+    }
+
+    .admin-participant-card {
+        padding: 0.75rem;
+    }
+
+    .btn-delete-booking {
+        width: 24px;
+        height: 24px;
+        font-size: 0.75rem;
+    }
+
+    .participant-name {
+        font-size: 0.9rem;
+    }
+
+    .participant-contact {
+        font-size: 0.8rem;
+    }
+}
