@@ -1076,7 +1076,7 @@ body {
 }
 
 .modal-box .confirmation-message {
-    background: linear-gradient(135deg, #06d6a0, #05b886);
+    background: linear-gradient(135deg, var(--primary-cyan), var(--primary-cyan-dark));
     color: white;
     border-radius: 12px;
     padding: 1.5rem;
