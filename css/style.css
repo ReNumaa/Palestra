@@ -1059,9 +1059,81 @@ body {
 }
 
 @media (max-width: 600px) {
-    .modal-box {
-        padding: 1.25rem 1rem;
-        border-radius: 12px;
+    .modal-overlay {
+        padding: 0.5rem;
     }
 
+    .modal-box {
+        padding: 0.9rem 0.85rem;
+        border-radius: 12px;
+        max-height: 95vh;
+    }
+
+    .modal-close {
+        top: 0.6rem;
+        right: 0.6rem;
+        width: 28px;
+        height: 28px;
+        font-size: 0.85rem;
+    }
+
+    .modal-slot-info {
+        margin-bottom: 0.75rem;
+        padding-bottom: 0.75rem;
+    }
+
+    .modal-slot-badge {
+        font-size: 0.7rem;
+        padding: 0.2rem 0.55rem;
+        margin-bottom: 0.35rem;
+    }
+
+    .modal-slot-info h3 {
+        font-size: 1rem;
+    }
+
+    .modal-slot-time {
+        font-size: 0.85rem;
+    }
+
+    .modal-spots {
+        font-size: 0.8rem;
+    }
+
+    .modal-box .booking-form {
+        gap: 0.35rem;
+    }
+
+    .modal-box .form-group label {
+        font-size: 0.78rem;
+    }
+
+    .modal-box .form-group input,
+    .modal-box .form-group textarea {
+        padding: 0.35rem 0.6rem;
+        font-size: 0.85rem;
+    }
+
+    .modal-box .form-group textarea {
+        min-height: 48px;
+    }
+
+    .modal-box .btn-primary {
+        padding: 0.6rem;
+        font-size: 0.9rem;
+    }
+
+    .modal-box .confirmation-message {
+        padding: 1rem;
+        margin-top: 0.6rem;
+    }
+
+    .modal-box .confirmation-message h3 {
+        font-size: 1.1rem;
+        margin-bottom: 0.5rem;
+    }
+
+    .modal-box .confirmation-message p {
+        font-size: 0.85rem;
+    }
 }
