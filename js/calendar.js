@@ -153,7 +153,7 @@ function createSlot(dateInfo, timeSlot) {
 
         slot.innerHTML = `
             <div class="slot-type">${SLOT_NAMES[slotType]}</div>
-            ${slotType !== SLOT_TYPES.GROUP_CLASS ? `<div class="slot-spots">${maxCapacity - remainingSpots}/${maxCapacity} prenotati</div>` : ''}
+            ${slotType !== SLOT_TYPES.GROUP_CLASS ? `<div class="slot-spots">${remainingSpots} ${remainingSpots === 1 ? 'disponibile' : 'disponibili'}</div>` : ''}
         `;
 
         // Only allow booking if not full and not in the past
@@ -291,24 +291,12 @@ function createMobileSlotCard(dateInfo, scheduledSlot) {
         slotCard.classList.add('slot-full');
     }
 
-    // Create spots indicator
-    let spotsHTML = '<div class="spots-indicator">';
-    for (let i = 0; i < maxCapacity; i++) {
-        const dotClass = i < (maxCapacity - remainingSpots) ? 'filled' : 'available';
-        spotsHTML += `<span class="spot-dot ${dotClass}"></span>`;
-    }
-    spotsHTML += '</div>';
-
     slotCard.innerHTML = `
-        <div class="mobile-slot-time">
-            🕐 ${timeSlot}
+        <div class="mobile-slot-header">
+            <span class="mobile-slot-time">🕐 ${timeSlot}</span>
+            ${slotType !== SLOT_TYPES.GROUP_CLASS ? `<span class="mobile-slot-available">${remainingSpots} ${remainingSpots === 1 ? 'disponibile' : 'disponibili'}</span>` : ''}
         </div>
         <div class="mobile-slot-type">${SLOT_NAMES[slotType]}</div>
-        ${slotType !== SLOT_TYPES.GROUP_CLASS ? `
-        <div class="mobile-slot-spots">
-            ${spotsHTML}
-            <span>${maxCapacity - remainingSpots}/${maxCapacity} prenotati</span>
-        </div>` : ''}
     `;
 
     // Check if slot is in the past
