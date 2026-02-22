@@ -515,6 +515,14 @@ body {
     font-weight: 700;
     transition: background 0.2s;
     flex-shrink: 0;
+    -webkit-appearance: none;
+    -moz-appearance: none;
+    appearance: none;
+    font-family: inherit;
+    line-height: 1.4;
+    display: inline-flex;
+    align-items: center;
+    gap: 0.25rem;
 }
 
 .mobile-week-btn:hover:not(:disabled) {
