@@ -1,5 +1,9 @@
 /* Admin Styles */
 
+.container {
+    max-width: 780px;
+}
+
 .login-section {
     min-height: calc(100vh - 200px);
     display: flex;
