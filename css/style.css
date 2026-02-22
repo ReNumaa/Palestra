@@ -544,25 +544,21 @@ body {
 
 .mobile-day-selector {
     display: flex;
-    overflow-x: auto;
-    gap: 0.5rem;
-    padding: 1rem 0;
+    gap: 0.3rem;
+    padding: 0.75rem 0;
     margin-bottom: 1.5rem;
-    -webkit-overflow-scrolling: touch;
-    scroll-snap-type: x mandatory;
 }
 
 .mobile-day-card {
-    flex: 0 0 auto;
-    min-width: 80px;
-    padding: 1rem;
+    flex: 1 1 0;
+    min-width: 0;
+    padding: 0.6rem 0.2rem;
     background-color: white;
-    border-radius: 12px;
+    border-radius: 10px;
     text-align: center;
     cursor: pointer;
     transition: all 0.3s;
     border: 2px solid #ddd;
-    scroll-snap-align: start;
 }
 
 .mobile-day-card.active {
@@ -574,18 +570,18 @@ body {
 }
 
 .mobile-day-name {
-    font-size: 0.85rem;
+    font-size: 0.7rem;
     font-weight: bold;
-    margin-bottom: 0.25rem;
+    margin-bottom: 0.2rem;
 }
 
 .mobile-day-date {
-    font-size: 1.2rem;
+    font-size: 1rem;
     font-weight: bold;
 }
 
 .mobile-day-month {
-    font-size: 0.75rem;
+    font-size: 0.65rem;
     opacity: 0.8;
 }
 
@@ -870,8 +866,20 @@ body {
     }
 
     .mobile-day-card {
-        min-width: 70px;
-        padding: 0.75rem;
+        padding: 0.45rem 0.1rem;
+        border-radius: 8px;
+    }
+
+    .mobile-day-name {
+        font-size: 0.6rem;
+    }
+
+    .mobile-day-date {
+        font-size: 0.9rem;
+    }
+
+    .mobile-day-month {
+        font-size: 0.55rem;
     }
 
     .mobile-slot-time {
