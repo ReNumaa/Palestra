@@ -25,7 +25,7 @@ function updateNavAuth() {
         userMenu.style.display   = 'flex';
         if (userName) userName.textContent = user.name.split(' ')[0];
     } else {
-        loginLink.style.display  = '';
+        loginLink.style.display  = 'flex';
         userMenu.style.display   = 'none';
     }
 }
@@ -85,9 +85,22 @@ function renderProfileTab(tab) {
     `).join('');
 }
 
+// Hamburger sidebar toggle
+function toggleNavMenu() {
+    const sidebar = document.getElementById('navSidebar');
+    const overlay = document.getElementById('navSidebarOverlay');
+    if (!sidebar) return;
+    const isOpen = sidebar.classList.toggle('open');
+    if (overlay) overlay.classList.toggle('open', isOpen);
+    document.body.classList.toggle('nav-open', isOpen);
+}
+
 // Init on DOM ready
 document.addEventListener('DOMContentLoaded', () => {
     updateNavAuth();
+
+    const hamburger = document.getElementById('navHamburger');
+    if (hamburger) hamburger.addEventListener('click', toggleNavMenu);
 
     const logoutBtn = document.getElementById('navLogoutBtn');
     if (logoutBtn) {
