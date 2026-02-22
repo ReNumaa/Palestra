@@ -835,7 +835,7 @@ function selectScheduleDate(dateFormatted, dayName) {
     renderScheduleManager();
 }
 
-// All possible time slots — 80 min each, 05:20 → 20:00
+// All possible time slots — 80 min each, 05:20 → 21:20
 const ALL_TIME_SLOTS = [
     '05:20 - 06:40',
     '06:40 - 08:00',
@@ -847,7 +847,8 @@ const ALL_TIME_SLOTS = [
     '14:40 - 16:00',
     '16:00 - 17:20',
     '17:20 - 18:40',
-    '18:40 - 20:00'
+    '18:40 - 20:00',
+    '20:00 - 21:20'
 ];
 
 // Get schedule for a specific date (uses overrides if exist, otherwise template)
