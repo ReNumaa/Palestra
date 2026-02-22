@@ -960,6 +960,13 @@ body {
     border-bottom: 1px solid #eee;
 }
 
+.modal-slot-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 0.4rem;
+}
+
 .modal-slot-badge {
     display: inline-block;
     padding: 0.25rem 0.75rem;
