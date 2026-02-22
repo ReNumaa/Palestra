@@ -364,7 +364,7 @@ function drawTypeChart(filteredBookings) {
     });
 
     chart.drawPieChart({
-        labels: ['Allenamento in autonomia', 'Lezione PT gruppo', 'Slot prenotato'],
+        labels: ['Autonomia', 'Lezione di Gruppo', 'Slot prenotato'],
         values: [
             distribution[SLOT_TYPES.PERSONAL] || 0,
             distribution[SLOT_TYPES.SMALL_GROUP] || 0,
@@ -902,8 +902,8 @@ function renderAllTimeSlots() {
                 <div class="schedule-slot-dropdown">
                     <select onchange="updateSlotType('${timeSlot}', this.value)" class="slot-type-select">
                         <option value="">-- Nessuna lezione --</option>
-                        <option value="${SLOT_TYPES.PERSONAL}" ${currentType === SLOT_TYPES.PERSONAL ? 'selected' : ''}>Allenamento in autonomia</option>
-                        <option value="${SLOT_TYPES.SMALL_GROUP}" ${currentType === SLOT_TYPES.SMALL_GROUP ? 'selected' : ''}>Lezione personal training gruppo</option>
+                        <option value="${SLOT_TYPES.PERSONAL}" ${currentType === SLOT_TYPES.PERSONAL ? 'selected' : ''}>Autonomia</option>
+                        <option value="${SLOT_TYPES.SMALL_GROUP}" ${currentType === SLOT_TYPES.SMALL_GROUP ? 'selected' : ''}>Lezione di Gruppo</option>
                         <option value="${SLOT_TYPES.GROUP_CLASS}" ${currentType === SLOT_TYPES.GROUP_CLASS ? 'selected' : ''}>Slot prenotato</option>
                     </select>
                 </div>
