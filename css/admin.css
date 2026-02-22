@@ -53,6 +53,7 @@
     margin-bottom: 2rem;
     border-bottom: 2px solid #ddd;
     flex-wrap: wrap;
+    justify-content: center;
 }
 
 .admin-tab {
@@ -377,6 +378,7 @@ canvas {
     padding: 1rem 0;
     margin-bottom: 1.5rem;
     -webkit-overflow-scrolling: touch;
+    justify-content: center;
 }
 
 .admin-day-card {
@@ -607,6 +609,7 @@ canvas {
     gap: 0.5rem;
     margin-bottom: 1.5rem;
     flex-wrap: wrap;
+    justify-content: center;
 }
 
 .schedule-day-tab {
