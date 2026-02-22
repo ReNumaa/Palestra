@@ -31,9 +31,6 @@ function openBookingModal(dateInfo, timeSlot, slotType, remainingSpots) {
     // Show modal
     document.getElementById('bookingModal').style.display = 'flex';
     document.body.style.overflow = 'hidden';
-
-    // Focus first input
-    setTimeout(() => document.getElementById('name').focus(), 100);
 }
 
 function closeBookingModal() {
