@@ -38,70 +38,76 @@ const TIME_SLOTS = [
     '18:40 - 20:00'
 ];
 
-// Default weekly schedule template (used only if no custom schedule exists)
+// Bump this whenever DEFAULT_WEEKLY_SCHEDULE changes — forces a reset for all clients
+const SCHEDULE_VERSION = 'v3';
+
+// Default weekly schedule template — mapped from image (80-min slots)
+// GREEN = personal-training | YELLOW = small-group | RED = group-class
 const DEFAULT_WEEKLY_SCHEDULE = {
     'Lunedì': [
         { time: '05:20 - 06:40', type: SLOT_TYPES.PERSONAL },
-        { time: '06:40 - 08:00', type: SLOT_TYPES.SMALL_GROUP },
-        { time: '08:00 - 09:20', type: SLOT_TYPES.GROUP_CLASS },
+        { time: '06:40 - 08:00', type: SLOT_TYPES.PERSONAL },
+        { time: '08:00 - 09:20', type: SLOT_TYPES.SMALL_GROUP },
         { time: '09:20 - 10:40', type: SLOT_TYPES.PERSONAL },
-        { time: '17:20 - 18:40', type: SLOT_TYPES.SMALL_GROUP },
-        { time: '18:40 - 20:00', type: SLOT_TYPES.GROUP_CLASS }
+        { time: '12:00 - 13:20', type: SLOT_TYPES.PERSONAL },
+        { time: '13:20 - 14:40', type: SLOT_TYPES.PERSONAL },
+        { time: '14:40 - 16:00', type: SLOT_TYPES.PERSONAL },
+        { time: '16:00 - 17:20', type: SLOT_TYPES.PERSONAL },
+        { time: '17:20 - 18:40', type: SLOT_TYPES.PERSONAL },
+        { time: '18:40 - 20:00', type: SLOT_TYPES.PERSONAL }
     ],
     'Martedì': [
-        { time: '05:20 - 06:40', type: SLOT_TYPES.PERSONAL },
-        { time: '08:00 - 09:20', type: SLOT_TYPES.GROUP_CLASS },
-        { time: '10:40 - 12:00', type: SLOT_TYPES.PERSONAL },
-        { time: '17:20 - 18:40', type: SLOT_TYPES.GROUP_CLASS },
-        { time: '18:40 - 20:00', type: SLOT_TYPES.SMALL_GROUP }
+        { time: '05:20 - 06:40', type: SLOT_TYPES.SMALL_GROUP },
+        { time: '06:40 - 08:00', type: SLOT_TYPES.SMALL_GROUP },
+        { time: '09:20 - 10:40', type: SLOT_TYPES.SMALL_GROUP },
+        { time: '10:40 - 12:00', type: SLOT_TYPES.SMALL_GROUP },
+        { time: '14:40 - 16:00', type: SLOT_TYPES.GROUP_CLASS }
     ],
     'Mercoledì': [
+        { time: '05:20 - 06:40', type: SLOT_TYPES.SMALL_GROUP },
         { time: '06:40 - 08:00', type: SLOT_TYPES.SMALL_GROUP },
-        { time: '08:00 - 09:20', type: SLOT_TYPES.GROUP_CLASS },
-        { time: '09:20 - 10:40', type: SLOT_TYPES.PERSONAL },
-        { time: '16:00 - 17:20', type: SLOT_TYPES.SMALL_GROUP },
-        { time: '17:20 - 18:40', type: SLOT_TYPES.GROUP_CLASS },
-        { time: '18:40 - 20:00', type: SLOT_TYPES.GROUP_CLASS }
+        { time: '09:20 - 10:40', type: SLOT_TYPES.SMALL_GROUP },
+        { time: '14:40 - 16:00', type: SLOT_TYPES.SMALL_GROUP }
     ],
-    'Giovedì': [
-        { time: '05:20 - 06:40', type: SLOT_TYPES.PERSONAL },
-        { time: '08:00 - 09:20', type: SLOT_TYPES.GROUP_CLASS },
-        { time: '10:40 - 12:00', type: SLOT_TYPES.PERSONAL },
-        { time: '17:20 - 18:40', type: SLOT_TYPES.GROUP_CLASS },
-        { time: '18:40 - 20:00', type: SLOT_TYPES.SMALL_GROUP }
-    ],
+    'Giovedì': [],
     'Venerdì': [
-        { time: '06:40 - 08:00', type: SLOT_TYPES.SMALL_GROUP },
-        { time: '08:00 - 09:20', type: SLOT_TYPES.GROUP_CLASS },
-        { time: '09:20 - 10:40', type: SLOT_TYPES.PERSONAL },
-        { time: '16:00 - 17:20', type: SLOT_TYPES.SMALL_GROUP },
-        { time: '17:20 - 18:40', type: SLOT_TYPES.GROUP_CLASS },
-        { time: '18:40 - 20:00', type: SLOT_TYPES.GROUP_CLASS }
+        { time: '05:20 - 06:40', type: SLOT_TYPES.GROUP_CLASS },
+        { time: '06:40 - 08:00', type: SLOT_TYPES.PERSONAL },
+        { time: '08:00 - 09:20', type: SLOT_TYPES.PERSONAL },
+        { time: '09:20 - 10:40', type: SLOT_TYPES.SMALL_GROUP },
+        { time: '10:40 - 12:00', type: SLOT_TYPES.SMALL_GROUP },
+        { time: '12:00 - 13:20', type: SLOT_TYPES.SMALL_GROUP },
+        { time: '14:40 - 16:00', type: SLOT_TYPES.GROUP_CLASS },
+        { time: '17:20 - 18:40', type: SLOT_TYPES.SMALL_GROUP }
     ],
     'Sabato': [
-        { time: '08:00 - 09:20', type: SLOT_TYPES.GROUP_CLASS },
+        { time: '08:00 - 09:20', type: SLOT_TYPES.SMALL_GROUP },
         { time: '09:20 - 10:40', type: SLOT_TYPES.SMALL_GROUP },
-        { time: '10:40 - 12:00', type: SLOT_TYPES.GROUP_CLASS },
-        { time: '12:00 - 13:20', type: SLOT_TYPES.PERSONAL }
+        { time: '10:40 - 12:00', type: SLOT_TYPES.SMALL_GROUP },
+        { time: '12:00 - 13:20', type: SLOT_TYPES.PERSONAL },
+        { time: '14:40 - 16:00', type: SLOT_TYPES.SMALL_GROUP }
     ],
-    'Domenica': []
+    'Domenica': [
+        { time: '05:20 - 06:40', type: SLOT_TYPES.PERSONAL },
+        { time: '08:00 - 09:20', type: SLOT_TYPES.PERSONAL }
+    ]
 };
 
 // Function to get the current weekly schedule (from localStorage or default)
 function getWeeklySchedule() {
     const saved = localStorage.getItem('weeklyScheduleTemplate');
-    if (saved) {
+    const savedVersion = localStorage.getItem('scheduleVersion');
+    if (saved && savedVersion === SCHEDULE_VERSION) {
         const parsed = JSON.parse(saved);
-        // Migration check: if stored slots don't match current TIME_SLOTS format, reset
+        // Extra safety: verify slot format matches current TIME_SLOTS
         const storedTimes = Object.values(parsed).flat().map(s => s.time);
         const isCurrentFormat = storedTimes.length === 0 || storedTimes.every(t => TIME_SLOTS.includes(t));
-        if (isCurrentFormat) {
-            return parsed;
-        }
-        // Outdated slot format detected — clear overrides too
-        localStorage.removeItem('scheduleOverrides');
+        if (isCurrentFormat) return parsed;
     }
+    // Outdated version or format — reset template and overrides
+    localStorage.removeItem('scheduleOverrides');
     localStorage.setItem('weeklyScheduleTemplate', JSON.stringify(DEFAULT_WEEKLY_SCHEDULE));
+    localStorage.setItem('scheduleVersion', SCHEDULE_VERSION);
     return DEFAULT_WEEKLY_SCHEDULE;
 }
 
