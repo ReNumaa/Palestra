@@ -73,11 +73,13 @@ function updateNavAuth() {
         if (userMenu)  userMenu.style.display  = 'flex';
         if (userName)  userName.textContent    = user.name.split(' ')[0];
         _injectNavLinkFirst('prenotazioni.html', 'Le mie prenotazioni', 'nav-prenotazioni-link');
+        _injectSidebarLogout();
     } else if (isAdmin) {
         if (loginLink) loginLink.style.display = 'none';
         if (userMenu)  userMenu.style.display  = 'flex';
         if (userName)  userName.textContent    = 'Admin';
         _injectNavLinkLast('admin.html', 'Amministrazione', 'nav-admin-link');
+        _injectSidebarLogout();
     } else {
         if (loginLink) loginLink.style.display = 'flex';
         if (userMenu)  userMenu.style.display  = 'none';
@@ -106,6 +108,25 @@ function _injectNavLinkLast(href, label, cssClass) {
 
 function _removeDynamicNavLinks() {
     document.querySelectorAll('.nav-prenotazioni-link, .nav-admin-link').forEach(el => el.closest('li')?.remove());
+    document.querySelectorAll('.nav-sidebar-logout-item').forEach(el => el.remove());
+}
+
+function _injectSidebarLogout() {
+    const sidebar = document.querySelector('.nav-sidebar-links');
+    if (!sidebar || sidebar.querySelector('.nav-sidebar-logout')) return;
+    const li = document.createElement('li');
+    li.className = 'nav-sidebar-logout-item';
+    const btn = document.createElement('button');
+    btn.className = 'nav-sidebar-logout';
+    btn.textContent = 'Esci';
+    btn.addEventListener('click', () => {
+        logoutUser();
+        localStorage.removeItem('adminAuthenticated');
+        sessionStorage.removeItem('adminAuth');
+        window.location.href = 'index.html';
+    });
+    li.appendChild(btn);
+    sidebar.append(li);
 }
 
 function _injectPrenotazioniLink() {

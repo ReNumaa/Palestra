@@ -1475,3 +1475,34 @@ body.nav-open {
         font-size: 0.82rem;
     }
 }
+
+/* ── Sidebar logout button ─────────────────────────────────────── */
+.nav-sidebar-logout {
+    display: flex;
+    align-items: center;
+    padding: 0.95rem 1.5rem;
+    color: #ff7070;
+    background: none;
+    border: none;
+    border-left: 3px solid transparent;
+    font-size: 1rem;
+    font-weight: 500;
+    font-family: inherit;
+    width: 100%;
+    text-align: left;
+    cursor: pointer;
+    transition: all 0.15s;
+}
+
+.nav-sidebar-logout:hover {
+    color: #ff4444;
+    background: rgba(255, 68, 68, 0.1);
+    border-left-color: #ff4444;
+}
+
+/* On mobile: hide navbar Esci (it lives in the sidebar instead) */
+@media (max-width: 768px) {
+    .nav-logout-btn {
+        display: none;
+    }
+}
