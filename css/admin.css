@@ -1189,6 +1189,224 @@ canvas {
     font-size: 0.9rem;
     color: #856404;
     font-weight: 600;
+    cursor: pointer;
+    transition: background 0.15s, transform 0.15s;
+    user-select: none;
+}
+
+.debt-warning:hover {
+    background-color: #ffe8a0;
+    transform: translateY(-1px);
+}
+
+/* ===== Debt Payment Popup ===== */
+.debt-popup-overlay {
+    position: fixed;
+    inset: 0;
+    background: rgba(0, 0, 0, 0.55);
+    z-index: 2000;
+    opacity: 0;
+    pointer-events: none;
+    transition: opacity 0.22s;
+}
+
+.debt-popup-overlay.open {
+    opacity: 1;
+    pointer-events: all;
+}
+
+.debt-popup-modal {
+    position: fixed;
+    top: 50%;
+    left: 50%;
+    transform: translate(-50%, -46%);
+    width: min(500px, calc(100vw - 32px));
+    max-height: 82vh;
+    background: #fff;
+    border-radius: 16px;
+    box-shadow: 0 24px 64px rgba(0, 0, 0, 0.22);
+    z-index: 2100;
+    display: flex;
+    flex-direction: column;
+    opacity: 0;
+    pointer-events: none;
+    transition: opacity 0.22s, transform 0.22s;
+}
+
+.debt-popup-modal.open {
+    opacity: 1;
+    pointer-events: all;
+    transform: translate(-50%, -50%);
+}
+
+.debt-popup-header {
+    display: flex;
+    align-items: flex-start;
+    justify-content: space-between;
+    gap: 1rem;
+    padding: 1.25rem 1.5rem 1rem;
+    border-bottom: 1px solid #f0f0f0;
+    flex-shrink: 0;
+}
+
+.debt-popup-header h3 {
+    font-size: 1.1rem;
+    font-weight: 700;
+    color: #1a1a1a;
+    margin: 0 0 0.2rem;
+}
+
+.debt-popup-header p {
+    font-size: 0.82rem;
+    color: #999;
+    margin: 0;
+}
+
+.debt-popup-close {
+    background: rgba(0, 0, 0, 0.06);
+    border: none;
+    width: 32px;
+    height: 32px;
+    border-radius: 50%;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    flex-shrink: 0;
+    transition: background 0.15s;
+}
+
+.debt-popup-close:hover {
+    background: rgba(0, 0, 0, 0.13);
+}
+
+.debt-popup-close svg {
+    width: 15px;
+    height: 15px;
+    color: #555;
+    display: block;
+}
+
+.debt-popup-list {
+    overflow-y: auto;
+    flex: 1;
+    padding: 0.25rem 0;
+}
+
+.debt-popup-item {
+    padding: 0 1.5rem;
+}
+
+.debt-item-label {
+    display: flex;
+    align-items: center;
+    gap: 0.85rem;
+    padding: 0.8rem 0;
+    border-bottom: 1px solid #f4f4f4;
+    cursor: pointer;
+    transition: background 0.12s;
+    border-radius: 6px;
+}
+
+.debt-popup-item:last-child .debt-item-label {
+    border-bottom: none;
+}
+
+.debt-item-label:hover {
+    background: #f9f9f9;
+    margin: 0 -0.5rem;
+    padding: 0.8rem 0.5rem;
+}
+
+.debt-item-check {
+    width: 17px;
+    height: 17px;
+    accent-color: var(--primary-cyan);
+    flex-shrink: 0;
+    cursor: pointer;
+}
+
+.debt-item-info {
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    gap: 0.18rem;
+}
+
+.debt-item-date {
+    font-size: 0.88rem;
+    color: #222;
+    font-weight: 500;
+}
+
+.debt-item-type {
+    font-size: 0.77rem;
+    color: #999;
+}
+
+.debt-item-price {
+    font-size: 1rem;
+    font-weight: 700;
+    color: #e63946;
+    flex-shrink: 0;
+}
+
+.debt-popup-footer {
+    display: flex;
+    align-items: center;
+    gap: 0.75rem;
+    padding: 0.9rem 1.5rem;
+    border-top: 1px solid #f0f0f0;
+    flex-shrink: 0;
+    flex-wrap: wrap;
+}
+
+.debt-select-all {
+    display: flex;
+    align-items: center;
+    gap: 0.4rem;
+    font-size: 0.85rem;
+    color: #555;
+    cursor: pointer;
+    flex-shrink: 0;
+}
+
+.debt-select-all input {
+    width: 16px;
+    height: 16px;
+    accent-color: var(--primary-cyan);
+    cursor: pointer;
+}
+
+.debt-popup-total {
+    flex: 1;
+    font-size: 0.88rem;
+    color: #444;
+    text-align: right;
+}
+
+.debt-popup-pay-btn {
+    background: var(--primary-cyan);
+    color: #fff;
+    border: none;
+    padding: 0.6rem 1.2rem;
+    border-radius: 8px;
+    font-size: 0.88rem;
+    font-weight: 600;
+    cursor: pointer;
+    flex-shrink: 0;
+    transition: all 0.15s;
+}
+
+.debt-popup-pay-btn:hover:not(:disabled) {
+    background: var(--primary-cyan-dark);
+    box-shadow: 0 4px 14px rgba(0, 174, 239, 0.32);
+}
+
+.debt-popup-pay-btn:disabled {
+    background: #ddd;
+    color: #aaa;
+    cursor: not-allowed;
 }
 
 /* Payment Search Bar */
@@ -1633,4 +1851,162 @@ canvas {
     .time-progress-fill {
         font-size: 0.75rem;
     }
+}
+
+/* ===== Stat card credits ===== */
+.payment-stat-card--credit .payment-total {
+    color: #22c55e;
+}
+
+.credit-total {
+    color: #22c55e !important;
+}
+
+/* ===== Debt popup — payment section ===== */
+.debt-popup-payment {
+    padding: 0.9rem 1.5rem 0.75rem;
+    border-top: 1px solid #f0f0f0;
+    display: flex;
+    flex-direction: column;
+    gap: 0.75rem;
+    flex-shrink: 0;
+}
+
+.debt-field-label {
+    font-size: 0.78rem;
+    font-weight: 600;
+    color: #888;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+    white-space: nowrap;
+}
+
+/* Payment method buttons */
+.debt-payment-method-row {
+    display: flex;
+    align-items: center;
+    gap: 0.75rem;
+    flex-wrap: wrap;
+}
+
+.debt-method-btns {
+    display: flex;
+    gap: 0.4rem;
+}
+
+.debt-method-btn {
+    background: #f4f4f4;
+    border: 1.5px solid #e0e0e0;
+    border-radius: 8px;
+    padding: 0.4rem 0.85rem;
+    font-size: 0.82rem;
+    font-weight: 500;
+    color: #555;
+    cursor: pointer;
+    transition: all 0.15s;
+    white-space: nowrap;
+}
+
+.debt-method-btn:hover {
+    border-color: var(--primary-cyan);
+    color: var(--primary-cyan);
+}
+
+.debt-method-btn.active {
+    background: rgba(0, 174, 239, 0.1);
+    border-color: var(--primary-cyan);
+    color: var(--primary-cyan);
+    font-weight: 600;
+}
+
+/* Amount input */
+.debt-payment-amount-row {
+    display: flex;
+    align-items: center;
+    gap: 0.75rem;
+}
+
+.debt-amount-wrapper {
+    display: flex;
+    align-items: center;
+    border: 1.5px solid #ddd;
+    border-radius: 8px;
+    overflow: hidden;
+    transition: border-color 0.15s;
+}
+
+.debt-amount-wrapper:focus-within {
+    border-color: var(--primary-cyan);
+    box-shadow: 0 0 0 3px rgba(0, 174, 239, 0.1);
+}
+
+.debt-euro-sign {
+    padding: 0.45rem 0.6rem 0.45rem 0.75rem;
+    background: #f8f8f8;
+    border-right: 1px solid #ddd;
+    font-size: 0.9rem;
+    font-weight: 600;
+    color: #555;
+}
+
+#debtAmountInput {
+    border: none;
+    outline: none;
+    padding: 0.45rem 0.75rem;
+    font-size: 0.95rem;
+    font-weight: 600;
+    width: 90px;
+    color: #222;
+    background: #fff;
+}
+
+/* Existing credit info */
+.debt-existing-credit-row {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    padding: 0.5rem 0.75rem;
+    background: rgba(34, 197, 94, 0.07);
+    border: 1px solid rgba(34, 197, 94, 0.25);
+    border-radius: 8px;
+    font-size: 0.84rem;
+    color: #166534;
+}
+
+/* Credit preview row */
+.debt-credit-row {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    padding: 0.5rem 0.75rem;
+    border-radius: 8px;
+    font-size: 0.84rem;
+}
+
+.debt-credit-row--positive {
+    background: rgba(34, 197, 94, 0.08);
+    border: 1px solid rgba(34, 197, 94, 0.2);
+    color: #166534;
+}
+
+.debt-credit-row--warning {
+    background: rgba(251, 191, 36, 0.1);
+    border: 1px solid rgba(251, 191, 36, 0.3);
+    color: #92400e;
+}
+
+/* ===== Credits list & cards ===== */
+.credits-list {
+    margin-top: 1rem;
+    border-top: 2px solid rgba(34, 197, 94, 0.2);
+}
+
+.credit-client-card .debtor-amount.credit-amount {
+    color: #16a34a;
+    background: rgba(34, 197, 94, 0.08);
+    border: 1px solid rgba(34, 197, 94, 0.2);
+    border-radius: 8px;
+    padding: 0.3rem 0.75rem;
+    font-size: 0.9rem;
+    font-weight: 700;
 }
