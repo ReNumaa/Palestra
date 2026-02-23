@@ -85,8 +85,12 @@ body {
 .nav-right {
     display: flex;
     align-items: center;
-    gap: 0.6rem;
+    gap: 1rem;
     position: relative;
+}
+
+.nav-right .nav-desktop-links {
+    margin-right: 0.5rem;
 }
 
 .nav-hamburger {
@@ -219,6 +223,43 @@ body {
 
 body.nav-open {
     overflow: hidden;
+}
+
+/* ===== Desktop nav links (visibili solo su desktop) ===== */
+.nav-desktop-links {
+    display: flex;
+    align-items: center;
+    gap: 0.25rem;
+    list-style: none;
+}
+
+.nav-desktop-links li a {
+    color: rgba(255,255,255,0.82);
+    text-decoration: none;
+    font-size: 0.95rem;
+    font-weight: 500;
+    padding: 0.45rem 0.9rem;
+    border-radius: 6px;
+    transition: all 0.15s;
+    white-space: nowrap;
+}
+
+.nav-desktop-links li a:hover,
+.nav-desktop-links li a.active {
+    color: var(--primary-cyan);
+    background: rgba(0,174,239,0.1);
+}
+
+/* Su desktop: nascondi hamburger e sidebar */
+@media (min-width: 769px) {
+    .nav-hamburger {
+        display: none;
+    }
+
+    .nav-sidebar,
+    .nav-sidebar-overlay {
+        display: none !important;
+    }
 }
 
 /* Hero Section */
@@ -881,6 +922,10 @@ body.nav-open {
     }
 
     /* Mobile navbar */
+    .nav-desktop-links {
+        display: none;
+    }
+
     .navbar .container {
         padding: 0 10px;
     }
