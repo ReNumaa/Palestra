@@ -2019,6 +2019,10 @@ canvas {
     }
 
     /* Login box */
+    .login-section {
+        padding: 2rem 1.25rem 28vh;
+    }
+
     .login-box {
         padding: 1.5rem 1.25rem;
     }
