@@ -86,6 +86,11 @@ function formatDate(date) {
     return `${year}-${month}-${day}`;
 }
 
+function weekHasSlots(offset) {
+    const overrides = JSON.parse(localStorage.getItem('scheduleOverrides') || '{}');
+    return getWeekDates(offset).some(d => overrides[d.formatted] && overrides[d.formatted].length > 0);
+}
+
 function renderCalendar() {
     const weekDates = getWeekDates(currentWeekOffset);
     const calendarGrid = document.getElementById('calendar');
@@ -96,6 +101,13 @@ function renderCalendar() {
     prevBtn.disabled = currentWeekOffset === 0;
     prevBtn.style.opacity = currentWeekOffset === 0 ? '0.3' : '1';
     prevBtn.style.cursor = currentWeekOffset === 0 ? 'not-allowed' : 'pointer';
+
+    // Disable "next" button when the next week has no configured slots
+    const nextBtn = document.getElementById('nextWeek');
+    const nextHasSlots = weekHasSlots(currentWeekOffset + 1);
+    nextBtn.disabled = !nextHasSlots;
+    nextBtn.style.opacity = nextHasSlots ? '1' : '0.3';
+    nextBtn.style.cursor = nextHasSlots ? 'pointer' : 'not-allowed';
 
     // Update week display
     const firstDate = weekDates[0].date;
@@ -133,16 +145,9 @@ function createSlot(dateInfo, timeSlot) {
     const slot = document.createElement('div');
     slot.className = 'calendar-slot';
 
-    // Check if there's a scheduled slot for this day/time
-    // First check for date-specific overrides
+    // Only show slots that have been explicitly configured for this date
     const overrides = JSON.parse(localStorage.getItem('scheduleOverrides') || '{}');
-    let scheduledSlots = overrides[dateInfo.formatted];
-
-    // If no override, use weekly template
-    if (!scheduledSlots) {
-        scheduledSlots = WEEKLY_SCHEDULE_TEMPLATE[dateInfo.dayName] || [];
-    }
-
+    const scheduledSlots = overrides[dateInfo.formatted] || [];
     const scheduledSlot = scheduledSlots.find(s => s.time === timeSlot);
 
     if (scheduledSlot) {
@@ -211,10 +216,20 @@ function renderMobileCalendar() {
         mobileWeekLabel.textContent = `${first.getDate()}/${first.getMonth() + 1} – ${last.getDate()}/${last.getMonth() + 1}`;
     }
 
-    // Update mobile prev button state
+    // Update mobile prev/next button states
     const mobilePrev = document.getElementById('mobilePrevWeek');
     if (mobilePrev) {
         mobilePrev.disabled = currentWeekOffset === 0;
+        mobilePrev.style.opacity = currentWeekOffset === 0 ? '0.3' : '1';
+        mobilePrev.style.cursor  = currentWeekOffset === 0 ? 'not-allowed' : 'pointer';
+    }
+
+    const mobileNext = document.getElementById('mobileNextWeek');
+    if (mobileNext) {
+        const nextHasSlots = weekHasSlots(currentWeekOffset + 1);
+        mobileNext.disabled = !nextHasSlots;
+        mobileNext.style.opacity = nextHasSlots ? '1' : '0.3';
+        mobileNext.style.cursor  = nextHasSlots ? 'pointer' : 'not-allowed';
     }
 
     // Set selected day BEFORE rendering the selector so active class is applied correctly
@@ -260,14 +275,8 @@ function renderMobileSlots(dateInfo) {
     const slotsList = document.getElementById('mobileSlotsList');
     slotsList.innerHTML = '';
 
-    // Check for date-specific overrides first
     const overrides = JSON.parse(localStorage.getItem('scheduleOverrides') || '{}');
-    let scheduledSlots = overrides[dateInfo.formatted];
-
-    // If no override, use weekly template
-    if (!scheduledSlots) {
-        scheduledSlots = WEEKLY_SCHEDULE_TEMPLATE[dateInfo.dayName] || [];
-    }
+    const scheduledSlots = overrides[dateInfo.formatted] || [];
 
     if (scheduledSlots.length === 0) {
         slotsList.innerHTML = '<div style="text-align: center; color: #999; padding: 2rem;">Nessuna lezione programmata per questo giorno</div>';
