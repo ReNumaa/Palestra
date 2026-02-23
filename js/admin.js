@@ -675,7 +675,7 @@ function createAdminSlotCard(dateInfo, scheduledSlot) {
                         <div class="participant-name">${booking.name}</div>
                         <div class="participant-contact">📱 ${booking.whatsapp}</div>
                         ${booking.notes ? `<div class="participant-notes">📝 ${booking.notes}</div>` : ''}
-                        ${hasDebts ? `<div class="debt-warning">⚠️ Da pagare: €${unpaidAmount}</div>` : ''}
+                        ${hasDebts ? `<div class="debt-warning" onclick="openDebtPopup('${booking.whatsapp.replace(/'/g, "\\'")}', '${booking.email.replace(/'/g, "\\'")}', '${booking.name.replace(/'/g, "\\'")}')">⚠️ Da pagare: €${unpaidAmount}</div>` : ''}
                         <div class="payment-checkbox">
                             <input type="checkbox" id="${checkboxId}" ${isPaid ? 'checked' : ''}
                                    onchange="togglePayment('${booking.id}', this.checked)">
@@ -962,33 +962,99 @@ function updateSlotType(timeSlot, newType) {
 
 // Payments Management Functions
 let debtorsListVisible = false;
+let creditsListVisible = false;
 
 function renderPaymentsTab() {
     const debtors = getDebtors();
     const totalUnpaid = debtors.reduce((sum, debtor) => sum + debtor.totalAmount, 0);
+    const credits = CreditStorage.getAllWithBalance();
+    const totalCredit = CreditStorage.getTotalCredit();
 
     // Update stats
     document.getElementById('totalUnpaid').textContent = `€${totalUnpaid}`;
     document.getElementById('totalDebtors').textContent = debtors.length;
+    document.getElementById('totalCreditAmount').textContent = `€${totalCredit}`;
 
     // Reset search UI and list visibility
     clearSearch();
     debtorsListVisible = false;
+    creditsListVisible = false;
     const debtorsList = document.getElementById('debtorsList');
     debtorsList.style.display = 'none';
     document.getElementById('debtorsToggleHint').textContent = '▼ Mostra lista';
-
-    // Render cards but keep hidden
-    if (debtors.length === 0) {
-        debtorsList.innerHTML = '<div class="empty-slot">Nessun cliente con pagamenti in sospeso! 🎉</div>';
-        return;
+    const creditsList = document.getElementById('creditsList');
+    if (creditsList) {
+        creditsList.style.display = 'none';
+        document.getElementById('creditorsToggleHint').textContent = '▼ Mostra lista';
     }
 
-    debtorsList.innerHTML = '';
-    debtors.forEach((debtor, index) => {
-        const debtorCard = createDebtorCard(debtor, `main-${index}`);
-        debtorsList.appendChild(debtorCard);
+    // Render debtors
+    if (debtors.length === 0) {
+        debtorsList.innerHTML = '<div class="empty-slot">Nessun cliente con pagamenti in sospeso! 🎉</div>';
+    } else {
+        debtorsList.innerHTML = '';
+        debtors.forEach((debtor, index) => {
+            const debtorCard = createDebtorCard(debtor, `main-${index}`);
+            debtorsList.appendChild(debtorCard);
+        });
+    }
+
+    // Render credits
+    if (creditsList) {
+        if (credits.length === 0) {
+            creditsList.innerHTML = '<div class="empty-slot">Nessun cliente con credito attivo</div>';
+        } else {
+            creditsList.innerHTML = '';
+            credits.forEach((credit, index) => {
+                creditsList.appendChild(createCreditCard(credit, index));
+            });
+        }
+    }
+}
+
+function toggleCreditsList() {
+    creditsListVisible = !creditsListVisible;
+    const creditsList = document.getElementById('creditsList');
+    const hint = document.getElementById('creditorsToggleHint');
+    if (creditsList) creditsList.style.display = creditsListVisible ? 'flex' : 'none';
+    if (hint) hint.textContent = creditsListVisible ? '▲ Nascondi lista' : '▼ Mostra lista';
+}
+
+function createCreditCard(credit, index) {
+    const card = document.createElement('div');
+    card.className = 'debtor-card credit-client-card';
+    card.id = `credit-card-${index}`;
+
+    const recentHistory = [...(credit.history || [])].reverse().slice(0, 5);
+    let historyHTML = '<div class="debtor-bookings" style="margin-top:0.75rem;">';
+    recentHistory.forEach(entry => {
+        const d = new Date(entry.date);
+        const dateStr = `${d.getDate()}/${d.getMonth() + 1}/${d.getFullYear()}`;
+        const sign = entry.amount >= 0 ? '+' : '';
+        const color = entry.amount >= 0 ? '#22c55e' : '#ef4444';
+        historyHTML += `
+            <div class="debtor-booking-item">
+                <div class="debtor-booking-details">📅 ${dateStr} — ${entry.note || 'Movimento credito'}</div>
+                <div class="debtor-booking-price" style="color:${color}">${sign}€${Math.abs(entry.amount)}</div>
+            </div>`;
     });
+    historyHTML += '</div>';
+
+    card.innerHTML = `
+        <div class="debtor-card-header" onclick="toggleDebtorCard('credit-card-${index}')">
+            <div class="debtor-info">
+                <div class="debtor-name">${credit.name}</div>
+                <div class="debtor-contact">
+                    <span>📱 ${credit.whatsapp}</span>
+                    <span>✉️ ${credit.email}</span>
+                </div>
+            </div>
+            <div class="debtor-amount credit-amount">Credito: €${credit.balance}</div>
+            <div class="debtor-toggle">▼</div>
+        </div>
+        <div class="debtor-card-body">${historyHTML}</div>
+    `;
+    return card;
 }
 
 function toggleDebtorsList() {
@@ -1003,13 +1069,23 @@ function getDebtors() {
     const allBookings = BookingStorage.getAllBookings();
     const debtorsMap = {};
 
-    // Group unpaid bookings by contact (whatsapp + email), only past bookings
+    // Group unpaid past bookings by contact, matching by phone OR email
     allBookings.forEach(booking => {
         if (!booking.paid && bookingHasPassed(booking)) {
-            const key = `${booking.whatsapp}-${booking.email}`;
+            const normPhone = normalizePhone(booking.whatsapp);
 
-            if (!debtorsMap[key]) {
-                debtorsMap[key] = {
+            // Try to find an existing debtor group that matches by phone OR email
+            let matchedKey = null;
+            for (const [k, debtor] of Object.entries(debtorsMap)) {
+                const phoneMatch = normPhone && normalizePhone(debtor.whatsapp) === normPhone;
+                const emailMatch = booking.email && debtor.email &&
+                    booking.email.toLowerCase() === debtor.email.toLowerCase();
+                if (phoneMatch || emailMatch) { matchedKey = k; break; }
+            }
+
+            if (!matchedKey) {
+                matchedKey = normPhone || booking.email;
+                debtorsMap[matchedKey] = {
                     name: booking.name,
                     whatsapp: booking.whatsapp,
                     email: booking.email,
@@ -1019,11 +1095,8 @@ function getDebtors() {
             }
 
             const price = SLOT_PRICES[booking.slotType];
-            debtorsMap[key].unpaidBookings.push({
-                ...booking,
-                price: price
-            });
-            debtorsMap[key].totalAmount += price;
+            debtorsMap[matchedKey].unpaidBookings.push({ ...booking, price });
+            debtorsMap[matchedKey].totalAmount += price;
         }
     });
 
@@ -1200,6 +1273,12 @@ function markBookingPaid(bookingId) {
     }
 }
 
+// Strip +39 / 0039 prefix and non-digit chars for phone comparison
+function normalizePhone(phone) {
+    if (!phone) return '';
+    return phone.replace(/^\+39\s*/, '').replace(/^0039\s*/, '').replace(/[\s\-(). ]/g, '');
+}
+
 // Returns true if the booking's end time has already passed
 function bookingHasPassed(booking) {
     // time format: "HH:MM - HH:MM"
@@ -1213,18 +1292,205 @@ function bookingHasPassed(booking) {
     return new Date() >= endDateTime;
 }
 
-// Get unpaid amount for a specific contact (whatsapp + email), only for past bookings
+// Get unpaid amount for a specific contact (phone OR email match), only for past bookings
 function getUnpaidAmountForContact(whatsapp, email) {
+    const normWhatsapp = normalizePhone(whatsapp);
     const allBookings = BookingStorage.getAllBookings();
     let totalUnpaid = 0;
 
     allBookings.forEach(booking => {
-        if (booking.whatsapp === whatsapp && booking.email === email && !booking.paid && bookingHasPassed(booking)) {
+        const phoneMatch = normWhatsapp && normalizePhone(booking.whatsapp) === normWhatsapp;
+        const emailMatch = email && booking.email && booking.email.toLowerCase() === email.toLowerCase();
+        if ((phoneMatch || emailMatch) && !booking.paid && bookingHasPassed(booking)) {
             totalUnpaid += SLOT_PRICES[booking.slotType];
         }
     });
 
     return totalUnpaid;
+}
+
+// ===== Debt Popup =====
+let currentDebtContact = null;
+
+function openDebtPopup(whatsapp, email, name) {
+    const normWhatsapp = normalizePhone(whatsapp);
+    const allBookings = BookingStorage.getAllBookings();
+    const unpaid = allBookings
+        .filter(b => {
+            const phoneMatch = normWhatsapp && normalizePhone(b.whatsapp) === normWhatsapp;
+            const emailMatch = email && b.email && b.email.toLowerCase() === email.toLowerCase();
+            return (phoneMatch || emailMatch) && !b.paid && bookingHasPassed(b);
+        })
+        .sort((a, b) => a.date.localeCompare(b.date) || a.time.localeCompare(b.time));
+
+    if (unpaid.length === 0) return;
+
+    currentDebtContact = { whatsapp, email, name, unpaid };
+
+    document.getElementById('debtPopupName').textContent = name;
+    document.getElementById('debtPopupSubtitle').textContent =
+        `${unpaid.length} lezione${unpaid.length > 1 ? 'i' : ''} non pagata${unpaid.length > 1 ? 'e' : ''}`;
+
+    // Reset payment method to default
+    document.querySelectorAll('.debt-method-btn').forEach(b => b.classList.remove('active'));
+    const defaultBtn = document.querySelector('.debt-method-btn[data-method="contanti"]');
+    if (defaultBtn) defaultBtn.classList.add('active');
+
+    // Reset amount input
+    const amountInput = document.getElementById('debtAmountInput');
+    if (amountInput) amountInput.value = 0;
+
+    // Show existing credit if any
+    const credit = CreditStorage.getBalance(whatsapp, email);
+    const existingCreditRow = document.getElementById('debtExistingCreditRow');
+    if (existingCreditRow) {
+        if (credit > 0) {
+            existingCreditRow.style.display = 'flex';
+            document.getElementById('debtExistingCreditAmt').textContent = `€${credit}`;
+        } else {
+            existingCreditRow.style.display = 'none';
+        }
+    }
+    const creditRow = document.getElementById('debtCreditRow');
+    if (creditRow) creditRow.style.display = 'none';
+
+    renderDebtPopupList(unpaid);
+    updateDebtTotal();
+
+    document.getElementById('debtPopupOverlay').classList.add('open');
+    document.getElementById('debtPopupModal').classList.add('open');
+}
+
+function renderDebtPopupList(unpaid) {
+    const list = document.getElementById('debtPopupList');
+    list.innerHTML = '';
+
+    unpaid.forEach(booking => {
+        const [y, m, d] = booking.date.split('-').map(Number);
+        const dateDisplay = `${d}/${m}/${y}`;
+        const price = SLOT_PRICES[booking.slotType];
+
+        const item = document.createElement('div');
+        item.className = 'debt-popup-item';
+        item.innerHTML = `
+            <label class="debt-item-label">
+                <input type="checkbox" class="debt-item-check" data-id="${booking.id}" data-price="${price}" onchange="updateDebtTotal()">
+                <div class="debt-item-info">
+                    <span class="debt-item-date">📅 ${dateDisplay} &nbsp;·&nbsp; 🕐 ${booking.time}</span>
+                    <span class="debt-item-type">${SLOT_NAMES[booking.slotType]}</span>
+                </div>
+                <span class="debt-item-price">€${price}</span>
+            </label>
+        `;
+        list.appendChild(item);
+    });
+}
+
+function updateDebtTotal() {
+    const checked = document.querySelectorAll('.debt-item-check:checked');
+    const all = document.querySelectorAll('.debt-item-check');
+    const dueTotal = Array.from(checked).reduce((sum, cb) => sum + Number(cb.dataset.price), 0);
+
+    document.getElementById('debtSelectedTotal').textContent = `€${dueTotal}`;
+
+    // Reset amount input to match new selection
+    const amountInput = document.getElementById('debtAmountInput');
+    if (amountInput) amountInput.value = dueTotal;
+
+    updateCreditPreview();
+
+    const selectAll = document.getElementById('debtSelectAll');
+    selectAll.indeterminate = checked.length > 0 && checked.length < all.length;
+    selectAll.checked = all.length > 0 && checked.length === all.length;
+}
+
+function updateCreditPreview() {
+    const checked = document.querySelectorAll('.debt-item-check:checked');
+    const dueTotal = Array.from(checked).reduce((sum, cb) => sum + Number(cb.dataset.price), 0);
+    const amountInput = document.getElementById('debtAmountInput');
+    const amountPaid = amountInput ? (parseFloat(amountInput.value) || 0) : dueTotal;
+    const creditDelta = Math.round((amountPaid - dueTotal) * 100) / 100;
+
+    const creditRow = document.getElementById('debtCreditRow');
+    const creditMsg = document.getElementById('debtCreditMsg');
+    if (creditRow && creditMsg) {
+        if (checked.length > 0 && creditDelta > 0) {
+            creditRow.style.display = 'flex';
+            creditMsg.innerHTML = `✨ Verrà aggiunto <strong>€${creditDelta}</strong> di credito`;
+            creditRow.className = 'debt-credit-row debt-credit-row--positive';
+        } else if (checked.length > 0 && amountPaid > 0 && creditDelta < 0) {
+            creditRow.style.display = 'flex';
+            creditMsg.innerHTML = `⚠️ Importo inferiore al dovuto (–€${Math.abs(creditDelta)})`;
+            creditRow.className = 'debt-credit-row debt-credit-row--warning';
+        } else {
+            creditRow.style.display = 'none';
+        }
+    }
+
+    const payBtn = document.getElementById('debtPayBtn');
+    if (payBtn) payBtn.disabled = checked.length === 0 || amountPaid <= 0;
+}
+
+function toggleAllDebts(checked) {
+    document.querySelectorAll('.debt-item-check').forEach(cb => { cb.checked = checked; });
+    updateDebtTotal();
+}
+
+function selectPaymentMethod(btn) {
+    document.querySelectorAll('.debt-method-btn').forEach(b => b.classList.remove('active'));
+    btn.classList.add('active');
+}
+
+function paySelectedDebts() {
+    const checked = document.querySelectorAll('.debt-item-check:checked');
+    if (checked.length === 0) return;
+
+    const dueTotal = Array.from(checked).reduce((sum, cb) => sum + Number(cb.dataset.price), 0);
+    const amountInput = document.getElementById('debtAmountInput');
+    const amountPaid = amountInput ? (parseFloat(amountInput.value) || dueTotal) : dueTotal;
+    const creditDelta = Math.round((amountPaid - dueTotal) * 100) / 100;
+
+    const activeMethodBtn = document.querySelector('.debt-method-btn.active');
+    const paymentMethod = activeMethodBtn ? activeMethodBtn.dataset.method : 'contanti';
+
+    const bookings = BookingStorage.getAllBookings();
+    const now = new Date().toISOString();
+    checked.forEach(cb => {
+        const booking = bookings.find(b => b.id === cb.dataset.id);
+        if (booking) {
+            booking.paid = true;
+            booking.paymentMethod = paymentMethod;
+            booking.paidAt = now;
+        }
+    });
+    localStorage.setItem(BookingStorage.BOOKINGS_KEY, JSON.stringify(bookings));
+
+    // Add credit if overpaid, then auto-apply to any remaining unpaid past bookings
+    if (creditDelta > 0 && currentDebtContact) {
+        CreditStorage.addCredit(
+            currentDebtContact.whatsapp,
+            currentDebtContact.email,
+            currentDebtContact.name,
+            creditDelta,
+            `Eccedenza pagamento (${paymentMethod})`
+        );
+        CreditStorage.applyToUnpaidBookings(
+            currentDebtContact.whatsapp,
+            currentDebtContact.email,
+            currentDebtContact.name
+        );
+    }
+
+    closeDebtPopup();
+    if (selectedAdminDay) renderAdminDayView(selectedAdminDay);
+    const activeTab = document.querySelector('.admin-tab.active');
+    if (activeTab && activeTab.dataset.tab === 'payments') renderPaymentsTab();
+}
+
+function closeDebtPopup() {
+    document.getElementById('debtPopupOverlay').classList.remove('open');
+    document.getElementById('debtPopupModal').classList.remove('open');
+    currentDebtContact = null;
 }
 
 // Initialize admin when DOM is loaded

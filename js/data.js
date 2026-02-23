@@ -339,6 +339,123 @@ class BookingStorage {
     }
 }
 
+// Credit storage — tracks per-client credit balance
+class CreditStorage {
+    static CREDITS_KEY = 'gym_credits';
+
+    static _getAll() {
+        try { return JSON.parse(localStorage.getItem(this.CREDITS_KEY) || '{}'); } catch { return {}; }
+    }
+
+    static _save(data) {
+        localStorage.setItem(this.CREDITS_KEY, JSON.stringify(data));
+    }
+
+    static _key(whatsapp, email) {
+        return `${whatsapp}||${email}`;
+    }
+
+    // Strip +39 / 0039 prefix and non-digit chars so numbers can be compared without prefix
+    static _normalizePhone(phone) {
+        if (!phone) return '';
+        return phone.replace(/^\+39\s*/, '').replace(/^0039\s*/, '').replace(/[\s\-(). ]/g, '');
+    }
+
+    // Check if a stored record matches the given contact: phone OR email
+    static _matchContact(record, whatsapp, email) {
+        const normStored = this._normalizePhone(record.whatsapp);
+        const normInput  = this._normalizePhone(whatsapp);
+        const phoneMatch = normInput && normStored && normStored === normInput;
+        const emailMatch = email && record.email && record.email.toLowerCase() === email.toLowerCase();
+        return phoneMatch || emailMatch;
+    }
+
+    // Find the storage key for a contact (phone OR email match)
+    static _findKey(whatsapp, email) {
+        const all = this._getAll();
+        for (const [key, record] of Object.entries(all)) {
+            if (this._matchContact(record, whatsapp, email)) return key;
+        }
+        return null;
+    }
+
+    static getBalance(whatsapp, email) {
+        const all = this._getAll();
+        const key = this._findKey(whatsapp, email);
+        return key ? (all[key]?.balance || 0) : 0;
+    }
+
+    static addCredit(whatsapp, email, name, amount, note = '') {
+        if (amount === 0) return;
+        const all = this._getAll();
+        let key = this._findKey(whatsapp, email);
+        if (!key) key = this._key(whatsapp, email);
+        if (!all[key]) all[key] = { name, whatsapp, email, balance: 0, history: [] };
+        all[key].name = name;
+        all[key].balance = Math.round((all[key].balance + amount) * 100) / 100;
+        all[key].history.push({ date: new Date().toISOString(), amount, note });
+        this._save(all);
+    }
+
+    static getAllWithBalance() {
+        return Object.values(this._getAll())
+            .filter(c => c.balance > 0)
+            .sort((a, b) => b.balance - a.balance);
+    }
+
+    static getTotalCredit() {
+        return this.getAllWithBalance().reduce((s, c) => s + c.balance, 0);
+    }
+
+    // Auto-pay any existing unpaid past bookings for this client using available credit
+    static applyToUnpaidBookings(whatsapp, email, name) {
+        let balance = this.getBalance(whatsapp, email);
+        if (balance <= 0) return false;
+
+        const normWhatsapp = this._normalizePhone(whatsapp);
+        const allBookings = BookingStorage.getAllBookings();
+        const now = new Date().toISOString();
+        let totalApplied = 0;
+        let count = 0;
+
+        function hasPassed(booking) {
+            const endTimePart = booking.time.split(' - ')[1];
+            if (!endTimePart || !booking.date) return false;
+            const [endHour, endMin] = endTimePart.trim().split(':').map(Number);
+            const [year, month, day] = booking.date.split('-').map(Number);
+            return new Date() >= new Date(year, month - 1, day, endHour, endMin, 0);
+        }
+
+        allBookings
+            .filter(b => {
+                const normB     = CreditStorage._normalizePhone(b.whatsapp);
+                const phoneMatch = normWhatsapp && normB && normB === normWhatsapp;
+                const emailMatch = email && b.email && b.email.toLowerCase() === email.toLowerCase();
+                return (phoneMatch || emailMatch) && !b.paid && hasPassed(b);
+            })
+            .sort((a, b) => a.date.localeCompare(b.date) || a.time.localeCompare(b.time))
+            .forEach(b => {
+                const price = SLOT_PRICES[b.slotType];
+                if (balance >= price) {
+                    b.paid = true;
+                    b.paymentMethod = 'credito';
+                    b.paidAt = now;
+                    balance -= price;
+                    totalApplied += price;
+                    count++;
+                }
+            });
+
+        if (totalApplied > 0) {
+            localStorage.setItem(BookingStorage.BOOKINGS_KEY, JSON.stringify(allBookings));
+            this.addCredit(whatsapp, email, name, -totalApplied,
+                `Auto-pagamento ${count} lezione${count > 1 ? 'i' : ''} con credito`);
+        }
+
+        return totalApplied > 0;
+    }
+}
+
 // Initialize demo data on load
 if (typeof window !== 'undefined') {
     BookingStorage.initializeDemoData();

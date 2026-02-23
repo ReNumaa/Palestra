@@ -111,10 +111,38 @@ function handleBookingSubmit(e) {
     };
 
     // Save booking
-    BookingStorage.saveBooking(booking);
+    const savedBooking = BookingStorage.saveBooking(booking);
+
+    // Auto-apply credit if the client has enough balance
+    const price = SLOT_PRICES[savedBooking.slotType];
+    const creditBalance = CreditStorage.getBalance(savedBooking.whatsapp, savedBooking.email);
+    if (creditBalance >= price) {
+        const allBookings = BookingStorage.getAllBookings();
+        const stored = allBookings.find(b => b.id === savedBooking.id);
+        if (stored) {
+            stored.paid = true;
+            stored.paymentMethod = 'credito';
+            stored.paidAt = new Date().toISOString();
+            localStorage.setItem(BookingStorage.BOOKINGS_KEY, JSON.stringify(allBookings));
+        }
+        CreditStorage.addCredit(
+            savedBooking.whatsapp,
+            savedBooking.email,
+            savedBooking.name,
+            -price,
+            `Lezione ${savedBooking.date} ${savedBooking.time} — pagata con credito`
+        );
+        savedBooking.paid = true;
+        savedBooking.paidWithCredit = true;
+        savedBooking.remainingCredit = Math.round((creditBalance - price) * 100) / 100;
+        // Apply any remaining credit to existing unpaid past bookings
+        if (savedBooking.remainingCredit > 0) {
+            CreditStorage.applyToUnpaidBookings(savedBooking.whatsapp, savedBooking.email, savedBooking.name);
+        }
+    }
 
     // Show confirmation
-    showConfirmation(booking);
+    showConfirmation(savedBooking);
 
     // Reset form
     document.getElementById('bookingForm').reset();
@@ -174,10 +202,14 @@ function showConfirmation(booking) {
     document.getElementById('modalSlotInfo').style.display = 'none';
 
     const confirmationDiv = document.getElementById('confirmationMessage');
+    const creditNotice = booking.paidWithCredit
+        ? `<p class="credit-used-notice">💳 Pagamento coperto dal tuo credito (residuo: €${booking.remainingCredit})</p>`
+        : '';
     confirmationDiv.innerHTML = `
         <h3>✓ Prenotazione ${SLOT_NAMES[booking.slotType]} Confermata!</h3>
         <p><strong>${booking.name}</strong></p>
         <p>📅 ${booking.dateDisplay} &nbsp;·&nbsp; 🕐 ${booking.time}</p>
+        ${creditNotice}
         <p style="margin-top: 0.75rem; font-size: 0.85rem; opacity: 0.9;">Riceverai un promemoria WhatsApp al numero <strong>${booking.whatsapp}</strong></p>
         <div class="cal-buttons">
             <a href="${googleCalendarUrl(booking)}" target="_blank" rel="noopener" class="cal-btn cal-btn-google">
