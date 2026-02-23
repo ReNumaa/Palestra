@@ -174,7 +174,7 @@
         }
 
         // ── Manual login ──────────────────────────────────────────────────
-        document.getElementById('manualLoginForm').addEventListener('submit', async e => {
+        document.getElementById('manualLoginForm').addEventListener('submit', e => {
             e.preventDefault();
             const email    = document.getElementById('loginEmail').value.trim();
             const password = document.getElementById('loginPassword').value;
@@ -187,7 +187,7 @@
                 return;
             }
 
-            const result = await loginWithPassword(email, password);
+            const result = loginWithPassword(email, password);
             if (result.ok) {
                 window.location.href = 'index.html';
             } else {
@@ -197,7 +197,7 @@
         });
 
         // ── Registration ──────────────────────────────────────────────────
-        document.getElementById('registerForm').addEventListener('submit', async e => {
+        document.getElementById('registerForm').addEventListener('submit', e => {
             e.preventDefault();
             const name     = document.getElementById('regName').value.trim();
             const email    = document.getElementById('regEmail').value.trim();
@@ -228,7 +228,7 @@
                 return;
             }
 
-            const result = await registerUser(name, email, whatsapp, password);
+            const result = registerUser(name, email, whatsapp, password);
             if (result.ok) {
                 window.location.href = 'index.html';
             } else {
