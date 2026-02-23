@@ -172,6 +172,10 @@ function checkAuth() {
 function showDashboard() {
     document.getElementById('loginSection').style.display = 'none';
     document.getElementById('dashboardSection').style.display = 'block';
+    // Reconcile credits for all clients so unpaid bookings are auto-marked paid
+    CreditStorage.getAllWithBalance().forEach(c => {
+        CreditStorage.applyToUnpaidBookings(c.whatsapp, c.email, c.name);
+    });
     setupTabs();
     setupAdminCalendar();
     setupScheduleManager();
@@ -638,6 +642,17 @@ function renderAdminDayView(dateInfo) {
         dayView.innerHTML = '<div class="empty-slot">Nessuna lezione programmata per questo giorno</div>';
         return;
     }
+
+    // Auto-apply any available credit for each unique contact with bookings on this day
+    const dayBookings = BookingStorage.getAllBookings().filter(b => b.date === dateInfo.formatted);
+    const seen = new Set();
+    dayBookings.forEach(b => {
+        const contactKey = `${b.whatsapp}|${b.email}`;
+        if (!seen.has(contactKey)) {
+            seen.add(contactKey);
+            CreditStorage.applyToUnpaidBookings(b.whatsapp, b.email, b.name);
+        }
+    });
 
     scheduledSlots.forEach(scheduledSlot => {
         const slotCard = createAdminSlotCard(dateInfo, scheduledSlot);
