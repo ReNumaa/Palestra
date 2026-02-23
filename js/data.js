@@ -407,7 +407,7 @@ class CreditStorage {
         return this.getAllWithBalance().reduce((s, c) => s + c.balance, 0);
     }
 
-    // Auto-pay any existing unpaid past bookings for this client using available credit
+    // Auto-pay unpaid bookings (past and future) for this client using available credit
     static applyToUnpaidBookings(whatsapp, email, name) {
         let balance = this.getBalance(whatsapp, email);
         if (balance <= 0) return false;
@@ -418,20 +418,12 @@ class CreditStorage {
         let totalApplied = 0;
         let count = 0;
 
-        function hasPassed(booking) {
-            const endTimePart = booking.time.split(' - ')[1];
-            if (!endTimePart || !booking.date) return false;
-            const [endHour, endMin] = endTimePart.trim().split(':').map(Number);
-            const [year, month, day] = booking.date.split('-').map(Number);
-            return new Date() >= new Date(year, month - 1, day, endHour, endMin, 0);
-        }
-
         allBookings
             .filter(b => {
-                const normB     = CreditStorage._normalizePhone(b.whatsapp);
+                const normB      = CreditStorage._normalizePhone(b.whatsapp);
                 const phoneMatch = normWhatsapp && normB && normB === normWhatsapp;
                 const emailMatch = email && b.email && b.email.toLowerCase() === email.toLowerCase();
-                return (phoneMatch || emailMatch) && !b.paid && hasPassed(b);
+                return (phoneMatch || emailMatch) && !b.paid;
             })
             .sort((a, b) => a.date.localeCompare(b.date) || a.time.localeCompare(b.time))
             .forEach(b => {
