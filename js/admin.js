@@ -217,6 +217,8 @@ function switchTab(tabName) {
         renderAdminCalendar();
     } else if (tabName === 'payments') {
         renderPaymentsTab();
+    } else if (tabName === 'clients') {
+        renderClientsTab();
     } else if (tabName === 'schedule') {
         renderScheduleManager();
     }
@@ -961,6 +963,10 @@ function updateSlotType(timeSlot, newType) {
 let debtorsListVisible = false;
 let creditsListVisible = false;
 
+// Clients Tab State
+let openClientIndex = null;
+let clientsSearchQuery = '';
+
 function renderPaymentsTab() {
     const debtors = getDebtors();
     const totalUnpaid = debtors.reduce((sum, debtor) => sum + debtor.totalAmount, 0);
@@ -1488,6 +1494,343 @@ function closeDebtPopup() {
     document.getElementById('debtPopupOverlay').classList.remove('open');
     document.getElementById('debtPopupModal').classList.remove('open');
     currentDebtContact = null;
+}
+
+// ===== Clients Tab =====
+
+function getAllClients() {
+    const allBookings = BookingStorage.getAllBookings();
+    const clientsMap = {};
+
+    allBookings.forEach(booking => {
+        const normPhone = normalizePhone(booking.whatsapp);
+        let matchedKey = null;
+        for (const [k, client] of Object.entries(clientsMap)) {
+            const phoneMatch = normPhone && normalizePhone(client.whatsapp) === normPhone;
+            const emailMatch = booking.email && client.email &&
+                booking.email.toLowerCase() === client.email.toLowerCase();
+            if (phoneMatch || emailMatch) { matchedKey = k; break; }
+        }
+        if (!matchedKey) {
+            matchedKey = normPhone || booking.email;
+            clientsMap[matchedKey] = { name: booking.name, whatsapp: booking.whatsapp, email: booking.email, bookings: [] };
+        }
+        clientsMap[matchedKey].bookings.push(booking);
+    });
+
+    Object.values(clientsMap).forEach(c => {
+        c.bookings.sort((a, b) => b.date.localeCompare(a.date) || b.time.localeCompare(a.time));
+    });
+
+    return Object.values(clientsMap).sort((a, b) => a.name.localeCompare(b.name));
+}
+
+function liveSearchClients() {
+    clientsSearchQuery = document.getElementById('clientSearchInput').value;
+    renderClientsTab();
+}
+
+function renderClientsTab() {
+    const allClients = getAllClients();
+    const query = clientsSearchQuery.trim().toLowerCase();
+    const filtered = query
+        ? allClients.filter(c =>
+            c.name.toLowerCase().includes(query) ||
+            c.whatsapp.toLowerCase().includes(query) ||
+            (c.email && c.email.toLowerCase().includes(query)))
+        : allClients;
+
+    const container = document.getElementById('clientsList');
+    container.innerHTML = '';
+
+    if (filtered.length === 0) {
+        container.innerHTML = '<div class="empty-slot">Nessun cliente trovato</div>';
+        return;
+    }
+
+    filtered.forEach((client, index) => {
+        container.appendChild(createClientCard(client, index));
+    });
+
+    // Restore previously open card
+    if (openClientIndex !== null) {
+        const card = document.getElementById(`client-card-${openClientIndex}`);
+        if (card) card.classList.add('open');
+    }
+}
+
+function toggleClientCard(id, idx) {
+    const card = document.getElementById(id);
+    if (!card) return;
+    const isOpen = card.classList.toggle('open');
+    openClientIndex = isOpen ? idx : null;
+}
+
+function createClientCard(client, index) {
+    const card = document.createElement('div');
+    card.className = 'client-card';
+    card.id = `client-card-${index}`;
+
+    const totalBookings = client.bookings.length;
+    const totalPaid   = client.bookings.filter(b => b.paid).reduce((s, b) => s + (SLOT_PRICES[b.slotType] || 0), 0);
+    const totalUnpaid = client.bookings.filter(b => !b.paid && bookingHasPassed(b)).reduce((s, b) => s + (SLOT_PRICES[b.slotType] || 0), 0);
+    const credit      = CreditStorage.getBalance(client.whatsapp, client.email);
+
+    let statsHTML = `<span class="cstat">${totalBookings} prenotazioni</span>`;
+    if (totalPaid   > 0) statsHTML += `<span class="cstat paid">€${totalPaid} pagato</span>`;
+    if (totalUnpaid > 0) statsHTML += `<span class="cstat unpaid">€${totalUnpaid} da pagare</span>`;
+    if (credit      > 0) statsHTML += `<span class="cstat credit">💳 €${credit}</span>`;
+
+    const methodLabel = m => ({ contanti: '💵 Contanti', carta: '💳 Carta', iban: '🏦 IBAN', credito: '✨ Credito' }[m] || '—');
+
+    const bookingsHTML = client.bookings.map(b => {
+        const dateStr = b.date.split('-').reverse().join('/');
+        const rowClass = bookingHasPassed(b) ? '' : 'future-booking';
+        const nEsc = b.name.replace(/'/g, "\\'");
+        return `<tr id="brow-${b.id}" class="${rowClass}">
+            <td>${dateStr}</td>
+            <td>${b.time}</td>
+            <td>${SLOT_NAMES[b.slotType]}</td>
+            <td><span class="payment-status ${b.paid ? 'paid' : 'unpaid'}">${b.paid ? '✓ Pagato' : 'Non pagato'}</span></td>
+            <td>${methodLabel(b.paymentMethod)}</td>
+            <td class="booking-actions">
+                <button class="btn-row-edit"   onclick="startEditBookingRow('${b.id}', ${index})" title="Modifica">✏️</button>
+                <button class="btn-row-delete" onclick="deleteBookingFromClients('${b.id}', '${nEsc}')" title="Elimina">🗑️</button>
+            </td>
+        </tr>`;
+    }).join('');
+
+    const creditRecord = CreditStorage.getRecord(client.whatsapp, client.email);
+    let creditHTML = '';
+    if (creditRecord && creditRecord.history && creditRecord.history.length > 0) {
+        const history = [...creditRecord.history].reverse().slice(0, 8);
+        creditHTML = `<div class="client-credit-section">
+            <h4>💳 Storico credito — saldo: €${credit}</h4>
+            <div class="client-credit-history">
+                ${history.map(e => {
+                    const d = new Date(e.date);
+                    const ds = `${d.getDate()}/${d.getMonth()+1}/${d.getFullYear()}`;
+                    const sign = e.amount >= 0 ? '+' : '';
+                    const cls  = e.amount >= 0 ? 'plus' : 'minus';
+                    return `<div class="credit-history-row">
+                        <span class="credit-history-date">${ds}</span>
+                        <span class="credit-history-note">${e.note || 'Movimento'}</span>
+                        <span class="credit-history-amount ${cls}">${sign}€${Math.abs(e.amount)}</span>
+                    </div>`;
+                }).join('')}
+            </div>
+        </div>`;
+    }
+
+    const wEsc  = client.whatsapp.replace(/'/g, "\\'");
+    const emEsc = (client.email || '').replace(/'/g, "\\'");
+    const nEsc  = client.name.replace(/'/g, "\\'");
+
+    card.innerHTML = `
+        <div class="client-card-header" onclick="toggleClientCard('client-card-${index}', ${index})">
+            <div class="client-info-block">
+                <div class="client-name">${client.name}</div>
+                <div class="client-contacts">
+                    <span>📱 ${client.whatsapp}</span>
+                    ${client.email ? `<span>✉️ ${client.email}</span>` : ''}
+                </div>
+            </div>
+            <div class="client-stats-block">${statsHTML}</div>
+            <div class="client-chevron">▼</div>
+        </div>
+        <div class="client-card-body">
+            <div class="client-contact-edit" id="cedit-section-${index}">
+                <div class="client-view-mode">
+                    <button class="btn-edit-contact" onclick="event.stopPropagation(); startEditClient(${index}, '${wEsc}', '${emEsc}', '${nEsc}')">✏️ Modifica contatto</button>
+                </div>
+                <div class="client-edit-mode" style="display:none;">
+                    <div class="client-edit-fields">
+                        <label>Nome<input type="text"  id="cedit-name-${index}"  value="${client.name}"></label>
+                        <label>WhatsApp<input type="tel"   id="cedit-phone-${index}" value="${client.whatsapp}"></label>
+                        <label>Email<input type="email" id="cedit-email-${index}" value="${client.email || ''}"></label>
+                    </div>
+                    <div class="client-edit-actions">
+                        <button class="btn-save-edit"   onclick="saveClientEdit(${index}, '${wEsc}', '${emEsc}')">✓ Salva</button>
+                        <button class="btn-cancel-edit" onclick="cancelClientEdit(${index})">✕ Annulla</button>
+                    </div>
+                </div>
+            </div>
+            <div class="client-bookings-section">
+                <table class="client-bookings-table">
+                    <thead><tr>
+                        <th>Data</th><th>Ora</th><th>Tipo</th><th>Stato</th><th>Metodo</th><th></th>
+                    </tr></thead>
+                    <tbody>${bookingsHTML}</tbody>
+                </table>
+            </div>
+            ${creditHTML}
+        </div>
+    `;
+
+    return card;
+}
+
+function startEditClient(index, whatsapp, email, name) {
+    const section = document.getElementById(`cedit-section-${index}`);
+    if (!section) return;
+    section.querySelector('.client-view-mode').style.display = 'none';
+    section.querySelector('.client-edit-mode').style.display = 'flex';
+}
+
+function cancelClientEdit(index) {
+    const section = document.getElementById(`cedit-section-${index}`);
+    if (!section) return;
+    section.querySelector('.client-view-mode').style.display = 'flex';
+    section.querySelector('.client-edit-mode').style.display = 'none';
+}
+
+function saveClientEdit(index, oldWhatsapp, oldEmail) {
+    const newName     = document.getElementById(`cedit-name-${index}`).value.trim();
+    const newWhatsapp = document.getElementById(`cedit-phone-${index}`).value.trim();
+    const newEmail    = document.getElementById(`cedit-email-${index}`).value.trim();
+    if (!newName || !newWhatsapp) { alert('Nome e WhatsApp sono obbligatori.'); return; }
+
+    const normOld = normalizePhone(oldWhatsapp);
+    const bookings = BookingStorage.getAllBookings();
+    bookings.forEach(b => {
+        const phoneMatch = normOld && normalizePhone(b.whatsapp) === normOld;
+        const emailMatch = oldEmail && b.email && b.email.toLowerCase() === oldEmail.toLowerCase();
+        if (phoneMatch || emailMatch) {
+            b.name = newName;
+            b.whatsapp = newWhatsapp;
+            b.email = newEmail;
+        }
+    });
+    localStorage.setItem(BookingStorage.BOOKINGS_KEY, JSON.stringify(bookings));
+
+    // Update stored credit record contact info
+    const creditKey = CreditStorage._findKey(oldWhatsapp, oldEmail);
+    if (creditKey) {
+        const all = CreditStorage._getAll();
+        all[creditKey].name = newName;
+        all[creditKey].whatsapp = newWhatsapp;
+        all[creditKey].email = newEmail;
+        CreditStorage._save(all);
+    }
+
+    openClientIndex = null; // name sort may shift the card index
+    renderClientsTab();
+}
+
+function startEditBookingRow(bookingId, clientIndex) {
+    const booking = BookingStorage.getAllBookings().find(b => b.id === bookingId);
+    if (!booking) return;
+
+    const row = document.getElementById(`brow-${bookingId}`);
+    if (!row) return;
+
+    row._origHTML  = row.innerHTML;
+    row._origClass = row.className;
+    row.classList.add('editing');
+
+    const methods = [
+        { v: 'contanti', l: '💵 Contanti' },
+        { v: 'carta',    l: '💳 Carta'    },
+        { v: 'iban',     l: '🏦 IBAN'     },
+        { v: 'credito',  l: '✨ Credito'  }
+    ];
+    const methodOpts = methods.map(m =>
+        `<option value="${m.v}" ${booking.paymentMethod === m.v ? 'selected' : ''}>${m.l}</option>`
+    ).join('');
+
+    const dateStr = booking.date.split('-').reverse().join('/');
+
+    row.innerHTML = `
+        <td>${dateStr}</td>
+        <td>${booking.time}</td>
+        <td>${SLOT_NAMES[booking.slotType]}</td>
+        <td>
+            <select id="bedit-paid-${bookingId}">
+                <option value="true"  ${booking.paid  ? 'selected' : ''}>✓ Pagato</option>
+                <option value="false" ${!booking.paid ? 'selected' : ''}>✗ Non pagato</option>
+            </select>
+        </td>
+        <td>
+            <select id="bedit-method-${bookingId}">
+                <option value="">—</option>
+                ${methodOpts}
+            </select>
+        </td>
+        <td class="booking-actions">
+            <button class="btn-row-save"   onclick="saveBookingRowEdit('${bookingId}', ${clientIndex})" title="Salva">✓</button>
+            <button class="btn-row-cancel" onclick="cancelBookingRowEdit('${bookingId}')" title="Annulla">✕</button>
+        </td>
+    `;
+}
+
+function cancelBookingRowEdit(bookingId) {
+    const row = document.getElementById(`brow-${bookingId}`);
+    if (!row || !row._origHTML) return;
+    row.innerHTML  = row._origHTML;
+    row.className  = row._origClass || '';
+    delete row._origHTML;
+    delete row._origClass;
+}
+
+function saveBookingRowEdit(bookingId, clientIndex) {
+    const newPaid   = document.getElementById(`bedit-paid-${bookingId}`).value === 'true';
+    const newMethod = document.getElementById(`bedit-method-${bookingId}`).value;
+
+    const bookings = BookingStorage.getAllBookings();
+    const booking  = bookings.find(b => b.id === bookingId);
+    if (!booking) return;
+
+    const oldPaid   = booking.paid;
+    const oldMethod = booking.paymentMethod || '';
+    const price     = SLOT_PRICES[booking.slotType];
+
+    // Credit adjustments
+    if (oldPaid && oldMethod === 'credito' && !newPaid) {
+        // Was paid with credit → unpaid: refund
+        CreditStorage.addCredit(booking.whatsapp, booking.email, booking.name, price,
+            `Rimborso modifica pagamento ${booking.date} ${booking.time}`);
+    } else if (!oldPaid && newPaid && newMethod === 'credito') {
+        // Unpaid → paid with credit: deduct
+        const bal = CreditStorage.getBalance(booking.whatsapp, booking.email);
+        if (bal < price) { alert(`Credito insufficiente (€${bal} < €${price})`); return; }
+        CreditStorage.addCredit(booking.whatsapp, booking.email, booking.name, -price,
+            `Pagamento lezione ${booking.date} ${booking.time} con credito`);
+    } else if (oldPaid && oldMethod === 'credito' && newPaid && newMethod !== 'credito') {
+        // Credit → other method: refund credit
+        CreditStorage.addCredit(booking.whatsapp, booking.email, booking.name, price,
+            `Cambio metodo da credito — lezione ${booking.date} ${booking.time}`);
+    } else if (oldPaid && oldMethod !== 'credito' && newPaid && newMethod === 'credito') {
+        // Other method → credit: deduct credit
+        const bal = CreditStorage.getBalance(booking.whatsapp, booking.email);
+        if (bal < price) { alert(`Credito insufficiente (€${bal} < €${price})`); return; }
+        CreditStorage.addCredit(booking.whatsapp, booking.email, booking.name, -price,
+            `Cambio metodo a credito — lezione ${booking.date} ${booking.time}`);
+    }
+
+    booking.paid          = newPaid;
+    booking.paymentMethod = newMethod || undefined;
+    if (newPaid && !booking.paidAt) booking.paidAt = new Date().toISOString();
+    if (!newPaid) delete booking.paidAt;
+
+    localStorage.setItem(BookingStorage.BOOKINGS_KEY, JSON.stringify(bookings));
+    renderClientsTab();
+}
+
+function deleteBookingFromClients(bookingId, bookingName) {
+    if (!confirm(`Eliminare la prenotazione di ${bookingName}?\n\nQuesta operazione non può essere annullata.`)) return;
+
+    const bookings = BookingStorage.getAllBookings();
+    const idx = bookings.findIndex(b => b.id === bookingId);
+    if (idx !== -1) {
+        const b = bookings[idx];
+        if (b.paid && b.paymentMethod === 'credito') {
+            CreditStorage.addCredit(b.whatsapp, b.email, b.name, SLOT_PRICES[b.slotType],
+                `Rimborso cancellazione lezione ${b.date} ${b.time}`);
+        }
+        bookings.splice(idx, 1);
+        localStorage.setItem(BookingStorage.BOOKINGS_KEY, JSON.stringify(bookings));
+    }
+    renderClientsTab();
 }
 
 // Initialize admin when DOM is loaded
