@@ -149,22 +149,17 @@ function setupLogin() {
 
         if (password === ADMIN_PASSWORD) {
             sessionStorage.setItem('adminAuth', 'true');
+            localStorage.setItem('adminAuthenticated', 'true');
             showDashboard();
         } else {
             alert('Password errata!');
         }
     });
-
-    const logoutBtn = document.getElementById('logoutBtn');
-    logoutBtn.addEventListener('click', (e) => {
-        e.preventDefault();
-        sessionStorage.removeItem('adminAuth');
-        hideDashboard();
-    });
 }
 
 function checkAuth() {
-    if (sessionStorage.getItem('adminAuth') === 'true') {
+    if (sessionStorage.getItem('adminAuth') === 'true' ||
+        localStorage.getItem('adminAuthenticated') === 'true') {
         showDashboard();
     }
 }

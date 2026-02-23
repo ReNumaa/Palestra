@@ -1,0 +1,241 @@
+<!DOCTYPE html>
+<html lang="it">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Le mie prenotazioni – Thomas Bresciani</title>
+    <link rel="icon" type="image/jpeg" href="images/logo-tb---nero.jpg">
+    <link rel="stylesheet" href="css/style.css">
+    <link rel="stylesheet" href="css/login.css">
+    <link rel="stylesheet" href="css/prenotazioni.css">
+</head>
+<body>
+    <nav class="navbar">
+        <div class="container">
+            <div class="nav-brand">
+                <a href="index.html"><img src="images/logo-tb---nero.jpg" alt="Thomas Bresciani Personal Trainer" class="nav-logo"></a>
+            </div>
+            <div class="nav-right">
+                <ul class="nav-desktop-links">
+                    <li><a href="index.html">Calendario</a></li>
+                    <li><a href="chi-sono.html">Chi sono</a></li>
+                    <li><a href="dove-sono.html">Dove sono</a></li>
+                </ul>
+                <div id="navLoginLink" style="display:flex; align-items:center;">
+                    <a href="login.html" class="nav-login-btn">Accedi</a>
+                </div>
+                <div id="navUserMenu" style="display:none; align-items:center; gap:0.4rem;">
+                    <span id="navUserName" class="nav-user-name"></span>
+                    <button id="navLogoutBtn" class="nav-logout-btn">Esci</button>
+                </div>
+                <button class="nav-hamburger" id="navHamburger" aria-label="Menu">
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round">
+                        <line x1="3" y1="6" x2="21" y2="6"/><line x1="3" y1="12" x2="21" y2="12"/><line x1="3" y1="18" x2="21" y2="18"/>
+                    </svg>
+                </button>
+            </div>
+        </div>
+    </nav>
+
+    <main class="preno-page">
+        <div class="container">
+
+            <!-- Header utente -->
+            <div class="preno-header">
+                <div class="preno-avatar" id="prenoAvatar"></div>
+                <div class="preno-header-info">
+                    <h1 class="preno-title" id="prenoUserName">Le mie prenotazioni</h1>
+                    <p class="preno-subtitle" id="prenoUserEmail"></p>
+                </div>
+            </div>
+
+            <!-- Saldo -->
+            <div class="preno-saldo-card">
+                <div class="preno-saldo-row">
+                    <span class="preno-saldo-label">💳 Credito disponibile</span>
+                    <span class="preno-saldo-value preno-saldo-credit" id="prenoCreditAmount">€0,00</span>
+                </div>
+                <div class="preno-saldo-divider"></div>
+                <div class="preno-saldo-row">
+                    <span class="preno-saldo-label">⚠️ Da pagare</span>
+                    <span class="preno-saldo-value preno-saldo-debit" id="prenoDebitAmount">€0,00</span>
+                </div>
+            </div>
+
+            <!-- Tabs -->
+            <div class="preno-tabs">
+                <button class="preno-tab active" id="tabProssime" onclick="switchPrenoTab('upcoming')">Prossime</button>
+                <button class="preno-tab" id="tabPassate" onclick="switchPrenoTab('past')">Passate</button>
+            </div>
+
+            <!-- Lista prenotazioni -->
+            <div id="prenoList" class="preno-list"></div>
+
+            <!-- CTA -->
+            <div class="preno-cta">
+                <a href="index.html" class="preno-cta-btn">
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" width="18" height="18"><rect x="3" y="4" width="18" height="18" rx="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/></svg>
+                    Prenota una lezione
+                </a>
+            </div>
+
+        </div>
+    </main>
+
+    <footer class="footer">
+        <div class="container">
+            <p>&copy; 2026 Thomas Bresciani Personal Trainer — Via S. Rocco, 1, Sabbio Chiese (BS)</p>
+        </div>
+    </footer>
+
+    <!-- WhatsApp floating button -->
+    <a href="https://wa.me/393347251783" class="whatsapp-fab" target="_blank" rel="noopener" aria-label="Contattami su WhatsApp">
+        <svg viewBox="0 0 24 24" fill="currentColor"><path d="M17.472 14.382c-.297-.149-1.758-.867-2.03-.967-.273-.099-.471-.148-.67.15-.197.297-.767.966-.94 1.164-.173.199-.347.223-.644.075-.297-.15-1.255-.463-2.39-1.475-.883-.788-1.48-1.761-1.653-2.059-.173-.297-.018-.458.13-.606.134-.133.298-.347.446-.52.149-.174.198-.298.298-.497.099-.198.05-.371-.025-.52-.075-.149-.669-1.612-.916-2.207-.242-.579-.487-.5-.669-.51-.173-.008-.371-.01-.57-.01-.198 0-.52.074-.792.372-.272.297-1.04 1.016-1.04 2.479 0 1.462 1.065 2.875 1.213 3.074.149.198 2.096 3.2 5.077 4.487.709.306 1.262.489 1.694.625.712.227 1.36.195 1.871.118.571-.085 1.758-.719 2.006-1.413.248-.694.248-1.289.173-1.413-.074-.124-.272-.198-.57-.347m-5.421 7.403h-.004a9.87 9.87 0 01-5.031-1.378l-.361-.214-3.741.982.998-3.648-.235-.374a9.86 9.86 0 01-1.51-5.26c.001-5.45 4.436-9.884 9.888-9.884 2.64 0 5.122 1.03 6.988 2.898a9.825 9.825 0 012.893 6.994c-.003 5.45-4.437 9.884-9.885 9.884m8.413-18.297A11.815 11.815 0 0012.05 0C5.495 0 .16 5.335.157 11.892c0 2.096.547 4.142 1.588 5.945L.057 24l6.305-1.654a11.882 11.882 0 005.683 1.448h.005c6.554 0 11.89-5.335 11.893-11.893a11.821 11.821 0 00-3.48-8.413z"/></svg>
+    </a>
+
+    <!-- Sidebar -->
+    <div class="nav-sidebar-overlay" id="navSidebarOverlay" onclick="toggleNavMenu()"></div>
+    <nav class="nav-sidebar" id="navSidebar">
+        <div class="nav-sidebar-header">
+            <img src="images/logo-tb---nero.jpg" alt="Thomas Bresciani" class="nav-sidebar-logo">
+            <button class="nav-sidebar-close" onclick="toggleNavMenu()">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
+            </button>
+        </div>
+        <ul class="nav-sidebar-links">
+            <li><a href="index.html">Calendario</a></li>
+            <li><a href="chi-sono.html">Chi sono</a></li>
+            <li><a href="dove-sono.html">Dove sono</a></li>
+        </ul>
+    </nav>
+
+    <script src="js/data.js"></script>
+    <script src="js/auth.js"></script>
+    <script>
+        // ── Guard ─────────────────────────────────────────────────────────
+        const _user = getCurrentUser();
+        if (!_user) window.location.href = 'login.html';
+
+        // ── State ─────────────────────────────────────────────────────────
+        let _currentTab = 'upcoming';
+
+        // ── Init ──────────────────────────────────────────────────────────
+        document.addEventListener('DOMContentLoaded', () => {
+            const user = getCurrentUser();
+            if (!user) return;
+
+            // Fill header
+            document.getElementById('prenoUserName').textContent = user.name;
+            document.getElementById('prenoUserEmail').textContent = user.email;
+            document.getElementById('prenoAvatar').textContent = user.name.charAt(0).toUpperCase();
+
+            renderPrenoList();
+            renderCreditBalance();
+        });
+
+        // ── Credit / debit balance ────────────────────────────────────────
+        function renderCreditBalance() {
+            const user = getCurrentUser();
+            if (!user) return;
+
+            const balance = CreditStorage.getBalance(user.whatsapp, user.email);
+            const { upcoming } = getUserBookings();
+            const debit = upcoming
+                .filter(b => !b.paid)
+                .reduce((sum, b) => sum + (SLOT_PRICES[b.slotType] || 0), 0);
+
+            document.getElementById('prenoCreditAmount').textContent = `€${balance.toFixed(2)}`;
+            document.getElementById('prenoDebitAmount').textContent  = `€${debit.toFixed(2)}`;
+        }
+
+        // ── Tab switch ────────────────────────────────────────────────────
+        function switchPrenoTab(tab) {
+            _currentTab = tab;
+            document.getElementById('tabProssime').classList.toggle('active', tab === 'upcoming');
+            document.getElementById('tabPassate').classList.toggle('active',  tab === 'past');
+            renderPrenoList();
+        }
+
+        // ── Render ────────────────────────────────────────────────────────
+        function renderPrenoList() {
+            const { upcoming, past } = getUserBookings();
+            const list = _currentTab === 'upcoming' ? upcoming : past;
+            const container = document.getElementById('prenoList');
+
+            if (!list.length) {
+                const msg = _currentTab === 'upcoming'
+                    ? 'Nessuna prenotazione futura.<br><a href="index.html" class="preno-empty-link">Prenota la tua prima lezione →</a>'
+                    : 'Nessuna prenotazione passata.';
+                container.innerHTML = `<div class="preno-empty">${msg}</div>`;
+                return;
+            }
+
+            container.innerHTML = list.map(b => buildCard(b, _currentTab === 'upcoming')).join('');
+        }
+
+        function buildCard(b, showCancel) {
+            const slotName = (SLOT_NAMES && SLOT_NAMES[b.slotType]) || b.slotType || '—';
+            const displayDate = b.dateDisplay || b.date;
+
+            let payBadge = '';
+            if (b.paid) {
+                const method = b.paymentMethod === 'credito' ? '💳 Credito' : '✓ Pagata';
+                payBadge = `<span class="preno-badge preno-badge-paid">${method}</span>`;
+            } else {
+                payBadge = `<span class="preno-badge preno-badge-unpaid">Da pagare</span>`;
+            }
+
+            const cancelBtn = showCancel
+                ? `<button class="preno-cancel-btn" onclick="cancelBooking('${b.id}')">Annulla</button>`
+                : '';
+
+            return `
+                <div class="preno-card ${b.slotType}">
+                    <div class="preno-card-left">
+                        <div class="preno-card-date">📅 ${displayDate}</div>
+                        <div class="preno-card-time">🕐 ${b.time}</div>
+                        <div class="preno-card-type">${slotName}</div>
+                    </div>
+                    <div class="preno-card-right">
+                        ${payBadge}
+                        ${cancelBtn}
+                    </div>
+                </div>`;
+        }
+
+        // ── Cancel booking ────────────────────────────────────────────────
+        function cancelBooking(id) {
+            if (!confirm('Sei sicuro di voler annullare questa prenotazione?')) return;
+
+            const allBookings = JSON.parse(localStorage.getItem('gym_bookings') || '[]');
+            const idx = allBookings.findIndex(b => b.id === id);
+            if (idx === -1) return;
+
+            const booking = allBookings[idx];
+
+            // Remove the booking first so applyToUnpaidBookings doesn't see it
+            allBookings.splice(idx, 1);
+            localStorage.setItem('gym_bookings', JSON.stringify(allBookings));
+
+            // Refund credit if it was paid with credit, then re-apply to remaining unpaid bookings
+            if (booking.paid && booking.paymentMethod === 'credito') {
+                const price = (SLOT_PRICES && SLOT_PRICES[booking.slotType]) || 0;
+                if (price > 0) {
+                    CreditStorage.addCredit(
+                        booking.whatsapp,
+                        booking.email,
+                        booking.name,
+                        price,
+                        `Rimborso lezione annullata ${booking.date} ${booking.time}`
+                    );
+                    // Propagate refunded credit to any remaining unpaid bookings
+                    CreditStorage.applyToUnpaidBookings(booking.whatsapp, booking.email, booking.name);
+                }
+            }
+
+            renderPrenoList();
+            renderCreditBalance();
+        }
+    </script>
+</body>
+</html>

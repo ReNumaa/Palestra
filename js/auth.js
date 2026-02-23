@@ -1,5 +1,49 @@
 // Auth - simulated session via localStorage
 
+// ── User storage helpers ──────────────────────────────────────────────────
+const USERS_KEY = 'gym_users';
+
+function _getAllUsers() {
+    try { return JSON.parse(localStorage.getItem(USERS_KEY) || '[]'); } catch { return []; }
+}
+
+function _saveUsers(users) {
+    localStorage.setItem(USERS_KEY, JSON.stringify(users));
+}
+
+function getUserByEmail(email) {
+    return _getAllUsers().find(u => u.email.toLowerCase() === email.toLowerCase()) || null;
+}
+
+// SHA-256 hash via Web Crypto API (no external deps)
+async function _hashPassword(password) {
+    const data = new TextEncoder().encode(password);
+    const hash = await crypto.subtle.digest('SHA-256', data);
+    return Array.from(new Uint8Array(hash)).map(b => b.toString(16).padStart(2, '0')).join('');
+}
+
+// Register a new user — returns { ok: true } or { ok: false, error: string }
+async function registerUser(name, email, whatsapp, password) {
+    if (getUserByEmail(email)) return { ok: false, error: 'Email già registrata.' };
+    const passwordHash = await _hashPassword(password);
+    const users = _getAllUsers();
+    users.push({ name, email, whatsapp, passwordHash, createdAt: new Date().toISOString() });
+    _saveUsers(users);
+    loginUser({ name, email, whatsapp });
+    return { ok: true };
+}
+
+// Login with email + password — returns { ok: true } or { ok: false, error: string }
+async function loginWithPassword(email, password) {
+    const user = getUserByEmail(email);
+    if (!user) return { ok: false, error: 'Email non trovata.' };
+    const hash = await _hashPassword(password);
+    if (hash !== user.passwordHash) return { ok: false, error: 'Password errata.' };
+    loginUser({ name: user.name, email: user.email, whatsapp: user.whatsapp });
+    return { ok: true };
+}
+
+// ── Session helpers ───────────────────────────────────────────────────────
 function getCurrentUser() {
     try { return JSON.parse(localStorage.getItem('currentUser')); } catch { return null; }
 }
@@ -13,28 +57,67 @@ function logoutUser() {
 }
 
 function updateNavAuth() {
-    const user = getCurrentUser();
-    const loginLink  = document.getElementById('navLoginLink');
-    const userMenu   = document.getElementById('navUserMenu');
-    const userName   = document.getElementById('navUserName');
+    const user    = getCurrentUser();
+    const isAdmin = localStorage.getItem('adminAuthenticated') === 'true';
+    const loginLink = document.getElementById('navLoginLink');
+    const userMenu  = document.getElementById('navUserMenu');
+    const userName  = document.getElementById('navUserName');
 
-    if (!loginLink || !userMenu) return;
+    _removeDynamicNavLinks();
 
     if (user) {
-        loginLink.style.display  = 'none';
-        userMenu.style.display   = 'flex';
-        if (userName) userName.textContent = user.name.split(' ')[0];
+        if (loginLink) loginLink.style.display = 'none';
+        if (userMenu)  userMenu.style.display  = 'flex';
+        if (userName)  userName.textContent    = user.name.split(' ')[0];
+        _injectNavLinkFirst('prenotazioni.html', 'Le mie prenotazioni', 'nav-prenotazioni-link');
+    } else if (isAdmin) {
+        if (loginLink) loginLink.style.display = 'none';
+        if (userMenu)  userMenu.style.display  = 'flex';
+        if (userName)  userName.textContent    = 'Admin';
+        _injectNavLinkLast('admin.html', 'Amministrazione', 'nav-admin-link');
     } else {
-        loginLink.style.display  = 'flex';
-        userMenu.style.display   = 'none';
+        if (loginLink) loginLink.style.display = 'flex';
+        if (userMenu)  userMenu.style.display  = 'none';
     }
+}
+
+function _injectNavLinkFirst(href, label, cssClass) {
+    ['.nav-desktop-links', '.nav-sidebar-links'].forEach(sel => {
+        const nav = document.querySelector(sel);
+        if (!nav || nav.querySelector('.' + cssClass)) return;
+        const li = document.createElement('li');
+        li.innerHTML = `<a href="${href}" class="${cssClass}">${label}</a>`;
+        nav.prepend(li);
+    });
+}
+
+function _injectNavLinkLast(href, label, cssClass) {
+    ['.nav-desktop-links', '.nav-sidebar-links'].forEach(sel => {
+        const nav = document.querySelector(sel);
+        if (!nav || nav.querySelector('.' + cssClass)) return;
+        const li = document.createElement('li');
+        li.innerHTML = `<a href="${href}" class="${cssClass}">${label}</a>`;
+        nav.append(li);
+    });
+}
+
+function _removeDynamicNavLinks() {
+    document.querySelectorAll('.nav-prenotazioni-link, .nav-admin-link').forEach(el => el.closest('li')?.remove());
+}
+
+function _injectPrenotazioniLink() {
+    _injectNavLinkFirst('prenotazioni.html', 'Le mie prenotazioni', 'nav-prenotazioni-link');
+}
+
+function _removePrenotazioniLink() {
+    _removeDynamicNavLinks();
 }
 
 function getUserBookings() {
     const user = getCurrentUser();
     if (!user) return { upcoming: [], past: [] };
 
-    const allBookings = JSON.parse(localStorage.getItem('bookings') || '[]');
+    const allBookings = JSON.parse(localStorage.getItem('gym_bookings') || '[]');
     const today = new Date().toISOString().split('T')[0];
 
     const mine = allBookings.filter(b => b.email && b.email.toLowerCase() === user.email.toLowerCase());
@@ -44,14 +127,12 @@ function getUserBookings() {
     };
 }
 
+// ── Profile modal (kept for backward compat on pages that still have it) ──
 function openProfileModal() {
     const user = getCurrentUser();
     if (!user) return;
-
-    const { upcoming, past } = getUserBookings();
     const modal = document.getElementById('profileModal');
     if (!modal) return;
-
     document.getElementById('profileUserName').textContent = user.name;
     renderProfileTab('upcoming');
     modal.style.display = 'flex';
@@ -71,6 +152,7 @@ function renderProfileTab(tab) {
     document.querySelectorAll('.profile-tab-btn').forEach(b => b.classList.toggle('active', b.dataset.tab === tab));
 
     const container = document.getElementById('profileBookingsList');
+    if (!container) return;
     if (!list.length) {
         container.innerHTML = `<p class="profile-empty">${tab === 'upcoming' ? 'Nessuna prenotazione futura.' : 'Nessuna prenotazione passata.'}</p>`;
         return;
@@ -85,7 +167,7 @@ function renderProfileTab(tab) {
     `).join('');
 }
 
-// Hamburger sidebar toggle
+// ── Hamburger sidebar toggle ──────────────────────────────────────────────
 function toggleNavMenu() {
     const sidebar = document.getElementById('navSidebar');
     const overlay = document.getElementById('navSidebarOverlay');
@@ -95,7 +177,7 @@ function toggleNavMenu() {
     document.body.classList.toggle('nav-open', isOpen);
 }
 
-// Init on DOM ready
+// ── Init on DOM ready ─────────────────────────────────────────────────────
 document.addEventListener('DOMContentLoaded', () => {
     updateNavAuth();
 
@@ -106,13 +188,19 @@ document.addEventListener('DOMContentLoaded', () => {
     if (logoutBtn) {
         logoutBtn.addEventListener('click', () => {
             logoutUser();
+            localStorage.removeItem('adminAuthenticated');
+            sessionStorage.removeItem('adminAuth');
             window.location.href = 'index.html';
         });
     }
 
+    // Username click → Le mie prenotazioni (user) or admin page (admin)
     const profileBtn = document.getElementById('navUserName');
     if (profileBtn) {
         profileBtn.style.cursor = 'pointer';
-        profileBtn.addEventListener('click', openProfileModal);
+        profileBtn.addEventListener('click', () => {
+            const isAdmin = localStorage.getItem('adminAuthenticated') === 'true';
+            window.location.href = isAdmin ? 'admin.html' : 'prenotazioni.html';
+        });
     }
 });

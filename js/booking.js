@@ -31,8 +31,9 @@ function openBookingModal(dateInfo, timeSlot, slotType, remainingSpots) {
     // Pre-fill if user is logged in
     const user = typeof getCurrentUser === 'function' ? getCurrentUser() : null;
     if (user) {
-        document.getElementById('name').value    = user.name  || '';
-        document.getElementById('email').value   = user.email || '';
+        document.getElementById('name').value     = user.name     || '';
+        document.getElementById('email').value    = user.email    || '';
+        document.getElementById('whatsapp').value = user.whatsapp || '';
     }
 
     // Show modal
@@ -213,7 +214,7 @@ function showConfirmation(booking) {
         <p style="margin-top: 0.75rem; font-size: 0.85rem; opacity: 0.9;">Riceverai un promemoria WhatsApp al numero <strong>${booking.whatsapp}</strong></p>
         <div class="cal-buttons">
             <a href="${googleCalendarUrl(booking)}" target="_blank" rel="noopener" class="cal-btn cal-btn-google">
-                <svg viewBox="0 0 24 24" fill="currentColor"><path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm-1 14H9V8h2v8zm4 0h-2V8h2v8z"/></svg>
+                <svg viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path fill="#4285F4" d="M19 4h-1V2h-2v2H8V2H6v2H5C3.9 4 3 4.9 3 6v14c0 1.1.9 2 2 2h14c1.1 0 2-.9 2-2V6c0-1.1-.9-2-2-2zm0 16H5V10h14v10zm0-12H5V6h14v2z"/><rect fill="#EA4335" x="7" y="12" width="2" height="2"/><rect fill="#34A853" x="11" y="12" width="2" height="2"/><rect fill="#FBBC04" x="15" y="12" width="2" height="2"/><rect fill="#34A853" x="7" y="16" width="2" height="2"/><rect fill="#4285F4" x="11" y="16" width="2" height="2"/><rect fill="#EA4335" x="15" y="16" width="2" height="2"/></svg>
                 Google Calendar
             </a>
             <button onclick="downloadIcs(${JSON.stringify(booking).replace(/"/g, '&quot;')})" class="cal-btn cal-btn-apple">
