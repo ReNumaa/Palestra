@@ -3,10 +3,11 @@ class SimpleChart {
     constructor(canvas) {
         this.canvas = canvas;
         this.ctx = canvas.getContext('2d');
-        const w = canvas.offsetWidth > 0 ? canvas.offsetWidth : 400;
-        const h = canvas.offsetHeight > 0 ? canvas.offsetHeight : 250;
-        this.width = canvas.width = w * 2;
-        this.height = canvas.height = h * 2;
+        const rect = canvas.getBoundingClientRect();
+        const w = rect.width > 0 ? rect.width : (canvas.offsetWidth > 0 ? canvas.offsetWidth : 400);
+        const h = 250;
+        this.width = canvas.width = Math.round(w * 2);
+        this.height = canvas.height = Math.round(h * 2);
         this.ctx.scale(2, 2);
     }
 

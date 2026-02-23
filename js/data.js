@@ -311,7 +311,23 @@ class BookingStorage {
                     selected.forEach(idx => {
                         const client = clients[idx];
                         const paid = isPast ? (Math.random() < 0.97) : false;
-                        demoBookings.push({
+
+                        // Payment method: 60% contanti, 25% carta, 15% iban
+                        const methodRoll = Math.random();
+                        const paymentMethod = paid
+                            ? (methodRoll < 0.60 ? 'contanti' : methodRoll < 0.85 ? 'carta' : 'iban')
+                            : undefined;
+
+                        // paidAt: random time between booking end and now
+                        let paidAt;
+                        if (paid) {
+                            const delayHours = Math.random() * 72; // paid within 3 days of the lesson
+                            const paidDate = new Date(endDateTime.getTime() + delayHours * 3600000);
+                            if (paidDate > today) paidDate.setTime(today.getTime() - Math.random() * 3600000);
+                            paidAt = paidDate.toISOString();
+                        }
+
+                        const booking = {
                             date: dateStr,
                             time: slot.time,
                             slotType: slot.type,
@@ -320,7 +336,11 @@ class BookingStorage {
                             whatsapp: client.whatsapp,
                             notes: notes[Math.floor(Math.random() * notes.length)],
                             paid
-                        });
+                        };
+                        if (paymentMethod) booking.paymentMethod = paymentMethod;
+                        if (paidAt) booking.paidAt = paidAt;
+
+                        demoBookings.push(booking);
                     });
                 });
 

@@ -54,7 +54,7 @@
 
 .login-admin-logo {
     display: block;
-    height: 60px;
+    height: 80px;
     width: auto;
     margin: 0 auto 1.5rem;
     border-radius: 10px;
@@ -381,7 +381,8 @@
 
 /* Chart Container */
 canvas {
-    max-width: 100%;
+    display: block;
+    width: 100% !important;
     height: 250px !important;
 }
 
@@ -442,12 +443,16 @@ canvas {
     display: flex;
     align-items: center;
     gap: 1rem;
+    margin-bottom: 0.6rem;
 }
 
 .time-label {
     min-width: 100px;
+    font-size: 0.9rem;
+    line-height: 30px;
     font-weight: 600;
     color: var(--dark-bg);
+    white-space: nowrap;
 }
 
 .time-progress {
@@ -469,8 +474,13 @@ canvas {
     padding-right: 10px;
     color: white;
     font-size: 0.85rem;
+    line-height: 30px;
     font-weight: bold;
     transition: width 0.5s ease;
+}
+
+.time-progress-fill--low {
+    background: linear-gradient(90deg, #94a3b8 0%, #64748b 100%);
 }
 
 /* Admin Calendar Styles */
@@ -758,7 +768,7 @@ canvas {
     display: flex;
     align-items: center;
     gap: 1rem;
-    padding: 0.85rem 1.1rem;
+    padding: 1rem 1.25rem;
     cursor: pointer;
     background: #fafafa;
     user-select: none;
@@ -773,12 +783,12 @@ canvas {
 
 .client-name {
     font-weight: 700;
-    font-size: 0.93rem;
+    font-size: 1.05rem;
     color: #1a1a1a;
 }
 
 .client-contacts {
-    font-size: 0.78rem;
+    font-size: 0.88rem;
     color: #777;
     margin-top: 0.15rem;
     display: flex;
@@ -794,9 +804,9 @@ canvas {
 }
 
 .cstat {
-    font-size: 0.72rem;
+    font-size: 0.82rem;
     font-weight: 600;
-    padding: 0.18rem 0.5rem;
+    padding: 0.22rem 0.6rem;
     border-radius: 20px;
     background: #f3f4f6;
     color: #666;
@@ -818,9 +828,9 @@ canvas {
 
 .client-card-body {
     display: none;
-    padding: 1rem 1.1rem;
+    padding: 1.1rem 1.25rem;
     flex-direction: column;
-    gap: 0.9rem;
+    gap: 1rem;
 }
 
 .client-card.open .client-card-body { display: flex; }
@@ -837,8 +847,8 @@ canvas {
     background: none;
     border: 1px solid #e5e7eb;
     border-radius: 6px;
-    padding: 0.3rem 0.75rem;
-    font-size: 0.8rem;
+    padding: 0.35rem 0.85rem;
+    font-size: 0.88rem;
     cursor: pointer;
     color: #666;
     transition: all 0.15s;
@@ -858,7 +868,7 @@ canvas {
     display: flex;
     flex-direction: column;
     gap: 0.2rem;
-    font-size: 0.75rem;
+    font-size: 0.83rem;
     color: #888;
     font-weight: 600;
     flex: 1;
@@ -866,10 +876,10 @@ canvas {
 }
 
 .client-edit-fields input {
-    padding: 0.42rem 0.7rem;
+    padding: 0.48rem 0.75rem;
     border: 1px solid #d1d5db;
     border-radius: 6px;
-    font-size: 0.87rem;
+    font-size: 0.95rem;
     outline: none;
 }
 
@@ -882,8 +892,8 @@ canvas {
     color: white;
     border: none;
     border-radius: 6px;
-    padding: 0.38rem 0.9rem;
-    font-size: 0.83rem;
+    padding: 0.45rem 1rem;
+    font-size: 0.9rem;
     cursor: pointer;
     font-weight: 600;
 }
@@ -893,8 +903,8 @@ canvas {
     color: #555;
     border: 1px solid #e5e7eb;
     border-radius: 6px;
-    padding: 0.38rem 0.9rem;
-    font-size: 0.83rem;
+    padding: 0.45rem 1rem;
+    font-size: 0.9rem;
     cursor: pointer;
 }
 
@@ -904,21 +914,21 @@ canvas {
 .client-bookings-table {
     width: 100%;
     border-collapse: collapse;
-    font-size: 0.83rem;
+    font-size: 0.93rem;
 }
 
 .client-bookings-table th {
     text-align: left;
-    padding: 0.45rem 0.55rem;
+    padding: 0.5rem 0.65rem;
     color: #999;
-    font-size: 0.75rem;
+    font-size: 0.82rem;
     font-weight: 600;
     border-bottom: 2px solid #f3f4f6;
     white-space: nowrap;
 }
 
 .client-bookings-table td {
-    padding: 0.45rem 0.55rem;
+    padding: 0.5rem 0.65rem;
     border-bottom: 1px solid #f9fafb;
     vertical-align: middle;
     white-space: nowrap;
@@ -928,11 +938,30 @@ canvas {
 .client-bookings-table tr.editing td { background: #f0f9ff; }
 
 .client-bookings-table select {
+    padding: 0.32rem 0.5rem;
+    border: 1px solid #d1d5db;
+    border-radius: 5px;
+    font-size: 0.88rem;
+    max-width: 140px;
+}
+
+.paidat-cell {
+    color: #666;
+    font-size: 0.85rem;
+    white-space: nowrap;
+}
+
+.bedit-date-input {
     padding: 0.28rem 0.4rem;
     border: 1px solid #d1d5db;
     border-radius: 5px;
-    font-size: 0.8rem;
-    max-width: 130px;
+    font-size: 0.82rem;
+    width: 130px;
+    outline: none;
+}
+
+.bedit-date-input:focus {
+    border-color: var(--primary-cyan);
 }
 
 .booking-actions {
@@ -945,10 +974,10 @@ canvas {
     background: none;
     border: 1px solid #e5e7eb;
     border-radius: 5px;
-    width: 26px;
-    height: 26px;
+    width: 30px;
+    height: 30px;
     cursor: pointer;
-    font-size: 0.75rem;
+    font-size: 0.82rem;
     display: inline-flex;
     align-items: center;
     justify-content: center;
@@ -969,7 +998,7 @@ canvas {
 }
 
 .client-credit-section h4 {
-    font-size: 0.87rem;
+    font-size: 0.97rem;
     color: #0369a1;
     margin: 0 0 0.5rem 0;
     font-weight: 700;
@@ -984,11 +1013,11 @@ canvas {
 .credit-history-row {
     display: flex;
     gap: 0.6rem;
-    font-size: 0.78rem;
+    font-size: 0.88rem;
     align-items: baseline;
 }
 
-.credit-history-date  { color: #bbb; min-width: 65px; flex-shrink: 0; font-size: 0.73rem; }
+.credit-history-date  { color: #bbb; min-width: 72px; flex-shrink: 0; font-size: 0.8rem; }
 .credit-history-note  { flex: 1; color: #666; }
 .credit-history-amount { font-weight: 700; white-space: nowrap; }
 .credit-history-amount.plus  { color: #166534; }
@@ -1001,47 +1030,95 @@ canvas {
 }
 
 /* Schedule Manager Styles */
+.schedule-import-bar {
+    display: flex;
+    align-items: center;
+    gap: 0.75rem;
+    flex-wrap: wrap;
+    margin-bottom: 1.25rem;
+    padding: 0.75rem 1rem;
+    background: #f9fafb;
+    border: 1px solid #e5e7eb;
+    border-radius: 10px;
+}
+
+.schedule-week-status {
+    flex: 1;
+    font-size: 0.88rem;
+    font-weight: 600;
+}
+
+.schedule-week-status.has-slots { color: #0369a1; }
+.schedule-week-status.is-blank  { color: #aaa; }
+
+.btn-import-week {
+    background: var(--primary-cyan);
+    color: white;
+    border: none;
+    border-radius: 8px;
+    padding: 0.42rem 1rem;
+    font-size: 0.88rem;
+    font-weight: 600;
+    cursor: pointer;
+    transition: background 0.15s;
+    white-space: nowrap;
+}
+
+.btn-import-week:hover { background: var(--primary-cyan-dark); }
+
+.btn-clear-week {
+    background: none;
+    border: 1px solid #e5e7eb;
+    border-radius: 8px;
+    padding: 0.42rem 0.85rem;
+    font-size: 0.85rem;
+    color: #999;
+    cursor: pointer;
+    transition: all 0.15s;
+    white-space: nowrap;
+}
+
+.btn-clear-week:hover { border-color: #ef4444; color: #ef4444; }
+
+/* Dot indicator on day tabs that have slots */
+.schedule-day-tab.has-slots .admin-day-count {
+    color: var(--primary-cyan);
+    font-weight: 700;
+}
+
 .schedule-day-tabs {
     display: flex;
     gap: 0.5rem;
-    margin-bottom: 1.5rem;
+    padding: 0.75rem 0;
+    margin-bottom: 1rem;
     flex-wrap: wrap;
     justify-content: center;
 }
 
 .schedule-day-tab {
+    flex: 0 0 auto;
+    min-width: 76px;
+    padding: 0.6rem 0.5rem;
     background-color: var(--light-gray);
-    border: 2px solid #ddd;
-    padding: 0.5rem 0.75rem;
-    border-radius: 8px;
+    border-radius: 12px;
+    text-align: center;
     cursor: pointer;
     transition: all 0.3s;
-    font-weight: 600;
-    color: #666;
-    text-align: center;
-    min-width: 90px;
-}
-
-.schedule-day-tab small {
-    display: block;
-    font-size: 0.75rem;
-    margin-top: 0.25rem;
-    opacity: 0.8;
+    border: 2px solid #ddd;
+    color: inherit;
+    font-family: inherit;
 }
 
 .schedule-day-tab:hover {
-    background-color: #e0e0e0;
-    transform: translateY(-2px);
+    transform: translateY(-3px);
+    box-shadow: 0 4px 8px rgba(0,0,0,0.15);
 }
 
 .schedule-day-tab.active {
     background: linear-gradient(135deg, var(--primary-cyan), var(--primary-cyan-dark));
     color: white;
     border-color: var(--primary-cyan);
-}
-
-.schedule-day-tab.active small {
-    opacity: 1;
+    transform: scale(1.05);
 }
 
 .schedule-slots-list {
@@ -1254,23 +1331,52 @@ canvas {
 /* Payments Section */
 .payments-stats {
     display: grid;
-    grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
-    gap: 1.5rem;
-    margin-bottom: 2rem;
+    grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+    gap: 1rem;
+    margin-bottom: 1.75rem;
 }
 
 .payment-stat-card {
-    background: linear-gradient(135deg, #ff6b6b, #ee5a6f);
-    padding: 1.5rem;
-    border-radius: 12px;
-    color: white;
+    background: white;
+    border: 1px solid #e5e7eb;
+    border-radius: 14px;
+    padding: 1.4rem 1.25rem 1.25rem;
     text-align: center;
+    position: relative;
+    overflow: hidden;
+}
+
+.payment-stat-card::before {
+    content: '';
+    position: absolute;
+    top: 0; left: 0; right: 0;
+    height: 4px;
+    background: #e5e7eb;
+    border-radius: 14px 14px 0 0;
+}
+
+.payment-stat-card--incasso::before   { background: #f59e0b; }
+.payment-stat-card--debitori::before  { background: #ef4444; }
+.payment-stat-card--creditori::before { background: var(--primary-cyan); }
+.payment-stat-card--credit::before    { background: #22c55e; }
+
+.payment-stat-card--incasso  .payment-total { color: #d97706; }
+.payment-stat-card--debitori .payment-total { color: #ef4444; }
+.payment-stat-card--creditori .payment-total { color: var(--primary-cyan-dark); }
+
+.payment-stat-icon {
+    font-size: 1.6rem;
+    margin-bottom: 0.4rem;
+    line-height: 1;
 }
 
 .payment-stat-card h4 {
-    margin: 0 0 0.5rem 0;
-    font-size: 1rem;
-    opacity: 0.9;
+    margin: 0 0 0.35rem 0;
+    font-size: 0.78rem;
+    color: #888;
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 0.06em;
 }
 
 .payment-stat-card--clickable {
@@ -1280,18 +1386,18 @@ canvas {
 
 .payment-stat-card--clickable:hover {
     transform: translateY(-2px);
-    box-shadow: 0 6px 20px rgba(0,0,0,0.2);
+    box-shadow: 0 6px 18px rgba(0,0,0,0.08);
 }
 
 .debtors-toggle-hint {
     display: block;
-    font-size: 0.78rem;
-    opacity: 0.8;
-    margin-top: 0.4rem;
+    font-size: 0.75rem;
+    color: #bbb;
+    margin-top: 0.35rem;
     letter-spacing: 0.03em;
 }
 
-/* Search Dropdown */
+/* Search Bar */
 .payment-search {
     position: relative;
     margin-bottom: 1.5rem;
@@ -1303,10 +1409,10 @@ canvas {
     left: 0;
     right: 80px;
     background: white;
-    border: 2px solid #ff6b6b;
+    border: 1.5px solid var(--primary-cyan);
     border-top: none;
     border-radius: 0 0 10px 10px;
-    box-shadow: 0 6px 20px rgba(0,0,0,0.12);
+    box-shadow: 0 6px 20px rgba(0,0,0,0.10);
     z-index: 100;
     max-height: 260px;
     overflow-y: auto;
@@ -1325,7 +1431,7 @@ canvas {
 
 .dropdown-item:last-child { border-bottom: none; }
 
-.dropdown-item:hover { background-color: #fff0f0; }
+.dropdown-item:hover { background-color: #f0f9ff; }
 
 .dropdown-item-name {
     font-weight: 600;
@@ -1334,7 +1440,13 @@ canvas {
 
 .dropdown-item-debt {
     font-size: 0.85rem;
-    color: #ff6b6b;
+    color: #ef4444;
+    font-weight: 700;
+}
+
+.dropdown-item-credit {
+    font-size: 0.85rem;
+    color: #0369a1;
     font-weight: 700;
 }
 
@@ -1347,8 +1459,9 @@ canvas {
 
 .payment-total {
     font-size: 2rem;
-    font-weight: bold;
+    font-weight: 800;
     margin: 0;
+    color: var(--dark-bg);
 }
 
 .debtors-list {
@@ -1378,12 +1491,13 @@ canvas {
 }
 
 .debtor-amount {
-    background-color: #ff6b6b;
-    color: white;
-    padding: 0.5rem 1rem;
-    border-radius: 8px;
-    font-size: 1.1rem;
-    font-weight: bold;
+    background: rgba(239,68,68,0.08);
+    color: #ef4444;
+    border: 1px solid rgba(239,68,68,0.2);
+    padding: 0.3rem 0.85rem;
+    border-radius: 20px;
+    font-size: 0.95rem;
+    font-weight: 700;
     white-space: nowrap;
 }
 
@@ -1411,24 +1525,80 @@ canvas {
 }
 
 .debtor-booking-price {
-    font-weight: bold;
-    color: #ff6b6b;
+    font-weight: 700;
+    color: #ef4444;
 }
 
-.btn-mark-paid {
-    background-color: var(--success);
+.debtor-pay-footer {
+    display: flex;
+    align-items: center;
+    gap: 0.65rem;
+    flex-wrap: wrap;
+    margin-top: 0.85rem;
+    padding-top: 0.85rem;
+    border-top: 1px solid #f3f4f6;
+}
+
+.debtor-pay-total {
+    font-size: 0.92rem;
+    color: #555;
+    flex: 1;
+    min-width: 100px;
+}
+
+.debtor-pay-total strong {
+    color: #ef4444;
+    font-weight: 700;
+}
+
+.debtor-pay-methods {
+    display: flex;
+    gap: 0.3rem;
+}
+
+.btn-pay-all {
+    background: var(--success);
     color: white;
     border: none;
-    padding: 0.5rem 1rem;
-    border-radius: 5px;
+    border-radius: 8px;
+    padding: 0.42rem 1rem;
+    font-size: 0.88rem;
+    font-weight: 600;
     cursor: pointer;
-    font-size: 0.85rem;
-    transition: all 0.3s;
+    transition: all 0.15s;
+    white-space: nowrap;
 }
 
-.btn-mark-paid:hover {
-    background-color: #05b886;
-    transform: scale(1.05);
+.btn-pay-all:hover {
+    background: #059669;
+    transform: scale(1.03);
+}
+
+.debtor-booking-item.debtor-booking-paid {
+    opacity: 0.55;
+    background: rgba(34,197,94,0.04);
+    text-decoration: line-through;
+    text-decoration-color: #aaa;
+}
+
+.debtor-amount--paid {
+    background: rgba(34,197,94,0.08) !important;
+    color: #166534 !important;
+    border-color: rgba(34,197,94,0.2) !important;
+}
+
+.debtor-pay-success {
+    display: flex;
+    align-items: center;
+    gap: 0.55rem;
+    width: 100%;
+    padding: 0.5rem 0.85rem;
+    background: rgba(34,197,94,0.08);
+    border: 1px solid rgba(34,197,94,0.22);
+    border-radius: 8px;
+    color: #166534;
+    font-weight: 600;
+    font-size: 0.92rem;
 }
 
 .btn-delete-booking {
@@ -1767,29 +1937,31 @@ canvas {
 .debtor-card {
     background-color: white;
     border-radius: 12px;
-    border-left: 5px solid #ff6b6b;
+    border: 1px solid #e5e7eb;
+    border-left: 4px solid #e5e7eb;
     overflow: hidden;
-    transition: box-shadow 0.3s;
+    transition: box-shadow 0.2s, border-left-color 0.2s;
 }
 
 .debtor-card:hover {
-    box-shadow: 0 4px 12px rgba(255, 107, 107, 0.2);
+    box-shadow: 0 4px 12px rgba(0,0,0,0.08);
+    border-left-color: #ef4444;
 }
 
 .debtor-card-header {
     display: flex;
     justify-content: space-between;
     align-items: center;
-    padding: 1.25rem 1.5rem;
+    padding: 1.1rem 1.25rem;
     cursor: pointer;
     user-select: none;
     flex-wrap: wrap;
     gap: 0.75rem;
-    transition: background-color 0.2s;
+    transition: background-color 0.15s;
 }
 
 .debtor-card-header:hover {
-    background-color: #fef5f5;
+    background-color: #fafafa;
 }
 
 .debtor-card-header .debtor-info {
@@ -1797,8 +1969,8 @@ canvas {
 }
 
 .debtor-toggle {
-    font-size: 1.1rem;
-    color: #ff6b6b;
+    font-size: 1rem;
+    color: #bbb;
     transition: transform 0.25s;
     line-height: 1;
 }
@@ -1809,8 +1981,8 @@ canvas {
 
 .debtor-card-body {
     display: none;
-    padding: 0 1.5rem 1.25rem;
-    border-top: 1px solid #f0f0f0;
+    padding: 0 1.25rem 1.1rem;
+    border-top: 1px solid #f3f4f6;
 }
 
 .debtor-card.open .debtor-card-body {
@@ -1991,16 +2163,18 @@ canvas {
     /* Payments */
     .payments-stats {
         grid-template-columns: 1fr 1fr;
-        gap: 0.75rem;
-        margin-bottom: 1.25rem;
+        gap: 0.65rem;
+        margin-bottom: 1.1rem;
     }
 
     .payment-stat-card {
-        padding: 0.9rem 0.75rem;
+        padding: 0.9rem 0.65rem 0.75rem;
     }
 
+    .payment-stat-icon { font-size: 1.2rem; }
+
     .payment-stat-card h4 {
-        font-size: 0.82rem;
+        font-size: 0.72rem;
     }
 
     .payment-total {
@@ -2045,13 +2219,9 @@ canvas {
 
     .schedule-day-tab {
         flex-shrink: 0;
-        min-width: 68px;
-        padding: 0.4rem 0.5rem;
-        font-size: 0.76rem;
-    }
-
-    .schedule-day-tab small {
-        font-size: 0.65rem;
+        min-width: 0;
+        padding: 0.4rem 0.2rem;
+        border-radius: 8px;
     }
 
     .schedule-slot-item {

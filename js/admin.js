@@ -360,6 +360,25 @@ function drawBookingsChart(filteredBookings) {
     chart.drawLineChart({ labels, values }, { color: '#e63946' });
 }
 
+function countGroupClassSlots(from, to) {
+    const overrides = JSON.parse(localStorage.getItem('scheduleOverrides') || '{}');
+    const dayNames = ['Domenica', 'Lunedì', 'Martedì', 'Mercoledì', 'Giovedì', 'Venerdì', 'Sabato'];
+    let count = 0;
+    const cur = new Date(from); cur.setHours(0, 0, 0, 0);
+    const end = new Date(to);   end.setHours(23, 59, 59, 999);
+    while (cur <= end) {
+        const dateStr = formatAdminDate(cur);
+        // Use override if explicitly configured, otherwise fall back to the default template
+        // (mirrors how initializeDemoData generates bookings)
+        const slots = overrides[dateStr] !== undefined
+            ? overrides[dateStr]
+            : (WEEKLY_SCHEDULE_TEMPLATE[dayNames[cur.getDay()]] || []);
+        count += slots.filter(s => s.type === SLOT_TYPES.GROUP_CLASS).length;
+        cur.setDate(cur.getDate() + 1);
+    }
+    return count;
+}
+
 function drawTypeChart(filteredBookings) {
     const canvas = document.getElementById('typeChart');
     const chart = new SimpleChart(canvas);
@@ -369,12 +388,15 @@ function drawTypeChart(filteredBookings) {
         distribution[b.slotType] = (distribution[b.slotType] || 0) + 1;
     });
 
+    const { from, to } = getFilterDateRange(currentFilter);
+    const groupClassCount = countGroupClassSlots(from, to);
+
     chart.drawPieChart({
         labels: ['Autonomia', 'Lezione di Gruppo', 'Slot prenotato'],
         values: [
             distribution[SLOT_TYPES.PERSONAL] || 0,
             distribution[SLOT_TYPES.SMALL_GROUP] || 0,
-            distribution[SLOT_TYPES.GROUP_CLASS] || 0
+            groupClassCount
         ]
     }, {
         colors: ['#22c55e', '#fbbf24', '#ef4444']
@@ -416,40 +438,53 @@ function updateBookingsTable(bookings) {
 function updatePopularTimes(bookings) {
     const timeCounts = {};
 
-    // Count bookings per time slot
     bookings.forEach(booking => {
         timeCounts[booking.time] = (timeCounts[booking.time] || 0) + 1;
     });
 
-    // Sort by popularity
-    const sortedTimes = Object.entries(timeCounts)
-        .sort((a, b) => b[1] - a[1])
-        .slice(0, 5);
+    const allSorted = Object.entries(timeCounts).sort((a, b) => b[1] - a[1]);
+    const popularContainer = document.getElementById('popularTimes');
+    const unpopularContainer = document.getElementById('unpopularTimes');
+    popularContainer.innerHTML = '';
+    unpopularContainer.innerHTML = '';
 
-    const container = document.getElementById('popularTimes');
-    container.innerHTML = '';
-
-    if (sortedTimes.length === 0) {
-        container.innerHTML = '<p style="color: #999;">Nessun dato disponibile</p>';
+    if (allSorted.length === 0) {
+        popularContainer.innerHTML = '<p style="color: #999;">Nessun dato disponibile</p>';
+        unpopularContainer.innerHTML = '<p style="color: #999;">Nessun dato disponibile</p>';
         return;
     }
 
-    const maxCount = sortedTimes[0][1];
+    const top5 = allSorted.slice(0, 5);
+    const bottom5 = [...allSorted].reverse().slice(0, 5);
 
-    sortedTimes.forEach(([time, count]) => {
-        const percentage = (count / maxCount) * 100;
+    // Each card scales to its own local max so bars vary properly within each list
+    const maxPopular = top5[0][1];
+    const maxUnpopular = bottom5[bottom5.length - 1][1] || 1;
 
-        const barHTML = `
+    top5.forEach(([time, count]) => {
+        const percentage = (count / maxPopular) * 100;
+        popularContainer.innerHTML += `
             <div class="time-bar">
                 <div class="time-label">${time}</div>
                 <div class="time-progress">
                     <div class="time-progress-fill" style="width: ${percentage}%">
-                        ${count} prenotazioni
+                        ${count} pren.
                     </div>
                 </div>
-            </div>
-        `;
-        container.innerHTML += barHTML;
+            </div>`;
+    });
+
+    bottom5.forEach(([time, count]) => {
+        const percentage = (count / maxUnpopular) * 100;
+        unpopularContainer.innerHTML += `
+            <div class="time-bar">
+                <div class="time-label">${time}</div>
+                <div class="time-progress">
+                    <div class="time-progress-fill time-progress-fill--low" style="width: ${percentage}%">
+                        ${count} pren.
+                    </div>
+                </div>
+            </div>`;
     });
 }
 
@@ -631,14 +666,7 @@ function renderAdminDayView(dateInfo) {
     const dayView = document.getElementById('adminDayView');
     dayView.innerHTML = '';
 
-    // Check for date-specific overrides first
-    const overrides = JSON.parse(localStorage.getItem('scheduleOverrides') || '{}');
-    let scheduledSlots = overrides[dateInfo.formatted];
-
-    // If no override, use weekly template
-    if (!scheduledSlots) {
-        scheduledSlots = WEEKLY_SCHEDULE_TEMPLATE[dateInfo.dayName] || [];
-    }
+    const scheduledSlots = getScheduleForDate(dateInfo.formatted, dateInfo.dayName);
 
     if (scheduledSlots.length === 0) {
         dayView.innerHTML = '<div class="empty-slot">Nessuna lezione programmata per questo giorno</div>';
@@ -680,7 +708,8 @@ function createAdminSlotCard(dateInfo, scheduledSlot) {
         bookings.forEach((booking) => {
             const isPaid = booking.paid || false;
 
-            // Check if this person has unpaid bookings on other dates
+            // Show debt warning for OTHER unpaid bookings even if this one is paid,
+            // so the admin can see there are still outstanding debts for this person.
             const unpaidAmount = getUnpaidAmountForContact(booking.whatsapp, booking.email);
             const hasDebts = unpaidAmount > 0;
 
@@ -767,21 +796,36 @@ function renderScheduleManager() {
     const firstDate = weekDates[0].date;
     const lastDate = weekDates[6].date;
 
+    const overrides = JSON.parse(localStorage.getItem('scheduleOverrides') || '{}');
+    const weekHasAnySlot = weekDates.some(d => overrides[d.formatted] && overrides[d.formatted].length > 0);
+
     let html = `
-        <div class="admin-calendar-controls" style="margin-bottom: 1.5rem;">
+        <div class="admin-calendar-controls" style="margin-bottom: 1rem;">
             <button class="btn-control" onclick="changeScheduleWeek(-1)">&larr; Settimana Precedente</button>
             <h4>${firstDate.getDate()}/${firstDate.getMonth() + 1} - ${lastDate.getDate()}/${lastDate.getMonth() + 1}/${lastDate.getFullYear()}</h4>
             <button class="btn-control" onclick="changeScheduleWeek(1)">Settimana Successiva &rarr;</button>
         </div>
+        <div class="schedule-import-bar">
+            <span class="schedule-week-status ${weekHasAnySlot ? 'has-slots' : 'is-blank'}">
+                ${weekHasAnySlot ? '● Settimana configurata' : '○ Settimana vuota'}
+            </span>
+            <button class="btn-import-week" onclick="importWeekTemplate(${scheduleWeekOffset})">
+                📥 Importa settimana standard
+            </button>
+            ${weekHasAnySlot ? `<button class="btn-clear-week" onclick="clearWeekSchedule(${scheduleWeekOffset})">🗑 Svuota settimana</button>` : ''}
+        </div>
     `;
 
     // Day selector tabs with dates
+    const monthNames = ['Gen','Feb','Mar','Apr','Mag','Giu','Lug','Ago','Set','Ott','Nov','Dic'];
     html += '<div class="schedule-day-tabs">';
     weekDates.forEach(dateInfo => {
         const isActive = selectedScheduleDate && selectedScheduleDate.formatted === dateInfo.formatted ? 'active' : '';
-        html += `<button class="schedule-day-tab ${isActive}" onclick="selectScheduleDate('${dateInfo.formatted}', '${dateInfo.dayName}')">
-            ${dateInfo.dayName}<br>
-            <small>${dateInfo.date.getDate()}/${dateInfo.date.getMonth() + 1}</small>
+        const hasSlots = overrides[dateInfo.formatted] && overrides[dateInfo.formatted].length > 0;
+        html += `<button class="schedule-day-tab ${isActive} ${hasSlots ? 'has-slots' : ''}" onclick="selectScheduleDate('${dateInfo.formatted}', '${dateInfo.dayName}')">
+            <div class="admin-day-name">${dateInfo.dayName}</div>
+            <div class="admin-day-date">${dateInfo.date.getDate()}</div>
+            <div class="admin-day-count">${monthNames[dateInfo.date.getMonth()]}</div>
         </button>`;
     });
     html += '</div>';
@@ -824,7 +868,37 @@ function getScheduleWeekDates(offset = 0) {
 
 function changeScheduleWeek(direction) {
     scheduleWeekOffset += direction;
-    selectedScheduleDate = null; // Reset selection
+    selectedScheduleDate = null;
+    renderScheduleManager();
+}
+
+function importWeekTemplate(weekOffset) {
+    const weekDates = getScheduleWeekDates(weekOffset);
+    const overrides = JSON.parse(localStorage.getItem('scheduleOverrides') || '{}');
+    const dayNames = ['Domenica','Lunedì','Martedì','Mercoledì','Giovedì','Venerdì','Sabato'];
+
+    weekDates.forEach(dateInfo => {
+        const jsDay = dateInfo.date.getDay(); // 0=Dom, 1=Lun, ...
+        const templateSlots = WEEKLY_SCHEDULE_TEMPLATE[dayNames[jsDay]] || [];
+        if (templateSlots.length > 0) {
+            // Don't overwrite days already customized
+            if (!overrides[dateInfo.formatted]) {
+                overrides[dateInfo.formatted] = templateSlots;
+            }
+        }
+    });
+
+    localStorage.setItem('scheduleOverrides', JSON.stringify(overrides));
+    renderScheduleManager();
+}
+
+function clearWeekSchedule(weekOffset) {
+    if (!confirm('Svuotare tutti i giorni di questa settimana? Le prenotazioni esistenti non verranno eliminate.')) return;
+    const weekDates = getScheduleWeekDates(weekOffset);
+    const overrides = JSON.parse(localStorage.getItem('scheduleOverrides') || '{}');
+    weekDates.forEach(dateInfo => { delete overrides[dateInfo.formatted]; });
+    localStorage.setItem('scheduleOverrides', JSON.stringify(overrides));
+    selectedScheduleDate = null;
     renderScheduleManager();
 }
 
@@ -852,15 +926,10 @@ const ALL_TIME_SLOTS = [
 
 // Get schedule for a specific date (uses overrides if exist, otherwise template)
 function getScheduleForDate(dateFormatted, dayName) {
-    // Check if there's a specific override for this date
+    // Only return slots that have been explicitly configured for this date.
+    // Weeks with no override are blank and won't appear in the calendar.
     const overrides = JSON.parse(localStorage.getItem('scheduleOverrides') || '{}');
-
-    if (overrides[dateFormatted]) {
-        return overrides[dateFormatted];
-    }
-
-    // Otherwise use the weekly template
-    return WEEKLY_SCHEDULE_TEMPLATE[dayName] || [];
+    return overrides[dateFormatted] || [];
 }
 
 // Save schedule override for a specific date
@@ -976,6 +1045,7 @@ function renderPaymentsTab() {
     // Update stats
     document.getElementById('totalUnpaid').textContent = `€${totalUnpaid}`;
     document.getElementById('totalDebtors').textContent = debtors.length;
+    document.getElementById('totalCreditors').textContent = credits.length;
     document.getElementById('totalCreditAmount').textContent = `€${totalCredit}`;
 
     // Reset search UI and list visibility
@@ -1112,17 +1182,18 @@ function createDebtorCard(debtor, cardId) {
     card.className = 'debtor-card';
     card.id = `debtor-card-${cardId}`;
 
-    let bookingsHTML = '<div class="debtor-bookings" style="margin-top: 0.75rem;">';
+    const safeW = debtor.whatsapp.replace(/'/g, "\\'");
+    const safeE = debtor.email.replace(/'/g, "\\'");
+    const safeN = debtor.name.replace(/'/g, "\\'");
+
+    let bookingsHTML = '<div class="debtor-bookings">';
     debtor.unpaidBookings.forEach(booking => {
         bookingsHTML += `
             <div class="debtor-booking-item">
                 <div class="debtor-booking-details">
-                    📅 ${booking.date} - 🕐 ${booking.time} - ${SLOT_NAMES[booking.slotType]}
+                    📅 ${booking.date} &nbsp;·&nbsp; 🕐 ${booking.time} &nbsp;·&nbsp; ${SLOT_NAMES[booking.slotType]}
                 </div>
                 <div class="debtor-booking-price">€${booking.price}</div>
-                <button class="btn-mark-paid" onclick="markBookingPaid('${booking.id}')">
-                    Segna Pagato
-                </button>
             </div>
         `;
     });
@@ -1137,13 +1208,20 @@ function createDebtorCard(debtor, cardId) {
                     <span>✉️ ${debtor.email}</span>
                 </div>
             </div>
-            <div class="debtor-amount">
-                Da pagare: €${debtor.totalAmount}
-            </div>
+            <div class="debtor-amount">€${debtor.totalAmount}</div>
             <div class="debtor-toggle">▼</div>
         </div>
         <div class="debtor-card-body">
             ${bookingsHTML}
+            <div class="debtor-pay-footer">
+                <div class="debtor-pay-total">Totale: <strong>€${debtor.totalAmount}</strong></div>
+                <div class="debtor-pay-methods">
+                    <button class="debt-method-btn active" data-method="contanti" onclick="selectDebtorPayMethod(this)">💵 Contanti</button>
+                    <button class="debt-method-btn" data-method="carta" onclick="selectDebtorPayMethod(this)">💳 Carta</button>
+                    <button class="debt-method-btn" data-method="iban" onclick="selectDebtorPayMethod(this)">🏦 IBAN</button>
+                </div>
+                <button class="btn-pay-all" onclick="payAllDebtsInline('${safeW}', '${safeE}', '${safeN}', this)">✓ Incassa tutto</button>
+            </div>
         </div>
     `;
 
@@ -1157,17 +1235,99 @@ function toggleDebtorCard(cardId) {
     }
 }
 
+function selectDebtorPayMethod(btn) {
+    btn.closest('.debtor-pay-methods').querySelectorAll('.debt-method-btn').forEach(b => b.classList.remove('active'));
+    btn.classList.add('active');
+}
+
+function payAllDebtsInline(whatsapp, email, name, btn) {
+    const footer = btn.closest('.debtor-pay-footer');
+    const activeMethodBtn = footer.querySelector('.debt-method-btn.active');
+    const method = activeMethodBtn ? activeMethodBtn.dataset.method : 'contanti';
+    const methodLabels = { contanti: '💵 Contanti', carta: '💳 Carta', iban: '🏦 IBAN' };
+
+    const normW = normalizePhone(whatsapp);
+    const bookings = BookingStorage.getAllBookings();
+    const now = new Date().toISOString();
+    let totalPaid = 0;
+
+    bookings.forEach(b => {
+        const normB = normalizePhone(b.whatsapp);
+        const phoneMatch = normW && normB && normW === normB;
+        const emailMatch = email && b.email && b.email.toLowerCase() === email.toLowerCase();
+        if ((phoneMatch || emailMatch) && !b.paid && bookingHasPassed(b)) {
+            b.paid = true;
+            b.paymentMethod = method;
+            b.paidAt = now;
+            totalPaid += SLOT_PRICES[b.slotType] || 0;
+        }
+    });
+
+    if (totalPaid === 0) return;
+    localStorage.setItem(BookingStorage.BOOKINGS_KEY, JSON.stringify(bookings));
+
+    // Update card in-place — keep it visible with paid state
+    const card = btn.closest('.debtor-card');
+
+    // Strike through all booking rows
+    card.querySelectorAll('.debtor-booking-item').forEach(row => {
+        row.classList.add('debtor-booking-paid');
+        const priceEl = row.querySelector('.debtor-booking-price');
+        if (priceEl) priceEl.style.color = '#22c55e';
+    });
+
+    // Replace the pay footer with a success banner
+    footer.innerHTML = `
+        <div class="debtor-pay-success">
+            <span>✓</span>
+            <span>€${totalPaid} incassati · ${methodLabels[method] || method}</span>
+        </div>
+    `;
+
+    // Update the header amount pill to "Saldato"
+    const amountBadge = card.querySelector('.debtor-amount');
+    if (amountBadge) {
+        amountBadge.textContent = '✓ Saldato';
+        amountBadge.classList.add('debtor-amount--paid');
+    }
+
+    // Refresh only the top stats numbers, not the full list
+    const updatedDebtors = getDebtors();
+    document.getElementById('totalUnpaid').textContent = `€${updatedDebtors.reduce((s, d) => s + d.totalAmount, 0)}`;
+    document.getElementById('totalDebtors').textContent = updatedDebtors.length;
+}
+
+function _searchAllContacts(query) {
+    const q = query.trim().toLowerCase();
+    const debtorMatches = getDebtors()
+        .filter(d =>
+            d.name.toLowerCase().includes(q) ||
+            d.whatsapp.toLowerCase().includes(q) ||
+            d.email.toLowerCase().includes(q)
+        )
+        .map(d => ({ type: 'debtor', data: d }));
+
+    const creditMatches = CreditStorage.getAllWithBalance()
+        .filter(c =>
+            c.name.toLowerCase().includes(q) ||
+            (c.whatsapp || '').toLowerCase().includes(q) ||
+            (c.email || '').toLowerCase().includes(q)
+        )
+        // Don't duplicate contacts already shown as debtors
+        .filter(c => !debtorMatches.some(dm =>
+            normalizePhone(dm.data.whatsapp) === normalizePhone(c.whatsapp) ||
+            (dm.data.email && c.email && dm.data.email.toLowerCase() === c.email.toLowerCase())
+        ))
+        .map(c => ({ type: 'credit', data: c }));
+
+    return [...debtorMatches, ...creditMatches];
+}
+
 function searchDebtor() {
-    const query = document.getElementById('debtorSearchInput').value.trim().toLowerCase();
+    const query = document.getElementById('debtorSearchInput').value.trim();
     if (!query) return;
 
-    const debtors = getDebtors();
-    const results = debtors.filter(debtor =>
-        debtor.name.toLowerCase().includes(query) ||
-        debtor.whatsapp.toLowerCase().includes(query) ||
-        debtor.email.toLowerCase().includes(query)
-    );
-
+    const results = _searchAllContacts(query);
     const resultsContainer = document.getElementById('debtorSearchResults');
     const resultsList = document.getElementById('searchResultsList');
 
@@ -1175,9 +1335,11 @@ function searchDebtor() {
         resultsList.innerHTML = '<p style="color: #666; padding: 0.5rem 0;">Nessun risultato trovato.</p>';
     } else {
         resultsList.innerHTML = '';
-        results.forEach((debtor, index) => {
-            const card = createDebtorCard(debtor, `search-${index}`);
-            card.classList.add('open'); // Show expanded in search results
+        results.forEach((r, index) => {
+            const card = r.type === 'debtor'
+                ? createDebtorCard(r.data, `search-${index}`)
+                : createCreditCard(r.data, `search-${index}`);
+            card.classList.add('open');
             resultsList.appendChild(card);
         });
     }
@@ -1200,7 +1362,7 @@ function closeSearchDropdown() {
 }
 
 function liveSearchDebtor() {
-    const query = document.getElementById('debtorSearchInput').value.trim().toLowerCase();
+    const query = document.getElementById('debtorSearchInput').value.trim();
     const dropdown = document.getElementById('debtorSearchDropdown');
 
     if (!query) {
@@ -1208,49 +1370,46 @@ function liveSearchDebtor() {
         return;
     }
 
-    const debtors = getDebtors();
-    const matches = debtors.filter(d =>
-        d.name.toLowerCase().includes(query) ||
-        d.whatsapp.toLowerCase().includes(query) ||
-        d.email.toLowerCase().includes(query)
-    );
+    const matches = _searchAllContacts(query);
 
     if (matches.length === 0) {
         dropdown.innerHTML = '<div class="dropdown-no-results">Nessun risultato</div>';
     } else {
-        dropdown.innerHTML = matches.map((d, i) => `
-            <div class="dropdown-item" onclick="selectDebtorFromDropdown(${i}, '${query}')">
-                <span class="dropdown-item-name">${d.name}</span>
-                <span class="dropdown-item-debt">€${d.totalAmount}</span>
-            </div>
-        `).join('');
-        // Store matches for selection
+        dropdown.innerHTML = matches.map((r, i) => {
+            const name = r.data.name;
+            const badge = r.type === 'debtor'
+                ? `<span class="dropdown-item-debt">Da pagare: €${r.data.totalAmount}</span>`
+                : `<span class="dropdown-item-credit">💳 €${r.data.balance}</span>`;
+            return `<div class="dropdown-item" onclick="selectDebtorFromDropdown(${i})">
+                <span class="dropdown-item-name">${name}</span>
+                ${badge}
+            </div>`;
+        }).join('');
         dropdown._matches = matches;
     }
 
     dropdown.style.display = 'block';
 }
 
-function selectDebtorFromDropdown(index, query) {
+function selectDebtorFromDropdown(index) {
     const dropdown = document.getElementById('debtorSearchDropdown');
     const matches = dropdown._matches;
     if (!matches || !matches[index]) return;
 
-    const debtor = matches[index];
+    const r = matches[index];
     const resultsContainer = document.getElementById('debtorSearchResults');
     const resultsList = document.getElementById('searchResultsList');
 
     resultsList.innerHTML = '';
-    const card = createDebtorCard(debtor, `search-sel`);
+    const card = r.type === 'debtor'
+        ? createDebtorCard(r.data, 'search-sel')
+        : createCreditCard(r.data, 'search-sel');
     card.classList.add('open');
     resultsList.appendChild(card);
 
     resultsContainer.style.display = 'block';
     closeSearchDropdown();
-
-    // Update input to show selected name
-    document.getElementById('debtorSearchInput').value = debtor.name;
-
+    document.getElementById('debtorSearchInput').value = r.data.name;
     resultsContainer.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
 }
 
@@ -1260,6 +1419,7 @@ function markBookingPaid(bookingId) {
 
     if (booking) {
         booking.paid = true;
+        booking.paidAt = new Date().toISOString();
         localStorage.setItem(BookingStorage.BOOKINGS_KEY, JSON.stringify(bookings));
 
         // Refresh payments tab
@@ -1582,6 +1742,11 @@ function createClientCard(client, index) {
     if (credit      > 0) statsHTML += `<span class="cstat credit">💳 €${credit}</span>`;
 
     const methodLabel = m => ({ contanti: '💵 Contanti', carta: '💳 Carta', iban: '🏦 IBAN', credito: '✨ Credito' }[m] || '—');
+    const fmtPaidAt = iso => {
+        if (!iso) return '<span style="color:#ccc">—</span>';
+        const d = new Date(iso);
+        return `${String(d.getDate()).padStart(2,'0')}/${String(d.getMonth()+1).padStart(2,'0')}/${d.getFullYear()}`;
+    };
 
     const bookingsHTML = client.bookings.map(b => {
         const dateStr = b.date.split('-').reverse().join('/');
@@ -1593,6 +1758,7 @@ function createClientCard(client, index) {
             <td>${SLOT_NAMES[b.slotType]}</td>
             <td><span class="payment-status ${b.paid ? 'paid' : 'unpaid'}">${b.paid ? '✓ Pagato' : 'Non pagato'}</span></td>
             <td>${methodLabel(b.paymentMethod)}</td>
+            <td class="paidat-cell">${fmtPaidAt(b.paidAt)}</td>
             <td class="booking-actions">
                 <button class="btn-row-edit"   onclick="startEditBookingRow('${b.id}', ${index})" title="Modifica">✏️</button>
                 <button class="btn-row-delete" onclick="deleteBookingFromClients('${b.id}', '${nEsc}')" title="Elimina">🗑️</button>
@@ -1658,7 +1824,7 @@ function createClientCard(client, index) {
             <div class="client-bookings-section">
                 <table class="client-bookings-table">
                     <thead><tr>
-                        <th>Data</th><th>Ora</th><th>Tipo</th><th>Stato</th><th>Metodo</th><th></th>
+                        <th>Data</th><th>Ora</th><th>Tipo</th><th>Stato</th><th>Metodo</th><th>Data Pag.</th><th></th>
                     </tr></thead>
                     <tbody>${bookingsHTML}</tbody>
                 </table>
@@ -1739,6 +1905,9 @@ function startEditBookingRow(bookingId, clientIndex) {
     ).join('');
 
     const dateStr = booking.date.split('-').reverse().join('/');
+    const paidAtInput = booking.paidAt
+        ? new Date(booking.paidAt).toISOString().split('T')[0]
+        : '';
 
     row.innerHTML = `
         <td>${dateStr}</td>
@@ -1755,6 +1924,9 @@ function startEditBookingRow(bookingId, clientIndex) {
                 <option value="">—</option>
                 ${methodOpts}
             </select>
+        </td>
+        <td>
+            <input type="date" id="bedit-paidat-${bookingId}" value="${paidAtInput}" class="bedit-date-input">
         </td>
         <td class="booking-actions">
             <button class="btn-row-save"   onclick="saveBookingRowEdit('${bookingId}', ${clientIndex})" title="Salva">✓</button>
@@ -1807,10 +1979,18 @@ function saveBookingRowEdit(bookingId, clientIndex) {
             `Cambio metodo a credito — lezione ${booking.date} ${booking.time}`);
     }
 
+    const newPaidAtRaw = document.getElementById(`bedit-paidat-${bookingId}`)?.value;
+
     booking.paid          = newPaid;
     booking.paymentMethod = newMethod || undefined;
-    if (newPaid && !booking.paidAt) booking.paidAt = new Date().toISOString();
-    if (!newPaid) delete booking.paidAt;
+    if (newPaid) {
+        // Use manually entered date if provided, otherwise keep existing or use now
+        booking.paidAt = newPaidAtRaw
+            ? new Date(newPaidAtRaw + 'T12:00:00').toISOString()
+            : (booking.paidAt || new Date().toISOString());
+    } else {
+        delete booking.paidAt;
+    }
 
     localStorage.setItem(BookingStorage.BOOKINGS_KEY, JSON.stringify(bookings));
     renderClientsTab();
