@@ -675,11 +675,10 @@ function createAdminSlotCard(dateInfo, scheduledSlot) {
         participantsHTML = '<div class="empty-slot">Nessuna prenotazione</div>';
     } else {
         participantsHTML = '<div class="admin-participants-grid">';
-        bookings.forEach((booking, index) => {
+        bookings.forEach((booking) => {
             const isPaid = booking.paid || false;
-            const checkboxId = `payment-${booking.id}`;
 
-            // Check if this person has unpaid bookings from previous dates
+            // Check if this person has unpaid bookings on other dates
             const unpaidAmount = getUnpaidAmountForContact(booking.whatsapp, booking.email);
             const hasDebts = unpaidAmount > 0;
 
@@ -691,11 +690,7 @@ function createAdminSlotCard(dateInfo, scheduledSlot) {
                         <div class="participant-contact">📱 ${booking.whatsapp}</div>
                         ${booking.notes ? `<div class="participant-notes">📝 ${booking.notes}</div>` : ''}
                         ${hasDebts ? `<div class="debt-warning" onclick="openDebtPopup('${booking.whatsapp.replace(/'/g, "\\'")}', '${booking.email.replace(/'/g, "\\'")}', '${booking.name.replace(/'/g, "\\'")}')">⚠️ Da pagare: €${unpaidAmount}</div>` : ''}
-                        <div class="payment-checkbox">
-                            <input type="checkbox" id="${checkboxId}" ${isPaid ? 'checked' : ''}
-                                   onchange="togglePayment('${booking.id}', this.checked)">
-                            <label for="${checkboxId}">${isPaid ? '✓ Pagato' : 'Non pagato'}</label>
-                        </div>
+                        <div class="payment-status ${isPaid ? 'paid' : 'unpaid'}">${isPaid ? '✓ Pagato' : 'Non pagato'}</div>
                     </div>
                 </div>
             `;
@@ -718,33 +713,6 @@ function createAdminSlotCard(dateInfo, scheduledSlot) {
     return slotCard;
 }
 
-// Payment Management
-function togglePayment(bookingId, isPaid) {
-    const bookings = BookingStorage.getAllBookings();
-    const booking = bookings.find(b => b.id === bookingId);
-
-    if (booking) {
-        booking.paid = isPaid;
-        localStorage.setItem(BookingStorage.BOOKINGS_KEY, JSON.stringify(bookings));
-
-        // Update label text immediately for better UX
-        const checkbox = document.getElementById(`payment-${bookingId}`);
-        const label = document.querySelector(`label[for="payment-${bookingId}"]`);
-        if (label) {
-            label.textContent = isPaid ? '✓ Pagato' : 'Non pagato';
-        }
-
-        console.log(`Payment status updated for ${booking.name}: ${isPaid ? 'Paid' : 'Unpaid'}`);
-
-        // Re-render the admin calendar to ensure all data is synchronized
-        // This prevents bugs with duplicate IDs or stale data
-        setTimeout(() => {
-            if (selectedAdminDay) {
-                renderAdminDayView(selectedAdminDay);
-            }
-        }, 100);
-    }
-}
 
 function deleteBooking(bookingId, bookingName) {
     if (!confirm(`Eliminare la prenotazione di ${bookingName}?\n\nQuesta operazione non può essere annullata.`)) {
