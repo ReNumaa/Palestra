@@ -2018,6 +2018,11 @@ canvas {
         padding: 0.75rem 0;
     }
 
+    /* Hide search button on mobile (live search via oninput is sufficient) */
+    .btn-search {
+        display: none;
+    }
+
     /* Login box */
     .login-section {
         padding: 2rem 1.25rem 28vh;
