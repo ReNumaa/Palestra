@@ -15,17 +15,20 @@ function getUserByEmail(email) {
     return _getAllUsers().find(u => u.email.toLowerCase() === email.toLowerCase()) || null;
 }
 
-// SHA-256 hash via Web Crypto API (no external deps)
-async function _hashPassword(password) {
-    const data = new TextEncoder().encode(password);
-    const hash = await crypto.subtle.digest('SHA-256', data);
-    return Array.from(new Uint8Array(hash)).map(b => b.toString(16).padStart(2, '0')).join('');
+// Synchronous password hash — works on all platforms without crypto.subtle
+function _hashPassword(password) {
+    const str = password + '|gym-tb|' + password.length;
+    let h = 5381;
+    for (let i = 0; i < str.length; i++) {
+        h = (Math.imul(h, 33) ^ str.charCodeAt(i)) >>> 0;
+    }
+    return h.toString(16).padStart(8, '0');
 }
 
 // Register a new user — returns { ok: true } or { ok: false, error: string }
-async function registerUser(name, email, whatsapp, password) {
+function registerUser(name, email, whatsapp, password) {
     if (getUserByEmail(email)) return { ok: false, error: 'Email già registrata.' };
-    const passwordHash = await _hashPassword(password);
+    const passwordHash = _hashPassword(password);
     const users = _getAllUsers();
     users.push({ name, email, whatsapp, passwordHash, createdAt: new Date().toISOString() });
     _saveUsers(users);
@@ -34,10 +37,10 @@ async function registerUser(name, email, whatsapp, password) {
 }
 
 // Login with email + password — returns { ok: true } or { ok: false, error: string }
-async function loginWithPassword(email, password) {
+function loginWithPassword(email, password) {
     const user = getUserByEmail(email);
     if (!user) return { ok: false, error: 'Email non trovata.' };
-    const hash = await _hashPassword(password);
+    const hash = _hashPassword(password);
     if (hash !== user.passwordHash) return { ok: false, error: 'Password errata.' };
     loginUser({ name: user.name, email: user.email, whatsapp: user.whatsapp });
     return { ok: true };
