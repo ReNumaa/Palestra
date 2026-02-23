@@ -6,6 +6,7 @@
     <title>Thomas Bresciani</title>
     <link rel="icon" type="image/jpeg" href="images/logo-tb---nero.jpg">
     <link rel="stylesheet" href="css/style.css">
+    <link rel="stylesheet" href="css/login.css">
     <link rel="stylesheet" href="css/admin.css">
 </head>
 <body>
@@ -20,8 +21,14 @@
                     <li><a href="index.html">Calendario</a></li>
                     <li><a href="chi-sono.html">Chi sono</a></li>
                     <li><a href="dove-sono.html">Dove sono</a></li>
-                    <li><a href="admin.html" class="active">Admin</a></li>
                 </ul>
+                <div id="navLoginLink" style="display:flex; align-items:center;">
+                    <a href="login.html" class="nav-login-btn">Accedi</a>
+                </div>
+                <div id="navUserMenu" style="display:none; align-items:center; gap:0.4rem;">
+                    <span id="navUserName" class="nav-user-name"></span>
+                    <button id="navLogoutBtn" class="nav-logout-btn">Esci</button>
+                </div>
                 <button class="nav-hamburger" id="navHamburger" aria-label="Menu">
                     <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round">
                         <line x1="3" y1="6" x2="21" y2="6"/><line x1="3" y1="12" x2="21" y2="12"/><line x1="3" y1="18" x2="21" y2="18"/>
@@ -320,11 +327,11 @@
     </div>
 
     <!-- Sidebar -->
-    <div class="nav-sidebar-overlay" id="navSidebarOverlay" onclick="toggleAdminNav()"></div>
+    <div class="nav-sidebar-overlay" id="navSidebarOverlay" onclick="toggleNavMenu()"></div>
     <nav class="nav-sidebar" id="navSidebar">
         <div class="nav-sidebar-header">
             <img src="images/logo-tb---nero.jpg" alt="Thomas Bresciani" class="nav-sidebar-logo">
-            <button class="nav-sidebar-close" onclick="toggleAdminNav()">
+            <button class="nav-sidebar-close" onclick="toggleNavMenu()">
                 <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
             </button>
         </div>
@@ -332,11 +339,11 @@
             <li><a href="index.html">Calendario</a></li>
             <li><a href="chi-sono.html">Chi sono</a></li>
             <li><a href="dove-sono.html">Dove sono</a></li>
-            <li><a href="#" id="logoutBtn">Logout Admin</a></li>
         </ul>
     </nav>
 
     <script src="js/data.js"></script>
+    <script src="js/auth.js"></script>
     <script src="js/chart-mini.js"></script>
     <script src="js/admin.js"></script>
     <script>

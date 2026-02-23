@@ -12,9 +12,9 @@ const SLOT_MAX_CAPACITY = {
 };
 
 const SLOT_PRICES = {
-    'personal-training': 50,
+    'personal-training': 5,
     'small-group': 30,
-    'group-class': 20
+    'group-class': 10
 };
 
 const SLOT_NAMES = {
@@ -226,8 +226,65 @@ class BookingStorage {
         };
     }
 
+    // ── Seeded PRNG (Mulberry32) ─────────────────────────────────────────────
+    // Returns a deterministic pseudo-random function seeded by a string.
+    // Same seed → always the same sequence of numbers → stable demo data.
+    static _makeSeededRand(seedStr) {
+        // FNV-1a hash → 32-bit seed
+        let h = 0x811c9dc5;
+        for (let i = 0; i < seedStr.length; i++) {
+            h ^= seedStr.charCodeAt(i);
+            h = Math.imul(h, 0x01000193) >>> 0;
+        }
+        return function () {
+            h = (h + 0x6D2B79F5) >>> 0;
+            let t = Math.imul(h ^ (h >>> 15), 1 | h);
+            t = (t + Math.imul(t ^ (t >>> 7), 61 | t)) ^ t;
+            return ((t ^ (t >>> 14)) >>> 0) / 4294967296;
+        };
+    }
+
+    // Fisher-Yates shuffle using seeded rand
+    static _shuffle(arr, rand) {
+        const a = [...arr];
+        for (let i = a.length - 1; i > 0; i--) {
+            const j = Math.floor(rand() * (i + 1));
+            [a[i], a[j]] = [a[j], a[i]];
+        }
+        return a;
+    }
+
+    // Always ensure current week + next week have schedule overrides populated.
+    // Runs even for brand-new browsers with no data.
+    static _ensureWeekOverrides() {
+        const overrides = JSON.parse(localStorage.getItem('scheduleOverrides') || '{}');
+        const dayNamesMap = ['Domenica', 'Lunedì', 'Martedì', 'Mercoledì', 'Giovedì', 'Venerdì', 'Sabato'];
+        const now = new Date();
+        const dow = now.getDay();
+        const monday = new Date(now);
+        monday.setDate(now.getDate() + (dow === 0 ? -6 : 1 - dow));
+        monday.setHours(0, 0, 0, 0);
+
+        let changed = false;
+        for (let weekOffset = 0; weekOffset < 2; weekOffset++) {
+            for (let d = 0; d < 7; d++) {
+                const date = new Date(monday);
+                date.setDate(monday.getDate() + weekOffset * 7 + d);
+                const dateStr = this.formatDate(date);
+                if (!overrides[dateStr]) {
+                    const slots = DEFAULT_WEEKLY_SCHEDULE[dayNamesMap[date.getDay()]] || [];
+                    if (slots.length > 0) { overrides[dateStr] = slots; changed = true; }
+                }
+            }
+        }
+        if (changed) localStorage.setItem('scheduleOverrides', JSON.stringify(overrides));
+    }
+
     static initializeDemoData() {
-        // Skip if user explicitly cleared all data
+        // Always populate current + next week calendar — works even for new browsers
+        this._ensureWeekOverrides();
+
+        // Skip demo bookings if user explicitly cleared all data
         if (localStorage.getItem('dataClearedByUser') === 'true') return;
 
         // Migration check: if existing bookings use old time slot format, regenerate
@@ -277,68 +334,72 @@ class BookingStorage {
                 { name: 'Alessia Moretti',      email: 'alessia.moretti@gmail.com',       whatsapp: '+39 365 0123478' }
             ];
 
-            // ~3% of past bookings are unpaid
-
             const notes = ['', '', '', '', 'Richiesta asciugamano extra', 'Allergia al lattice - usare guanti', 'Prima lezione', ''];
 
             const demoBookings = [];
-            const start = new Date(2026, 0, 1); // 1 Gennaio 2026
-            const today = new Date();
-            today.setHours(23, 59, 59, 999);
+
+            // Fixed demo range: 1 Jan → 28 Feb 2026 (stable, never grows)
+            const start   = new Date(2026, 0, 1);
+            const demoEnd = new Date(2026, 1, 28, 23, 59, 59);
 
             const current = new Date(start);
-            while (current <= today) {
+            while (current <= demoEnd) {
                 const dayIndex = current.getDay();
-                const dayName = ['Domenica', 'Lunedì', 'Martedì', 'Mercoledì', 'Giovedì', 'Venerdì', 'Sabato'][dayIndex];
+                const dayName  = ['Domenica', 'Lunedì', 'Martedì', 'Mercoledì', 'Giovedì', 'Venerdì', 'Sabato'][dayIndex];
                 const scheduledSlots = DEFAULT_WEEKLY_SCHEDULE[dayName] || [];
                 const dateStr = this.formatDate(current);
 
                 scheduledSlots.forEach(slot => {
                     const capacity = SLOT_MAX_CAPACITY[slot.type];
+                    if (capacity === 0) return;
+
+                    // Seed PRNG from date + slot → same browser always gets same data
+                    const rand = this._makeSeededRand(dateStr + '|' + slot.time);
+
                     // Fill 60-100% of capacity
-                    const fillCount = Math.max(1, Math.round(capacity * (0.6 + Math.random() * 0.4)));
+                    const fillCount = Math.max(1, Math.round(capacity * (0.6 + rand() * 0.4)));
+                    const shuffled  = this._shuffle([...Array(clients.length).keys()], rand);
+                    const selected  = shuffled.slice(0, Math.min(fillCount, capacity));
 
-                    // Shuffle clients and pick fillCount of them
-                    const shuffled = [...clients.keys()].sort(() => Math.random() - 0.5);
-                    const selected = shuffled.slice(0, Math.min(fillCount, capacity));
-
-                    // Parse end time (HH:MM) to decide if booking is in the past
-                    const endParts = slot.time.split(' - ')[1].split(':').map(Number);
-                    const endDateTime = new Date(current);
-                    endDateTime.setHours(endParts[0], endParts[1], 0, 0);
-                    const isPast = new Date() >= endDateTime;
+                    const [endH, endM] = slot.time.split(' - ')[1].split(':').map(Number);
+                    const endDateTime  = new Date(current);
+                    endDateTime.setHours(endH, endM, 0, 0);
 
                     selected.forEach(idx => {
                         const client = clients[idx];
-                        const paid = isPast ? (Math.random() < 0.97) : false;
+
+                        // All demo slots are historical → treat as past
+                        const paid = rand() < 0.97;
 
                         // Payment method: 60% contanti, 25% carta, 15% iban
-                        const methodRoll = Math.random();
+                        const methodRoll    = rand();
                         const paymentMethod = paid
                             ? (methodRoll < 0.60 ? 'contanti' : methodRoll < 0.85 ? 'carta' : 'iban')
                             : undefined;
 
-                        // paidAt: random time between booking end and now
+                        // paidAt: deterministic delay 0-72 h after slot end, capped at demoEnd
                         let paidAt;
                         if (paid) {
-                            const delayHours = Math.random() * 72; // paid within 3 days of the lesson
-                            const paidDate = new Date(endDateTime.getTime() + delayHours * 3600000);
-                            if (paidDate > today) paidDate.setTime(today.getTime() - Math.random() * 3600000);
+                            const paidDate = new Date(endDateTime.getTime() + rand() * 72 * 3600000);
+                            if (paidDate > demoEnd) paidDate.setTime(demoEnd.getTime());
                             paidAt = paidDate.toISOString();
                         }
 
                         const booking = {
+                            id: `demo-${dateStr}-${slot.time.replace(/[^0-9]/g, '')}-${idx}`,
                             date: dateStr,
                             time: slot.time,
                             slotType: slot.type,
                             name: client.name,
                             email: client.email,
                             whatsapp: client.whatsapp,
-                            notes: notes[Math.floor(Math.random() * notes.length)],
-                            paid
+                            notes: notes[Math.floor(rand() * notes.length)],
+                            paid,
+                            createdAt: start.toISOString(),
+                            status: 'confirmed'
                         };
                         if (paymentMethod) booking.paymentMethod = paymentMethod;
-                        if (paidAt) booking.paidAt = paidAt;
+                        if (paidAt)        booking.paidAt = paidAt;
 
                         demoBookings.push(booking);
                     });
@@ -347,30 +408,18 @@ class BookingStorage {
                 current.setDate(current.getDate() + 1);
             }
 
-            demoBookings.forEach(booking => this.saveBooking(booking));
+            // Save all demo bookings in one shot (no random IDs, no Date.now())
+            localStorage.setItem(this.BOOKINGS_KEY, JSON.stringify(demoBookings));
 
-            // Pre-populate schedule overrides for current week + next 2 weeks
-            // so the calendar shows available slots on first load
-            const overrides = JSON.parse(localStorage.getItem('scheduleOverrides') || '{}');
-            const dayNamesMap = ['Domenica', 'Lunedì', 'Martedì', 'Mercoledì', 'Giovedì', 'Venerdì', 'Sabato'];
-            const now = new Date();
-            const dow = now.getDay();
-            const monday = new Date(now);
-            monday.setDate(now.getDate() + (dow === 0 ? -6 : 1 - dow));
-            monday.setHours(0, 0, 0, 0);
-
-            for (let weekOffset = 0; weekOffset < 3; weekOffset++) {
-                for (let d = 0; d < 7; d++) {
-                    const date = new Date(monday);
-                    date.setDate(monday.getDate() + weekOffset * 7 + d);
-                    const dateStr = this.formatDate(date);
-                    if (!overrides[dateStr]) {
-                        const slots = DEFAULT_WEEKLY_SCHEDULE[dayNamesMap[date.getDay()]] || [];
-                        if (slots.length > 0) overrides[dateStr] = slots;
-                    }
-                }
-            }
-            localStorage.setItem('scheduleOverrides', JSON.stringify(overrides));
+            // Recalculate stats from scratch
+            const stats = { totalBookings: 0, totalRevenue: 0, typeDistribution: {}, dailyBookings: {} };
+            demoBookings.forEach(b => {
+                stats.totalBookings++;
+                stats.totalRevenue += SLOT_PRICES[b.slotType];
+                stats.typeDistribution[b.slotType] = (stats.typeDistribution[b.slotType] || 0) + 1;
+                stats.dailyBookings[b.date] = (stats.dailyBookings[b.date] || 0) + 1;
+            });
+            localStorage.setItem(this.STATS_KEY, JSON.stringify(stats));
         }
     }
 
