@@ -723,6 +723,20 @@ function deleteBooking(bookingId, bookingName) {
     const index = bookings.findIndex(b => b.id === bookingId);
 
     if (index !== -1) {
+        const booking = bookings[index];
+
+        // If the booking was paid with credit, refund it
+        if (booking.paid && booking.paymentMethod === 'credito') {
+            const price = SLOT_PRICES[booking.slotType];
+            CreditStorage.addCredit(
+                booking.whatsapp,
+                booking.email,
+                booking.name,
+                price,
+                `Rimborso cancellazione lezione ${booking.date} ${booking.time}`
+            );
+        }
+
         bookings.splice(index, 1);
         localStorage.setItem(BookingStorage.BOOKINGS_KEY, JSON.stringify(bookings));
 
