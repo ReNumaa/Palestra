@@ -348,6 +348,29 @@ class BookingStorage {
             }
 
             demoBookings.forEach(booking => this.saveBooking(booking));
+
+            // Pre-populate schedule overrides for current week + next 2 weeks
+            // so the calendar shows available slots on first load
+            const overrides = JSON.parse(localStorage.getItem('scheduleOverrides') || '{}');
+            const dayNamesMap = ['Domenica', 'Lunedì', 'Martedì', 'Mercoledì', 'Giovedì', 'Venerdì', 'Sabato'];
+            const now = new Date();
+            const dow = now.getDay();
+            const monday = new Date(now);
+            monday.setDate(now.getDate() + (dow === 0 ? -6 : 1 - dow));
+            monday.setHours(0, 0, 0, 0);
+
+            for (let weekOffset = 0; weekOffset < 3; weekOffset++) {
+                for (let d = 0; d < 7; d++) {
+                    const date = new Date(monday);
+                    date.setDate(monday.getDate() + weekOffset * 7 + d);
+                    const dateStr = this.formatDate(date);
+                    if (!overrides[dateStr]) {
+                        const slots = DEFAULT_WEEKLY_SCHEDULE[dayNamesMap[date.getDay()]] || [];
+                        if (slots.length > 0) overrides[dateStr] = slots;
+                    }
+                }
+            }
+            localStorage.setItem('scheduleOverrides', JSON.stringify(overrides));
         }
     }
 

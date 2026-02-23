@@ -9,7 +9,7 @@
     display: flex;
     justify-content: center;
     align-items: center;
-    padding: 2rem;
+    padding: 2rem 2rem 12vh;
     background: linear-gradient(135deg, #080808 0%, #111 55%, #091616 100%);
     position: relative;
     overflow: hidden;
@@ -83,7 +83,7 @@
     color: #fff;
     font-size: 1.3rem;
     font-weight: 700;
-    margin-bottom: 0.4rem;
+    margin: 0 0 0.1rem;
     text-align: center;
     letter-spacing: 0.3px;
 }
