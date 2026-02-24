@@ -1375,22 +1375,26 @@ body.nav-open {
 }
 
 @media (max-width: 600px) {
-    /* Bottom sheet layout */
+    /* Top sheet layout */
     .modal-overlay {
         padding: 0;
-        align-items: flex-end;
+        align-items: flex-start;
         justify-content: center;
-        /* Override inset:0 bottom so height:100dvh can control sizing */
-        bottom: auto;
         height: 100dvh; /* dvh shrinks when iOS keyboard appears */
     }
 
     .modal-box {
         padding: 1rem 1rem 1.25rem;
-        border-radius: 16px 16px 0 0;
+        border-radius: 0 0 16px 16px;
         max-height: 80dvh; /* dvh = visual viewport, excludes keyboard */
         width: 100%;
         max-width: 100%;
+        animation: slideDown 0.28s ease;
+    }
+
+    @keyframes slideDown {
+        from { transform: translateY(-100%); opacity: 0; }
+        to   { transform: translateY(0);     opacity: 1; }
     }
 
     /* Drag handle visual */
@@ -1413,7 +1417,6 @@ body.nav-open {
     }
 
     .modal-slot-info {
-        margin-top: 2rem;
         margin-bottom: 0.6rem;
         padding-bottom: 0.6rem;
     }
