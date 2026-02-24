@@ -1375,17 +1375,16 @@ body.nav-open {
 }
 
 @media (max-width: 600px) {
-    /* Top sheet layout */
     .modal-overlay {
-        padding: 0;
-        align-items: flex-start;
+        padding: 1rem;
+        align-items: center;
         justify-content: center;
         height: 100dvh; /* dvh shrinks when iOS keyboard appears */
     }
 
     .modal-box {
         padding: 1rem 1rem 1.25rem;
-        border-radius: 0 0 16px 16px;
+        border-radius: 16px;
         max-height: 80dvh; /* dvh = visual viewport, excludes keyboard */
         width: 100%;
         max-width: 100%;
@@ -1393,20 +1392,11 @@ body.nav-open {
     }
 
     @keyframes slideDown {
-        from { transform: translateY(-100%); opacity: 0; }
+        from { transform: translateY(-40px); opacity: 0; }
         to   { transform: translateY(0);     opacity: 1; }
     }
 
-    /* Drag handle visual */
-    .modal-box::before {
-        content: '';
-        display: block;
-        width: 36px;
-        height: 4px;
-        background: #ccc;
-        border-radius: 2px;
-        margin: 0 auto 0.75rem;
-    }
+
 
     .modal-close {
         top: 0.75rem;
