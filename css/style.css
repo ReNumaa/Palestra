@@ -1375,35 +1375,37 @@ body.nav-open {
 }
 
 @media (max-width: 600px) {
+    /* Bottom sheet layout */
     .modal-overlay {
-        padding: 1rem;
-        align-items: center;
+        padding: 0;
+        align-items: flex-end;
         justify-content: center;
+        bottom: auto;
         height: 100dvh; /* dvh shrinks when iOS keyboard appears */
     }
 
     .modal-box {
         padding: 1rem 1rem 1.25rem;
-        border-radius: 16px;
+        border-radius: 16px 16px 0 0;
         max-height: 80dvh; /* dvh = visual viewport, excludes keyboard */
         width: 100%;
         max-width: 100%;
-        animation: slideDown 0.28s ease;
     }
 
-    @keyframes slideDown {
-        from { transform: translateY(-40px); opacity: 0; }
-        to   { transform: translateY(0);     opacity: 1; }
+    /* Drag handle visual */
+    .modal-box::before {
+        content: '';
+        display: block;
+        width: 36px;
+        height: 4px;
+        background: #ccc;
+        border-radius: 2px;
+        margin: 0 auto 0.75rem;
     }
 
-
-
+    /* X button hidden on mobile: tap outside to close */
     .modal-close {
-        top: 0.75rem;
-        right: 0.75rem;
-        width: 40px;
-        height: 40px;
-        font-size: 1.1rem;
+        display: none;
     }
 
     .modal-slot-info {
