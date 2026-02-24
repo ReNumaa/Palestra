@@ -8,6 +8,28 @@ function initBookingForm() {
     document.addEventListener('keydown', e => {
         if (e.key === 'Escape') closeBookingModal();
     });
+
+    // Swipe-down to close on mobile
+    const box = document.getElementById('bookingModal').querySelector('.modal-box');
+    let startY = 0;
+    box.addEventListener('touchstart', e => {
+        startY = e.touches[0].clientY;
+        box.style.transition = 'none';
+    }, { passive: true });
+    box.addEventListener('touchmove', e => {
+        const dy = e.touches[0].clientY - startY;
+        if (dy > 0) box.style.transform = `translateY(${dy}px)`;
+    }, { passive: true });
+    box.addEventListener('touchend', e => {
+        const dy = e.changedTouches[0].clientY - startY;
+        box.style.transition = '';
+        if (dy > 80) {
+            box.style.transform = `translateY(100%)`;
+            setTimeout(closeBookingModal, 200);
+        } else {
+            box.style.transform = '';
+        }
+    });
 }
 
 function openBookingModal(dateInfo, timeSlot, slotType, remainingSpots) {
