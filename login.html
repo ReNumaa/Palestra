@@ -173,6 +173,30 @@
     <script src="js/data.js"></script>
     <script src="js/auth.js"></script>
     <script>
+        // Prevent iOS Safari auto-zoom on input focus.
+        // touchstart fires before iOS decides to zoom, so setting
+        // maximum-scale=1 here blocks the zoom from happening at all.
+        // We restore normal zoom on blur so pinch-zoom still works outside forms.
+        (function () {
+            var vp = document.querySelector('meta[name="viewport"]');
+            if (!vp) return;
+            document.addEventListener('touchstart', function (e) {
+                var tag = e.target.tagName;
+                if (tag === 'INPUT' || tag === 'SELECT' || tag === 'TEXTAREA') {
+                    vp.setAttribute('content', 'width=device-width, initial-scale=1, maximum-scale=1');
+                }
+            }, { passive: true });
+            document.addEventListener('focusout', function (e) {
+                var tag = e.target.tagName;
+                if (tag === 'INPUT' || tag === 'SELECT' || tag === 'TEXTAREA') {
+                    setTimeout(function () {
+                        vp.setAttribute('content', 'width=device-width, initial-scale=1');
+                    }, 300);
+                }
+            });
+        }());
+    </script>
+    <script>
         // Redirect if already logged in
         if (getCurrentUser()) window.location.href = 'index.html';
 
