@@ -329,7 +329,7 @@
 
 .login-card .form-group input {
     padding: 0.6rem 0.75rem;
-    font-size: 0.95rem;
+    font-size: 16px; /* Prevents zoom on iOS */
     border-radius: 8px;
     border: 1.5px solid #ddd;
     transition: border-color 0.2s, box-shadow 0.2s;
