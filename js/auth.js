@@ -78,7 +78,6 @@ function updateNavAuth() {
         if (loginLink) loginLink.style.display = 'none';
         if (userMenu)  userMenu.style.display  = 'flex';
         if (userName)  userName.textContent    = 'Thomas';
-        _injectNavLinkLast('admin.html', 'Amministrazione', 'nav-admin-link');
         _injectSidebarLogout();
     } else {
         if (loginLink) loginLink.style.display = 'flex';
