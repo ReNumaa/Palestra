@@ -1413,6 +1413,7 @@ body.nav-open {
     }
 
     .modal-slot-info {
+        margin-top: 2rem;
         margin-bottom: 0.6rem;
         padding-bottom: 0.6rem;
     }
