@@ -1452,7 +1452,7 @@ body.nav-open {
     }
 
     .modal-box .form-group textarea {
-        min-height: 32px;
+        min-height: 20px;
     }
 
     .modal-box .btn-primary {
