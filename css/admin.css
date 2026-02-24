@@ -2501,14 +2501,14 @@ canvas {
     .admin-slot-card { padding: 0.6rem 0.7rem; }
     .admin-slot-header { margin-bottom: 0.35rem; }
 
-    /* Participant cards: 2-column grid */
+    /* Participant cards: single column, compact */
     .admin-participants-grid {
-        grid-template-columns: 1fr 1fr;
+        grid-template-columns: 1fr;
         gap: 0.4rem;
     }
     .admin-participant-card { padding: 0.5rem 0.55rem; }
-    .participant-name { font-size: 0.78rem; padding-right: 22px; }
-    .participant-contact { font-size: 0.7rem; }
+    .participant-name { font-size: 0.82rem; padding-right: 22px; }
+    .participant-contact { font-size: 0.74rem; }
 
     /* Schedule slots: keep horizontal on mobile (not stacked) */
     .schedule-slot-item-selector {
