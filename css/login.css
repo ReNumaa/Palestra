@@ -183,44 +183,27 @@
     background: rgba(0,0,0,0.5);
     z-index: 3000;
     display: flex;
-    align-items: center;
+    align-items: flex-start;
     justify-content: center;
-    padding: 1rem;
 }
 
 .social-modal-box {
     background: white;
-    border-radius: 14px;
+    border-radius: 0 0 16px 16px;
     padding: 1.75rem 1.5rem;
     width: 100%;
-    max-width: 360px;
+    max-width: 480px;
     text-align: left;
-    position: relative;
+    animation: socialSlideDown 0.3s ease;
+}
+
+@keyframes socialSlideDown {
+    from { transform: translateY(-100%); opacity: 0; }
+    to   { transform: translateY(0);     opacity: 1; }
 }
 
 .social-modal-box .form-group input {
     font-size: 16px; /* Prevents zoom on iOS */
-}
-
-.social-modal-close {
-    position: absolute;
-    top: 0.75rem;
-    right: 0.75rem;
-    background: #f0f0f0;
-    border: none;
-    width: 40px;
-    height: 40px;
-    border-radius: 50%;
-    font-size: 1.1rem;
-    cursor: pointer;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    transition: background 0.2s;
-}
-
-.social-modal-close:hover {
-    background: #ddd;
 }
 
 .social-modal-box h3 {
