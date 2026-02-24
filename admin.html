@@ -329,6 +329,27 @@
         </ul>
     </nav>
 
+    <script>
+        // Prevent iOS Safari auto-zoom on input focus.
+        (function () {
+            var vp = document.querySelector('meta[name="viewport"]');
+            if (!vp) return;
+            document.addEventListener('touchstart', function (e) {
+                var tag = e.target.tagName;
+                if (tag === 'INPUT' || tag === 'SELECT' || tag === 'TEXTAREA') {
+                    vp.setAttribute('content', 'width=device-width, initial-scale=1, maximum-scale=1');
+                }
+            }, { passive: true });
+            document.addEventListener('focusout', function (e) {
+                var tag = e.target.tagName;
+                if (tag === 'INPUT' || tag === 'SELECT' || tag === 'TEXTAREA') {
+                    setTimeout(function () {
+                        vp.setAttribute('content', 'width=device-width, initial-scale=1');
+                    }, 300);
+                }
+            });
+        }());
+    </script>
     <script src="js/data.js"></script>
     <script src="js/auth.js"></script>
     <script src="js/chart-mini.js"></script>
