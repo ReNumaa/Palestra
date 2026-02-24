@@ -19,6 +19,7 @@
                     <li><a href="index.html">Calendario</a></li>
                     <li><a href="chi-sono.html">Chi sono</a></li>
                     <li><a href="dove-sono.html">Dove sono</a></li>
+                    <li><a href="admin.html">Amministrazione</a></li>
                 </ul>
                 <button class="nav-hamburger" id="navHamburger" aria-label="Menu">
                     <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round">
@@ -69,7 +70,10 @@
                     </div>
                     <div class="form-group">
                         <label for="loginPassword">Password</label>
-                        <input type="password" id="loginPassword" placeholder="••••••••" autocomplete="current-password">
+                        <div class="password-input-wrap">
+                            <input type="password" id="loginPassword" placeholder="••••••••" autocomplete="current-password">
+                            <button type="button" class="password-toggle" onclick="togglePwd('loginPassword', this)">Mostra</button>
+                        </div>
                     </div>
                     <div id="loginError" class="login-error" style="display:none;"></div>
                     <button type="submit" class="btn-primary" style="width:100%">Accedi</button>
@@ -95,11 +99,17 @@
                     </div>
                     <div class="form-group">
                         <label for="regPassword">Password *</label>
-                        <input type="password" id="regPassword" placeholder="Min. 6 caratteri" autocomplete="new-password">
+                        <div class="password-input-wrap">
+                            <input type="password" id="regPassword" placeholder="Min. 6 caratteri" autocomplete="new-password">
+                            <button type="button" class="password-toggle" onclick="togglePwd('regPassword', this)">Mostra</button>
+                        </div>
                     </div>
                     <div class="form-group">
                         <label for="regPasswordConfirm">Conferma Password *</label>
-                        <input type="password" id="regPasswordConfirm" placeholder="Ripeti la password" autocomplete="new-password">
+                        <div class="password-input-wrap">
+                            <input type="password" id="regPasswordConfirm" placeholder="Ripeti la password" autocomplete="new-password">
+                            <button type="button" class="password-toggle" onclick="togglePwd('regPasswordConfirm', this)">Mostra</button>
+                        </div>
                     </div>
                     <div id="registerError" class="login-error" style="display:none;"></div>
                     <button type="submit" class="btn-primary" style="width:100%">Registrati</button>
@@ -156,6 +166,7 @@
             <li><a href="index.html">Calendario</a></li>
             <li><a href="chi-sono.html">Chi sono</a></li>
             <li><a href="dove-sono.html">Dove sono</a></li>
+            <li><a href="admin.html">Amministrazione</a></li>
         </ul>
     </nav>
 
@@ -164,6 +175,14 @@
     <script>
         // Redirect if already logged in
         if (getCurrentUser()) window.location.href = 'index.html';
+
+        // ── Password visibility toggle ────────────────────────────────────
+        function togglePwd(inputId, btn) {
+            const input = document.getElementById(inputId);
+            const show = input.type === 'password';
+            input.type = show ? 'text' : 'password';
+            btn.textContent = show ? 'Nascondi' : 'Mostra';
+        }
 
         // ── Tab switch ────────────────────────────────────────────────────
         function switchTab(tab) {

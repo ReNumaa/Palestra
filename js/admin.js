@@ -129,8 +129,7 @@ function applyCustomFilter() {
 }
 
 function initAdmin() {
-    setupLogin();
-    checkAuth();
+    showDashboard();
 
     // Close search dropdown when clicking outside
     document.addEventListener('click', (e) => {
@@ -165,7 +164,6 @@ function checkAuth() {
 }
 
 function showDashboard() {
-    document.getElementById('loginSection').style.display = 'none';
     document.getElementById('dashboardSection').style.display = 'block';
     // Reconcile credits for all clients so unpaid bookings are auto-marked paid
     CreditStorage.getAllWithBalance().forEach(c => {
@@ -220,7 +218,6 @@ function switchTab(tabName) {
 }
 
 function hideDashboard() {
-    document.getElementById('loginSection').style.display = 'flex';
     document.getElementById('dashboardSection').style.display = 'none';
 }
 
