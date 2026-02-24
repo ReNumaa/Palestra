@@ -1279,7 +1279,7 @@ body.nav-open {
     padding: 0.45rem 0.75rem;
     border: 2px solid #e0e0e0;
     border-radius: 8px;
-    font-size: 0.95rem;
+    font-size: 16px; /* Prevents zoom on iOS */
     transition: border-color 0.2s;
     outline: none;
     font-family: inherit;
@@ -1448,7 +1448,7 @@ body.nav-open {
     .modal-box .form-group input,
     .modal-box .form-group textarea {
         padding: 0.4rem 0.6rem;
-        font-size: 0.9rem;
+        font-size: 16px; /* Prevents zoom on iOS */
     }
 
     .modal-box .form-group textarea {
