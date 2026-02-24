@@ -195,10 +195,32 @@
     width: 100%;
     max-width: 360px;
     text-align: left;
+    position: relative;
 }
 
 .social-modal-box .form-group input {
     font-size: 16px; /* Prevents zoom on iOS */
+}
+
+.social-modal-close {
+    position: absolute;
+    top: 0.75rem;
+    right: 0.75rem;
+    background: #f0f0f0;
+    border: none;
+    width: 40px;
+    height: 40px;
+    border-radius: 50%;
+    font-size: 1.1rem;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    transition: background 0.2s;
+}
+
+.social-modal-close:hover {
+    background: #ddd;
 }
 
 .social-modal-box h3 {
