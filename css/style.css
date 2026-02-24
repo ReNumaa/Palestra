@@ -1400,7 +1400,7 @@ body.nav-open {
         height: 4px;
         background: #ccc;
         border-radius: 2px;
-        margin: 0 auto 0.75rem;
+        margin: 0 auto 0.3rem;
     }
 
     /* X button hidden on mobile: tap outside to close */
@@ -1409,6 +1409,7 @@ body.nav-open {
     }
 
     .modal-slot-info {
+        margin-top: 0.4rem;
         margin-bottom: 0.6rem;
         padding-bottom: 0.6rem;
     }
