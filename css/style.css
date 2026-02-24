@@ -1390,6 +1390,12 @@ body.nav-open {
         max-height: 80dvh; /* dvh = visual viewport, excludes keyboard */
         width: 100%;
         max-width: 100%;
+        animation: slideUpSheet 0.3s ease;
+    }
+
+    @keyframes slideUpSheet {
+        from { transform: translateY(100%); }
+        to   { transform: translateY(0); }
     }
 
     /* Drag handle visual */
