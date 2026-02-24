@@ -9,18 +9,26 @@ function initBookingForm() {
         if (e.key === 'Escape') closeBookingModal();
     });
 
-    // Swipe-down to close on mobile
+    // Swipe-down to close on mobile (works on form and confirmation screens)
     const box = document.getElementById('bookingModal').querySelector('.modal-box');
     let startY = 0;
+    let swipeActive = false;
     box.addEventListener('touchstart', e => {
-        startY = e.touches[0].clientY;
-        box.style.transition = 'none';
+        // Only activate swipe when starting in the top 40px (drag handle area)
+        const boxTop = box.getBoundingClientRect().top;
+        swipeActive = (e.touches[0].clientY - boxTop) < 40;
+        if (swipeActive) {
+            startY = e.touches[0].clientY;
+            box.style.transition = 'none';
+        }
     }, { passive: true });
     box.addEventListener('touchmove', e => {
+        if (!swipeActive) return;
         const dy = e.touches[0].clientY - startY;
         if (dy > 0) box.style.transform = `translateY(${dy}px)`;
     }, { passive: true });
     box.addEventListener('touchend', e => {
+        if (!swipeActive) return;
         const dy = e.changedTouches[0].clientY - startY;
         box.style.transition = '';
         if (dy > 80) {
@@ -29,6 +37,7 @@ function initBookingForm() {
         } else {
             box.style.transform = '';
         }
+        swipeActive = false;
     });
 }
 
@@ -64,6 +73,9 @@ function openBookingModal(dateInfo, timeSlot, slotType, remainingSpots) {
 }
 
 function closeBookingModal() {
+    const box = document.getElementById('bookingModal').querySelector('.modal-box');
+    box.style.transform = '';
+    box.style.transition = '';
     document.getElementById('bookingModal').style.display = 'none';
     document.body.style.overflow = '';
     selectedSlot = null;
