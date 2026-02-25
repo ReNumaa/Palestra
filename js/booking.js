@@ -142,6 +142,23 @@ function handleBookingSubmit(e) {
         return;
     }
 
+    // Check duplicate booking (same user, same date+time, not cancelled)
+    const allBookings = BookingStorage.getAllBookings();
+    const normPhone = normalizePhone(formData.whatsapp);
+    const duplicate = allBookings.find(b =>
+        b.date === selectedSlot.date &&
+        b.time === selectedSlot.time &&
+        b.status !== 'cancelled' &&
+        (
+            (b.email && b.email.toLowerCase() === formData.email.toLowerCase()) ||
+            (normPhone && normalizePhone(b.whatsapp) === normPhone)
+        )
+    );
+    if (duplicate) {
+        alert('Hai già una prenotazione per questo orario.');
+        return;
+    }
+
     // Create booking
     const booking = {
         ...formData,
