@@ -216,7 +216,9 @@ class BookingStorage {
     static fulfillPendingCancellations(date, time) {
         const all = this.getAllBookings();
         const pending = all
-            .filter(b => b.date === date && b.time === time && b.status === 'cancellation_requested')
+            .filter(b => b.date === date && b.time === time &&
+                (b.status === 'cancellation_requested' ||
+                 (b.status === 'confirmed' && b.cancellationRequestedAt)))
             .sort((a, b) => (a.cancellationRequestedAt || '').localeCompare(b.cancellationRequestedAt || ''));
         if (pending.length === 0) return false;
         const toCancel = pending[0];
@@ -260,7 +262,8 @@ class BookingStorage {
             const lessonStart = new Date(`${b.date}T${startTime}:00`);
             if (lessonStart - now <= twoHoursMs) {
                 b.status = 'confirmed';
-                delete b.cancellationRequestedAt;
+                // Keep cancellationRequestedAt so fulfillPendingCancellations can still
+                // honour the request if another user books this slot.
                 changed = true;
             }
         });
