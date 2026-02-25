@@ -135,21 +135,18 @@
         </div>
     </div>
 
-    <!-- Social modal: ask name + email -->
-    <div id="socialModal" class="social-modal-overlay" style="display:none;" onclick="closeSocialModal(event)">
+
+    <!-- Complete profile modal: ask WhatsApp after OAuth login -->
+    <div id="completeProfileModal" class="social-modal-overlay" style="display:none;">
         <div class="social-modal-box">
-            <h3 id="socialModalTitle">Accedi con Google</h3>
-            <p class="social-modal-sub">Inserisci i tuoi dati per continuare</p>
+            <h3>Un'ultima cosa!</h3>
+            <p class="social-modal-sub">Inserisci il tuo numero WhatsApp per ricevere conferme e promemoria delle prenotazioni.</p>
             <div class="form-group">
-                <label for="socialName">Nome Completo</label>
-                <input type="text" id="socialName" placeholder="Es. Mario Rossi">
+                <label for="oauthWhatsapp">Numero WhatsApp *</label>
+                <input type="tel" id="oauthWhatsapp" placeholder="+39 348 1234567" autocomplete="tel">
             </div>
-            <div class="form-group">
-                <label for="socialEmail">Email</label>
-                <input type="email" id="socialEmail" placeholder="mario@email.com">
-            </div>
-            <div id="socialError" class="login-error" style="display:none;">Compila tutti i campi.</div>
-            <button class="btn-primary" style="width:100%; margin-top:0.5rem" onclick="confirmSocialLogin()">Accedi</button>
+            <div id="oauthWhatsappError" class="login-error" style="display:none;">Inserisci un numero valido (min. 10 cifre).</div>
+            <button class="btn-primary" style="width:100%; margin-top:0.5rem" onclick="confirmCompleteProfile()">Continua</button>
         </div>
     </div>
 
@@ -170,6 +167,8 @@
         </ul>
     </nav>
 
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.min.js"></script>
+    <script src="js/supabase-client.js?v=1"></script>
     <script src="js/data.js?v=4"></script>
     <script src="js/auth.js?v=4"></script>
     <script>
@@ -298,33 +297,74 @@
             }
         });
 
-        // ── Social login (mock) ───────────────────────────────────────────
-        let pendingProvider = '';
+        // ── OAuth callback: handle redirect back from Google/Facebook ────
+        (function handleOAuthReturn() {
+            const hasCode   = new URLSearchParams(window.location.search).has('code');
+            const hasToken  = window.location.hash.includes('access_token');
+            if (!hasCode && !hasToken) return;
 
-        function startSocialLogin(provider) {
-            pendingProvider = provider;
-            document.getElementById('socialModalTitle').textContent = 'Accedi con ' + provider;
-            document.getElementById('socialName').value  = '';
-            document.getElementById('socialEmail').value = '';
-            document.getElementById('socialError').style.display = 'none';
-            document.getElementById('socialModal').style.display = 'flex';
-        }
+            supabaseClient.auth.getSession().then(({ data: { session } }) => {
+                if (!session) return;
+                const meta = session.user.user_metadata || {};
+                const name  = meta.full_name || meta.name || session.user.email.split('@')[0];
+                const email = session.user.email;
+                const provider = session.user.app_metadata?.provider || 'oauth';
 
-        function closeSocialModal(e) {
-            if (e.target === document.getElementById('socialModal')) {
-                document.getElementById('socialModal').style.display = 'none';
-            }
-        }
+                // Check if user already has WhatsApp stored
+                const existing = getUserByEmail(email);
+                if (existing && existing.whatsapp) {
+                    loginUser({ name: existing.name || name, email, whatsapp: existing.whatsapp, provider });
+                    window.location.replace('index.html');
+                } else {
+                    // Ask for WhatsApp before proceeding
+                    window._pendingOAuthUser = { name, email, provider };
+                    document.getElementById('completeProfileModal').style.display = 'flex';
+                }
+            });
+        })();
 
-        function confirmSocialLogin() {
-            const name  = document.getElementById('socialName').value.trim();
-            const email = document.getElementById('socialEmail').value.trim();
-            if (!name || !email) {
-                document.getElementById('socialError').style.display = 'block';
+        function confirmCompleteProfile() {
+            const whatsapp = document.getElementById('oauthWhatsapp').value.trim();
+            const errEl    = document.getElementById('oauthWhatsappError');
+            errEl.style.display = 'none';
+
+            if (!/[\d\s+()-]{10,}/.test(whatsapp)) {
+                errEl.style.display = 'block';
                 return;
             }
-            loginUser({ name, email, provider: pendingProvider });
-            window.location.href = 'index.html';
+
+            const { name, email, provider } = window._pendingOAuthUser;
+
+            // Save/update user in local users list
+            const users = _getAllUsers();
+            const idx = users.findIndex(u => u.email.toLowerCase() === email.toLowerCase());
+            if (idx >= 0) {
+                users[idx].whatsapp = whatsapp;
+            } else {
+                users.push({ name, email, whatsapp, provider, createdAt: new Date().toISOString() });
+            }
+            _saveUsers(users);
+
+            loginUser({ name, email, whatsapp, provider });
+            window.location.replace('index.html');
+        }
+
+        // ── Social login — real Supabase OAuth ────────────────────────────
+        async function startSocialLogin(provider) {
+            const map = { Google: 'google', Facebook: 'facebook' };
+            const p = map[provider];
+
+            if (provider === 'Apple') {
+                alert('Il login con Apple non è ancora disponibile.');
+                return;
+            }
+            if (!p) return;
+
+            const { error } = await supabaseClient.auth.signInWithOAuth({
+                provider: p,
+                options: { redirectTo: 'https://renumaa.github.io/Palestra/login.html' }
+            });
+            if (error) alert('Errore durante il login con ' + provider + ': ' + error.message);
         }
     </script>
 </body>
