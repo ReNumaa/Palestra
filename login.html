@@ -243,7 +243,7 @@
             e.preventDefault();
             const name     = document.getElementById('regName').value.trim();
             const email    = document.getElementById('regEmail').value.trim();
-            const whatsapp = document.getElementById('regWhatsapp').value.trim();
+            const whatsapp = normalizePhone(document.getElementById('regWhatsapp').value.trim());
             const password = document.getElementById('regPassword').value;
             const confirm  = document.getElementById('regPasswordConfirm').value;
             const errEl    = document.getElementById('registerError');
@@ -256,6 +256,11 @@
             }
             if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) {
                 errEl.textContent = 'Inserisci un indirizzo email valido.';
+                errEl.style.display = 'block';
+                return;
+            }
+            if (!/^\+\d{10,15}$/.test(whatsapp)) {
+                errEl.textContent = 'Numero WhatsApp non valido. Usa formato: +39 348 1234567';
                 errEl.style.display = 'block';
                 return;
             }
@@ -324,18 +329,20 @@
         })();
 
         function confirmCompleteProfile() {
-            const whatsapp = document.getElementById('oauthWhatsapp').value.trim();
-            const errEl    = document.getElementById('oauthWhatsappError');
+            const raw   = document.getElementById('oauthWhatsapp').value.trim();
+            const errEl = document.getElementById('oauthWhatsappError');
             errEl.style.display = 'none';
 
-            if (!/[\d\s+()-]{10,}/.test(whatsapp)) {
+            const whatsapp = normalizePhone(raw);
+            if (!/^\+\d{10,15}$/.test(whatsapp)) {
+                errEl.textContent = 'Numero non valido. Usa formato: +39 348 1234567';
                 errEl.style.display = 'block';
                 return;
             }
 
             const { name, email, provider } = window._pendingOAuthUser;
 
-            // Save/update user in local users list
+            // Save/update user in local users list (whatsapp in E.164 for WhatsApp API)
             const users = _getAllUsers();
             const idx = users.findIndex(u => u.email.toLowerCase() === email.toLowerCase());
             if (idx >= 0) {
