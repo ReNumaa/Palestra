@@ -223,25 +223,27 @@ class BookingStorage {
         const idx = all.findIndex(b => b.id === toCancel.id);
         // Salva i dati di pagamento prima di azzerarli
         const wasPaidWithCredit = toCancel.paid && toCancel.paymentMethod === 'credito';
+        const partialCredit = toCancel.creditApplied || 0;
         const slotType = toCancel.slotType;
         all[idx].status = 'cancelled';
         all[idx].cancelledAt = new Date().toISOString();
         all[idx].paid = false;
         all[idx].paymentMethod = null;
         all[idx].paidAt = null;
+        all[idx].creditApplied = 0;
         this.replaceAllBookings(all);
-        // Rimborso credito se la lezione era stata pagata con credito
-        if (wasPaidWithCredit) {
-            const price = SLOT_PRICES[slotType] || 0;
-            if (price > 0) {
-                CreditStorage.addCredit(
-                    toCancel.whatsapp,
-                    toCancel.email,
-                    toCancel.name,
-                    price,
-                    `Rimborso annullamento ${toCancel.date} ${toCancel.time}`
-                );
-            }
+        // Rimborso credito: intero se pagato con credito, parziale se creditApplied > 0
+        const creditToRefund = wasPaidWithCredit
+            ? (SLOT_PRICES[slotType] || 0)
+            : partialCredit;
+        if (creditToRefund > 0) {
+            CreditStorage.addCredit(
+                toCancel.whatsapp,
+                toCancel.email,
+                toCancel.name,
+                creditToRefund,
+                `Rimborso annullamento ${toCancel.date} ${toCancel.time}`
+            );
         }
         return true;
     }
@@ -608,13 +610,22 @@ class CreditStorage {
             .sort((a, b) => a.date.localeCompare(b.date) || a.time.localeCompare(b.time))
             .forEach(b => {
                 const price = SLOT_PRICES[b.slotType];
-                if (balance >= price) {
+                const alreadyApplied = b.creditApplied || 0;
+                const remaining = price - alreadyApplied;
+                if (balance >= remaining) {
+                    // Fully cover the remaining amount
                     b.paid = true;
                     b.paymentMethod = 'credito';
                     b.paidAt = now;
-                    balance -= price;
-                    totalApplied += price;
+                    b.creditApplied = 0; // absorbed into paid
+                    balance -= remaining;
+                    totalApplied += remaining;
                     count++;
+                } else if (balance > 0 && alreadyApplied === 0) {
+                    // Partial payment on a booking with no credit yet
+                    b.creditApplied = Math.round(balance * 100) / 100;
+                    totalApplied += balance;
+                    balance = 0;
                 }
             });
 
