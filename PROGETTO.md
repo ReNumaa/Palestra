@@ -449,6 +449,15 @@ Libreria Canvas custom, nessuna dipendenza esterna.
 
 ### Priorità alta (bloccante per andare online)
 
+- [ ] **PWA + Push Notifications** ← **PRIMA COSA DA FARE**
+  - Aggiungere `manifest.json` (nome, icona, colori, display standalone)
+  - Aggiungere `service-worker.js` (cache offline + ricezione push)
+  - Aggiungere `<link rel="manifest">` in tutti gli HTML
+  - Implementare richiesta permesso notifiche dopo il login
+  - Testare notifica push manuale dall'admin (promemoria lezione)
+  - Funziona già con localStorage — testabile subito, gratis, migliora UX immediata
+  - Se gli utenti accettano le notifiche → riduce o elimina la necessità di WhatsApp Business API
+
 - [ ] **Migrazione da localStorage a Supabase**
   - ~~Installare Supabase CLI~~ ✅
   - ~~Definire schema tabelle (`bookings`, `schedule_overrides`, `credits`)~~ ✅ (in `supabase/migrations/`)
