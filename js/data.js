@@ -631,4 +631,10 @@ class CreditStorage {
 // Initialize demo data on load
 if (typeof window !== 'undefined') {
     BookingStorage.initializeDemoData();
+    // Process pending cancellations on every page load:
+    // if nobody booked the slot and 2h before the lesson have passed,
+    // the booking is automatically restored to 'confirmed'.
+    document.addEventListener('DOMContentLoaded', () => {
+        BookingStorage.processPendingCancellations();
+    });
 }
