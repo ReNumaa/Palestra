@@ -432,6 +432,16 @@ canvas {
     color: var(--warning);
 }
 
+.status-badge.cancellation_requested {
+    background-color: #fef3c7;
+    color: #92400e;
+}
+
+.status-badge.cancelled {
+    background-color: #f3f4f6;
+    color: #6b7280;
+}
+
 /* Popular Times */
 #popularTimes {
     display: flex;
