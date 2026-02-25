@@ -1658,7 +1658,7 @@ function closeDebtPopup() {
 // ===== Clients Tab =====
 
 function getAllClients() {
-    const allBookings = BookingStorage.getAllBookings().filter(b => b.status !== 'cancelled');
+    const allBookings = BookingStorage.getAllBookings();
     const clientsMap = {};
 
     allBookings.forEach(booking => {
@@ -1730,9 +1730,10 @@ function createClientCard(client, index) {
     card.className = 'client-card';
     card.id = `client-card-${index}`;
 
-    const totalBookings = client.bookings.length;
-    const totalPaid   = client.bookings.filter(b => b.paid).reduce((s, b) => s + (SLOT_PRICES[b.slotType] || 0), 0);
-    const totalUnpaid = client.bookings.filter(b => !b.paid && bookingHasPassed(b) && b.status !== 'cancellation_requested').reduce((s, b) => s + (SLOT_PRICES[b.slotType] || 0), 0);
+    const activeBookings = client.bookings.filter(b => b.status !== 'cancelled');
+    const totalBookings = activeBookings.length;
+    const totalPaid   = activeBookings.filter(b => b.paid).reduce((s, b) => s + (SLOT_PRICES[b.slotType] || 0), 0);
+    const totalUnpaid = activeBookings.filter(b => !b.paid && bookingHasPassed(b) && b.status !== 'cancellation_requested').reduce((s, b) => s + (SLOT_PRICES[b.slotType] || 0), 0);
     const credit      = CreditStorage.getBalance(client.whatsapp, client.email);
 
     let statsHTML = `<span class="cstat">${totalBookings} prenotazioni</span>`;
@@ -1749,21 +1750,28 @@ function createClientCard(client, index) {
 
     const bookingsHTML = client.bookings.map(b => {
         const dateStr = b.date.split('-').reverse().join('/');
-        const isCancelPending = b.status === 'cancellation_requested';
-        const rowClass = [bookingHasPassed(b) ? '' : 'future-booking', isCancelPending ? 'row-cancel-pending' : ''].join(' ').trim();
+        const isCancelPending  = b.status === 'cancellation_requested';
+        const isCancelled      = b.status === 'cancelled';
+        const rowClass = [
+            bookingHasPassed(b) ? '' : 'future-booking',
+            isCancelPending ? 'row-cancel-pending' : '',
+            isCancelled     ? 'row-cancelled'      : ''
+        ].filter(Boolean).join(' ');
         const nEsc = b.name.replace(/'/g, "\\'");
-        const statusCell = isCancelPending
-            ? `<span class="payment-status" style="background:#fef3c7;color:#92400e">⏳ Annullamento</span>`
-            : `<span class="payment-status ${b.paid ? 'paid' : 'unpaid'}">${b.paid ? '✓ Pagato' : 'Non pagato'}</span>`;
+        const statusCell = isCancelled
+            ? `<span class="payment-status" style="background:#f3f4f6;color:#6b7280">✕ Annullata</span>`
+            : isCancelPending
+                ? `<span class="payment-status" style="background:#fef3c7;color:#92400e">⏳ Annullamento</span>`
+                : `<span class="payment-status ${b.paid ? 'paid' : 'unpaid'}">${b.paid ? '✓ Pagato' : 'Non pagato'}</span>`;
         return `<tr id="brow-${b.id}" class="${rowClass}">
             <td>${dateStr}</td>
             <td>${b.time}</td>
             <td>${SLOT_NAMES[b.slotType]}</td>
             <td>${statusCell}</td>
-            <td>${isCancelPending ? '—' : methodLabel(b.paymentMethod)}</td>
-            <td class="paidat-cell">${isCancelPending ? '—' : fmtPaidAt(b.paidAt)}</td>
+            <td>${(isCancelPending || isCancelled) ? '—' : methodLabel(b.paymentMethod)}</td>
+            <td class="paidat-cell">${(isCancelPending || isCancelled) ? '—' : fmtPaidAt(b.paidAt)}</td>
             <td class="booking-actions">
-                <button class="btn-row-edit"   onclick="startEditBookingRow('${b.id}', ${index})" title="Modifica">✏️</button>
+                ${!isCancelled ? `<button class="btn-row-edit" onclick="startEditBookingRow('${b.id}', ${index})" title="Modifica">✏️</button>` : ''}
                 <button class="btn-row-delete" onclick="deleteBookingFromClients('${b.id}', '${nEsc}')" title="Elimina">🗑️</button>
             </td>
         </tr>`;
