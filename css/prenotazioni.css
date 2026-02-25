@@ -205,6 +205,17 @@
     border-color: #dc2626;
 }
 
+/* ── Cancellation pending badge ───────────────────────────────── */
+.preno-cancel-pending {
+    font-size: 0.75rem;
+    font-weight: 600;
+    padding: 0.2rem 0.6rem;
+    border-radius: 20px;
+    background: #fef3c7;
+    color: #92400e;
+    white-space: nowrap;
+}
+
 /* ── Empty state ──────────────────────────────────────────────── */
 .preno-empty {
     text-align: center;
