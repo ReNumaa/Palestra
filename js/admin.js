@@ -232,6 +232,7 @@ function updateNonChartData() {
 }
 
 function loadDashboardData() {
+    BookingStorage.processPendingCancellations();
     const allBookings = BookingStorage.getAllBookings();
     const filteredBookings = getFilteredBookings(currentFilter);
 
@@ -661,6 +662,7 @@ function renderAdminDaySelector(weekDates) {
 }
 
 function renderAdminDayView(dateInfo) {
+    BookingStorage.processPendingCancellations();
     const dayView = document.getElementById('adminDayView');
     dayView.innerHTML = '';
 
