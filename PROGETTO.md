@@ -1,6 +1,6 @@
 # TB Training — Diario di Sviluppo & Roadmap
 
-> Documento aggiornato al 21/02/2026
+> Documento aggiornato al 25/02/2026
 > Prototipo: sistema di prenotazione palestra, frontend-only con localStorage
 
 ---
@@ -52,19 +52,27 @@ Sistema di prenotazione online per la palestra **TB Training**. Permette ai clie
 ```
 Palestra-Booking-Prototype/
 ├── index.html          # Pagina pubblica: calendario + form prenotazione
+├── chi-sono.html       # Pagina pubblica: profilo personal trainer
+├── dove-sono.html      # Pagina pubblica: indicazioni, mappa, contatti e orari
+├── login.html          # Login utenti (per prenotare)
 ├── admin.html          # Dashboard amministratore (protetta da password)
 ├── css/
 │   ├── style.css       # Stili pagina pubblica
-│   └── admin.css       # Stili dashboard admin
+│   ├── login.css       # Stili pagina login utenti
+│   ├── admin.css       # Stili dashboard admin e login admin
+│   └── dove-sono.css   # Stili pagina dove sono
 ├── js/
 │   ├── data.js         # Dati demo, storage, slot e prezzi
 │   ├── calendar.js     # Logica calendario pubblico
 │   ├── booking.js      # Form prenotazione e conferma
 │   ├── chart-mini.js   # Libreria grafici su Canvas (linea + torta)
 │   └── admin.js        # Tutta la logica della dashboard admin
+├── images/             # Loghi e immagini
 ├── README.md           # Documentazione tecnica base
 └── PROGETTO.md         # Questo file (diario + roadmap)
 ```
+
+**Navbar:** tutte e 5 le pagine (index, chi-sono, dove-sono, login, admin) hanno gli stessi link: Calendario → Chi sono → Dove sono → Admin.
 
 ---
 
@@ -158,7 +166,37 @@ Libreria Canvas custom, nessuna dipendenza esterna.
 
 ---
 
-### 4.5 Notifiche (pianificate, non ancora implementate)
+### 4.5 Miglioramenti UI e nuove pagine (feb 2026)
+
+**Grafici Statistiche (chart-mini.js + admin.js):**
+- Fix canvas: costruttore usa `getBoundingClientRect()` per la larghezza reale post-CSS; `canvas { width: 100% !important }`
+- Aggiunto titoli h3 alle card grafici ("Prenotazioni nel tempo", "Distribuzione per tipo")
+- Fix grafico torta: la % "Slot Prenotato" (GROUP_CLASS) era sempre 0% perché si leggevano le prenotazioni invece degli slot nel calendario. Ora `countGroupClassSlots()` itera i giorni usando `scheduleOverrides` con fallback a `DEFAULT_WEEKLY_SCHEDULE`
+- Aggiunto due card sotto i grafici: **Fasce Orarie Popolari** (top 5, cyan) e **Fasce Orarie Non Popolari** (bottom 5, grigio, ordine inverso). Ogni card usa il proprio massimo locale per lo scaling delle barre
+
+**Pagamenti e debiti (admin.js):**
+- Fix debiti residui: `getUnpaidAmountForContact` ora viene sempre chiamata indipendentemente da `isPaid`, così le card mostrano l'avviso di debito residuo anche su prenotazioni parzialmente pagate
+
+**Dati demo (data.js):**
+- I booking demo includono ora `paymentMethod` (60% contanti / 25% carta / 15% iban) e `paidAt` (ISO timestamp entro 72h dalla fine della lezione)
+- `initializeDemoData()` pre-popola 3 settimane di `scheduleOverrides` dalla settimana corrente, così il calendario non risulta vuoto su un browser mai usato prima
+
+**Login admin (admin.css + admin.html):**
+- Rimosso lucchetto e sottotitolo dalla pagina di accesso
+- Logo aumentato da 60px a 80px
+- Box di login spostato in alto: `padding-bottom: 12vh` desktop, `28vh` mobile
+- Rimosso il pulsante "Cerca" dalla ricerca pagamenti (era inutile e confondeva su mobile)
+
+**Pagina "Dove Sono" (dove-sono.html + css/dove-sono.css):**
+- Hero con icona 📍 animata, indirizzo, due CTA (Google Maps + WhatsApp)
+- Mappa Google Maps embed (`Via San Rocco 1, Sabbio Chiese BS`)
+- 4 info card: 🚗 In auto, 🅿️ Parcheggio, 🚌 Con i mezzi, 🚶 A piedi
+- Sezione contatti & orari settimanali su sfondo scuro
+- CTA con link al calendario
+
+---
+
+### 4.7 Notifiche (pianificate, non ancora implementate)
 
 - Il form di prenotazione simula l'invio di un messaggio WhatsApp (solo `console.log`)
 - Decisione presa: usare **email automatiche** (Brevo/Resend, gratis) come canale principale per i promemoria
@@ -176,7 +214,14 @@ Libreria Canvas custom, nessuna dipendenza esterna.
 | Gestione orari settimanali | Funzionante |
 | Analytics con filtri per periodo | Funzionante |
 | Grafici (linea + torta) | Funzionante |
-| Dati demo realistici | Funzionante |
+| Fasce orarie popolari e non popolari | Funzionante |
+| % tipi lezione da calendario (non prenotazioni) | Funzionante |
+| Dati demo con paymentMethod e paidAt | Funzionante |
+| Calendario pre-popolato su browser nuovo | Funzionante |
+| Avviso debiti residui anche su pagato parziale | Funzionante |
+| Pagina Chi sono | Funzionante |
+| Pagina Dove Sono (mappa + indicazioni) | Funzionante |
+| Navbar completa su tutte le pagine | Funzionante |
 | Persistenza dati | localStorage (solo locale) |
 | Autenticazione admin | Password hardcoded (solo demo) |
 | Notifiche email | Non implementate |
