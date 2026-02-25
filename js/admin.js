@@ -74,6 +74,7 @@ function getFilteredBookings(filter) {
     const allBookings = BookingStorage.getAllBookings();
     const { from, to } = getFilterDateRange(filter);
     return allBookings.filter(b => {
+        if (b.status === 'cancelled') return false;
         const d = new Date(b.date + 'T00:00:00');
         return d >= from && d <= to;
     });

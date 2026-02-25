@@ -221,12 +221,18 @@ class BookingStorage {
         if (pending.length === 0) return false;
         const toCancel = pending[0];
         const idx = all.findIndex(b => b.id === toCancel.id);
+        // Salva i dati di pagamento prima di azzerarli
+        const wasPaidWithCredit = toCancel.paid && toCancel.paymentMethod === 'credito';
+        const slotType = toCancel.slotType;
         all[idx].status = 'cancelled';
         all[idx].cancelledAt = new Date().toISOString();
+        all[idx].paid = false;
+        all[idx].paymentMethod = null;
+        all[idx].paidAt = null;
         this.replaceAllBookings(all);
         // Rimborso credito se la lezione era stata pagata con credito
-        if (toCancel.paid && toCancel.paymentMethod === 'credito') {
-            const price = SLOT_PRICES[toCancel.slotType] || 0;
+        if (wasPaidWithCredit) {
+            const price = SLOT_PRICES[slotType] || 0;
             if (price > 0) {
                 CreditStorage.addCredit(
                     toCancel.whatsapp,
@@ -597,7 +603,7 @@ class CreditStorage {
                 const normB      = CreditStorage._normalizePhone(b.whatsapp);
                 const phoneMatch = normWhatsapp && normB && normB === normWhatsapp;
                 const emailMatch = email && b.email && b.email.toLowerCase() === email.toLowerCase();
-                return (phoneMatch || emailMatch) && !b.paid;
+                return (phoneMatch || emailMatch) && !b.paid && b.status !== 'cancelled' && b.status !== 'cancellation_requested';
             })
             .sort((a, b) => a.date.localeCompare(b.date) || a.time.localeCompare(b.time))
             .forEach(b => {
