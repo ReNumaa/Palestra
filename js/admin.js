@@ -540,6 +540,7 @@ function resetDemoData() {
     if (confirm('⚠️ ATTENZIONE: Questo cancellerà tutti i dati esistenti e genererà nuovi dati demo da Gennaio 2026 ad oggi. Continuare?')) {
         localStorage.removeItem(BookingStorage.BOOKINGS_KEY);
         localStorage.removeItem(BookingStorage.STATS_KEY);
+        localStorage.removeItem(CreditStorage.CREDITS_KEY);
         localStorage.removeItem('scheduleOverrides');
         localStorage.removeItem('dataClearedByUser');
         BookingStorage.initializeDemoData();
@@ -552,6 +553,7 @@ function clearAllData() {
     if (confirm('⚠️ ATTENZIONE: Questo eliminerà definitivamente tutte le prenotazioni e i dati. NON verranno generati nuovi dati demo. Continuare?')) {
         localStorage.removeItem(BookingStorage.BOOKINGS_KEY);
         localStorage.removeItem(BookingStorage.STATS_KEY);
+        localStorage.removeItem(CreditStorage.CREDITS_KEY);
         localStorage.removeItem('scheduleOverrides');
         localStorage.setItem('dataClearedByUser', 'true');
         alert('✅ Tutti i dati sono stati eliminati.');
