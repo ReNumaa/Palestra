@@ -429,6 +429,22 @@ class BookingStorage {
         const day = String(date.getDate()).padStart(2, '0');
         return `${year}-${month}-${day}`;
     }
+
+    // ── Helpers per scheduleOverrides ────────────────────────────────────────
+    // Accesso centralizzato: quando si passa a Supabase si cambiano solo questi
+
+    static getScheduleOverrides() {
+        try { return JSON.parse(localStorage.getItem('scheduleOverrides') || '{}'); } catch { return {}; }
+    }
+
+    static saveScheduleOverrides(overrides) {
+        localStorage.setItem('scheduleOverrides', JSON.stringify(overrides));
+    }
+
+    // Sostituisce l'intero array di prenotazioni (usato dopo modifiche bulk)
+    static replaceAllBookings(bookings) {
+        localStorage.setItem(this.BOOKINGS_KEY, JSON.stringify(bookings));
+    }
 }
 
 // Credit storage — tracks per-client credit balance
@@ -536,7 +552,7 @@ class CreditStorage {
             });
 
         if (totalApplied > 0) {
-            localStorage.setItem(BookingStorage.BOOKINGS_KEY, JSON.stringify(allBookings));
+            BookingStorage.replaceAllBookings(allBookings);
             this.addCredit(whatsapp, email, name, -totalApplied,
                 `Auto-pagamento ${count} lezione${count > 1 ? 'i' : ''} con credito`);
         }

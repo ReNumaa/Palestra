@@ -87,7 +87,7 @@ function formatDate(date) {
 }
 
 function weekHasSlots(offset) {
-    const overrides = JSON.parse(localStorage.getItem('scheduleOverrides') || '{}');
+    const overrides = BookingStorage.getScheduleOverrides();
     return getWeekDates(offset).some(d => overrides[d.formatted] && overrides[d.formatted].length > 0);
 }
 
@@ -146,7 +146,7 @@ function createSlot(dateInfo, timeSlot) {
     slot.className = 'calendar-slot';
 
     // Only show slots that have been explicitly configured for this date
-    const overrides = JSON.parse(localStorage.getItem('scheduleOverrides') || '{}');
+    const overrides = BookingStorage.getScheduleOverrides();
     const scheduledSlots = overrides[dateInfo.formatted] || [];
     const scheduledSlot = scheduledSlots.find(s => s.time === timeSlot);
 
@@ -275,7 +275,7 @@ function renderMobileSlots(dateInfo) {
     const slotsList = document.getElementById('mobileSlotsList');
     slotsList.innerHTML = '';
 
-    const overrides = JSON.parse(localStorage.getItem('scheduleOverrides') || '{}');
+    const overrides = BookingStorage.getScheduleOverrides();
     const scheduledSlots = overrides[dateInfo.formatted] || [];
 
     if (scheduledSlots.length === 0) {

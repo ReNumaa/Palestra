@@ -353,7 +353,7 @@ function drawBookingsChart(filteredBookings) {
 }
 
 function countGroupClassSlots(from, to) {
-    const overrides = JSON.parse(localStorage.getItem('scheduleOverrides') || '{}');
+    const overrides = BookingStorage.getScheduleOverrides();
     const dayNames = ['Domenica', 'Lunedì', 'Martedì', 'Mercoledì', 'Giovedì', 'Venerdì', 'Sabato'];
     let count = 0;
     const cur = new Date(from); cur.setHours(0, 0, 0, 0);
@@ -761,7 +761,7 @@ function deleteBooking(bookingId, bookingName) {
         }
 
         bookings.splice(index, 1);
-        localStorage.setItem(BookingStorage.BOOKINGS_KEY, JSON.stringify(bookings));
+        BookingStorage.replaceAllBookings(bookings);
 
         // Re-render the calendar view
         if (selectedAdminDay) {
@@ -788,7 +788,7 @@ function renderScheduleManager() {
     const firstDate = weekDates[0].date;
     const lastDate = weekDates[6].date;
 
-    const overrides = JSON.parse(localStorage.getItem('scheduleOverrides') || '{}');
+    const overrides = BookingStorage.getScheduleOverrides();
     const weekHasAnySlot = weekDates.some(d => overrides[d.formatted] && overrides[d.formatted].length > 0);
 
     let html = `
@@ -866,7 +866,7 @@ function changeScheduleWeek(direction) {
 
 function importWeekTemplate(weekOffset) {
     const weekDates = getScheduleWeekDates(weekOffset);
-    const overrides = JSON.parse(localStorage.getItem('scheduleOverrides') || '{}');
+    const overrides = BookingStorage.getScheduleOverrides();
     const dayNames = ['Domenica','Lunedì','Martedì','Mercoledì','Giovedì','Venerdì','Sabato'];
 
     weekDates.forEach(dateInfo => {
@@ -880,16 +880,16 @@ function importWeekTemplate(weekOffset) {
         }
     });
 
-    localStorage.setItem('scheduleOverrides', JSON.stringify(overrides));
+    BookingStorage.saveScheduleOverrides(overrides);
     renderScheduleManager();
 }
 
 function clearWeekSchedule(weekOffset) {
     if (!confirm('Svuotare tutti i giorni di questa settimana? Le prenotazioni esistenti non verranno eliminate.')) return;
     const weekDates = getScheduleWeekDates(weekOffset);
-    const overrides = JSON.parse(localStorage.getItem('scheduleOverrides') || '{}');
+    const overrides = BookingStorage.getScheduleOverrides();
     weekDates.forEach(dateInfo => { delete overrides[dateInfo.formatted]; });
-    localStorage.setItem('scheduleOverrides', JSON.stringify(overrides));
+    BookingStorage.saveScheduleOverrides(overrides);
     selectedScheduleDate = null;
     renderScheduleManager();
 }
@@ -920,13 +920,13 @@ const ALL_TIME_SLOTS = [
 function getScheduleForDate(dateFormatted, dayName) {
     // Only return slots that have been explicitly configured for this date.
     // Weeks with no override are blank and won't appear in the calendar.
-    const overrides = JSON.parse(localStorage.getItem('scheduleOverrides') || '{}');
+    const overrides = BookingStorage.getScheduleOverrides();
     return overrides[dateFormatted] || [];
 }
 
 // Save schedule override for a specific date
 function saveScheduleForDate(dateFormatted, dayName, slots) {
-    const overrides = JSON.parse(localStorage.getItem('scheduleOverrides') || '{}');
+    const overrides = BookingStorage.getScheduleOverrides();
 
     if (slots.length === 0) {
         // If empty, remove override (will fall back to template)
@@ -935,7 +935,7 @@ function saveScheduleForDate(dateFormatted, dayName, slots) {
         overrides[dateFormatted] = slots;
     }
 
-    localStorage.setItem('scheduleOverrides', JSON.stringify(overrides));
+    BookingStorage.saveScheduleOverrides(overrides);
 }
 
 function renderAllTimeSlots() {
@@ -1256,7 +1256,7 @@ function payAllDebtsInline(whatsapp, email, name, btn) {
     });
 
     if (totalPaid === 0) return;
-    localStorage.setItem(BookingStorage.BOOKINGS_KEY, JSON.stringify(bookings));
+    BookingStorage.replaceAllBookings(bookings);
 
     // Update card in-place — keep it visible with paid state
     const card = btn.closest('.debtor-card');
@@ -1412,7 +1412,7 @@ function markBookingPaid(bookingId) {
     if (booking) {
         booking.paid = true;
         booking.paidAt = new Date().toISOString();
-        localStorage.setItem(BookingStorage.BOOKINGS_KEY, JSON.stringify(bookings));
+        BookingStorage.replaceAllBookings(bookings);
 
         // Refresh payments tab
         renderPaymentsTab();
@@ -1618,7 +1618,7 @@ function paySelectedDebts() {
             booking.paidAt = now;
         }
     });
-    localStorage.setItem(BookingStorage.BOOKINGS_KEY, JSON.stringify(bookings));
+    BookingStorage.replaceAllBookings(bookings);
 
     // Add credit if overpaid, then auto-apply to any remaining unpaid past bookings
     if (creditDelta > 0 && currentDebtContact) {
@@ -1859,7 +1859,7 @@ function saveClientEdit(index, oldWhatsapp, oldEmail) {
             b.email = newEmail;
         }
     });
-    localStorage.setItem(BookingStorage.BOOKINGS_KEY, JSON.stringify(bookings));
+    BookingStorage.replaceAllBookings(bookings);
 
     // Update stored credit record contact info
     const creditKey = CreditStorage._findKey(oldWhatsapp, oldEmail);
@@ -1984,7 +1984,7 @@ function saveBookingRowEdit(bookingId, clientIndex) {
         delete booking.paidAt;
     }
 
-    localStorage.setItem(BookingStorage.BOOKINGS_KEY, JSON.stringify(bookings));
+    BookingStorage.replaceAllBookings(bookings);
     renderClientsTab();
 }
 
@@ -2000,7 +2000,7 @@ function deleteBookingFromClients(bookingId, bookingName) {
                 `Rimborso cancellazione lezione ${b.date} ${b.time}`);
         }
         bookings.splice(idx, 1);
-        localStorage.setItem(BookingStorage.BOOKINGS_KEY, JSON.stringify(bookings));
+        BookingStorage.replaceAllBookings(bookings);
     }
     renderClientsTab();
 }
