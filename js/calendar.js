@@ -92,6 +92,7 @@ function weekHasSlots(offset) {
 }
 
 function renderCalendar() {
+    BookingStorage.processPendingCancellations();
     const weekDates = getWeekDates(currentWeekOffset);
     const calendarGrid = document.getElementById('calendar');
     calendarGrid.innerHTML = '';
