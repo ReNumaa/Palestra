@@ -1,6 +1,6 @@
 # TB Training — Diario di Sviluppo & Roadmap
 
-> Documento aggiornato al 25/02/2026 (sera)
+> Documento aggiornato al 26/02/2026
 > Prototipo: sistema di prenotazione palestra, frontend-only con localStorage
 > Supabase CLI installato, schema SQL definito, accesso dati centralizzato
 > Supabase cloud attivo (tabelle create), Google OAuth funzionante, numeri normalizzati E.164
@@ -364,6 +364,33 @@ Libreria Canvas custom, nessuna dipendenza esterna.
 
 ---
 
+### 4.13 Fix annullamento e blocco prenotazioni tardive (feb 2026)
+
+**Bug fix — flusso annullamento con utente diverso:**
+- Problema: se `processPendingCancellations` girava prima della prenotazione di un secondo utente (via `DOMContentLoaded`), la richiesta di annullamento veniva revertita a `confirmed` e `cancellationRequestedAt` veniva cancellato. Quando il secondo utente prenotava, `fulfillPendingCancellations` non trovava più la richiesta pendente e la prenotazione originale rimaneva `confirmed`.
+- Fix in `data.js`:
+  - `processPendingCancellations`: non cancella più il campo `cancellationRequestedAt` al ripristino — il campo resta come traccia dell'intenzione
+  - `fulfillPendingCancellations`: ora cerca anche prenotazioni `confirmed` con `cancellationRequestedAt` impostato (oltre a `cancellation_requested`)
+
+**Nascondere bottone annullamento per lezioni già passate:**
+- `buildCard` in `prenotazioni.html` calcola la data+ora reale di inizio lezione
+- Se l'orario è già passato (`lessonStart <= new Date()`), il bottone "Richiedi annullamento" non viene renderizzato — evita il ciclo richiesta → revert immediato da `processPendingCancellations`
+
+**Blocco prenotazioni entro 2h dall'inizio:**
+- `createSlot` (desktop) e `createMobileSlotCard` (mobile) in `calendar.js`: lo slot è cliccabile solo se `lessonStart - now > 2h`; altrimenti cursore `not-allowed`
+- `renderMobileSlots` in `calendar.js`: gli slot entro 2h non vengono proprio renderizzati su mobile (invece di mostrarsi come disabilitati). Se non rimangono slot disponibili per il giorno selezionato, mostra "Nessuna lezione disponibile per questo giorno"
+- `handleBookingSubmit` in `booking.js`: validazione aggiuntiva lato submit — se la lezione inizia entro 2h, mostra alert e chiude il modal
+
+**Ripristino credito nel reset dati:**
+- `resetDemoData` e `clearAllData` in `admin.js` ora rimuovono anche `gym_credits` da localStorage — in precedenza il saldo crediti sopravviveva al reset
+
+**Elimina storico credito per singolo cliente:**
+- Aggiunto `CreditStorage.clearRecord(whatsapp, email)` in `data.js`: rimuove completamente il record crediti di un cliente
+- Admin tab Clienti: bottone 🗑️ "Elimina storico" nell'header dello storico credito di ogni cliente, con richiesta di conferma
+- CSS: `.btn-clear-credit` (bordo rosso, stile inline)
+
+---
+
 ### 4.12 Notifiche (pianificate, non ancora implementate)
 
 - Il form di prenotazione simula l'invio di un messaggio WhatsApp (solo `console.log`)
@@ -409,6 +436,12 @@ Libreria Canvas custom, nessuna dipendenza esterna.
 | Badge stato completi in Statistiche & Fatturato | Funzionante ✅ |
 | Verifica doppia prenotazione (stesso utente, stessa data+ora) | Funzionante ✅ |
 | processPendingCancellations su ogni pagina | Funzionante ✅ |
+| Fix annullamento con secondo utente (cancellationRequestedAt preservato) | Funzionante ✅ |
+| Bottone annullamento nascosto per lezioni già passate | Funzionante ✅ |
+| Blocco prenotazioni entro 2h dall'inizio (UI + submit) | Funzionante ✅ |
+| Slot mobile nascosti entro 2h (non renderizzati) | Funzionante ✅ |
+| Reset dati azzera anche crediti | Funzionante ✅ |
+| Elimina storico credito per singolo cliente | Funzionante ✅ |
 
 ---
 
