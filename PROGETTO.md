@@ -489,6 +489,14 @@ Libreria Canvas custom, nessuna dipendenza esterna.
   - Email promemoria automatica il giorno prima (cron job su Supabase Edge Functions o servizio esterno)
   - Template email con branding TB Training
 
+- [ ] **Operazioni atomiche con Postgres RPC (crediti + annullamenti)**
+  - Le operazioni multi-step (prenota+scala credito, annulla+rimborsa) attualmente sono sequenziali: se il secondo step fallisce (timeout, errore rete), i dati restano in stato inconsistente
+  - Con Supabase usare funzioni SQL (`supabase.rpc(...)`) che eseguono tutto in una singola transazione:
+    - `book_slot_with_credit(...)` → inserisce prenotazione + scala credito + inserisce in credit_history
+    - `cancel_booking_with_refund(...)` → imposta `cancelled` + rimborsa credito in un colpo solo
+    - `fulfill_cancellation(...)` → cancella vecchia prenotazione + salva nuova in modo atomico
+  - Finché si è su localStorage non è un problema (tutto sincrono locale); diventa critico appena si passa a Supabase
+
 - [ ] **Validazione server-side**
   - Attualmente la validazione è solo lato client
   - Supabase permette constraints a livello di database
