@@ -421,7 +421,12 @@ function updateBookingsTable(bookings) {
             <td>${booking.name}</td>
             <td>${SLOT_NAMES[booking.slotType]}</td>
             <td>${booking.whatsapp}</td>
-            <td><span class="status-badge ${booking.status}">${booking.status === 'confirmed' ? 'Confermata' : 'In attesa'}</span></td>
+            <td><span class="status-badge ${booking.status}">${
+                booking.status === 'confirmed'              ? 'Confermata'            :
+                booking.status === 'cancellation_requested' ? 'Richiesta annullamento' :
+                booking.status === 'cancelled'              ? 'Annullata'              :
+                'In attesa'
+            }</span></td>
         `;
         tbody.appendChild(row);
     });
