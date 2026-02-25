@@ -592,6 +592,12 @@ class CreditStorage {
         return key ? this._getAll()[key] : null;
     }
 
+    static clearRecord(whatsapp, email) {
+        const all = this._getAll();
+        const key = this._findKey(whatsapp, email);
+        if (key) { delete all[key]; this._save(all); }
+    }
+
     // Auto-pay unpaid bookings (past and future) for this client using available credit
     static applyToUnpaidBookings(whatsapp, email, name) {
         let balance = this.getBalance(whatsapp, email);

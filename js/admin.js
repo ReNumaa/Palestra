@@ -1799,7 +1799,9 @@ function createClientCard(client, index) {
     if (creditRecord && creditRecord.history && creditRecord.history.length > 0) {
         const history = [...creditRecord.history].reverse().slice(0, 8);
         creditHTML = `<div class="client-credit-section">
-            <h4>💳 Storico credito — saldo: €${credit}</h4>
+            <h4>💳 Storico credito — saldo: €${credit}
+                <button class="btn-clear-credit" onclick="clearClientCredit('${client.whatsapp.replace(/'/g,"\\'")}', '${(client.email||'').replace(/'/g,"\\'")}', ${index})" title="Elimina storico credito">🗑️ Elimina storico</button>
+            </h4>
             <div class="client-credit-history">
                 ${history.map(e => {
                     const d = new Date(e.date);
@@ -2039,6 +2041,14 @@ function deleteBookingFromClients(bookingId, bookingName) {
         BookingStorage.replaceAllBookings(bookings);
     }
     renderClientsTab();
+}
+
+function clearClientCredit(whatsapp, email, index) {
+    if (!confirm('Eliminare tutto lo storico credito di questo cliente?\n\nSaldo e movimenti verranno azzerati.')) return;
+    CreditStorage.clearRecord(whatsapp, email);
+    renderClientsTab();
+    const card = document.getElementById(`client-card-${index}`);
+    if (card) { card.classList.add('open'); card.querySelector('.client-card-body').style.display = 'block'; }
 }
 
 // Initialize admin when DOM is loaded

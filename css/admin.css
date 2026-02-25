@@ -1030,7 +1030,23 @@ canvas {
     color: #0369a1;
     margin: 0 0 0.5rem 0;
     font-weight: 700;
+    display: flex;
+    align-items: center;
+    gap: 0.75rem;
 }
+
+.btn-clear-credit {
+    font-size: 0.75rem;
+    padding: 0.15rem 0.5rem;
+    border: 1px solid #fca5a5;
+    border-radius: 6px;
+    background: #fff;
+    color: #ef4444;
+    cursor: pointer;
+    font-weight: 500;
+    line-height: 1.4;
+}
+.btn-clear-credit:hover { background: #fef2f2; }
 
 .client-credit-history {
     display: flex;
