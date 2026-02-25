@@ -763,14 +763,16 @@ function deleteBooking(bookingId, bookingName) {
     if (index !== -1) {
         const booking = bookings[index];
 
-        // If the booking was paid with credit, refund it
-        if (booking.paid && booking.paymentMethod === 'credito') {
-            const price = SLOT_PRICES[booking.slotType];
+        // Refund credit: full if paid with credit, partial if creditApplied > 0
+        const creditToRefund = (booking.paid && booking.paymentMethod === 'credito')
+            ? (SLOT_PRICES[booking.slotType] || 0)
+            : (booking.creditApplied || 0);
+        if (creditToRefund > 0) {
             CreditStorage.addCredit(
                 booking.whatsapp,
                 booking.email,
                 booking.name,
-                price,
+                creditToRefund,
                 `Rimborso cancellazione lezione ${booking.date} ${booking.time}`
             );
         }
@@ -1472,7 +1474,7 @@ function getUnpaidAmountForContact(whatsapp, email) {
         const phoneMatch = normWhatsapp && normalizePhone(booking.whatsapp) === normWhatsapp;
         const emailMatch = email && booking.email && booking.email.toLowerCase() === email.toLowerCase();
         if ((phoneMatch || emailMatch) && !booking.paid && bookingHasPassed(booking) && booking.status !== 'cancelled') {
-            totalUnpaid += SLOT_PRICES[booking.slotType];
+            totalUnpaid += (SLOT_PRICES[booking.slotType] || 0) - (booking.creditApplied || 0);
         }
     });
 
@@ -1538,7 +1540,9 @@ function renderDebtPopupList(unpaid) {
     unpaid.forEach(booking => {
         const [y, m, d] = booking.date.split('-').map(Number);
         const dateDisplay = `${d}/${m}/${y}`;
-        const price = SLOT_PRICES[booking.slotType];
+        const fullPrice = SLOT_PRICES[booking.slotType];
+        const creditApplied = booking.creditApplied || 0;
+        const price = fullPrice - creditApplied;
 
         const item = document.createElement('div');
         item.className = 'debt-popup-item';
@@ -1547,7 +1551,7 @@ function renderDebtPopupList(unpaid) {
                 <input type="checkbox" class="debt-item-check" data-id="${booking.id}" data-price="${price}" onchange="updateDebtTotal()">
                 <div class="debt-item-info">
                     <span class="debt-item-date">📅 ${dateDisplay} &nbsp;·&nbsp; 🕐 ${booking.time}</span>
-                    <span class="debt-item-type">${SLOT_NAMES[booking.slotType]}</span>
+                    <span class="debt-item-type">${SLOT_NAMES[booking.slotType]}${creditApplied > 0 ? ` <span style="color:#92400e;font-size:0.8em">(💳 €${creditApplied} già applicato)</span>` : ''}</span>
                 </div>
                 <span class="debt-item-price">€${price}</span>
             </label>
@@ -1741,7 +1745,7 @@ function createClientCard(client, index) {
     const activeBookings = client.bookings.filter(b => b.status !== 'cancelled');
     const totalBookings = activeBookings.length;
     const totalPaid   = activeBookings.filter(b => b.paid).reduce((s, b) => s + (SLOT_PRICES[b.slotType] || 0), 0);
-    const totalUnpaid = activeBookings.filter(b => !b.paid && bookingHasPassed(b) && b.status !== 'cancellation_requested').reduce((s, b) => s + (SLOT_PRICES[b.slotType] || 0), 0);
+    const totalUnpaid = activeBookings.filter(b => !b.paid && bookingHasPassed(b) && b.status !== 'cancellation_requested').reduce((s, b) => s + (SLOT_PRICES[b.slotType] || 0) - (b.creditApplied || 0), 0);
     const credit      = CreditStorage.getBalance(client.whatsapp, client.email);
 
     let statsHTML = `<span class="cstat">${totalBookings} prenotazioni</span>`;
@@ -1766,11 +1770,14 @@ function createClientCard(client, index) {
             isCancelled     ? 'row-cancelled'      : ''
         ].filter(Boolean).join(' ');
         const nEsc = b.name.replace(/'/g, "\\'");
+        const isPartialCredit = !b.paid && (b.creditApplied || 0) > 0;
         const statusCell = isCancelled
             ? `<span class="payment-status" style="background:#f3f4f6;color:#6b7280">✕ Annullata</span>`
             : isCancelPending
                 ? `<span class="payment-status" style="background:#fef3c7;color:#92400e">⏳ Annullamento</span>`
-                : `<span class="payment-status ${b.paid ? 'paid' : 'unpaid'}">${b.paid ? '✓ Pagato' : 'Non pagato'}</span>`;
+                : isPartialCredit
+                    ? `<span class="payment-status" style="background:#ede9fe;color:#5b21b6">💳 Parziale (€${(SLOT_PRICES[b.slotType] || 0) - b.creditApplied} da pagare)</span>`
+                    : `<span class="payment-status ${b.paid ? 'paid' : 'unpaid'}">${b.paid ? '✓ Pagato' : 'Non pagato'}</span>`;
         return `<tr id="brow-${b.id}" class="${rowClass}">
             <td>${dateStr}</td>
             <td>${b.time}</td>

@@ -174,7 +174,7 @@
             const { upcoming } = getUserBookings();
             const debit = upcoming
                 .filter(b => !b.paid && b.status !== 'cancelled')
-                .reduce((sum, b) => sum + (SLOT_PRICES[b.slotType] || 0), 0);
+                .reduce((sum, b) => sum + (SLOT_PRICES[b.slotType] || 0) - (b.creditApplied || 0), 0);
 
             document.getElementById('prenoCreditAmount').textContent = `€${balance.toFixed(2)}`;
             document.getElementById('prenoDebitAmount').textContent  = `€${debit.toFixed(2)}`;
@@ -215,6 +215,9 @@
             } else if (b.paid) {
                 const method = b.paymentMethod === 'credito' ? '💳 Credito' : '✓ Pagata';
                 payBadge = `<span class="preno-badge preno-badge-paid">${method}</span>`;
+            } else if ((b.creditApplied || 0) > 0) {
+                const remaining = (SLOT_PRICES[b.slotType] || 0) - b.creditApplied;
+                payBadge = `<span class="preno-badge preno-badge-partial">💳 Credito parziale — €${remaining} da pagare</span>`;
             } else {
                 payBadge = `<span class="preno-badge preno-badge-unpaid">Da pagare</span>`;
             }

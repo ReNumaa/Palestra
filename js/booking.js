@@ -174,10 +174,11 @@ function handleBookingSubmit(e) {
     // Se c'era una richiesta di annullamento per questo slot, è ora soddisfatta
     BookingStorage.fulfillPendingCancellations(booking.date, booking.time);
 
-    // Auto-apply credit if the client has enough balance
+    // Auto-apply credit (full or partial)
     const price = SLOT_PRICES[savedBooking.slotType];
     const creditBalance = CreditStorage.getBalance(savedBooking.whatsapp, savedBooking.email);
     if (creditBalance >= price) {
+        // Full payment with credit
         const allBookings = BookingStorage.getAllBookings();
         const stored = allBookings.find(b => b.id === savedBooking.id);
         if (stored) {
@@ -196,10 +197,27 @@ function handleBookingSubmit(e) {
         savedBooking.paid = true;
         savedBooking.paidWithCredit = true;
         savedBooking.remainingCredit = Math.round((creditBalance - price) * 100) / 100;
-        // Apply any remaining credit to existing unpaid past bookings
+        // Apply any remaining credit to existing unpaid bookings
         if (savedBooking.remainingCredit > 0) {
             CreditStorage.applyToUnpaidBookings(savedBooking.whatsapp, savedBooking.email, savedBooking.name);
         }
+    } else if (creditBalance > 0) {
+        // Partial payment: use all available credit, rest remains to be paid
+        const allBookings = BookingStorage.getAllBookings();
+        const stored = allBookings.find(b => b.id === savedBooking.id);
+        if (stored) {
+            stored.creditApplied = Math.round(creditBalance * 100) / 100;
+            BookingStorage.replaceAllBookings(allBookings);
+        }
+        CreditStorage.addCredit(
+            savedBooking.whatsapp,
+            savedBooking.email,
+            savedBooking.name,
+            -creditBalance,
+            `Credito parziale lezione ${savedBooking.date} ${savedBooking.time} (€${creditBalance} su €${price})`
+        );
+        savedBooking.creditApplied = Math.round(creditBalance * 100) / 100;
+        savedBooking.remainingCredit = 0;
     }
 
     // Show confirmation
