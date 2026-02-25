@@ -285,12 +285,25 @@ function renderMobileSlots(dateInfo) {
         return;
     }
 
+    const now = new Date();
+    const twoHoursMs = 2 * 60 * 60 * 1000;
+
     scheduledSlots.forEach(scheduledSlot => {
         const remainingSpots = BookingStorage.getRemainingSpots(dateInfo.formatted, scheduledSlot.time, scheduledSlot.type);
         if (remainingSpots <= 0) return;
+
+        const [_sh, _sm] = scheduledSlot.time.split(' - ')[0].trim().split(':').map(Number);
+        const lessonStart = new Date(dateInfo.date);
+        lessonStart.setHours(_sh, _sm, 0, 0);
+        if ((lessonStart - now) <= twoHoursMs) return;
+
         const slotCard = createMobileSlotCard(dateInfo, scheduledSlot);
         slotsList.appendChild(slotCard);
     });
+
+    if (!slotsList.hasChildNodes()) {
+        slotsList.innerHTML = '<div style="text-align: center; color: #999; padding: 2rem;">Nessuna lezione disponibile per questo giorno</div>';
+    }
 }
 
 function createMobileSlotCard(dateInfo, scheduledSlot) {
