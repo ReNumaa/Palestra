@@ -158,7 +158,6 @@ function getUserBookings() {
 
     const mine = allBookings.filter(b =>
         b.email && b.email.toLowerCase() === user.email.toLowerCase()
-        && b.status !== 'cancelled'
     );
     return {
         upcoming: mine.filter(b => b.date >= today).sort((a, b) => a.date.localeCompare(b.date)),

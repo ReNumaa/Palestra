@@ -628,7 +628,7 @@ function renderAdminDaySelector(weekDates) {
 
     weekDates.forEach(dateInfo => {
         const bookings = BookingStorage.getAllBookings();
-        const dayBookingsCount = bookings.filter(b => b.date === dateInfo.formatted).length;
+        const dayBookingsCount = bookings.filter(b => b.date === dateInfo.formatted && b.status !== 'cancelled').length;
 
         const dayCard = document.createElement('div');
         dayCard.className = 'admin-day-card';
@@ -690,7 +690,8 @@ function createAdminSlotCard(dateInfo, scheduledSlot) {
     const slotType = scheduledSlot.type;
     const bookings = BookingStorage.getBookingsForSlot(dateInfo.formatted, timeSlot);
     const maxCapacity = SLOT_MAX_CAPACITY[slotType];
-    const remainingSpots = maxCapacity - bookings.length;
+    const confirmedCount = bookings.filter(b => b.status === 'confirmed').length;
+    const remainingSpots = maxCapacity - confirmedCount;
 
     let participantsHTML = '';
     if (bookings.length === 0) {
@@ -699,21 +700,27 @@ function createAdminSlotCard(dateInfo, scheduledSlot) {
         participantsHTML = '<div class="admin-participants-grid">';
         bookings.forEach((booking) => {
             const isPaid = booking.paid || false;
+            const isCancelPending = booking.status === 'cancellation_requested';
 
             // Show debt warning for OTHER unpaid bookings even if this one is paid,
             // so the admin can see there are still outstanding debts for this person.
             const unpaidAmount = getUnpaidAmountForContact(booking.whatsapp, booking.email);
             const hasDebts = unpaidAmount > 0;
 
+            const cancelPendingBadge = isCancelPending
+                ? `<div class="admin-cancel-pending-badge">⏳ Annullamento richiesto</div>`
+                : '';
+
             participantsHTML += `
-                <div class="admin-participant-card">
+                <div class="admin-participant-card${isCancelPending ? ' cancel-pending' : ''}">
                     <button class="btn-delete-booking" onclick="deleteBooking('${booking.id}', '${booking.name.replace(/'/g, "\\'")}')">✕</button>
                     <div class="participant-card-content">
                         <div class="participant-name">${booking.name}</div>
                         <div class="participant-contact">📱 ${booking.whatsapp}</div>
                         ${booking.notes ? `<div class="participant-notes">📝 ${booking.notes}</div>` : ''}
+                        ${cancelPendingBadge}
                         ${hasDebts ? `<div class="debt-warning" onclick="openDebtPopup('${booking.whatsapp.replace(/'/g, "\\'")}', '${booking.email.replace(/'/g, "\\'")}', '${booking.name.replace(/'/g, "\\'")}')">⚠️ Da pagare: €${unpaidAmount}</div>` : ''}
-                        <div class="payment-status ${isPaid ? 'paid' : 'unpaid'}">${isPaid ? '✓ Pagato' : 'Non pagato'}</div>
+                        ${!isCancelPending ? `<div class="payment-status ${isPaid ? 'paid' : 'unpaid'}">${isPaid ? '✓ Pagato' : 'Non pagato'}</div>` : ''}
                     </div>
                 </div>
             `;
@@ -726,7 +733,7 @@ function createAdminSlotCard(dateInfo, scheduledSlot) {
             <div class="admin-slot-time">🕐 ${timeSlot}</div>
             <div class="admin-slot-type">${SLOT_NAMES[slotType]}</div>
             <div class="admin-slot-capacity">
-                ${bookings.length}/${maxCapacity} posti occupati
+                ${confirmedCount}/${maxCapacity} posti occupati
                 ${remainingSpots === 0 ? '(COMPLETO)' : `(${remainingSpots} liberi)`}
             </div>
         </div>
