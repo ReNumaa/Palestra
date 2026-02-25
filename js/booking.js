@@ -164,7 +164,7 @@ function handleBookingSubmit(e) {
             stored.paid = true;
             stored.paymentMethod = 'credito';
             stored.paidAt = new Date().toISOString();
-            localStorage.setItem(BookingStorage.BOOKINGS_KEY, JSON.stringify(allBookings));
+            BookingStorage.replaceAllBookings(allBookings);
         }
         CreditStorage.addCredit(
             savedBooking.whatsapp,
