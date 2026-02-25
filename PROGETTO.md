@@ -2,6 +2,8 @@
 
 > Documento aggiornato al 25/02/2026
 > Prototipo: sistema di prenotazione palestra, frontend-only con localStorage
+> Supabase CLI installato, schema SQL definito, accesso dati centralizzato
+> Supabase cloud attivo (tabelle create), Google OAuth funzionante, numeri normalizzati E.164
 
 ---
 
@@ -34,7 +36,8 @@ Sistema di prenotazione online per la palestra **TB Training**. Permette ai clie
 | Frontend | HTML5 + CSS3 + JavaScript vanilla | Nessuna dipendenza esterna |
 | Persistenza dati | localStorage | Solo per il prototipo |
 | Grafici | Canvas API custom (`chart-mini.js`) | Nessuna libreria esterna |
-| Hosting | File locali (browser) | Da deployare |
+| Autenticazione | Supabase Auth + Google OAuth | SDK via CDN (`@supabase/supabase-js@2`) |
+| Hosting | GitHub Pages | https://renumaa.github.io/Palestra |
 
 **Stack target per la produzione:**
 
@@ -62,11 +65,17 @@ Palestra-Booking-Prototype/
 │   ├── admin.css       # Stili dashboard admin e login admin
 │   └── dove-sono.css   # Stili pagina dove sono
 ├── js/
-│   ├── data.js         # Dati demo, storage, slot e prezzi
-│   ├── calendar.js     # Logica calendario pubblico
-│   ├── booking.js      # Form prenotazione e conferma
-│   ├── chart-mini.js   # Libreria grafici su Canvas (linea + torta)
-│   └── admin.js        # Tutta la logica della dashboard admin
+│   ├── data.js             # Dati demo, storage, slot e prezzi + helper centralizzati
+│   ├── calendar.js         # Logica calendario pubblico
+│   ├── booking.js          # Form prenotazione e conferma
+│   ├── chart-mini.js       # Libreria grafici su Canvas (linea + torta)
+│   ├── auth.js             # Auth localStorage + normalizePhone() E.164
+│   ├── supabase-client.js  # Inizializzazione Supabase JS SDK (usato da login.html)
+│   └── admin.js            # Tutta la logica della dashboard admin
+├── supabase/           # Configurazione Supabase CLI (locale)
+│   ├── config.toml     # Config progetto Supabase locale
+│   └── migrations/
+│       └── 20260225000000_init.sql  # Schema DB: bookings, schedule_overrides, credits
 ├── images/             # Loghi e immagini
 ├── README.md           # Documentazione tecnica base
 └── PROGETTO.md         # Questo file (diario + roadmap)
@@ -196,7 +205,121 @@ Libreria Canvas custom, nessuna dipendenza esterna.
 
 ---
 
-### 4.7 Notifiche (pianificate, non ancora implementate)
+### 4.6 Preparazione e attivazione Supabase (feb 2026)
+
+**Supabase CLI installato su Windows.**
+
+**Schema SQL definito in `supabase/migrations/20260225000000_init.sql`:**
+- Tabella `bookings`: id, date, time, slot_type, name, email, whatsapp, notes, paid, payment_method, paid_at
+- Tabella `schedule_overrides`: id, date, time, slot_type (unique su date+time)
+- Tabella `credits`: id, name, whatsapp, email, balance
+- Tabella `credit_history`: id, credit_id (FK), amount, note
+- RLS abilitato su tutte le tabelle con policy pubbliche per lettura e inserimento prenotazioni
+
+**Accesso dati centralizzato in `data.js`:**
+- Aggiunti metodi statici a `BookingStorage`:
+  - `getScheduleOverrides()` — lettura centralizzata degli override orari
+  - `saveScheduleOverrides(obj)` — scrittura centralizzata degli override orari
+  - `replaceAllBookings(arr)` — sovrascrittura bulk array prenotazioni
+- Rimossi tutti i `localStorage.getItem('scheduleOverrides')` e `localStorage.setItem(BOOKINGS_KEY, ...)` sparsi in `calendar.js`, `booking.js`, `admin.js`, `data.js`
+- Tutto l'accesso ai dati passa ora esclusivamente da `BookingStorage` e `CreditStorage`
+- **Il comportamento del sito è invariato** — è solo un refactoring interno
+- Quando si migra a Supabase: si cambia solo l'interno di questi metodi + si aggiunge async/await in un unico passaggio
+
+**Progetto Supabase cloud attivato:**
+- Progetto creato su supabase.com: `Thomas Bresciani` (free tier)
+- URL: `https://ppymuuyoveyyoswcimck.supabase.co`
+- Collegamento locale: `supabase link --project-ref ppymuuyoveyyoswcimck`
+- Schema applicato al cloud: `supabase db push` → tabelle `bookings`, `schedule_overrides`, `credits`, `credit_history` create e visibili nel Table Editor
+- Le migrazioni sono versionabili in git — ogni modifica futura al DB è un file `.sql` in `supabase/migrations/`
+
+---
+
+### 4.7 Autenticazione utenti con Google OAuth (feb 2026)
+
+**Obiettivo:** sostituire il login social mock (che chiedeva nome/email manualmente) con OAuth reale tramite Supabase Auth.
+
+**File creato: `js/supabase-client.js`**
+- Inizializza il client Supabase con URL e anon key
+- Esporta `supabaseClient` come variabile globale usata da `login.html`
+- Caricato via CDN: `@supabase/supabase-js@2` (UMD build da jsDelivr)
+
+**Configurazione Google Cloud Console:**
+- Creato progetto OAuth "Thomas Bresciani" su console.cloud.google.com
+- Tipo applicazione: Web
+- Origini JavaScript autorizzate: `https://renumaa.github.io`
+- URI di reindirizzamento autorizzato: `https://ppymuuyoveyyoswcimck.supabase.co/auth/v1/callback`
+- Ottenuti Client ID e Client Secret
+
+**Configurazione Supabase Auth:**
+- Provider Google abilitato con Client ID e Client Secret di Google
+- Site URL: `https://renumaa.github.io/Palestra`
+- Redirect URL: `https://renumaa.github.io/Palestra/login.html`
+
+**Flusso OAuth implementato in `login.html`:**
+1. Utente clicca "Continua con Google" → `supabaseClient.auth.signInWithOAuth({ provider: 'google', redirectTo: login.html })`
+2. Google autentica → redirect a Supabase callback → redirect a `login.html?code=...`
+3. `handleOAuthReturn()` rileva il parametro `code` (o `access_token`) nell'URL
+4. `supabaseClient.auth.getSession()` scambia il codice per una sessione
+5. Estrazione dati utente: `user_metadata.full_name`, `user_metadata.name`, `user.email`
+6. Bridge al sistema localStorage esistente tramite `loginUser({ name, email, provider })`
+7. Redirect a `index.html`
+
+**Rimozione login mock:**
+- Eliminato il `socialModal` HTML (che chiedeva nome/email manualmente)
+- Eliminati `pendingProvider`, `startSocialLogin` mock, `closeSocialModal`, `confirmSocialLogin`
+- Il pulsante Apple mostra alert "non ancora disponibile" (richiede Apple Developer account a pagamento)
+- Facebook: infrastruttura pronta, richiede configurazione app Facebook Developers
+
+**Compatibilità mantenuta:**
+- Il resto del sito (calendario, prenotazioni, admin) continua a usare `getCurrentUser()` da localStorage — invariato
+- Quando si migra a Supabase full, l'auth è già collegata; si aggiornerà solo il bridge
+
+---
+
+### 4.8 Modal "Completa il profilo" dopo OAuth (feb 2026)
+
+**Problema:** Google OAuth fornisce solo nome ed email — non il numero WhatsApp, necessario per i promemoria.
+
+**Soluzione implementata:**
+- Dopo il login OAuth, prima di redirectare a `index.html`, il codice controlla se l'utente ha già un numero WhatsApp in `gym_users` (localStorage)
+- **Prima volta:** mostra il modal "Un'ultima cosa!" con campo WhatsApp obbligatorio — non si può procedere senza compilarlo
+- **Accessi successivi:** se il numero è già salvato, redirect diretto senza mostrare il modal
+
+**Dettaglio tecnico:**
+- `getUserByEmail(email)` controlla la lista `gym_users` in localStorage
+- Se non trovato o senza WhatsApp → `window._pendingOAuthUser = { name, email, provider }` + mostra modal
+- `confirmCompleteProfile()`: valida il numero, lo normalizza, salva in `gym_users` tramite `_getAllUsers()` / `_saveUsers()`, poi chiama `loginUser()` e redirect
+- Il numero viene salvato in formato E.164 (vedi sezione 4.9)
+
+---
+
+### 4.9 Normalizzazione numeri WhatsApp in E.164 (feb 2026)
+
+**Obiettivo:** salvare tutti i numeri di telefono in formato standard E.164 (`+39XXXXXXXXXX`) per compatibilità futura con le API WhatsApp Business.
+
+**Funzione `normalizePhone(raw)` aggiunta in `auth.js`:**
+```js
+// Gestisce tutti i formati comuni italiani:
+// "348 123 4567"      → "+39348123456"
+// "0348 123 4567"     → "+39348123456"
+// "0039 348 123 4567" → "+39348123456"
+// "+39 348 123 4567"  → "+39348123456"
+```
+- Rimuove spazi, trattini, parentesi
+- Gestisce prefissi: `0039`, `39`, `0`, nessun prefisso → aggiunge `+39`
+- Validazione finale con regex `^\+\d{10,15}$`
+
+**Applicata a:**
+- Modal OAuth "Completa profilo" (`confirmCompleteProfile` in `login.html`)
+- Form di registrazione manuale (`registerForm` in `login.html`)
+- Messaggio di errore chiaro: "Numero non valido. Usa formato: +39 348 1234567"
+
+**Nota:** il form di prenotazione (`booking.js`) accetta ancora numeri non normalizzati — da allineare in futuro quando si migra a Supabase (validazione server-side).
+
+---
+
+### 4.10 Notifiche (pianificate, non ancora implementate)
 
 - Il form di prenotazione simula l'invio di un messaggio WhatsApp (solo `console.log`)
 - Decisione presa: usare **email automatiche** (Brevo/Resend, gratis) come canale principale per i promemoria
@@ -226,8 +349,15 @@ Libreria Canvas custom, nessuna dipendenza esterna.
 | Autenticazione admin | Password hardcoded (solo demo) |
 | Notifiche email | Non implementate |
 | Notifiche WhatsApp | Non implementate |
-| Hosting online | Non deployato |
-| Database reale | Non collegato |
+| Supabase CLI installato | Fatto ✅ |
+| Schema SQL definito (migrations) | Fatto ✅ |
+| Accesso dati centralizzato (BookingStorage) | Fatto ✅ |
+| Progetto Supabase cloud creato e collegato | Fatto ✅ |
+| Tabelle DB create nel cloud (db push) | Fatto ✅ |
+| Login con Google OAuth (Supabase Auth) | Funzionante ✅ |
+| Modal "Completa profilo" (WhatsApp dopo OAuth) | Funzionante ✅ |
+| Normalizzazione numeri E.164 | Funzionante ✅ |
+| Hosting online (GitHub Pages) | https://renumaa.github.io/Palestra ✅ |
 
 ---
 
@@ -236,21 +366,28 @@ Libreria Canvas custom, nessuna dipendenza esterna.
 ### Priorità alta (bloccante per andare online)
 
 - [ ] **Migrazione da localStorage a Supabase**
-  - Creare progetto Supabase
-  - Definire schema tabelle (`bookings`, `schedule_overrides`)
-  - Riscrivere `data.js` con chiamate alle Supabase API (fetch)
+  - ~~Installare Supabase CLI~~ ✅
+  - ~~Definire schema tabelle (`bookings`, `schedule_overrides`, `credits`)~~ ✅ (in `supabase/migrations/`)
+  - ~~Centralizzare accesso dati in `BookingStorage`~~ ✅
+  - ~~Creare progetto su supabase.com e fare `supabase db push`~~ ✅
+  - Sostituire implementazione localStorage con chiamate Supabase API in `data.js`
+  - Aggiungere `async/await` a tutti i caller (già strutturati per farlo in un colpo solo)
   - Gestire loading states nell'UI
 
 - [ ] **Autenticazione admin sicura**
-  - Supabase Auth (email + password) oppure token fisso in variabile d'ambiente
+  - ~~Supabase Auth installata e funzionante per utenti (Google OAuth)~~ ✅
+  - Autenticazione admin vera (Supabase Auth con ruolo admin o token in variabile d'ambiente)
   - Rimuovere la password hardcoded `admin123`
-  - Proteggere le API Supabase con Row Level Security (RLS)
+  - Proteggere le API Supabase con Row Level Security (RLS) per i dati admin
 
-- [ ] **Deploy su GitHub Pages**
-  - Creare repository GitHub
-  - Abilitare GitHub Pages sul branch `main`
-  - Aggiornare tutti i path relativi se necessario
-  - Testare su mobile e desktop dopo il deploy
+- ~~[ ] **Deploy su GitHub Pages**~~ ✅
+  - ~~Creare repository GitHub~~ ✅
+  - ~~Abilitare GitHub Pages~~ ✅
+  - Sito live: https://renumaa.github.io/Palestra
+
+- [ ] **Normalizzare numeri WhatsApp nel form di prenotazione** (booking.js)
+  - `normalizePhone()` è già disponibile in `auth.js`
+  - Da applicare al campo WhatsApp in `handleBookingSubmit` per coerenza con il resto
 
 ### Priorità media (importante per usabilità)
 
@@ -438,6 +575,10 @@ Obiettivo: automatizzare ulteriormente, crescere
 | Grafici | Canvas API custom | Nessuna dipendenza esterna, controllo totale |
 | Framework frontend | Nessuno (vanilla JS) | Semplicità, nessuna build chain, deploy immediato su Pages |
 | WhatsApp library | whatsapp-web.js (se implementata) | Gratis, ma necessita SIM dedicata e accetta rischio ToS |
+| Auth utenti | Supabase Auth + Google OAuth | Gratis, sicuro, gestisce token e sessioni; bridge a localStorage per compatibilità |
+| Timing migrazione Supabase | Dopo completamento sito | Evita complessità async durante sviluppo; BookingStorage già centralizzato per migrazione rapida |
+| Formato numeri WhatsApp | E.164 (`+39XXXXXXXXXX`) | Standard richiesto da WhatsApp Business API; normalizzazione automatica lato client |
+| Apple Sign In | Non implementato | Richiede Apple Developer account a pagamento ($99/anno); Google + Facebook coprono la maggior parte degli utenti |
 
 ---
 
