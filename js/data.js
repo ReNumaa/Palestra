@@ -224,6 +224,19 @@ class BookingStorage {
         all[idx].status = 'cancelled';
         all[idx].cancelledAt = new Date().toISOString();
         this.replaceAllBookings(all);
+        // Rimborso credito se la lezione era stata pagata con credito
+        if (toCancel.paid && toCancel.paymentMethod === 'credito') {
+            const price = SLOT_PRICES[toCancel.slotType] || 0;
+            if (price > 0) {
+                CreditStorage.addCredit(
+                    toCancel.whatsapp,
+                    toCancel.email,
+                    toCancel.name,
+                    price,
+                    `Rimborso annullamento ${toCancel.date} ${toCancel.time}`
+                );
+            }
+        }
         return true;
     }
 
