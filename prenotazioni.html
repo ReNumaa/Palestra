@@ -222,8 +222,11 @@
                 payBadge = `<span class="preno-badge preno-badge-unpaid">Da pagare</span>`;
             }
 
+            const _lessonStart = new Date(`${b.date}T${b.time.split(' - ')[0].trim()}:00`);
+            const _lessonPast  = _lessonStart <= new Date();
+
             let cancelBtn = '';
-            if (showCancel && b.status !== 'cancelled') {
+            if (showCancel && b.status !== 'cancelled' && !_lessonPast) {
                 if (b.status === 'cancellation_requested') {
                     cancelBtn = `<div class="preno-cancel-pending">⏳ Annullamento in attesa</div>`;
                 } else {
