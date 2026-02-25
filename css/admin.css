@@ -951,6 +951,8 @@ canvas {
 }
 
 .client-bookings-table tr.future-booking td { color: #aaa; font-style: italic; }
+.client-bookings-table tr.row-cancelled td { color: #bbb; text-decoration: line-through; }
+.client-bookings-table tr.row-cancelled td:last-child { text-decoration: none; }
 .client-bookings-table tr.editing td { background: #f0f9ff; }
 
 .client-bookings-table select {
