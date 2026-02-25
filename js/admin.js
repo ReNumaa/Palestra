@@ -1732,7 +1732,7 @@ function createClientCard(client, index) {
 
     const totalBookings = client.bookings.length;
     const totalPaid   = client.bookings.filter(b => b.paid).reduce((s, b) => s + (SLOT_PRICES[b.slotType] || 0), 0);
-    const totalUnpaid = client.bookings.filter(b => !b.paid && bookingHasPassed(b)).reduce((s, b) => s + (SLOT_PRICES[b.slotType] || 0), 0);
+    const totalUnpaid = client.bookings.filter(b => !b.paid && bookingHasPassed(b) && b.status !== 'cancellation_requested').reduce((s, b) => s + (SLOT_PRICES[b.slotType] || 0), 0);
     const credit      = CreditStorage.getBalance(client.whatsapp, client.email);
 
     let statsHTML = `<span class="cstat">${totalBookings} prenotazioni</span>`;
@@ -1749,15 +1749,19 @@ function createClientCard(client, index) {
 
     const bookingsHTML = client.bookings.map(b => {
         const dateStr = b.date.split('-').reverse().join('/');
-        const rowClass = bookingHasPassed(b) ? '' : 'future-booking';
+        const isCancelPending = b.status === 'cancellation_requested';
+        const rowClass = [bookingHasPassed(b) ? '' : 'future-booking', isCancelPending ? 'row-cancel-pending' : ''].join(' ').trim();
         const nEsc = b.name.replace(/'/g, "\\'");
+        const statusCell = isCancelPending
+            ? `<span class="payment-status" style="background:#fef3c7;color:#92400e">⏳ Annullamento</span>`
+            : `<span class="payment-status ${b.paid ? 'paid' : 'unpaid'}">${b.paid ? '✓ Pagato' : 'Non pagato'}</span>`;
         return `<tr id="brow-${b.id}" class="${rowClass}">
             <td>${dateStr}</td>
             <td>${b.time}</td>
             <td>${SLOT_NAMES[b.slotType]}</td>
-            <td><span class="payment-status ${b.paid ? 'paid' : 'unpaid'}">${b.paid ? '✓ Pagato' : 'Non pagato'}</span></td>
-            <td>${methodLabel(b.paymentMethod)}</td>
-            <td class="paidat-cell">${fmtPaidAt(b.paidAt)}</td>
+            <td>${statusCell}</td>
+            <td>${isCancelPending ? '—' : methodLabel(b.paymentMethod)}</td>
+            <td class="paidat-cell">${isCancelPending ? '—' : fmtPaidAt(b.paidAt)}</td>
             <td class="booking-actions">
                 <button class="btn-row-edit"   onclick="startEditBookingRow('${b.id}', ${index})" title="Modifica">✏️</button>
                 <button class="btn-row-delete" onclick="deleteBookingFromClients('${b.id}', '${nEsc}')" title="Elimina">🗑️</button>
