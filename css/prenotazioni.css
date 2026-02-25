@@ -186,6 +186,11 @@
     color: #854d0e;
 }
 
+.preno-badge-cancelled {
+    background: #f3f4f6;
+    color: #6b7280;
+}
+
 /* ── Cancel button ────────────────────────────────────────────── */
 .preno-cancel-btn {
     background: none;

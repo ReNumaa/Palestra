@@ -641,6 +641,22 @@ canvas {
     transform: translateY(-3px);
 }
 
+.admin-participant-card.cancel-pending {
+    border-color: #f59e0b;
+    background: #fffbeb;
+}
+
+.admin-cancel-pending-badge {
+    font-size: 0.75rem;
+    font-weight: 600;
+    color: #92400e;
+    background: #fef3c7;
+    border-radius: 12px;
+    padding: 0.15rem 0.5rem;
+    display: inline-block;
+    margin: 0.2rem 0;
+}
+
 
 .participant-card-content {
     display: flex;
