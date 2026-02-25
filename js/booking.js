@@ -101,6 +101,16 @@ function handleBookingSubmit(e) {
         return;
     }
 
+    // Reject if lesson starts within 2h from now
+    const [_sh, _sm] = selectedSlot.time.split(' - ')[0].trim().split(':').map(Number);
+    const _lessonStart = new Date(selectedSlot.date);
+    _lessonStart.setHours(_sh, _sm, 0, 0);
+    if ((_lessonStart - new Date()) <= 2 * 60 * 60 * 1000) {
+        alert('Non è possibile prenotare meno di 2 ore prima dell\'inizio della lezione.');
+        closeBookingModal();
+        return;
+    }
+
     // Validate form
     const formData = {
         name: document.getElementById('name').value.trim(),

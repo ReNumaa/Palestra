@@ -168,12 +168,13 @@ function createSlot(dateInfo, timeSlot) {
             ${slotType !== SLOT_TYPES.GROUP_CLASS && remainingSpots > 0 ? `<div class="slot-spots ${spotsColorClass(remainingSpots)}">${remainingSpots} ${remainingSpots === 1 ? 'disponibile' : 'disponibili'}</div>` : ''}
         `;
 
-        // Only allow booking if not full and not in the past
-        const slotDate = new Date(dateInfo.date);
-        const today = new Date();
-        today.setHours(0, 0, 0, 0);
+        // Only allow booking if not full and lesson starts more than 2h from now
+        const [_sh, _sm] = timeSlot.split(' - ')[0].trim().split(':').map(Number);
+        const lessonStart = new Date(dateInfo.date);
+        lessonStart.setHours(_sh, _sm, 0, 0);
+        const bookable = !isFull && (lessonStart - new Date()) > 2 * 60 * 60 * 1000;
 
-        if (!isFull && slotDate >= today) {
+        if (bookable) {
             slot.style.cursor = 'pointer';
             slot.addEventListener('click', () => selectSlot(dateInfo, timeSlot, slotType, remainingSpots));
         } else {
@@ -315,12 +316,13 @@ function createMobileSlotCard(dateInfo, scheduledSlot) {
         <div class="mobile-slot-type">${SLOT_NAMES[slotType]}</div>
     `;
 
-    // Check if slot is in the past
-    const slotDate = new Date(dateInfo.date);
-    const today = new Date();
-    today.setHours(0, 0, 0, 0);
+    // Only allow booking if lesson starts more than 2h from now
+    const [_sh, _sm] = timeSlot.split(' - ')[0].trim().split(':').map(Number);
+    const lessonStart = new Date(dateInfo.date);
+    lessonStart.setHours(_sh, _sm, 0, 0);
+    const bookable = !isFull && (lessonStart - new Date()) > 2 * 60 * 60 * 1000;
 
-    if (!isFull && slotDate >= today) {
+    if (bookable) {
         slotCard.addEventListener('click', () => {
             selectMobileSlot(dateInfo, timeSlot, slotType, remainingSpots, slotCard);
         });
