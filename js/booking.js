@@ -154,6 +154,9 @@ function handleBookingSubmit(e) {
     // Save booking
     const savedBooking = BookingStorage.saveBooking(booking);
 
+    // Se c'era una richiesta di annullamento per questo slot, è ora soddisfatta
+    BookingStorage.fulfillPendingCancellations(booking.date, booking.time);
+
     // Auto-apply credit if the client has enough balance
     const price = SLOT_PRICES[savedBooking.slotType];
     const creditBalance = CreditStorage.getBalance(savedBooking.whatsapp, savedBooking.email);

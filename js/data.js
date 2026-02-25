@@ -190,13 +190,61 @@ class BookingStorage {
 
     static getBookingsForSlot(date, time) {
         const bookings = this.getAllBookings();
-        return bookings.filter(b => b.date === date && b.time === time);
+        return bookings.filter(b => b.date === date && b.time === time && b.status !== 'cancelled');
     }
 
     static getRemainingSpots(date, time, slotType) {
         const bookings = this.getBookingsForSlot(date, time);
+        // Only confirmed bookings count toward capacity; cancellation_requested frees the spot
+        const confirmedCount = bookings.filter(b => b.status === 'confirmed').length;
         const maxCapacity = SLOT_MAX_CAPACITY[slotType];
-        return maxCapacity - bookings.length;
+        return maxCapacity - confirmedCount;
+    }
+
+    // Marca una prenotazione come "annullamento richiesto" (il posto torna disponibile)
+    static requestCancellation(id) {
+        const all = this.getAllBookings();
+        const booking = all.find(b => b.id === id);
+        if (!booking || booking.status !== 'confirmed') return false;
+        booking.status = 'cancellation_requested';
+        booking.cancellationRequestedAt = new Date().toISOString();
+        this.replaceAllBookings(all);
+        return true;
+    }
+
+    // Quando arriva una nuova prenotazione, cancella la prima richiesta pendente per quello slot (FIFO)
+    static fulfillPendingCancellations(date, time) {
+        const all = this.getAllBookings();
+        const pending = all
+            .filter(b => b.date === date && b.time === time && b.status === 'cancellation_requested')
+            .sort((a, b) => (a.cancellationRequestedAt || '').localeCompare(b.cancellationRequestedAt || ''));
+        if (pending.length === 0) return false;
+        const toCancel = pending[0];
+        const idx = all.findIndex(b => b.id === toCancel.id);
+        all[idx].status = 'cancelled';
+        all[idx].cancelledAt = new Date().toISOString();
+        this.replaceAllBookings(all);
+        return true;
+    }
+
+    // Controlla le richieste pendenti: se la lezione è entro 2h, nega l'annullamento (torna confirmed)
+    static processPendingCancellations() {
+        const all = this.getAllBookings();
+        const now = new Date();
+        const twoHoursMs = 2 * 60 * 60 * 1000;
+        let changed = false;
+        all.forEach(b => {
+            if (b.status !== 'cancellation_requested') return;
+            const startTime = b.time.split(' - ')[0].trim();
+            const lessonStart = new Date(`${b.date}T${startTime}:00`);
+            if (lessonStart - now <= twoHoursMs) {
+                b.status = 'confirmed';
+                delete b.cancellationRequestedAt;
+                changed = true;
+            }
+        });
+        if (changed) this.replaceAllBookings(all);
+        return changed;
     }
 
     static updateStats(booking) {

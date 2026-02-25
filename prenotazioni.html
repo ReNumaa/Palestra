@@ -131,6 +131,9 @@
             document.getElementById('prenoUserEmail').textContent = user.email;
             document.getElementById('prenoAvatar').textContent = user.name.charAt(0).toUpperCase();
 
+            // Verifica le richieste pendenti: se la lezione è entro 2h, nega l'annullamento
+            BookingStorage.processPendingCancellations();
+
             renderPrenoList();
             renderCreditBalance();
         });
@@ -187,9 +190,14 @@
                 payBadge = `<span class="preno-badge preno-badge-unpaid">Da pagare</span>`;
             }
 
-            const cancelBtn = showCancel
-                ? `<button class="preno-cancel-btn" onclick="cancelBooking('${b.id}')">Annulla</button>`
-                : '';
+            let cancelBtn = '';
+            if (showCancel) {
+                if (b.status === 'cancellation_requested') {
+                    cancelBtn = `<div class="preno-cancel-pending">⏳ Annullamento in attesa</div>`;
+                } else {
+                    cancelBtn = `<button class="preno-cancel-btn" onclick="requestCancellation('${b.id}')">Richiedi annullamento</button>`;
+                }
+            }
 
             return `
                 <div class="preno-card ${b.slotType}">
@@ -205,38 +213,14 @@
                 </div>`;
         }
 
-        // ── Cancel booking ────────────────────────────────────────────────
-        function cancelBooking(id) {
-            if (!confirm('Sei sicuro di voler annullare questa prenotazione?')) return;
-
-            const allBookings = JSON.parse(localStorage.getItem('gym_bookings') || '[]');
-            const idx = allBookings.findIndex(b => b.id === id);
-            if (idx === -1) return;
-
-            const booking = allBookings[idx];
-
-            // Remove the booking first so applyToUnpaidBookings doesn't see it
-            allBookings.splice(idx, 1);
-            localStorage.setItem('gym_bookings', JSON.stringify(allBookings));
-
-            // Refund credit if it was paid with credit, then re-apply to remaining unpaid bookings
-            if (booking.paid && booking.paymentMethod === 'credito') {
-                const price = (SLOT_PRICES && SLOT_PRICES[booking.slotType]) || 0;
-                if (price > 0) {
-                    CreditStorage.addCredit(
-                        booking.whatsapp,
-                        booking.email,
-                        booking.name,
-                        price,
-                        `Rimborso lezione annullata ${booking.date} ${booking.time}`
-                    );
-                    // Propagate refunded credit to any remaining unpaid bookings
-                    CreditStorage.applyToUnpaidBookings(booking.whatsapp, booking.email, booking.name);
-                }
-            }
-
+        // ── Cancellation request ──────────────────────────────────────────
+        function requestCancellation(id) {
+            const msg = 'Richiedere l\'annullamento?\n\n' +
+                '• Se qualcuno prenota al tuo posto, la prenotazione sarà annullata.\n' +
+                '• Se entro 2 ore dalla lezione nessuno ha preso il tuo posto, l\'annullamento viene negato e dovrai presentarti.';
+            if (!confirm(msg)) return;
+            BookingStorage.requestCancellation(id);
             renderPrenoList();
-            renderCreditBalance();
         }
     </script>
 </body>

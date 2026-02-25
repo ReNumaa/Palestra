@@ -156,7 +156,10 @@ function getUserBookings() {
     const allBookings = JSON.parse(localStorage.getItem('gym_bookings') || '[]');
     const today = new Date().toISOString().split('T')[0];
 
-    const mine = allBookings.filter(b => b.email && b.email.toLowerCase() === user.email.toLowerCase());
+    const mine = allBookings.filter(b =>
+        b.email && b.email.toLowerCase() === user.email.toLowerCase()
+        && b.status !== 'cancelled'
+    );
     return {
         upcoming: mine.filter(b => b.date >= today).sort((a, b) => a.date.localeCompare(b.date)),
         past:     mine.filter(b => b.date <  today).sort((a, b) => b.date.localeCompare(a.date))
