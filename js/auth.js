@@ -1,5 +1,18 @@
 // Auth - simulated session via localStorage
 
+// ── Phone normalization ───────────────────────────────────────────────────
+// Returns E.164 format (+39XXXXXXXXXX) for future WhatsApp API compatibility.
+// Strips spaces/dashes, handles 0039 / 39 / 0 prefixes, defaults to +39.
+function normalizePhone(raw) {
+    if (!raw) return '';
+    let n = raw.replace(/[\s\-().]/g, '');
+    if      (n.startsWith('0039'))                 n = '+39' + n.slice(4);
+    else if (n.startsWith('39') && n[0] !== '+')   n = '+' + n;
+    else if (n.startsWith('0'))                    n = '+39' + n.slice(1);
+    else if (!n.startsWith('+'))                   n = '+39' + n;
+    return n;
+}
+
 // ── User storage helpers ──────────────────────────────────────────────────
 const USERS_KEY = 'gym_users';
 
