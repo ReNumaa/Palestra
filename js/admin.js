@@ -1463,7 +1463,7 @@ function getUnpaidAmountForContact(whatsapp, email) {
     allBookings.forEach(booking => {
         const phoneMatch = normWhatsapp && normalizePhone(booking.whatsapp) === normWhatsapp;
         const emailMatch = email && booking.email && booking.email.toLowerCase() === email.toLowerCase();
-        if ((phoneMatch || emailMatch) && !booking.paid && bookingHasPassed(booking)) {
+        if ((phoneMatch || emailMatch) && !booking.paid && bookingHasPassed(booking) && booking.status !== 'cancelled') {
             totalUnpaid += SLOT_PRICES[booking.slotType];
         }
     });
@@ -1481,7 +1481,7 @@ function openDebtPopup(whatsapp, email, name) {
         .filter(b => {
             const phoneMatch = normWhatsapp && normalizePhone(b.whatsapp) === normWhatsapp;
             const emailMatch = email && b.email && b.email.toLowerCase() === email.toLowerCase();
-            return (phoneMatch || emailMatch) && !b.paid && bookingHasPassed(b);
+            return (phoneMatch || emailMatch) && !b.paid && bookingHasPassed(b) && b.status !== 'cancelled';
         })
         .sort((a, b) => a.date.localeCompare(b.date) || a.time.localeCompare(b.time));
 
@@ -1658,7 +1658,7 @@ function closeDebtPopup() {
 // ===== Clients Tab =====
 
 function getAllClients() {
-    const allBookings = BookingStorage.getAllBookings();
+    const allBookings = BookingStorage.getAllBookings().filter(b => b.status !== 'cancelled');
     const clientsMap = {};
 
     allBookings.forEach(booking => {
