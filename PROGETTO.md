@@ -1,6 +1,6 @@
 # TB Training — Diario di Sviluppo & Roadmap
 
-> Documento aggiornato al 25/02/2026
+> Documento aggiornato al 25/02/2026 (sera)
 > Prototipo: sistema di prenotazione palestra, frontend-only con localStorage
 > Supabase CLI installato, schema SQL definito, accesso dati centralizzato
 > Supabase cloud attivo (tabelle create), Google OAuth funzionante, numeri normalizzati E.164
@@ -319,7 +319,52 @@ Libreria Canvas custom, nessuna dipendenza esterna.
 
 ---
 
-### 4.10 Notifiche (pianificate, non ancora implementate)
+### 4.10 Sistema di annullamento prenotazioni (feb 2026)
+
+**Flusso implementato:**
+1. Utente clicca "Richiedi annullamento" → `status = 'cancellation_requested'`, timestamp `cancellationRequestedAt`
+2. Lo slot torna disponibile sul calendario (conta come posto libero)
+3. Se qualcun altro prenota → `fulfillPendingCancellations()` cancella la prenotazione più vecchia in attesa (FIFO), rimborsa il credito se pagato con credito, azzera `paid/paymentMethod/paidAt`
+4. Se nessuno prenota entro 2h dall'inizio lezione → `processPendingCancellations()` ripristina `status = 'confirmed'`, l'utente deve presentarsi e pagare
+
+**File modificati:**
+- `js/data.js`: aggiunti `requestCancellation()`, `fulfillPendingCancellations()`, `processPendingCancellations()`; `getBookingsForSlot` e `getRemainingSpots` escludono `cancelled`
+- `js/booking.js`: chiama `fulfillPendingCancellations()` dopo ogni nuova prenotazione
+- `prenotazioni.html`: UI con badge "⏳ Annullamento in attesa" / "✕ Annullata", polling ogni 3s, `processPendingCancellations()` al caricamento
+- `css/prenotazioni.css`: badge `preno-badge-cancelled` (grigio) e `preno-cancel-pending` (ambra)
+- `js/admin.js`: participant card con badge ambra per `cancellation_requested`; `css/admin.css`: `.admin-participant-card.cancel-pending`
+
+**Rimborso credito:** `fulfillPendingCancellations` azzera `paid`, `paymentMethod`, `paidAt` sulla prenotazione cancellata e aggiunge il credito tramite `CreditStorage.addCredit(+price)`
+
+---
+
+### 4.11 Miglioramenti admin e consistenza dati (feb 2026)
+
+**Prenotazioni annullate visibili nello storico Clienti:**
+- `getAllClients()` include prenotazioni `cancelled` (prima le escludeva)
+- Riga in tabella: testo barrato + grigio (`.row-cancelled`), badge "✕ Annullata", colonne metodo/data con `—`, nessun pulsante ✏️ (solo 🗑️)
+- Contatori `totalBookings`, `totalPaid`, `totalUnpaid` calcolati solo su `activeBookings` (esclude `cancelled`)
+
+**Badge stato in tabella Statistiche & Fatturato:**
+- Mappati tutti e 4 gli stati: `confirmed` → verde "Confermata", `cancellation_requested` → ambra "Richiesta annullamento", `cancelled` → grigio "Annullata", altro → giallo "In attesa"
+- Aggiunto CSS `.status-badge.cancellation_requested` e `.status-badge.cancelled`
+
+**Verifica doppia prenotazione:**
+- `booking.js`: prima di salvare, controlla se esiste già una prenotazione attiva (non `cancelled`) per la stessa email o numero WhatsApp, stessa data e ora
+- Mostra alert "Hai già una prenotazione per questo orario."
+
+**Fix credito e statistiche:**
+- `applyToUnpaidBookings()`: salta prenotazioni `cancelled` e `cancellation_requested` per non spendere credito su lezioni annullate
+- `getFilteredBookings()` (admin Statistiche): esclude `cancelled` da fatturato, conteggio totale, grafici e tasso di occupazione
+
+**processPendingCancellations su ogni pagina:**
+- Aggiunta chiamata in `DOMContentLoaded` dentro `data.js` → eseguita su ogni pagina che carica lo script
+- Aggiunta anche in `renderCalendar()`, `renderAdminDayView()`, `loadDashboardData()` per sicurezza aggiuntiva
+- Limitazione nota: se nessuno apre il sito nelle 2h prima della lezione, il ripristino avviene alla prima apertura successiva (qualunque pagina)
+
+---
+
+### 4.12 Notifiche (pianificate, non ancora implementate)
 
 - Il form di prenotazione simula l'invio di un messaggio WhatsApp (solo `console.log`)
 - Decisione presa: usare **email automatiche** (Brevo/Resend, gratis) come canale principale per i promemoria
@@ -358,6 +403,12 @@ Libreria Canvas custom, nessuna dipendenza esterna.
 | Modal "Completa profilo" (WhatsApp dopo OAuth) | Funzionante ✅ |
 | Normalizzazione numeri E.164 | Funzionante ✅ |
 | Hosting online (GitHub Pages) | https://renumaa.github.io/Palestra ✅ |
+| Annullamento prenotazioni (richiesta + conferma automatica) | Funzionante ✅ |
+| Rimborso credito su annullamento | Funzionante ✅ |
+| Storico prenotazioni annullate in admin Clienti | Funzionante ✅ |
+| Badge stato completi in Statistiche & Fatturato | Funzionante ✅ |
+| Verifica doppia prenotazione (stesso utente, stessa data+ora) | Funzionante ✅ |
+| processPendingCancellations su ogni pagina | Funzionante ✅ |
 
 ---
 
@@ -390,6 +441,14 @@ Libreria Canvas custom, nessuna dipendenza esterna.
   - Da applicare al campo WhatsApp in `handleBookingSubmit` per coerenza con il resto
 
 ### Priorità media (importante per usabilità)
+
+- [ ] **Edge Function schedulata per annullamenti pendenti**
+  - Attualmente `processPendingCancellations` gira solo quando qualcuno apre il sito
+  - Se nessuno apre il sito nelle 2h prima della lezione, il ripristino a `confirmed` è ritardato
+  - Soluzione: Supabase Edge Function con cron ogni 30 minuti che:
+    1. Legge prenotazioni `cancellation_requested` con lezione entro 2h
+    2. Le imposta a `confirmed` direttamente nel DB
+  - Da implementare nella fase di migrazione a Supabase
 
 - [ ] **Notifiche email automatiche**
   - Scegliere provider: Brevo (raccomandato, gratis fino a 300/giorno) o Resend
