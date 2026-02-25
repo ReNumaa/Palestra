@@ -136,6 +136,33 @@
 
             renderPrenoList();
             renderCreditBalance();
+
+            // Polling: aggiorna la lista ogni 3s finché ci sono annullamenti in attesa
+            // (necessario perché un altro utente potrebbe prenotare lo slot da un altro tab)
+            let _pollInterval = null;
+            function _startPolling() {
+                if (_pollInterval) return;
+                _pollInterval = setInterval(() => {
+                    const user = getCurrentUser();
+                    if (!user) { clearInterval(_pollInterval); return; }
+                    const hasPending = BookingStorage.getAllBookings().some(b =>
+                        b.email && b.email.toLowerCase() === user.email.toLowerCase()
+                        && b.status === 'cancellation_requested'
+                    );
+                    if (!hasPending) {
+                        clearInterval(_pollInterval);
+                        _pollInterval = null;
+                    }
+                    BookingStorage.processPendingCancellations();
+                    renderPrenoList();
+                    renderCreditBalance();
+                }, 3000);
+            }
+            function _stopPolling() { if (_pollInterval) { clearInterval(_pollInterval); _pollInterval = null; } }
+            document.addEventListener('visibilitychange', () => {
+                if (document.hidden) _stopPolling(); else _startPolling();
+            });
+            _startPolling();
         });
 
         // ── Credit / debit balance ────────────────────────────────────────
