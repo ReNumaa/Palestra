@@ -648,6 +648,31 @@ class CreditStorage {
     }
 }
 
+// User storage — lookup registered users for schedule management client picker
+// localStorage key: 'gym_users' (managed by auth.js)
+// Supabase migration: replace getAll() body with:
+//   const { data } = await supabaseClient.from('profiles').select('name, email, whatsapp');
+//   return data || [];
+class UserStorage {
+    static USERS_KEY = 'gym_users'; // same key used by auth.js
+
+    // Returns all registered users (Google OAuth + manual registration)
+    static getAll() {
+        try { return JSON.parse(localStorage.getItem(this.USERS_KEY) || '[]'); } catch { return []; }
+    }
+
+    // Search users by name, email, or whatsapp (requires at least 2 chars)
+    static search(query) {
+        if (!query || query.trim().length < 2) return [];
+        const q = query.trim().toLowerCase();
+        return this.getAll().filter(u =>
+            u.name?.toLowerCase().includes(q) ||
+            u.email?.toLowerCase().includes(q) ||
+            (u.whatsapp && u.whatsapp.replace(/\s/g, '').includes(q.replace(/\s/g, '')))
+        );
+    }
+}
+
 // Initialize demo data on load
 if (typeof window !== 'undefined') {
     BookingStorage.initializeDemoData();
