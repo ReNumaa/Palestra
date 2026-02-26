@@ -346,7 +346,8 @@
                     entries.push({
                         date: new Date(b.cancelledAt || `${b.date}T12:00:00`),
                         icon: '✕', label: slotName,
-                        sub: `${bd}/${bm}/${by} · ✕ Annullata`, amount: 0, cancelled: true
+                        sub: `${bd}/${bm}/${by} · ✕ Annullata`,
+                        amount: -(SLOT_PRICES[b.slotType] || 0), cancelled: true
                     });
                 });
 
