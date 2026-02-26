@@ -771,13 +771,12 @@ function deleteBooking(bookingId, bookingName) {
         const price = SLOT_PRICES[booking.slotType] || 0;
         const creditToRefund = booking.paid ? price : (booking.creditApplied || 0);
         if (creditToRefund > 0) {
-            const methodLabel = booking.paymentMethod ? ` (${booking.paymentMethod})` : '';
             CreditStorage.addCredit(
                 booking.whatsapp,
                 booking.email,
                 booking.name,
                 creditToRefund,
-                `Rimborso cancellazione lezione ${booking.date} ${booking.time}${methodLabel}`
+                `Rimborso cancellazione lezione ${booking.date} ${booking.time}`
             );
         }
 
