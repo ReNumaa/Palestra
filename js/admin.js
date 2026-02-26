@@ -974,21 +974,72 @@ function renderAllTimeSlots() {
         // Find if this time slot already has a lesson assigned
         const existingSlot = daySlots.find(slot => slot.time === timeSlot);
         const currentType = existingSlot ? existingSlot.type : '';
+        const isGroupClass = currentType === SLOT_TYPES.GROUP_CLASS;
+        const safeId = sanitizeSlotId(timeSlot);
 
-        html += `
-            <div class="schedule-slot-item-selector">
-                <div class="schedule-slot-time">🕐 ${timeSlot}</div>
-                <div class="schedule-slot-dropdown">
-                    <select onchange="updateSlotType('${timeSlot}', this.value)" class="slot-type-select">
-                        <option value="">-- Nessuna lezione --</option>
-                        <option value="${SLOT_TYPES.PERSONAL}" ${currentType === SLOT_TYPES.PERSONAL ? 'selected' : ''}>Autonomia</option>
-                        <option value="${SLOT_TYPES.SMALL_GROUP}" ${currentType === SLOT_TYPES.SMALL_GROUP ? 'selected' : ''}>Lezione di Gruppo</option>
-                        <option value="${SLOT_TYPES.GROUP_CLASS}" ${currentType === SLOT_TYPES.GROUP_CLASS ? 'selected' : ''}>Slot prenotato</option>
-                    </select>
+        // Client picker HTML — only for "Slot prenotato"
+        let clientPickerHtml = '';
+        if (isGroupClass) {
+            const client = existingSlot?.client;
+            const selectedClientHtml = client
+                ? `<div class="slot-client-selected">
+                       <span class="slot-client-name">${client.name}</span>
+                       <span class="slot-client-sub">${client.whatsapp || client.email}</span>
+                       <button class="btn-clear-client" onclick="clearSlotClient('${timeSlot}')" title="Rimuovi cliente">✕</button>
+                   </div>`
+                : `<div class="slot-client-warning">⚠️ Cliente obbligatorio — cerca e seleziona un iscritto</div>`;
+
+            clientPickerHtml = `
+                <div class="slot-client-picker">
+                    <div class="slot-client-label">👤 Cliente associato:</div>
+                    ${selectedClientHtml}
+                    <div class="slot-client-search">
+                        <input type="text"
+                            class="slot-client-input"
+                            id="client-input-${safeId}"
+                            placeholder="Cerca per nome, email o telefono..."
+                            oninput="searchClientsForSlot('${timeSlot}', this.value)"
+                            autocomplete="off">
+                        <div class="slot-client-results" id="client-results-${safeId}"></div>
+                    </div>
+                </div>`;
+        }
+
+        if (isGroupClass) {
+            // Group-class: column layout with client picker below the row
+            html += `
+                <div class="schedule-slot-item-selector has-client-picker">
+                    <div class="schedule-slot-top-row">
+                        <div class="schedule-slot-time">🕐 ${timeSlot}</div>
+                        <div class="schedule-slot-dropdown">
+                            <select onchange="updateSlotType('${timeSlot}', this.value)" class="slot-type-select">
+                                <option value="">-- Nessuna lezione --</option>
+                                <option value="${SLOT_TYPES.PERSONAL}">Autonomia</option>
+                                <option value="${SLOT_TYPES.SMALL_GROUP}">Lezione di Gruppo</option>
+                                <option value="${SLOT_TYPES.GROUP_CLASS}" selected>Slot prenotato</option>
+                            </select>
+                        </div>
+                        <div class="current-type-badge ${SLOT_TYPES.GROUP_CLASS}">${SLOT_NAMES[SLOT_TYPES.GROUP_CLASS]}</div>
+                    </div>
+                    ${clientPickerHtml}
                 </div>
-                ${currentType ? `<div class="current-type-badge ${currentType}">${SLOT_NAMES[currentType]}</div>` : ''}
-            </div>
-        `;
+            `;
+        } else {
+            html += `
+                <div class="schedule-slot-item-selector">
+                    <div class="schedule-slot-time">🕐 ${timeSlot}</div>
+                    <div class="schedule-slot-dropdown">
+                        <select onchange="updateSlotType('${timeSlot}', this.value)" class="slot-type-select">
+                            <option value="">-- Nessuna lezione --</option>
+                            <option value="${SLOT_TYPES.PERSONAL}" ${currentType === SLOT_TYPES.PERSONAL ? 'selected' : ''}>Autonomia</option>
+                            <option value="${SLOT_TYPES.SMALL_GROUP}" ${currentType === SLOT_TYPES.SMALL_GROUP ? 'selected' : ''}>Lezione di Gruppo</option>
+                            <option value="${SLOT_TYPES.GROUP_CLASS}">Slot prenotato</option>
+                        </select>
+                    </div>
+                    ${currentType ? `<div class="current-type-badge ${currentType}">${SLOT_NAMES[currentType]}</div>` : ''}
+                </div>
+            `;
+        }
     });
 
     html += '</div>';
@@ -1016,7 +1067,10 @@ function updateSlotType(timeSlot, newType) {
     } else {
         // Add or update slot
         if (existingSlotIndex !== -1) {
-            // Update existing slot
+            // When switching away from group-class, remove the associated client
+            if (daySlots[existingSlotIndex].type === SLOT_TYPES.GROUP_CLASS && newType !== SLOT_TYPES.GROUP_CLASS) {
+                delete daySlots[existingSlotIndex].client;
+            }
             daySlots[existingSlotIndex].type = newType;
         } else {
             // Add new slot
@@ -1037,6 +1091,77 @@ function updateSlotType(timeSlot, newType) {
     renderAllTimeSlots();
 
     console.log(`Slot ${timeSlot} per ${selectedScheduleDate.formatted} aggiornato: ${newType || 'rimosso'}`);
+}
+
+// ── Client Picker for "Slot prenotato" ────────────────────────────────────────
+
+// Sanitize a time slot string to use as an HTML element ID
+function sanitizeSlotId(timeSlot) {
+    return timeSlot.replace(/[^a-z0-9]/gi, '_');
+}
+
+// Holds last search results per time slot to avoid JSON in onclick attributes
+const _clientSearchResults = {};
+
+// Called on input — searches registered users and renders the dropdown list
+function searchClientsForSlot(timeSlot, query) {
+    const safeId = sanitizeSlotId(timeSlot);
+    const resultsDiv = document.getElementById(`client-results-${safeId}`);
+    if (!resultsDiv) return;
+
+    if (!query || query.trim().length < 2) {
+        resultsDiv.innerHTML = '';
+        _clientSearchResults[timeSlot] = [];
+        return;
+    }
+
+    const results = UserStorage.search(query);
+    _clientSearchResults[timeSlot] = results;
+
+    if (results.length === 0) {
+        resultsDiv.innerHTML = '<div class="slot-client-no-results">Nessun iscritto trovato</div>';
+        return;
+    }
+
+    resultsDiv.innerHTML = results.map((user, i) => `
+        <div class="slot-client-result" onclick="selectSlotClient('${timeSlot}', ${i})">
+            <span class="slot-client-result-name">${user.name}</span>
+            <span class="slot-client-result-sub">${user.whatsapp || user.email}</span>
+        </div>
+    `).join('');
+}
+
+// Called when a user clicks a result — saves the client to the slot override
+function selectSlotClient(timeSlot, index) {
+    const user = (_clientSearchResults[timeSlot] || [])[index];
+    if (!user || !selectedScheduleDate) return;
+
+    const overrides = BookingStorage.getScheduleOverrides();
+    const dateSlots = overrides[selectedScheduleDate.formatted];
+    if (!dateSlots) return;
+
+    const slot = dateSlots.find(s => s.time === timeSlot);
+    if (!slot) return;
+
+    slot.client = { name: user.name, email: user.email, whatsapp: user.whatsapp || '' };
+    BookingStorage.saveScheduleOverrides(overrides);
+    renderAllTimeSlots();
+}
+
+// Removes the associated client from a group-class slot
+function clearSlotClient(timeSlot) {
+    if (!selectedScheduleDate) return;
+
+    const overrides = BookingStorage.getScheduleOverrides();
+    const dateSlots = overrides[selectedScheduleDate.formatted];
+    if (!dateSlots) return;
+
+    const slot = dateSlots.find(s => s.time === timeSlot);
+    if (slot) {
+        delete slot.client;
+        BookingStorage.saveScheduleOverrides(overrides);
+    }
+    renderAllTimeSlots();
 }
 
 // Payments Management Functions

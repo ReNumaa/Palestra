@@ -1372,6 +1372,157 @@ canvas {
     color: #333;
 }
 
+/* ── Client Picker for "Slot prenotato" ──────────────────────────────────── */
+
+/* Column layout when group-class is active */
+.schedule-slot-item-selector.has-client-picker {
+    flex-direction: column;
+    align-items: stretch;
+}
+
+/* Top row: time + dropdown + badge — keeps the same horizontal layout */
+.schedule-slot-top-row {
+    display: flex;
+    align-items: center;
+    gap: 1rem;
+    flex-wrap: wrap;
+    justify-content: space-between;
+}
+
+/* Client picker panel */
+.slot-client-picker {
+    background: #f8f9fa;
+    border: 1px solid #e0e0e0;
+    border-radius: 8px;
+    padding: 0.75rem 1rem;
+    display: flex;
+    flex-direction: column;
+    gap: 0.5rem;
+}
+
+.slot-client-label {
+    font-size: 0.85rem;
+    font-weight: 600;
+    color: #555;
+}
+
+.slot-client-warning {
+    font-size: 0.85rem;
+    color: #c07000;
+    font-weight: 600;
+    background: #fff8e1;
+    border: 1px solid #ffe082;
+    border-radius: 6px;
+    padding: 0.4rem 0.75rem;
+}
+
+/* Selected client badge */
+.slot-client-selected {
+    display: flex;
+    align-items: center;
+    gap: 0.6rem;
+    background: #e8f5e9;
+    border: 1px solid #a5d6a7;
+    border-radius: 6px;
+    padding: 0.4rem 0.75rem;
+}
+
+.slot-client-name {
+    font-weight: 600;
+    color: #2e7d32;
+    flex: 1;
+}
+
+.slot-client-sub {
+    font-size: 0.8rem;
+    color: #555;
+}
+
+.btn-clear-client {
+    background: none;
+    border: none;
+    color: #c00;
+    cursor: pointer;
+    padding: 0 0.2rem;
+    font-size: 1rem;
+    line-height: 1;
+    flex-shrink: 0;
+}
+
+.btn-clear-client:hover {
+    color: #900;
+}
+
+/* Search input + autocomplete */
+.slot-client-search {
+    position: relative;
+}
+
+.slot-client-input {
+    width: 100%;
+    padding: 0.5rem 0.75rem;
+    border: 1px solid #ccc;
+    border-radius: 6px;
+    font-size: 0.9rem;
+    box-sizing: border-box;
+}
+
+.slot-client-input:focus {
+    outline: none;
+    border-color: var(--primary-cyan);
+    box-shadow: 0 0 0 2px rgba(0, 174, 239, 0.15);
+}
+
+.slot-client-results {
+    position: absolute;
+    top: 100%;
+    left: 0;
+    right: 0;
+    background: white;
+    border: 1px solid #ccc;
+    border-top: none;
+    border-radius: 0 0 6px 6px;
+    z-index: 200;
+    max-height: 200px;
+    overflow-y: auto;
+    box-shadow: 0 4px 12px rgba(0,0,0,0.1);
+}
+
+.slot-client-result {
+    padding: 0.55rem 0.75rem;
+    cursor: pointer;
+    display: flex;
+    flex-direction: column;
+    gap: 0.1rem;
+    border-bottom: 1px solid #f0f0f0;
+}
+
+.slot-client-result:last-child {
+    border-bottom: none;
+}
+
+.slot-client-result:hover {
+    background: rgba(0, 174, 239, 0.08);
+}
+
+.slot-client-result-name {
+    font-weight: 600;
+    color: #222;
+    font-size: 0.9rem;
+}
+
+.slot-client-result-sub {
+    font-size: 0.78rem;
+    color: #777;
+}
+
+.slot-client-no-results {
+    padding: 0.75rem;
+    color: #999;
+    font-size: 0.85rem;
+    text-align: center;
+}
+
 /* Payments Section */
 .payments-stats {
     display: grid;
@@ -2561,10 +2712,23 @@ canvas {
         padding: 0.3rem 0.5rem;
         gap: 0.4rem;
     }
+    /* Group-class slot stays column even on small screens */
+    .schedule-slot-item-selector.has-client-picker {
+        flex-direction: column;
+        align-items: stretch;
+        padding: 0.5rem 0.6rem;
+        gap: 0.5rem;
+    }
+    .schedule-slot-item-selector.has-client-picker .schedule-slot-top-row {
+        flex-direction: row;
+        align-items: center;
+        gap: 0.4rem;
+    }
     .schedule-slot-dropdown { min-width: unset; flex: 1; }
     .slot-type-select { padding: 0.28rem 0.2rem; font-size: 0.78rem; }
     .schedule-slot-time { font-size: 0.78rem; min-width: 88px; flex-shrink: 0; }
     .schedule-slot-item-selector .current-type-badge { display: none; }
+    .schedule-slot-item-selector.has-client-picker .current-type-badge { display: block; }
     .schedule-slots-list { gap: 0.3rem; margin-bottom: 0.75rem; }
 
     /* Client table: hide Metodo + Data Pagamento columns (too wide) */
