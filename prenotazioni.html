@@ -182,8 +182,8 @@
             if (!user) return;
 
             const balance = CreditStorage.getBalance(user.whatsapp, user.email);
-            const { upcoming } = getUserBookings();
-            const bookingDebt = upcoming
+            const { upcoming, past } = getUserBookings();
+            const bookingDebt = [...upcoming, ...past]
                 .filter(b => !b.paid && b.status !== 'cancelled' && b.status !== 'cancellation_requested')
                 .reduce((sum, b) => sum + (SLOT_PRICES[b.slotType] || 0) - (b.creditApplied || 0), 0);
             const manualDebt = ManualDebtStorage.getBalance(user.whatsapp, user.email);
