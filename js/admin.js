@@ -2192,7 +2192,7 @@ function createClientCard(client, index) {
             date: new Date(e.date),
             icon: e.amount < 0 ? '✓' : '✏️',
             label: e.note || (e.amount < 0 ? 'Debito saldato' : 'Addebito'),
-            sub: e.method ? ({ contanti: '💵 Contanti', carta: '💳 Carta', iban: '🏦 IBAN' }[e.method] || '') : '',
+            sub: '',
             amount: -Math.abs(e.amount)
         });
     });
