@@ -1836,6 +1836,28 @@ canvas {
     overflow-y: auto;
 }
 
+.debtor-search-option {
+    padding: 0.6rem 0.9rem;
+    cursor: pointer;
+    display: flex;
+    flex-direction: column;
+    gap: 0.15rem;
+    border-bottom: 1px solid #f0f0f0;
+    transition: background 0.12s;
+}
+.debtor-search-option:last-child { border-bottom: none; }
+.debtor-search-option:hover {
+    background: rgba(0, 174, 239, 0.08);
+}
+.debtor-search-option strong {
+    font-size: 0.88rem;
+    color: #1a1a1a;
+}
+.debtor-search-option small {
+    font-size: 0.76rem;
+    color: #999;
+}
+
 .dropdown-item {
     padding: 0.65rem 1rem;
     cursor: pointer;
