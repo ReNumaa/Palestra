@@ -605,7 +605,7 @@ class CreditStorage {
         return key ? (all[key]?.balance || 0) : 0;
     }
 
-    static addCredit(whatsapp, email, name, amount, note = '') {
+    static addCredit(whatsapp, email, name, amount, note = '', displayAmount = null) {
         if (amount === 0) return;
         const all = this._getAll();
         let key = this._findKey(whatsapp, email);
@@ -613,7 +613,9 @@ class CreditStorage {
         if (!all[key]) all[key] = { name, whatsapp, email, balance: 0, history: [] };
         all[key].name = name;
         all[key].balance = Math.round((all[key].balance + amount) * 100) / 100;
-        all[key].history.push({ date: new Date().toISOString(), amount, note });
+        const entry = { date: new Date().toISOString(), amount, note };
+        if (displayAmount !== null) entry.displayAmount = displayAmount;
+        all[key].history.push(entry);
         this._save(all);
     }
 
