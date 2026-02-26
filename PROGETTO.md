@@ -490,10 +490,19 @@ Libreria Canvas custom, nessuna dipendenza esterna.
 - Le voci ✏️ mostravano "💵 Contanti" ecc. — rimosso
 - Fix: `sub: ''` in entrambe le sezioni 3 (prenotazioni.html e createClientCard in admin.js)
 
-**Saldo netto nella card cliente admin (`admin.js`):**
+**Saldo netto nella card cliente admin — header storico (`admin.js`):**
 - L'header "saldo credito: €65" non sottraeva i debiti manuali (es. €171 di debiti → saldo reale -€106)
 - Fix: `netBalance = CreditStorage.getBalance() - ManualDebtStorage.getBalance()`
 - Visualizzazione: "saldo: +€X" se positivo, "saldo: -€X" se negativo
+
+**Saldo netto nella barra nome cliente (`admin.js`):**
+- Il badge 💳 nella barra del nome mostrava ancora `credit` grezzo (€65) invece di `netBalance` (-€106)
+- Fix: usa `netBalance` anche nel badge della barra — verde `+€X` se positivo, rosso `-€X` se negativo, assente se zero
+
+**Totale "pagato" nella barra nome cliente (`admin.js`):**
+- Il badge "pagato" mostrava solo le prenotazioni pagate, senza considerare il credito disponibile
+- Fix: `totalAllPaid = totalPaid + credit` (credito disponibile = saldo CreditStorage)
+- I debiti manuali non sono inclusi perché non sono ancora stati pagati
 
 ---
 
@@ -567,6 +576,8 @@ Libreria Canvas custom, nessuna dipendenza esterna.
 | Netting crediti/debiti in Pagamenti (no duplicati nelle due liste) | Funzionante ✅ |
 | Saldo netto card cliente (credito - debiti manuali) | Funzionante ✅ |
 | Rimozione metodo pagamento dai debiti manuali | Funzionante ✅ |
+| Saldo netto barra nome cliente (credito - debiti manuali, verde/rosso) | Funzionante ✅ |
+| Totale "pagato" include credito disponibile (prenotazioni + credito) | Funzionante ✅ |
 
 ---
 
