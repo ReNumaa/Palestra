@@ -688,20 +688,61 @@ class CreditStorage {
     }
 }
 
-// User storage — lookup registered users for schedule management client picker
-// localStorage key: 'gym_users' (managed by auth.js)
-// Supabase migration: replace getAll() body with:
-//   const { data } = await supabaseClient.from('profiles').select('name, email, whatsapp');
-//   return data || [];
+// User storage — client lookup for schedule management (Slot prenotato picker)
+// Sources: registered accounts (gym_users) + unique clients from booking history (gym_bookings)
+// Supabase migration: replace localStorage reads in getAll() with:
+//   - supabaseClient.from('profiles').select('name, email, whatsapp')
+//   - supabaseClient.from('bookings').select('name, email, whatsapp')
+//   then apply the same dedup logic below
 class UserStorage {
-    static USERS_KEY = 'gym_users'; // same key used by auth.js
+    static USERS_KEY = 'gym_users'; // managed by auth.js
 
-    // Returns all registered users (Google OAuth + manual registration)
+    // Returns all known contacts: registered accounts first, then unique clients from booking history.
+    // Deduplicates by email (case-insensitive) and phone (last 10 digits).
     static getAll() {
-        try { return JSON.parse(localStorage.getItem(this.USERS_KEY) || '[]'); } catch { return []; }
+        const seenEmails = new Set();
+        const seenPhones = new Set();
+        const result = [];
+
+        // Last 10 digits of a phone — used for dedup comparison only
+        const _normPhone = p => (p || '').replace(/\D/g, '').slice(-10);
+
+        const _isDup = (email, whatsapp) => {
+            const e = (email || '').toLowerCase().trim();
+            const p = _normPhone(whatsapp);
+            return (e && seenEmails.has(e)) || (p.length >= 9 && seenPhones.has(p));
+        };
+
+        const _mark = (email, whatsapp) => {
+            const e = (email || '').toLowerCase().trim();
+            const p = _normPhone(whatsapp);
+            if (e) seenEmails.add(e);
+            if (p.length >= 9) seenPhones.add(p);
+        };
+
+        const _add = ({ name, email, whatsapp }) => {
+            if (!name || (!email && !whatsapp)) return;
+            if (_isDup(email, whatsapp)) return;
+            _mark(email, whatsapp);
+            result.push({ name, email: email || '', whatsapp: whatsapp || '' });
+        };
+
+        // 1. Registered accounts (Google OAuth + manual) — highest priority
+        try {
+            JSON.parse(localStorage.getItem(this.USERS_KEY) || '[]').forEach(_add);
+        } catch {}
+
+        // 2. Unique clients from booking history — deduped against registered accounts
+        try {
+            JSON.parse(localStorage.getItem(BookingStorage.BOOKINGS_KEY) || '[]')
+                .filter(b => b.name && (b.email || b.whatsapp))
+                .forEach(_add);
+        } catch {}
+
+        return result.sort((a, b) => (a.name || '').localeCompare(b.name || ''));
     }
 
-    // Search users by name, email, or whatsapp (requires at least 2 chars)
+    // Search by name, email, or whatsapp (min 2 chars)
     static search(query) {
         if (!query || query.trim().length < 2) return [];
         const q = query.trim().toLowerCase();
