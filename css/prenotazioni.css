@@ -285,6 +285,64 @@
     transform: translateY(-1px);
 }
 
+/* ── Transazioni ──────────────────────────────────────────────── */
+.preno-tx-row {
+    background: white;
+    border-radius: 12px;
+    padding: 0.85rem 1.1rem;
+    display: flex;
+    align-items: center;
+    gap: 0.75rem;
+    box-shadow: 0 2px 8px rgba(0,0,0,0.06);
+}
+
+.preno-tx-icon {
+    font-size: 1.15rem;
+    width: 1.8rem;
+    text-align: center;
+    flex-shrink: 0;
+}
+
+.preno-tx-info {
+    flex: 1;
+    min-width: 0;
+}
+
+.preno-tx-label {
+    font-size: 0.9rem;
+    font-weight: 600;
+    color: var(--dark-bg);
+}
+
+.preno-tx-sub {
+    font-size: 0.78rem;
+    color: #888;
+    margin-top: 0.1rem;
+}
+
+.preno-tx-right {
+    display: flex;
+    flex-direction: column;
+    align-items: flex-end;
+    flex-shrink: 0;
+    gap: 0.1rem;
+}
+
+.preno-tx-amount {
+    font-size: 0.95rem;
+    font-weight: 700;
+}
+
+.preno-tx-date {
+    font-size: 0.72rem;
+    color: #bbb;
+}
+
+.tx-pos     { color: #166534; }
+.tx-neg     { color: #dc2626; }
+.tx-neutral { color: #555; }
+.tx-credit  { color: #5b21b6; }
+
 /* ── Responsive ───────────────────────────────────────────────── */
 @media (max-width: 480px) {
     .preno-page {
