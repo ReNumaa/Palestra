@@ -101,12 +101,12 @@ function handleBookingSubmit(e) {
         return;
     }
 
-    // Reject if lesson starts within 2h from now
-    const [_sh, _sm] = selectedSlot.time.split(' - ')[0].trim().split(':').map(Number);
-    const _lessonStart = new Date(selectedSlot.date);
-    _lessonStart.setHours(_sh, _sm, 0, 0);
-    if ((_lessonStart - new Date()) <= 2 * 60 * 60 * 1000) {
-        alert('Non è possibile prenotare meno di 2 ore prima dell\'inizio della lezione.');
+    // Reject if the lesson ends in less than 30 minutes from now
+    const [_eh, _em] = selectedSlot.time.split(' - ')[1].trim().split(':').map(Number);
+    const _lessonEnd = new Date(selectedSlot.date);
+    _lessonEnd.setHours(_eh, _em, 0, 0);
+    if ((_lessonEnd - new Date()) < 30 * 60 * 1000) {
+        alert('Non è possibile prenotare: la lezione termina tra meno di 30 minuti.');
         closeBookingModal();
         return;
     }
