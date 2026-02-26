@@ -1973,7 +1973,7 @@ function paySelectedDebts() {
             currentDebtContact.email,
             currentDebtContact.name,
             creditDelta,
-            `Pagamento con credito di €${creditDelta}`,
+            `Pagamento con credito di €${creditDelta} (${paymentMethod})`,
             amountPaid
         );
         CreditStorage.applyToUnpaidBookings(
