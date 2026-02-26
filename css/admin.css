@@ -1623,7 +1623,7 @@ canvas {
 .manual-entry-modal { max-height: min(92vh, 560px); }
 
 .manual-entry-form {
-    padding: 1.25rem 1.5rem 0.75rem;
+    padding: 1.1rem 1.5rem 0.5rem;
     display: flex;
     flex-direction: column;
     gap: 1.1rem;
@@ -1633,58 +1633,175 @@ canvas {
 .manual-entry-field {
     display: flex;
     flex-direction: column;
-    gap: 0.5rem;
+    gap: 0.45rem;
 }
 
+/* --- Client search with icon --- */
 .manual-client-search-wrap { position: relative; }
 
-.manual-client-search-wrap input,
-.manual-note-input {
+.manual-search-input-wrap {
+    position: relative;
+    display: flex;
+    align-items: center;
+}
+
+.manual-search-icon {
+    position: absolute;
+    left: 0.75rem;
+    width: 15px;
+    height: 15px;
+    color: #bbb;
+    pointer-events: none;
+    flex-shrink: 0;
+}
+
+.manual-search-input-wrap input {
     width: 100%;
-    padding: 0.6rem 0.85rem;
+    padding: 0.62rem 0.85rem 0.62rem 2.35rem;
     border: 1.5px solid #e5e7eb;
-    border-radius: 9px;
+    border-radius: 10px;
     font-size: 0.88rem;
     outline: none;
     box-sizing: border-box;
     font-family: inherit;
     color: #1a1a1a;
-    background: #fafafa;
-    transition: border-color 0.15s, box-shadow 0.15s;
+    background: #f8f9fa;
+    transition: border-color 0.15s, box-shadow 0.15s, background 0.15s;
 }
-.manual-client-search-wrap input:focus,
-.manual-note-input:focus {
+
+.manual-search-input-wrap input:focus {
     border-color: var(--primary-cyan);
     box-shadow: 0 0 0 3px rgba(0,174,239,0.1);
     background: #fff;
 }
+.manual-search-input-wrap input:focus + .manual-search-icon,
+.manual-search-input-wrap:focus-within .manual-search-icon { color: var(--primary-cyan); }
 
+.manual-dropdown { right: 0 !important; }
+
+/* Selected client chip */
 .manual-client-selected {
     display: flex;
     align-items: center;
-    justify-content: space-between;
-    background: rgba(0,174,239,0.06);
+    background: rgba(0,174,239,0.05);
     border: 1.5px solid var(--primary-cyan);
-    border-radius: 9px;
-    padding: 0.55rem 0.85rem;
-    font-size: 0.85rem;
+    border-radius: 10px;
+    padding: 0.55rem 0.7rem;
+    gap: 0.65rem;
+}
+
+.manual-client-avatar {
+    width: 2rem;
+    height: 2rem;
+    border-radius: 50%;
+    background: linear-gradient(135deg, var(--primary-cyan), var(--primary-cyan-dark));
+    color: #fff;
+    font-size: 0.72rem;
+    font-weight: 700;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    flex-shrink: 0;
+    letter-spacing: 0.04em;
+}
+
+.manual-client-info {
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    gap: 0.08rem;
+    min-width: 0;
+}
+.manual-client-info strong {
+    font-size: 0.88rem;
     color: #1a1a1a;
-    gap: 0.5rem;
-    font-weight: 500;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+.manual-client-info small {
+    font-size: 0.73rem;
+    color: #999;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
 }
 
 .manual-client-clear {
     background: none;
     border: none;
-    color: #bbb;
+    color: #ccc;
     cursor: pointer;
     font-size: 1rem;
-    padding: 0 0.15rem;
+    padding: 0 0.1rem;
     flex-shrink: 0;
     line-height: 1;
     transition: color 0.12s;
 }
 .manual-client-clear:hover { color: #ef4444; }
+
+/* --- Large centered amount display --- */
+.manual-amount-field { align-items: center; }
+
+.manual-amount-display {
+    display: flex;
+    align-items: baseline;
+    justify-content: center;
+    gap: 0.3rem;
+    padding: 0.6rem 0 0.8rem;
+    border-bottom: 2px solid #e8e8e8;
+    width: 100%;
+    transition: border-color 0.15s;
+}
+.manual-amount-display:focus-within { border-color: var(--primary-cyan); }
+
+.manual-amount-currency {
+    font-size: 1.6rem;
+    font-weight: 700;
+    color: #ccc;
+    line-height: 1;
+    transition: color 0.15s;
+}
+.manual-amount-display:focus-within .manual-amount-currency { color: var(--primary-cyan); }
+
+.manual-amount-input {
+    border: none;
+    outline: none;
+    font-size: 2.8rem;
+    font-weight: 700;
+    color: #1a1a1a;
+    text-align: center;
+    width: 7ch;
+    background: transparent;
+    padding: 0;
+    line-height: 1;
+    font-family: inherit;
+    caret-color: var(--primary-cyan);
+}
+.manual-amount-input::placeholder { color: #e0e0e0; }
+.manual-amount-input::-webkit-outer-spin-button,
+.manual-amount-input::-webkit-inner-spin-button { -webkit-appearance: none; margin: 0; }
+.manual-amount-input[type=number] { -moz-appearance: textfield; }
+
+/* Note input */
+.manual-note-input {
+    width: 100%;
+    padding: 0.62rem 0.85rem;
+    border: 1.5px solid #e5e7eb;
+    border-radius: 10px;
+    font-size: 0.88rem;
+    outline: none;
+    box-sizing: border-box;
+    font-family: inherit;
+    color: #1a1a1a;
+    background: #f8f9fa;
+    transition: border-color 0.15s, box-shadow 0.15s;
+}
+.manual-note-input:focus {
+    border-color: var(--primary-cyan);
+    box-shadow: 0 0 0 3px rgba(0,174,239,0.1);
+    background: #fff;
+}
 
 /* Manual debt row in debtor card */
 .debtor-booking-manual { background: #fffbf0; }

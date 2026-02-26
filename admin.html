@@ -352,19 +352,22 @@
             <div class="manual-entry-field">
                 <span class="debt-field-label">Cliente</span>
                 <div class="manual-client-search-wrap">
-                    <input type="text" id="manualClientInput" placeholder="Cerca per nome, telefono o email..."
-                           oninput="liveSearchManualClient()"
-                           onkeydown="if(event.key==='Escape') document.getElementById('manualClientDropdown').style.display='none'"
-                           autocomplete="off">
-                    <div id="manualClientDropdown" class="debtor-search-dropdown" style="display:none;"></div>
+                    <div class="manual-search-input-wrap">
+                        <svg class="manual-search-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"><circle cx="11" cy="11" r="8"/><path d="m21 21-4.35-4.35"/></svg>
+                        <input type="text" id="manualClientInput" placeholder="Nome, telefono o email..."
+                               oninput="liveSearchManualClient()"
+                               onkeydown="if(event.key==='Escape') document.getElementById('manualClientDropdown').style.display='none'"
+                               autocomplete="off">
+                    </div>
+                    <div id="manualClientDropdown" class="debtor-search-dropdown manual-dropdown" style="display:none;"></div>
                 </div>
                 <div id="manualClientSelected" class="manual-client-selected" style="display:none;"></div>
             </div>
-            <div class="manual-entry-field">
-                <span class="debt-field-label">Importo (€)</span>
-                <div class="debt-amount-wrapper">
-                    <span class="debt-euro-sign">€</span>
-                    <input type="number" id="manualAmountInput" min="0.01" step="0.01" placeholder="0.00">
+            <div class="manual-entry-field manual-amount-field">
+                <span class="debt-field-label">Importo</span>
+                <div class="manual-amount-display">
+                    <span class="manual-amount-currency">€</span>
+                    <input type="number" id="manualAmountInput" class="manual-amount-input" min="0.01" step="0.01" placeholder="0">
                 </div>
             </div>
             <div class="manual-entry-field">
