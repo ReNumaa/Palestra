@@ -61,11 +61,6 @@
                     <span class="preno-saldo-label">⚠️ Da pagare</span>
                     <span class="preno-saldo-value preno-saldo-debit" id="prenoDebitAmount">€0,00</span>
                 </div>
-                <div class="preno-saldo-divider" id="prenoNetDivider" style="display:none;"></div>
-                <div class="preno-saldo-row" id="prenoNetRow" style="display:none;">
-                    <span class="preno-saldo-label">📊 Saldo netto</span>
-                    <span class="preno-saldo-value" id="prenoNetAmount">€0,00</span>
-                </div>
             </div>
 
             <!-- Tabs -->
@@ -192,21 +187,14 @@
                 .filter(b => !b.paid && b.status !== 'cancelled' && b.status !== 'cancellation_requested')
                 .reduce((sum, b) => sum + (SLOT_PRICES[b.slotType] || 0) - (b.creditApplied || 0), 0);
             const manualDebt = ManualDebtStorage.getBalance(user.whatsapp, user.email);
-            const debit = bookingDebt + manualDebt;
-            const net = balance - debit;
+            const totalDebt = bookingDebt + manualDebt;
 
-            document.getElementById('prenoCreditAmount').textContent = `€${balance.toFixed(2)}`;
-            document.getElementById('prenoDebitAmount').textContent  = `€${debit.toFixed(2)}`;
+            // Compensazione: credito e debito si azzerano a vicenda
+            const displayCredit = Math.max(0, balance - totalDebt);
+            const displayDebit  = Math.max(0, totalDebt - balance);
 
-            // Mostra riga netto solo se ci sono sia credito che debito
-            const showNet = balance > 0 && debit > 0;
-            document.getElementById('prenoNetDivider').style.display = showNet ? '' : 'none';
-            document.getElementById('prenoNetRow').style.display     = showNet ? '' : 'none';
-            if (showNet) {
-                const netEl = document.getElementById('prenoNetAmount');
-                netEl.textContent = `${net >= 0 ? '+' : ''}€${net.toFixed(2)}`;
-                netEl.className = `preno-saldo-value ${net >= 0 ? 'preno-saldo-credit' : 'preno-saldo-debit'}`;
-            }
+            document.getElementById('prenoCreditAmount').textContent = `€${displayCredit.toFixed(2)}`;
+            document.getElementById('prenoDebitAmount').textContent  = `€${displayDebit.toFixed(2)}`;
         }
 
         // ── Tab switch ────────────────────────────────────────────────────
@@ -312,14 +300,14 @@
                 .filter(b => matchUser(b.whatsapp, b.email) && b.paid)
                 .forEach(b => {
                     const price = (SLOT_PRICES[b.slotType] || 0) - (b.creditApplied || 0);
-                    if (price <= 0) return; // interamente pagata con credito → già nello storico crediti
+                    if (price <= 0) return;
                     const slotName = (SLOT_NAMES && SLOT_NAMES[b.slotType]) || b.slotType || '—';
                     const [by, bm, bd] = b.date.split('-');
                     entries.push({
                         date: new Date(b.paidAt || `${b.date}T12:00:00`),
                         icon: '🏋️', label: slotName,
                         sub: `${bd}/${bm}/${by} · ${methodMap[b.paymentMethod] || b.paymentMethod || ''}`,
-                        amount: -price, cls: 'tx-neutral'
+                        amount: -price
                     });
                 });
 
@@ -329,8 +317,7 @@
                 entries.push({
                     date: new Date(e.date), icon: '💳',
                     label: e.note || (e.amount > 0 ? 'Credito aggiunto' : 'Credito utilizzato'),
-                    sub: '', amount: e.amount,
-                    cls: e.amount > 0 ? 'tx-pos' : 'tx-credit'
+                    sub: '', amount: e.amount
                 });
             });
 
@@ -344,8 +331,7 @@
                     icon: isPaid ? '✓' : '✏️',
                     label: e.note || (isPaid ? 'Debito saldato' : 'Addebito'),
                     sub: e.method ? (mMap[e.method] || '') : '',
-                    amount: -e.amount, // debt added(+) → neg; debt paid(-) → pos (cleared)
-                    cls: isPaid ? 'tx-pos' : 'tx-neg'
+                    amount: -Math.abs(e.amount) // debito aggiunto e saldato: sempre uscita
                 });
             });
 
@@ -358,7 +344,9 @@
 
             const fmtD = d => `${String(d.getDate()).padStart(2,'0')}/${String(d.getMonth()+1).padStart(2,'0')}/${d.getFullYear()}`;
             container.innerHTML = entries.map(e => {
-                const sign = e.amount >= 0 ? '+' : '';
+                const pos = e.amount >= 0;
+                const sign = pos ? '+' : '';
+                const cls  = pos ? 'tx-pos' : 'tx-neg';
                 return `<div class="preno-tx-row">
                     <div class="preno-tx-icon">${e.icon}</div>
                     <div class="preno-tx-info">
@@ -366,7 +354,7 @@
                         ${e.sub ? `<div class="preno-tx-sub">${e.sub}</div>` : ''}
                     </div>
                     <div class="preno-tx-right">
-                        <div class="preno-tx-amount ${e.cls}">${sign}€${Math.abs(e.amount).toFixed(2)}</div>
+                        <div class="preno-tx-amount ${cls}">${sign}€${Math.abs(e.amount).toFixed(2)}</div>
                         <div class="preno-tx-date">${fmtD(e.date)}</div>
                     </div>
                 </div>`;
