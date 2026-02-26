@@ -781,7 +781,13 @@ function deleteBooking(bookingId, bookingName) {
             );
         }
 
-        bookings.splice(index, 1);
+        // Mark as cancelled (keep record for history) instead of deleting
+        bookings[index].status = 'cancelled';
+        bookings[index].cancelledAt = new Date().toISOString();
+        bookings[index].paid = false;
+        bookings[index].paymentMethod = null;
+        bookings[index].paidAt = null;
+        bookings[index].creditApplied = 0;
         BookingStorage.replaceAllBookings(bookings);
 
         // Re-render the calendar view

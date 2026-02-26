@@ -336,6 +336,19 @@
                 });
             });
 
+            // 4. Prenotazioni annullate — voce "Annullata" con -€0
+            BookingStorage.getAllBookings()
+                .filter(b => matchUser(b.whatsapp, b.email) && b.status === 'cancelled')
+                .forEach(b => {
+                    const slotName = (SLOT_NAMES && SLOT_NAMES[b.slotType]) || b.slotType || '—';
+                    const [by, bm, bd] = b.date.split('-');
+                    entries.push({
+                        date: new Date(b.cancelledAt || `${b.date}T12:00:00`),
+                        icon: '✕', label: `Annullata — ${slotName}`,
+                        sub: `${bd}/${bm}/${by}`, amount: 0, cancelled: true
+                    });
+                });
+
             entries.sort((a, b) => b.date - a.date);
 
             if (!entries.length) {
@@ -345,8 +358,8 @@
 
             const fmtD = d => `${String(d.getDate()).padStart(2,'0')}/${String(d.getMonth()+1).padStart(2,'0')}/${d.getFullYear()} ${String(d.getHours()).padStart(2,'0')}:${String(d.getMinutes()).padStart(2,'0')}`;
             container.innerHTML = entries.map(e => {
-                const pos = e.amount >= 0;
-                const sign = pos ? '+' : '-';
+                const pos = e.amount > 0;
+                const sign = (e.cancelled || e.amount < 0) ? '-' : '+';
                 const cls  = pos ? 'tx-pos' : 'tx-neg';
                 return `<div class="preno-tx-row">
                     <div class="preno-tx-icon">${e.icon}</div>
