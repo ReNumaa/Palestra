@@ -2110,10 +2110,11 @@ function createClientCard(client, index) {
     const manualDebt  = ManualDebtStorage.getBalance(client.whatsapp, client.email) || 0;
     const netBalance  = Math.round((credit - manualDebt) * 100) / 100;
 
+    const totalAllPaid = Math.round((totalPaid + credit + manualDebt) * 100) / 100;
     let statsHTML = `<span class="cstat">${totalBookings} prenotazioni</span>`;
-    if (totalPaid   > 0) statsHTML += `<span class="cstat paid">€${totalPaid} pagato</span>`;
-    if (totalUnpaid > 0) statsHTML += `<span class="cstat unpaid">€${totalUnpaid} da pagare</span>`;
-    if (netBalance !== 0) statsHTML += `<span class="cstat ${netBalance > 0 ? 'credit' : 'unpaid'}">💳 ${netBalance > 0 ? '+' : ''}€${netBalance}</span>`;
+    if (totalAllPaid > 0) statsHTML += `<span class="cstat paid">€${totalAllPaid} pagato</span>`;
+    if (totalUnpaid  > 0) statsHTML += `<span class="cstat unpaid">€${totalUnpaid} da pagare</span>`;
+    if (netBalance  !== 0) statsHTML += `<span class="cstat ${netBalance > 0 ? 'credit' : 'unpaid'}">💳 ${netBalance > 0 ? '+' : ''}€${netBalance}</span>`;
 
     const methodLabel = m => ({ contanti: '💵 Contanti', carta: '💳 Carta', iban: '🏦 IBAN', credito: '✨ Credito' }[m] || '—');
     const fmtPaidAt = iso => {
