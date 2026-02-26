@@ -2107,6 +2107,8 @@ function createClientCard(client, index) {
     const totalPaid   = activeBookings.filter(b => b.paid).reduce((s, b) => s + (SLOT_PRICES[b.slotType] || 0), 0);
     const totalUnpaid = activeBookings.filter(b => !b.paid && bookingHasPassed(b) && b.status !== 'cancellation_requested').reduce((s, b) => s + (SLOT_PRICES[b.slotType] || 0) - (b.creditApplied || 0), 0);
     const credit      = CreditStorage.getBalance(client.whatsapp, client.email);
+    const manualDebt  = ManualDebtStorage.getBalance(client.whatsapp, client.email) || 0;
+    const netBalance  = Math.round((credit - manualDebt) * 100) / 100;
 
     let statsHTML = `<span class="cstat">${totalBookings} prenotazioni</span>`;
     if (totalPaid   > 0) statsHTML += `<span class="cstat paid">€${totalPaid} pagato</span>`;
@@ -2218,7 +2220,7 @@ function createClientCard(client, index) {
     if (txEntries.length > 0) {
         const txListId = `tx-list-${index}`;
         creditHTML = `<div class="client-credit-section">
-            <h4>📊 Storico transazioni — saldo credito: €${credit}</h4>
+            <h4>📊 Storico transazioni — saldo: ${netBalance >= 0 ? '+' : ''}€${netBalance}</h4>
             <div class="tx-filter-bar">
                 <button class="tx-filter-btn" onclick="filterClientTx('${txListId}', 7, this)">Settimana</button>
                 <button class="tx-filter-btn" onclick="filterClientTx('${txListId}', 30, this)">Mese</button>
