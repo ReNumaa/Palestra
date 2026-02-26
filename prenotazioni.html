@@ -233,7 +233,7 @@
                 if (_isGroupClass) {
                     // Slot prenotato: annullabile solo con almeno 3 giorni di anticipo
                     if (_canCancelGroupClass) {
-                        cancelBtn = `<button class="preno-cancel-btn" onclick="requestCancellation('${b.id}')">Richiedi annullamento</button>`;
+                        cancelBtn = `<button class="preno-cancel-btn" onclick="requestCancellation('${b.id}')">Annulla prenotazione</button>`;
                     } else {
                         cancelBtn = `<div class="preno-cancel-locked">🔒 Non annullabile (meno di 3 giorni)</div>`;
                     }
