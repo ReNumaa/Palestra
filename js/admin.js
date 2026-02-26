@@ -1062,14 +1062,22 @@ function updateSlotType(timeSlot, newType) {
     if (newType === '') {
         // Remove slot if "Nessuna lezione" is selected
         if (existingSlotIndex !== -1) {
+            // Remove the associated booking if this was a group-class slot
+            if (daySlots[existingSlotIndex].bookingId) {
+                BookingStorage.removeBookingById(daySlots[existingSlotIndex].bookingId);
+            }
             daySlots.splice(existingSlotIndex, 1);
         }
     } else {
         // Add or update slot
         if (existingSlotIndex !== -1) {
-            // When switching away from group-class, remove the associated client
+            // When switching away from group-class, remove client and booking
             if (daySlots[existingSlotIndex].type === SLOT_TYPES.GROUP_CLASS && newType !== SLOT_TYPES.GROUP_CLASS) {
+                if (daySlots[existingSlotIndex].bookingId) {
+                    BookingStorage.removeBookingById(daySlots[existingSlotIndex].bookingId);
+                }
                 delete daySlots[existingSlotIndex].client;
+                delete daySlots[existingSlotIndex].bookingId;
             }
             daySlots[existingSlotIndex].type = newType;
         } else {
@@ -1131,7 +1139,17 @@ function searchClientsForSlot(timeSlot, query) {
     `).join('');
 }
 
-// Called when a user clicks a result — saves the client to the slot override
+// Formats YYYY-MM-DD to display string (e.g. "Lunedì 26 Febbraio 2026")
+function formatAdminBookingDate(dateStr) {
+    const [year, month, day] = dateStr.split('-').map(Number);
+    const d = new Date(year, month - 1, day);
+    const days = ['Domenica','Lunedì','Martedì','Mercoledì','Giovedì','Venerdì','Sabato'];
+    const months = ['Gennaio','Febbraio','Marzo','Aprile','Maggio','Giugno',
+                    'Luglio','Agosto','Settembre','Ottobre','Novembre','Dicembre'];
+    return `${days[d.getDay()]} ${day} ${months[month - 1]} ${year}`;
+}
+
+// Called when a user clicks a result — creates a real booking and links it to the slot
 function selectSlotClient(timeSlot, index) {
     const user = (_clientSearchResults[timeSlot] || [])[index];
     if (!user || !selectedScheduleDate) return;
@@ -1143,12 +1161,32 @@ function selectSlotClient(timeSlot, index) {
     const slot = dateSlots.find(s => s.time === timeSlot);
     if (!slot) return;
 
+    // Remove previous booking for this slot (if admin changed the client)
+    if (slot.bookingId) {
+        BookingStorage.removeBookingById(slot.bookingId);
+    }
+
+    // Create the real booking — visible in Prenotazioni, Clienti, Pagamenti, Le mie prenotazioni
+    const booking = {
+        name: user.name,
+        email: user.email,
+        whatsapp: user.whatsapp || '',
+        date: selectedScheduleDate.formatted,
+        time: timeSlot,
+        slotType: SLOT_TYPES.GROUP_CLASS,
+        notes: '',
+        dateDisplay: formatAdminBookingDate(selectedScheduleDate.formatted)
+    };
+    const savedBooking = BookingStorage.saveBooking(booking);
+
+    // Store client and bookingId in the override for display purposes
     slot.client = { name: user.name, email: user.email, whatsapp: user.whatsapp || '' };
+    slot.bookingId = savedBooking.id;
     BookingStorage.saveScheduleOverrides(overrides);
     renderAllTimeSlots();
 }
 
-// Removes the associated client from a group-class slot
+// Removes the associated client and booking from a group-class slot
 function clearSlotClient(timeSlot) {
     if (!selectedScheduleDate) return;
 
@@ -1158,7 +1196,11 @@ function clearSlotClient(timeSlot) {
 
     const slot = dateSlots.find(s => s.time === timeSlot);
     if (slot) {
+        if (slot.bookingId) {
+            BookingStorage.removeBookingById(slot.bookingId);
+        }
         delete slot.client;
+        delete slot.bookingId;
         BookingStorage.saveScheduleOverrides(overrides);
     }
     renderAllTimeSlots();

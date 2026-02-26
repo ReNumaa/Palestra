@@ -517,6 +517,18 @@ class BookingStorage {
     static replaceAllBookings(bookings) {
         localStorage.setItem(this.BOOKINGS_KEY, JSON.stringify(bookings));
     }
+
+    // Rimuove fisicamente una prenotazione per ID (usato da admin per slot prenotato)
+    // Supabase migration: sostituire con supabaseClient.from('bookings').delete().eq('id', id)
+    static removeBookingById(id) {
+        if (!id) return;
+        const all = this.getAllBookings();
+        const idx = all.findIndex(b => b.id === id);
+        if (idx !== -1) {
+            all.splice(idx, 1);
+            this.replaceAllBookings(all);
+        }
+    }
 }
 
 // Credit storage — tracks per-client credit balance
