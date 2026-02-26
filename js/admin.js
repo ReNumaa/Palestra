@@ -1225,8 +1225,16 @@ let clientsSearchQuery = '';
 function renderPaymentsTab() {
     const debtors = getDebtors();
     const totalUnpaid = debtors.reduce((sum, debtor) => sum + debtor.totalAmount, 0);
-    const credits = CreditStorage.getAllWithBalance();
-    const totalCredit = CreditStorage.getTotalCredit();
+    // Net debts against credit balance: only show as creditor if credit > debt
+    const credits = CreditStorage.getAllWithBalance()
+        .map(c => {
+            const bookingDebt = getUnpaidAmountForContact(c.whatsapp, c.email);
+            const manualDebt  = ManualDebtStorage.getBalance(c.whatsapp, c.email) || 0;
+            const netBalance  = Math.round(Math.max(0, c.balance - bookingDebt - manualDebt) * 100) / 100;
+            return { ...c, balance: netBalance };
+        })
+        .filter(c => c.balance > 0);
+    const totalCredit = credits.reduce((s, c) => s + c.balance, 0);
 
     // Update stats
     document.getElementById('totalUnpaid').textContent = `€${totalUnpaid}`;
@@ -1376,7 +1384,15 @@ function getDebtors() {
         debtorsMap[matchedKey].totalAmount += debt.balance;
     });
 
-    return Object.values(debtorsMap).sort((a, b) => b.totalAmount - a.totalAmount);
+    // Net credit balance against raw debt: only show as debtor if debt > credit
+    for (const key in debtorsMap) {
+        const d = debtorsMap[key];
+        const creditBalance = CreditStorage.getBalance(d.whatsapp, d.email);
+        d.totalAmount = Math.round((d.totalAmount - creditBalance) * 100) / 100;
+    }
+    return Object.values(debtorsMap)
+        .filter(d => d.totalAmount > 0)
+        .sort((a, b) => b.totalAmount - a.totalAmount);
 }
 
 function createDebtorCard(debtor, cardId) {
