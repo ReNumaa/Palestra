@@ -295,9 +295,9 @@
 
             const methodMap = { contanti: '💵 Contanti', carta: '💳 Carta', iban: '🏦 IBAN', credito: '💳 Credito' };
 
-            // 1. Prenotazioni pagate (solo quota cash, quella credit è già nello storico crediti)
+            // 1. Prenotazioni pagate (escludi quelle pagate con credito: già nello storico crediti)
             BookingStorage.getAllBookings()
-                .filter(b => matchUser(b.whatsapp, b.email) && b.paid)
+                .filter(b => matchUser(b.whatsapp, b.email) && b.paid && b.paymentMethod !== 'credito')
                 .forEach(b => {
                     const price = (SLOT_PRICES[b.slotType] || 0) - (b.creditApplied || 0);
                     if (price <= 0) return;
