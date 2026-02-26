@@ -182,9 +182,11 @@
 
             const balance = CreditStorage.getBalance(user.whatsapp, user.email);
             const { upcoming } = getUserBookings();
-            const debit = upcoming
+            const bookingDebt = upcoming
                 .filter(b => !b.paid && b.status !== 'cancelled' && b.status !== 'cancellation_requested')
                 .reduce((sum, b) => sum + (SLOT_PRICES[b.slotType] || 0) - (b.creditApplied || 0), 0);
+            const manualDebt = ManualDebtStorage.getBalance(user.whatsapp, user.email);
+            const debit = bookingDebt + manualDebt;
 
             document.getElementById('prenoCreditAmount').textContent = `€${balance.toFixed(2)}`;
             document.getElementById('prenoDebitAmount').textContent  = `€${debit.toFixed(2)}`;
