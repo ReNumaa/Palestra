@@ -436,6 +436,67 @@ Libreria Canvas custom, nessuna dipendenza esterna.
 
 ---
 
+### 4.15 Sistema transazioni, pagamenti e storico credito (feb 2026)
+
+**Prenotazioni in corso prenotabili (`calendar.js` + `booking.js`):**
+- Rimossa la regola "non prenotabile se la lezione inizia tra meno di 2h"
+- Nuova regola: prenotabile se **la lezione finisce tra almeno 30 minuti** (utile per lezioni già iniziate)
+- Fix in `calendar.js` in 3 punti (slot desktop, lista mobile, card mobile): legge l'orario di FINE dalla stringa slot (`"14:00 - 15:30".split(' - ')[1]`) invece dell'orario di inizio
+- Fix parallelo in `booking.js`: stessa logica nella validazione al submit
+
+**Eccedenza di pagamento — `displayAmount` (`admin.js` + `data.js` + `prenotazioni.html`):**
+- Quando un pagamento in contanti/carta/iban supera il costo della lezione, lo storico ora mostra il totale pagato (es. +€50) invece del solo credito aggiunto (es. +€45)
+- `CreditStorage.addCredit()`: aggiunto 6° parametro opzionale `displayAmount` — se presente viene salvato sull'entry storico
+- Nota rinominata: `"Pagamento con credito di €X (metodo)"` con `displayAmount = amountPaid`
+- `renderTransazioni` sezione 2: usa `e.displayAmount ?? e.amount`
+
+**"Da pagare" include prenotazioni passate (`prenotazioni.html`):**
+- `renderCreditBalance()` considerava solo le prenotazioni future per calcolare il debito
+- Fix: usa `[...upcoming, ...past]` — le prenotazioni passate non pagate ora compaiono nel totale
+
+**Annullamenti nello storico transazioni — niente più `splice` (`data.js` + `admin.js` + `prenotazioni.html`):**
+- Le prenotazioni cancellate non vengono più eliminate fisicamente: si preserva lo storico
+- `BookingStorage.removeBookingById()`: cambiato da `splice` a `status='cancelled'` + azzera `paid/paymentMethod/paidAt/creditApplied`
+- `admin.js deleteBooking()`: stessa logica — marca `cancelled` invece di eliminare
+- `prenotazioni.html renderTransazioni` **sezione 4** (nuova): mostra voci `cancelled` con icona ✕, `-€prezzo` (costo reale, non €0) e flag `cancelled: true` per forzare il segno negativo nel display
+- Il dialog di conferma annullamento admin: testo aggiornato da "non può essere annullata" a "Il record resterà nello storico del cliente"
+
+**Rimborso credito su annullamento admin (`admin.js`):**
+- Prima: rimborsava solo se `paymentMethod === 'credito'`
+- Fix: rimborsa il prezzo pieno per QUALSIASI metodo di pagamento (`booking.paid || creditApplied > 0`)
+- Fix rimborso parziale: se booking aveva `creditApplied=15` e `paid=false`, il rimborso era €15 invece di €30 (prezzo pieno). Ora `creditToRefund = price` sempre
+
+**`getDebtors()` — filtro prenotazioni annullate (`admin.js`):**
+- Il calcolo dei debitori non filtrava le prenotazioni `cancelled`
+- Fix: aggiunto `&& booking.status !== 'cancelled'` nel loop
+
+**Badge metodo pagamento in "Le mie prenotazioni" (`prenotazioni.html`):**
+- `buildCard` ora mostra il metodo con etichetta completa: `💳 Pagata con Credito`, `💵 Pagata con Contanti`, `💳 Pagata con Carta`, `🏦 Pagata con IBAN`
+
+**Storico transazioni nella card cliente admin (`admin.js` + `admin.css`):**
+- Sostituito il vecchio "Storico credito" con una vista transazioni identica a "Le mie prenotazioni"
+- Include le stesse 4 sezioni: storico crediti, prenotazioni non pagate, debiti manuali, prenotazioni annullate
+- Filtri data a pill: **Settimana / Mese / 6 mesi / 1 anno** (basati su attributo `data-ts` sulle righe)
+- Rimosso il pulsante 🗑️ "Elimina storico"
+- Aggiunta funzione globale `filterClientTx(listId, days, btn)` per filtraggio client-side
+- Aggiunti stili `.tx-filter-bar`, `.tx-filter-btn`, `.tx-filter-btn.active` in `admin.css`
+
+**Netting crediti/debiti in "Pagamenti" (`admin.js`):**
+- Un cliente con sia credito che debito manuale appariva in entrambe le liste (debitori e creditori)
+- `getDebtors()`: sottrae il saldo `CreditStorage` dal debito totale; filtra se `totalAmount <= 0`
+- Lista creditori in `renderPaymentsTab()`: sottrae debiti da prenotazioni non pagate + debiti manuali dal saldo credito; filtra se `netBalance <= 0`
+
+**Rimozione metodo pagamento dai debiti manuali (`prenotazioni.html` + `admin.js`):**
+- Le voci ✏️ mostravano "💵 Contanti" ecc. — rimosso
+- Fix: `sub: ''` in entrambe le sezioni 3 (prenotazioni.html e createClientCard in admin.js)
+
+**Saldo netto nella card cliente admin (`admin.js`):**
+- L'header "saldo credito: €65" non sottraeva i debiti manuali (es. €171 di debiti → saldo reale -€106)
+- Fix: `netBalance = CreditStorage.getBalance() - ManualDebtStorage.getBalance()`
+- Visualizzazione: "saldo: +€X" se positivo, "saldo: -€X" se negativo
+
+---
+
 ### 4.12 Notifiche (pianificate, non ancora implementate)
 
 - Il form di prenotazione simula l'invio di un messaggio WhatsApp (solo `console.log`)
@@ -494,6 +555,18 @@ Libreria Canvas custom, nessuna dipendenza esterna.
 | Conversione slot in Lezione di Gruppo all'annullamento | Funzionante ✅ |
 | Fix evidenziazione giorno attivo in Gestione Orari al cambio settimana | Funzionante ✅ |
 | Formato data uniforme "Lunedì 2 Marzo 2026" in Le mie prenotazioni | Funzionante ✅ |
+| Prenotazioni in corso prenotabili (fine lezione - 30min) | Funzionante ✅ |
+| displayAmount su eccedenza pagamento (mostra totale pagato) | Funzionante ✅ |
+| "Da pagare" include prenotazioni passate non pagate | Funzionante ✅ |
+| Annullamenti admin nello storico transazioni (no splice) | Funzionante ✅ |
+| Rimborso credito su annullamento per qualsiasi metodo pagamento | Funzionante ✅ |
+| Fix rimborso parziale (prezzo pieno sempre) | Funzionante ✅ |
+| getDebtors filtra prenotazioni cancelled | Funzionante ✅ |
+| Badge metodo pagamento completi in Le mie prenotazioni | Funzionante ✅ |
+| Storico transazioni card cliente admin (con filtri data) | Funzionante ✅ |
+| Netting crediti/debiti in Pagamenti (no duplicati nelle due liste) | Funzionante ✅ |
+| Saldo netto card cliente (credito - debiti manuali) | Funzionante ✅ |
+| Rimozione metodo pagamento dai debiti manuali | Funzionante ✅ |
 
 ---
 
@@ -518,6 +591,12 @@ Libreria Canvas custom, nessuna dipendenza esterna.
   - Sostituire implementazione localStorage con chiamate Supabase API in `data.js`
   - Aggiungere `async/await` a tutti i caller (già strutturati per farlo in un colpo solo)
   - Gestire loading states nell'UI
+
+  **⚠️ Problemi da risolvere PRIMA della migrazione (vedi analisi completa sotto):**
+  - Schema SQL incompleto: mancano colonne su `bookings` e la tabella `manual_debts`
+  - Le operazioni multi-step (prenota+scala credito, annulla+rimborsa) devono diventare SQL RPC atomiche
+  - `processPendingCancellations` va spostato in Supabase Edge Function schedulata (cron)
+  - Il netting credito/debito va spostato in SQL view per evitare N+1 query
 
 - [ ] **Autenticazione admin sicura**
   - ~~Supabase Auth installata e funzionante per utenti (Google OAuth)~~ ✅
@@ -740,6 +819,139 @@ Obiettivo: automatizzare ulteriormente, crescere
 | Timing migrazione Supabase | Dopo completamento sito | Evita complessità async durante sviluppo; BookingStorage già centralizzato per migrazione rapida |
 | Formato numeri WhatsApp | E.164 (`+39XXXXXXXXXX`) | Standard richiesto da WhatsApp Business API; normalizzazione automatica lato client |
 | Apple Sign In | Non implementato | Richiede Apple Developer account a pagamento ($99/anno); Google + Facebook coprono la maggior parte degli utenti |
+
+---
+
+---
+
+## 10. Analisi rischi migrazione Supabase
+
+> Aggiornata al 26/02/2026 — include tutte le funzionalità sviluppate fino alla sezione 4.15
+
+### 10.1 Schema SQL incompleto
+
+Il migration attuale (`20260225000000_init.sql`) **non copre** tutto ciò che è stato aggiunto dopo:
+
+| Problema | Dettaglio | Fix richiesto |
+|---|---|---|
+| Colonne mancanti su `bookings` | Mancano `status`, `cancellation_requested_at`, `cancelled_at`, `credit_applied`, `paid_at` | Nuovo migration con `ALTER TABLE bookings ADD COLUMN ...` |
+| Tabella `manual_debts` assente | `ManualDebtStorage` (debiti manuali admin) non ha tabella né storico nel DB | Creare tabelle `manual_debts` e `manual_debt_history` |
+| Colonna `display_amount` su `credit_history` | Usata per le eccedenze di pagamento | `ALTER TABLE credit_history ADD COLUMN display_amount numeric` |
+| `bookingId` negli `schedule_overrides` | Il campo `client` e `bookingId` negli override (slot prenotato) non è nel migration | `ALTER TABLE schedule_overrides ADD COLUMN client_booking_id uuid` |
+
+### 10.2 Race conditions critiche
+
+Con localStorage tutto è **sincrono e locale** — non ci sono race conditions. Con Supabase ogni operazione è asincrona e il DB è condiviso. I flussi multi-step attuali **diventano pericolosi**:
+
+**`fulfillPendingCancellations`** (chiamato ad ogni nuova prenotazione):
+```
+INSERT booking → SELECT pending cancellations → UPDATE old booking status → INSERT credit_history
+```
+Se uno step fallisce a metà: nuova prenotazione salvata, vecchia non cancellata, credito non rimborsato.
+
+**`deleteBooking` admin** (annullamento con rimborso):
+```
+UPDATE booking status='cancelled' → INSERT credit_history
+```
+Se fallisce dopo l'UPDATE: booking cancellata senza rimborso credito.
+
+**`processPendingCancellations`** (gira su ogni pagina DOMContentLoaded):
+```
+SELECT cancellation_requested WHERE lessonStart < now+2h → UPDATE status='confirmed'
+```
+Con DB condiviso: due browser aperti contemporaneamente potrebbero aggiornare le stesse righe in doppio.
+
+**Soluzione necessaria:** tutte e tre diventano **Supabase RPC** (funzioni SQL):
+```sql
+-- Esempio
+CREATE FUNCTION fulfill_pending_cancellations(p_date text, p_time text)
+RETURNS void LANGUAGE plpgsql AS $$
+BEGIN
+  -- tutto in una singola transazione atomica
+END;
+$$;
+```
+Chiamata dal client: `supabase.rpc('fulfill_pending_cancellations', { p_date, p_time })`
+
+### 10.3 `processPendingCancellations` non funziona lato client con DB condiviso
+
+Attualmente viene chiamato in `DOMContentLoaded` di `data.js` (ogni pagina), `renderCalendar()`, `renderAdminDayView()`, `loadDashboardData()`.
+
+Con Supabase:
+- **Non va bene** richiamarla dal browser: il DB è condiviso, nessuna garanzia di chi la chiama e quando
+- **Soluzione:** Supabase Edge Function schedulata (cron ogni 10-15 minuti):
+  ```ts
+  // supabase/functions/process-cancellations/index.ts
+  Deno.cron("process-cancellations", "*/10 * * * *", async () => {
+    // UPDATE bookings SET status='confirmed' WHERE status='cancellation_requested'
+    // AND lesson_datetime < now() + interval '2 hours'
+  });
+  ```
+- Dal lato client si può **lasciare** la chiamata come fallback ottimistico (non fa danni se gira, peggio è se non gira mai)
+
+### 10.4 Query N+1 — performance su dataset reali
+
+I calcoli attuali caricano tutto in memoria e iterano in JS. Con Supabase su dataset reali:
+
+| Funzione | Problema attuale | Soluzione |
+|---|---|---|
+| `getDebtors()` | Carica tutti i booking → raggruppa in JS → 1 query CreditStorage per cliente | SQL view `v_client_balances` con GROUP BY e JOIN |
+| `renderPaymentsTab()` | 3 sorgenti dati separate in sequenza | SQL view con JOIN su `bookings`, `credits`, `manual_debts` |
+| `getAllClients()` | Carica TUTTI i booking in memoria | Query paginata con LIMIT/OFFSET |
+| Netting credito/debito | Fatto in JS con 3 `getBalance()` separati | SQL: `credit_balance - SUM(unpaid_bookings) - manual_debt_balance` in view |
+
+**SQL view suggerita:**
+```sql
+CREATE VIEW v_client_balances AS
+SELECT
+  b.email,
+  b.whatsapp,
+  b.name,
+  COALESCE(c.balance, 0) AS credit_balance,
+  COALESCE(md.balance, 0) AS manual_debt,
+  SUM(CASE WHEN b.paid = false AND b.status NOT IN ('cancelled','cancellation_requested') THEN price ELSE 0 END) AS unpaid_bookings,
+  COALESCE(c.balance, 0) - COALESCE(md.balance, 0) - SUM(...) AS net_balance
+FROM bookings b
+LEFT JOIN credits c ON ...
+LEFT JOIN manual_debts md ON ...
+GROUP BY b.email, b.whatsapp, b.name, c.balance, md.balance;
+```
+
+### 10.5 `ManualDebtStorage` — completamente fuori schema
+
+`ManualDebtStorage` gestisce debiti manuali con storico (aggiunto/saldato, metodo, nota). Nello schema SQL attuale non esiste nulla di equivalente.
+
+**Tabelle da creare:**
+```sql
+CREATE TABLE manual_debts (
+  id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
+  name text NOT NULL,
+  whatsapp text,
+  email text,
+  balance numeric DEFAULT 0
+);
+
+CREATE TABLE manual_debt_history (
+  id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
+  manual_debt_id uuid REFERENCES manual_debts(id),
+  amount numeric NOT NULL,  -- positivo=debito, negativo=pagamento
+  note text,
+  method text,              -- contanti|carta|iban (opzionale, solo display)
+  created_at timestamptz DEFAULT now()
+);
+```
+
+### 10.6 Riepilogo — lista completa cose da fare prima della migrazione
+
+1. **Nuovo migration SQL** con tutte le colonne mancanti su `bookings`, `credit_history`, `schedule_overrides`
+2. **Nuove tabelle** `manual_debts` + `manual_debt_history`
+3. **SQL RPC functions:** `fulfill_pending_cancellations`, `cancel_booking_with_refund`, `process_pending_cancellations`
+4. **SQL view** `v_client_balances` per netting e liste Pagamenti
+5. **Edge Function cron** per `processPendingCancellations` ogni 10 minuti
+6. **Riscrivere** `data.js` con async/await su tutti i metodi
+7. **Aggiungere loading states** nell'UI (scheletri o spinner sui tab che aspettano dati)
+
+**Stima impatto:** la logica di business è già corretta e centralizzata in `data.js`. I punti 1-2 sono modifiche DB, il punto 3 è ~100 righe di SQL, i punti 4-5 sono ~50 righe ciascuno. Il punto 6 (riscrittura async) è il lavoro più lungo ma meccanico. Complessivamente: 3-5 giorni di lavoro concentrato.
 
 ---
 
