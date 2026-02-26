@@ -2110,7 +2110,7 @@ function createClientCard(client, index) {
     const manualDebt  = ManualDebtStorage.getBalance(client.whatsapp, client.email) || 0;
     const netBalance  = Math.round((credit - manualDebt) * 100) / 100;
 
-    const totalAllPaid = Math.round((totalPaid + credit + manualDebt) * 100) / 100;
+    const totalAllPaid = Math.round((totalPaid + credit) * 100) / 100;
     let statsHTML = `<span class="cstat">${totalBookings} prenotazioni</span>`;
     if (totalAllPaid > 0) statsHTML += `<span class="cstat paid">€${totalAllPaid} pagato</span>`;
     if (totalUnpaid  > 0) statsHTML += `<span class="cstat unpaid">€${totalUnpaid} da pagare</span>`;
