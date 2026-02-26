@@ -2113,7 +2113,7 @@ function createClientCard(client, index) {
     let statsHTML = `<span class="cstat">${totalBookings} prenotazioni</span>`;
     if (totalPaid   > 0) statsHTML += `<span class="cstat paid">€${totalPaid} pagato</span>`;
     if (totalUnpaid > 0) statsHTML += `<span class="cstat unpaid">€${totalUnpaid} da pagare</span>`;
-    if (credit      > 0) statsHTML += `<span class="cstat credit">💳 €${credit}</span>`;
+    if (netBalance !== 0) statsHTML += `<span class="cstat ${netBalance > 0 ? 'credit' : 'unpaid'}">💳 ${netBalance > 0 ? '+' : ''}€${netBalance}</span>`;
 
     const methodLabel = m => ({ contanti: '💵 Contanti', carta: '💳 Carta', iban: '🏦 IBAN', credito: '✨ Credito' }[m] || '—');
     const fmtPaidAt = iso => {
