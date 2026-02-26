@@ -391,6 +391,51 @@ Libreria Canvas custom, nessuna dipendenza esterna.
 
 ---
 
+### 4.14 Gestione Orari — Slot prenotato con cliente associato (feb 2026)
+
+**Obiettivo:** quando l'admin assegna il tipo "Slot prenotato" (group-class) in Gestione Orari, deve obbligatoriamente associare un cliente registrato. La selezione crea una prenotazione reale visibile in tutte le tab admin e in "Le mie prenotazioni".
+
+**`UserStorage` in `data.js`:**
+- Nuova classe che aggrega account registrati (`gym_users`) + clienti unici dallo storico prenotazioni (`gym_bookings`)
+- Deduplicazione per email (case-insensitive) e telefono (ultimi 10 cifre); account registrati hanno priorità
+- Risultato ordinato alfabeticamente per nome
+- Supabase migration: sostituire i due `localStorage.getItem` con query su `profiles` + `bookings`, stessa logica di dedup
+
+**Client picker in Gestione Orari (`admin.js` + `admin.css`):**
+- `renderAllTimeSlots()`: gli slot `group-class` usano un layout a colonna con pannello client picker sotto il dropdown
+- Autocomplete per nome, email o telefono (min 2 caratteri) — risultati da `UserStorage.search()`
+- Badge verde se cliente assegnato; avviso arancione "⚠️ Cliente obbligatorio" se mancante
+- Bottone ✕ per rimuovere il cliente
+- Nuove funzioni: `sanitizeSlotId()`, `searchClientsForSlot()`, `selectSlotClient()`, `clearSlotClient()`, `formatAdminBookingDate()`
+
+**Prenotazione reale automatica:**
+- `selectSlotClient()`: crea una vera prenotazione in `gym_bookings` e salva il `bookingId` nell'override
+- Lo slot prenotato è visibile in: Prenotazioni, Clienti, Pagamenti, Statistiche, "Le mie prenotazioni"
+- Se l'admin cambia cliente: elimina la prenotazione precedente e ne crea una nuova
+- Se l'admin rimuove il cliente, cambia tipo slot o svuota lo slot: la prenotazione viene eliminata (`BookingStorage.removeBookingById()`)
+- Nuovo metodo `BookingStorage.removeBookingById(id)` in `data.js`
+
+**Annullamento slot prenotato con regola 3 giorni (`prenotazioni.html` + `data.js`):**
+- Per slot `group-class` in "Le mie prenotazioni":
+  - ≥ 3 giorni prima → bottone **"Annulla prenotazione"**: cancellazione immediata + slot convertito in Lezione di Gruppo
+  - < 3 giorni prima → badge grigio 🔒 "Non annullabile (meno di 3 giorni)"
+  - Lezione già passata → nessun controllo (come per tutti gli altri tipi)
+- Nuovo metodo `BookingStorage.cancelAndConvertSlot(id)`:
+  - Imposta `status = 'cancelled'` direttamente (nessuno stato intermedio `cancellation_requested`)
+  - Converte lo slot in Gestione Orari da `group-class` a `small-group`, rimuove `client` e `bookingId`
+- Per tutti gli altri tipi di slot: comportamento invariato (blocco 2h, flusso pending)
+- CSS: `.preno-cancel-locked` in `prenotazioni.css`
+
+**Fix evidenziazione giorno in Gestione Orari:**
+- Bug: `selectedScheduleDate` veniva impostato DOPO la generazione HTML dei tab → la classe `active` non veniva mai applicata al cambio settimana
+- Fix: la logica di default viene eseguita PRIMA di costruire il markup; aggiunto reset se la data selezionata appartiene a una settimana diversa
+
+**Formato data uniforme in "Le mie prenotazioni":**
+- Aggiunta `formatBookingDate(dateStr)` in `prenotazioni.html`
+- Tutte le card mostrano il formato esteso "Lunedì 2 Marzo 2026" invece del formato breve "Giovedì 26/2" che arrivava dal campo `dateDisplay` del calendario pubblico
+
+---
+
 ### 4.12 Notifiche (pianificate, non ancora implementate)
 
 - Il form di prenotazione simula l'invio di un messaggio WhatsApp (solo `console.log`)
@@ -442,6 +487,13 @@ Libreria Canvas custom, nessuna dipendenza esterna.
 | Slot mobile nascosti entro 2h (non renderizzati) | Funzionante ✅ |
 | Reset dati azzera anche crediti | Funzionante ✅ |
 | Elimina storico credito per singolo cliente | Funzionante ✅ |
+| Slot prenotato con cliente obbligatorio in Gestione Orari | Funzionante ✅ |
+| Creazione prenotazione reale da admin (slot prenotato) | Funzionante ✅ |
+| UserStorage: ricerca clienti in gym_users + gym_bookings | Funzionante ✅ |
+| Annullamento slot prenotato: immediato ≥3gg, bloccato <3gg | Funzionante ✅ |
+| Conversione slot in Lezione di Gruppo all'annullamento | Funzionante ✅ |
+| Fix evidenziazione giorno attivo in Gestione Orari al cambio settimana | Funzionante ✅ |
+| Formato data uniforme "Lunedì 2 Marzo 2026" in Le mie prenotazioni | Funzionante ✅ |
 
 ---
 
