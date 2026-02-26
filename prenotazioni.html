@@ -325,14 +325,13 @@
 
             // 3. Storico debiti manuali
             const debtRec = ManualDebtStorage.getRecord(user.whatsapp, user.email);
-            const mMap = { contanti: '💵 Contanti', carta: '💳 Carta', iban: '🏦 IBAN' };
             (debtRec?.history || []).forEach(e => {
                 const isPaid = e.amount < 0;
                 entries.push({
                     date: new Date(e.date),
                     icon: isPaid ? '✓' : '✏️',
                     label: e.note || (isPaid ? 'Debito saldato' : 'Addebito'),
-                    sub: e.method ? (mMap[e.method] || '') : '',
+                    sub: '',
                     amount: -Math.abs(e.amount) // debito aggiunto e saldato: sempre uscita
                 });
             });
