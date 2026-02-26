@@ -757,7 +757,7 @@ function createAdminSlotCard(dateInfo, scheduledSlot) {
 
 
 function deleteBooking(bookingId, bookingName) {
-    if (!confirm(`Eliminare la prenotazione di ${bookingName}?\n\nQuesta operazione non può essere annullata.`)) {
+    if (!confirm(`Annullare la prenotazione di ${bookingName}?\n\nIl record resterà nello storico del cliente.`)) {
         return;
     }
 
