@@ -118,6 +118,16 @@
         const _user = getCurrentUser();
         if (!_user) window.location.href = 'login.html';
 
+        // ── Date formatter ───────────────────────────────────────────────
+        function formatBookingDate(dateStr) {
+            const [year, month, day] = dateStr.split('-').map(Number);
+            const d = new Date(year, month - 1, day);
+            const days   = ['Domenica','Lunedì','Martedì','Mercoledì','Giovedì','Venerdì','Sabato'];
+            const months = ['Gennaio','Febbraio','Marzo','Aprile','Maggio','Giugno',
+                            'Luglio','Agosto','Settembre','Ottobre','Novembre','Dicembre'];
+            return `${days[d.getDay()]} ${day} ${months[month - 1]} ${year}`;
+        }
+
         // ── State ─────────────────────────────────────────────────────────
         let _currentTab = 'upcoming';
 
@@ -207,7 +217,7 @@
 
         function buildCard(b, showCancel) {
             const slotName = (SLOT_NAMES && SLOT_NAMES[b.slotType]) || b.slotType || '—';
-            const displayDate = b.dateDisplay || b.date;
+            const displayDate = formatBookingDate(b.date);
 
             let payBadge = '';
             if (b.status === 'cancelled') {
