@@ -226,6 +226,17 @@
     white-space: nowrap;
 }
 
+/* ── Cancellation locked badge (group-class < 3 days) ─────────── */
+.preno-cancel-locked {
+    font-size: 0.75rem;
+    font-weight: 600;
+    padding: 0.2rem 0.6rem;
+    border-radius: 20px;
+    background: #f3f4f6;
+    color: #6b7280;
+    white-space: nowrap;
+}
+
 /* ── Empty state ──────────────────────────────────────────────── */
 .preno-empty {
     text-align: center;
