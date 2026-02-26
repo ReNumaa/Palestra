@@ -1715,6 +1715,7 @@ function openManualEntryPopup(type) {
     document.querySelectorAll('#manualEntryModal .debt-method-btn').forEach(b => b.classList.remove('active'));
     const defaultBtn = document.querySelector('#manualEntryModal .debt-method-btn[data-method="contanti"]');
     if (defaultBtn) defaultBtn.classList.add('active');
+    document.getElementById('manualMethodField').style.display = isDebt ? 'none' : '';
     document.getElementById('manualEntryOverlay').classList.add('open');
     document.getElementById('manualEntryModal').classList.add('open');
     setTimeout(() => document.getElementById('manualClientInput').focus(), 100);
