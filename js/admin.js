@@ -1748,8 +1748,14 @@ function selectManualClient(name, whatsapp, email) {
     document.getElementById('manualClientDropdown').style.display = 'none';
     const sel = document.getElementById('manualClientSelected');
     sel.style.display = 'flex';
-    const info = [whatsapp, email].filter(Boolean).join(' · ');
-    sel.innerHTML = `<span>${name}${info ? ' &nbsp;·&nbsp; ' + info : ''}</span>
+    const initials = name.trim().split(/\s+/).map(w => w[0]).join('').toUpperCase().slice(0, 2);
+    const sub = [whatsapp, email].filter(Boolean).join(' · ');
+    sel.innerHTML = `
+        <div class="manual-client-avatar">${initials}</div>
+        <div class="manual-client-info">
+            <strong>${name}</strong>
+            ${sub ? `<small>${sub}</small>` : ''}
+        </div>
         <button class="manual-client-clear" onclick="_manualEntryContact=null;
             document.getElementById('manualClientSelected').style.display='none';
             document.getElementById('manualClientInput').value='';">✕</button>`;
