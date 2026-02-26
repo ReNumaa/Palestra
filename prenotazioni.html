@@ -345,7 +345,7 @@
             const fmtD = d => `${String(d.getDate()).padStart(2,'0')}/${String(d.getMonth()+1).padStart(2,'0')}/${d.getFullYear()} ${String(d.getHours()).padStart(2,'0')}:${String(d.getMinutes()).padStart(2,'0')}`;
             container.innerHTML = entries.map(e => {
                 const pos = e.amount >= 0;
-                const sign = pos ? '+' : '';
+                const sign = pos ? '+' : '-';
                 const cls  = pos ? 'tx-pos' : 'tx-neg';
                 return `<div class="preno-tx-row">
                     <div class="preno-tx-icon">${e.icon}</div>
