@@ -2125,24 +2125,84 @@ function createClientCard(client, index) {
         </tr>`;
     }).join('');
 
-    const creditRecord = CreditStorage.getRecord(client.whatsapp, client.email);
+    // Build full transaction list (same logic as renderTransazioni in prenotazioni.html)
+    const normCPhone = normalizePhone(client.whatsapp);
+    const matchCli = (w, e) =>
+        (normCPhone && normalizePhone(w) === normCPhone) ||
+        (client.email && e && e.toLowerCase() === client.email.toLowerCase());
+    const txMethodMap = { contanti: '💵 Contanti', carta: '💳 Carta', iban: '🏦 IBAN', credito: '💳 Credito' };
+    const txEntries = [];
+
+    // 1. Paid bookings
+    BookingStorage.getAllBookings()
+        .filter(b => matchCli(b.whatsapp, b.email) && b.paid)
+        .forEach(b => {
+            const price = SLOT_PRICES[b.slotType] || 0;
+            if (!price) return;
+            const [by, bm, bd] = b.date.split('-');
+            txEntries.push({
+                date: new Date(b.paidAt || `${b.date}T12:00:00`),
+                icon: '🏋️', label: SLOT_NAMES[b.slotType] || b.slotType,
+                sub: `${bd}/${bm}/${by} · ${txMethodMap[b.paymentMethod] || b.paymentMethod || ''}`,
+                amount: -price
+            });
+        });
+
+    // 2. Credit entries (positive only)
+    const creditRec2 = CreditStorage.getRecord(client.whatsapp, client.email);
+    (creditRec2?.history || []).filter(e => e.amount > 0).forEach(e => {
+        txEntries.push({
+            date: new Date(e.date), icon: '💳',
+            label: e.note || 'Credito aggiunto',
+            sub: '', amount: e.displayAmount !== undefined ? e.displayAmount : e.amount
+        });
+    });
+
+    // 3. Manual debt history
+    const debtRec2 = ManualDebtStorage.getRecord(client.whatsapp, client.email);
+    (debtRec2?.history || []).forEach(e => {
+        txEntries.push({
+            date: new Date(e.date),
+            icon: e.amount < 0 ? '✓' : '✏️',
+            label: e.note || (e.amount < 0 ? 'Debito saldato' : 'Addebito'),
+            sub: e.method ? ({ contanti: '💵 Contanti', carta: '💳 Carta', iban: '🏦 IBAN' }[e.method] || '') : '',
+            amount: -Math.abs(e.amount)
+        });
+    });
+
+    // 4. Cancelled bookings
+    BookingStorage.getAllBookings()
+        .filter(b => matchCli(b.whatsapp, b.email) && b.status === 'cancelled')
+        .forEach(b => {
+            const [by, bm, bd] = b.date.split('-');
+            txEntries.push({
+                date: new Date(b.cancelledAt || `${b.date}T12:00:00`),
+                icon: '✕', label: SLOT_NAMES[b.slotType] || b.slotType,
+                sub: `${bd}/${bm}/${by} · ✕ Annullata`,
+                amount: -(SLOT_PRICES[b.slotType] || 0), cancelled: true
+            });
+        });
+
+    txEntries.sort((a, b) => b.date - a.date);
+
+    const fmtDTx = d => `${String(d.getDate()).padStart(2,'0')}/${String(d.getMonth()+1).padStart(2,'0')}/${d.getFullYear()} ${String(d.getHours()).padStart(2,'0')}:${String(d.getMinutes()).padStart(2,'0')}`;
+
     let creditHTML = '';
-    if (creditRecord && creditRecord.history && creditRecord.history.length > 0) {
-        const history = [...creditRecord.history].reverse().slice(0, 8);
+    if (txEntries.length > 0) {
         creditHTML = `<div class="client-credit-section">
-            <h4>💳 Storico credito — saldo: €${credit}
+            <h4>📊 Storico transazioni — saldo credito: €${credit}
                 <button class="btn-clear-credit" onclick="clearClientCredit('${client.whatsapp.replace(/'/g,"\\'")}', '${(client.email||'').replace(/'/g,"\\'")}', ${index})" title="Elimina storico credito">🗑️ Elimina storico</button>
             </h4>
             <div class="client-credit-history">
-                ${history.map(e => {
-                    const d = new Date(e.date);
-                    const ds = `${d.getDate()}/${d.getMonth()+1}/${d.getFullYear()}`;
-                    const sign = e.amount >= 0 ? '+' : '';
-                    const cls  = e.amount >= 0 ? 'plus' : 'minus';
+                ${txEntries.map(e => {
+                    const pos = e.amount > 0;
+                    const sign = (e.cancelled || e.amount < 0) ? '-' : '+';
+                    const cls  = pos ? 'plus' : 'minus';
                     return `<div class="credit-history-row">
-                        <span class="credit-history-date">${ds}</span>
-                        <span class="credit-history-note">${e.note || 'Movimento'}</span>
-                        <span class="credit-history-amount ${cls}">${sign}€${Math.abs(e.amount)}</span>
+                        <span class="credit-history-date">${fmtDTx(e.date)}</span>
+                        <span class="credit-history-icon">${e.icon}</span>
+                        <span class="credit-history-note">${e.label}${e.sub ? ` <small style="opacity:0.7">${e.sub}</small>` : ''}</span>
+                        <span class="credit-history-amount ${cls}">${sign}€${Math.abs(e.amount).toFixed(2)}</span>
                     </div>`;
                 }).join('')}
             </div>
