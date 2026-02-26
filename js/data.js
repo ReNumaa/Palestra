@@ -201,6 +201,34 @@ class BookingStorage {
         return maxCapacity - confirmedCount;
     }
 
+    // Cancella immediatamente uno "Slot prenotato" e converte lo slot in "Lezione di Gruppo"
+    // Usato quando il cliente annulla con almeno 3 giorni di anticipo
+    // Supabase migration: sostituire le due operazioni con una RPC atomica
+    static cancelAndConvertSlot(id) {
+        const all = this.getAllBookings();
+        const booking = all.find(b => b.id === id);
+        if (!booking || booking.status !== 'confirmed') return false;
+
+        // Cancella subito la prenotazione
+        booking.status = 'cancelled';
+        booking.cancelledAt = new Date().toISOString();
+        this.replaceAllBookings(all);
+
+        // Converte lo slot in Gestione Orari da group-class a small-group
+        const overrides = this.getScheduleOverrides();
+        const dateSlots = overrides[booking.date];
+        if (dateSlots) {
+            const slot = dateSlots.find(s => s.time === booking.time && s.type === SLOT_TYPES.GROUP_CLASS);
+            if (slot) {
+                slot.type = SLOT_TYPES.SMALL_GROUP;
+                delete slot.client;
+                delete slot.bookingId;
+                this.saveScheduleOverrides(overrides);
+            }
+        }
+        return true;
+    }
+
     // Marca una prenotazione come "annullamento richiesto" (il posto torna disponibile)
     static requestCancellation(id) {
         const all = this.getAllBookings();

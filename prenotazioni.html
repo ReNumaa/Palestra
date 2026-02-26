@@ -224,10 +224,20 @@
 
             const _lessonStart = new Date(`${b.date}T${b.time.split(' - ')[0].trim()}:00`);
             const _lessonPast  = _lessonStart <= new Date();
+            const _isGroupClass = b.slotType === 'group-class';
+            const THREE_DAYS_MS = 3 * 24 * 60 * 60 * 1000;
+            const _canCancelGroupClass = _isGroupClass && (_lessonStart - new Date() >= THREE_DAYS_MS);
 
             let cancelBtn = '';
             if (showCancel && b.status !== 'cancelled' && !_lessonPast) {
-                if (b.status === 'cancellation_requested') {
+                if (_isGroupClass) {
+                    // Slot prenotato: annullabile solo con almeno 3 giorni di anticipo
+                    if (_canCancelGroupClass) {
+                        cancelBtn = `<button class="preno-cancel-btn" onclick="requestCancellation('${b.id}')">Richiedi annullamento</button>`;
+                    } else {
+                        cancelBtn = `<div class="preno-cancel-locked">🔒 Non annullabile (meno di 3 giorni)</div>`;
+                    }
+                } else if (b.status === 'cancellation_requested') {
                     cancelBtn = `<div class="preno-cancel-pending">⏳ Annullamento in attesa</div>`;
                 } else {
                     cancelBtn = `<button class="preno-cancel-btn" onclick="requestCancellation('${b.id}')">Richiedi annullamento</button>`;
@@ -250,11 +260,22 @@
 
         // ── Cancellation request ──────────────────────────────────────────
         function requestCancellation(id) {
-            const msg = 'Richiedere l\'annullamento?\n\n' +
-                '• Se qualcuno prenota al tuo posto, la prenotazione sarà annullata.\n' +
-                '• Se entro 2 ore dalla lezione nessuno ha preso il tuo posto, l\'annullamento viene negato e dovrai presentarti.';
-            if (!confirm(msg)) return;
-            BookingStorage.requestCancellation(id);
+            const booking = BookingStorage.getAllBookings().find(b => b.id === id);
+            if (!booking) return;
+
+            if (booking.slotType === 'group-class') {
+                // Slot prenotato: annullamento immediato + conversione slot in Lezione di Gruppo
+                const msg = 'Confermare l\'annullamento?\n\n' +
+                    'La prenotazione sarà annullata e lo slot diventerà una Lezione di Gruppo aperta al pubblico.';
+                if (!confirm(msg)) return;
+                BookingStorage.cancelAndConvertSlot(id);
+            } else {
+                const msg = 'Richiedere l\'annullamento?\n\n' +
+                    '• Se qualcuno prenota al tuo posto, la prenotazione sarà annullata.\n' +
+                    '• Se entro 2 ore dalla lezione nessuno ha preso il tuo posto, l\'annullamento viene negato e dovrai presentarti.';
+                if (!confirm(msg)) return;
+                BookingStorage.requestCancellation(id);
+            }
             renderPrenoList();
         }
     </script>
