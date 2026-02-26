@@ -1330,7 +1330,7 @@ function getDebtors() {
 
     // Group unpaid past bookings by contact, matching by phone OR email
     allBookings.forEach(booking => {
-        if (!booking.paid && bookingHasPassed(booking)) {
+        if (!booking.paid && bookingHasPassed(booking) && booking.status !== 'cancelled') {
             const normPhone = normalizePhone(booking.whatsapp);
 
             let matchedKey = null;
