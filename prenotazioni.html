@@ -61,12 +61,18 @@
                     <span class="preno-saldo-label">⚠️ Da pagare</span>
                     <span class="preno-saldo-value preno-saldo-debit" id="prenoDebitAmount">€0,00</span>
                 </div>
+                <div class="preno-saldo-divider" id="prenoNetDivider" style="display:none;"></div>
+                <div class="preno-saldo-row" id="prenoNetRow" style="display:none;">
+                    <span class="preno-saldo-label">📊 Saldo netto</span>
+                    <span class="preno-saldo-value" id="prenoNetAmount">€0,00</span>
+                </div>
             </div>
 
             <!-- Tabs -->
             <div class="preno-tabs">
-                <button class="preno-tab active" id="tabProssime" onclick="switchPrenoTab('upcoming')">Prossime</button>
-                <button class="preno-tab" id="tabPassate" onclick="switchPrenoTab('past')">Passate</button>
+                <button class="preno-tab active" id="tabProssime"    onclick="switchPrenoTab('upcoming')">Prossime</button>
+                <button class="preno-tab"         id="tabPassate"     onclick="switchPrenoTab('past')">Passate</button>
+                <button class="preno-tab"         id="tabTransazioni" onclick="switchPrenoTab('transactions')">Transazioni</button>
             </div>
 
             <!-- Lista prenotazioni -->
@@ -187,21 +193,34 @@
                 .reduce((sum, b) => sum + (SLOT_PRICES[b.slotType] || 0) - (b.creditApplied || 0), 0);
             const manualDebt = ManualDebtStorage.getBalance(user.whatsapp, user.email);
             const debit = bookingDebt + manualDebt;
+            const net = balance - debit;
 
             document.getElementById('prenoCreditAmount').textContent = `€${balance.toFixed(2)}`;
             document.getElementById('prenoDebitAmount').textContent  = `€${debit.toFixed(2)}`;
+
+            // Mostra riga netto solo se ci sono sia credito che debito
+            const showNet = balance > 0 && debit > 0;
+            document.getElementById('prenoNetDivider').style.display = showNet ? '' : 'none';
+            document.getElementById('prenoNetRow').style.display     = showNet ? '' : 'none';
+            if (showNet) {
+                const netEl = document.getElementById('prenoNetAmount');
+                netEl.textContent = `${net >= 0 ? '+' : ''}€${net.toFixed(2)}`;
+                netEl.className = `preno-saldo-value ${net >= 0 ? 'preno-saldo-credit' : 'preno-saldo-debit'}`;
+            }
         }
 
         // ── Tab switch ────────────────────────────────────────────────────
         function switchPrenoTab(tab) {
             _currentTab = tab;
-            document.getElementById('tabProssime').classList.toggle('active', tab === 'upcoming');
-            document.getElementById('tabPassate').classList.toggle('active',  tab === 'past');
+            document.getElementById('tabProssime').classList.toggle('active',    tab === 'upcoming');
+            document.getElementById('tabPassate').classList.toggle('active',     tab === 'past');
+            document.getElementById('tabTransazioni').classList.toggle('active', tab === 'transactions');
             renderPrenoList();
         }
 
         // ── Render ────────────────────────────────────────────────────────
         function renderPrenoList() {
+            if (_currentTab === 'transactions') { renderTransazioni(); return; }
             const { upcoming, past } = getUserBookings();
             const list = _currentTab === 'upcoming' ? upcoming : past;
             const container = document.getElementById('prenoList');
@@ -268,6 +287,90 @@
                         ${cancelBtn}
                     </div>
                 </div>`;
+        }
+
+        // ── Transazioni ───────────────────────────────────────────────────
+        function renderTransazioni() {
+            const user = getCurrentUser();
+            if (!user) return;
+            const container = document.getElementById('prenoList');
+            const entries = [];
+
+            function normPhone(p) {
+                return (p || '').replace(/[\s\-().+]/g, '').replace(/^0039/, '').replace(/^39/, '');
+            }
+            const uPhone = normPhone(user.whatsapp);
+            function matchUser(w, e) {
+                return (uPhone && normPhone(w) === uPhone) ||
+                       (user.email && e && e.toLowerCase() === user.email.toLowerCase());
+            }
+
+            const methodMap = { contanti: '💵 Contanti', carta: '💳 Carta', iban: '🏦 IBAN', credito: '💳 Credito' };
+
+            // 1. Prenotazioni pagate (solo quota cash, quella credit è già nello storico crediti)
+            BookingStorage.getAllBookings()
+                .filter(b => matchUser(b.whatsapp, b.email) && b.paid)
+                .forEach(b => {
+                    const price = (SLOT_PRICES[b.slotType] || 0) - (b.creditApplied || 0);
+                    if (price <= 0) return; // interamente pagata con credito → già nello storico crediti
+                    const slotName = (SLOT_NAMES && SLOT_NAMES[b.slotType]) || b.slotType || '—';
+                    const [by, bm, bd] = b.date.split('-');
+                    entries.push({
+                        date: new Date(b.paidAt || `${b.date}T12:00:00`),
+                        icon: '🏋️', label: slotName,
+                        sub: `${bd}/${bm}/${by} · ${methodMap[b.paymentMethod] || b.paymentMethod || ''}`,
+                        amount: -price, cls: 'tx-neutral'
+                    });
+                });
+
+            // 2. Storico crediti
+            const creditRec = CreditStorage.getRecord(user.whatsapp, user.email);
+            (creditRec?.history || []).forEach(e => {
+                entries.push({
+                    date: new Date(e.date), icon: '💳',
+                    label: e.note || (e.amount > 0 ? 'Credito aggiunto' : 'Credito utilizzato'),
+                    sub: '', amount: e.amount,
+                    cls: e.amount > 0 ? 'tx-pos' : 'tx-credit'
+                });
+            });
+
+            // 3. Storico debiti manuali
+            const debtRec = ManualDebtStorage.getRecord(user.whatsapp, user.email);
+            const mMap = { contanti: '💵 Contanti', carta: '💳 Carta', iban: '🏦 IBAN' };
+            (debtRec?.history || []).forEach(e => {
+                const isPaid = e.amount < 0;
+                entries.push({
+                    date: new Date(e.date),
+                    icon: isPaid ? '✓' : '✏️',
+                    label: e.note || (isPaid ? 'Debito saldato' : 'Addebito'),
+                    sub: e.method ? (mMap[e.method] || '') : '',
+                    amount: -e.amount, // debt added(+) → neg; debt paid(-) → pos (cleared)
+                    cls: isPaid ? 'tx-pos' : 'tx-neg'
+                });
+            });
+
+            entries.sort((a, b) => b.date - a.date);
+
+            if (!entries.length) {
+                container.innerHTML = `<div class="preno-empty">Nessuna transazione trovata.</div>`;
+                return;
+            }
+
+            const fmtD = d => `${String(d.getDate()).padStart(2,'0')}/${String(d.getMonth()+1).padStart(2,'0')}/${d.getFullYear()}`;
+            container.innerHTML = entries.map(e => {
+                const sign = e.amount >= 0 ? '+' : '';
+                return `<div class="preno-tx-row">
+                    <div class="preno-tx-icon">${e.icon}</div>
+                    <div class="preno-tx-info">
+                        <div class="preno-tx-label">${e.label}</div>
+                        ${e.sub ? `<div class="preno-tx-sub">${e.sub}</div>` : ''}
+                    </div>
+                    <div class="preno-tx-right">
+                        <div class="preno-tx-amount ${e.cls}">${sign}€${Math.abs(e.amount).toFixed(2)}</div>
+                        <div class="preno-tx-date">${fmtD(e.date)}</div>
+                    </div>
+                </div>`;
+            }).join('');
         }
 
         // ── Cancellation request ──────────────────────────────────────────
