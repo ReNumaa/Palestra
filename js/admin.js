@@ -2034,6 +2034,17 @@ function liveSearchClients() {
     renderClientsTab();
 }
 
+function filterClientTx(listId, days, btn) {
+    const list = document.getElementById(listId);
+    if (!list) return;
+    const cutoff = Date.now() - days * 24 * 60 * 60 * 1000;
+    list.querySelectorAll('.credit-history-row').forEach(row => {
+        row.style.display = parseInt(row.dataset.ts) >= cutoff ? '' : 'none';
+    });
+    btn.closest('.tx-filter-bar').querySelectorAll('.tx-filter-btn').forEach(b => b.classList.remove('active'));
+    btn.classList.add('active');
+}
+
 function renderClientsTab() {
     const allClients = getAllClients();
     const query = clientsSearchQuery.trim().toLowerCase();
@@ -2189,16 +2200,21 @@ function createClientCard(client, index) {
 
     let creditHTML = '';
     if (txEntries.length > 0) {
+        const txListId = `tx-list-${index}`;
         creditHTML = `<div class="client-credit-section">
-            <h4>📊 Storico transazioni — saldo credito: €${credit}
-                <button class="btn-clear-credit" onclick="clearClientCredit('${client.whatsapp.replace(/'/g,"\\'")}', '${(client.email||'').replace(/'/g,"\\'")}', ${index})" title="Elimina storico credito">🗑️ Elimina storico</button>
-            </h4>
-            <div class="client-credit-history">
+            <h4>📊 Storico transazioni — saldo credito: €${credit}</h4>
+            <div class="tx-filter-bar">
+                <button class="tx-filter-btn" onclick="filterClientTx('${txListId}', 7, this)">Settimana</button>
+                <button class="tx-filter-btn" onclick="filterClientTx('${txListId}', 30, this)">Mese</button>
+                <button class="tx-filter-btn" onclick="filterClientTx('${txListId}', 180, this)">6 mesi</button>
+                <button class="tx-filter-btn active" onclick="filterClientTx('${txListId}', 365, this)">1 anno</button>
+            </div>
+            <div class="client-credit-history" id="${txListId}">
                 ${txEntries.map(e => {
                     const pos = e.amount > 0;
                     const sign = (e.cancelled || e.amount < 0) ? '-' : '+';
                     const cls  = pos ? 'plus' : 'minus';
-                    return `<div class="credit-history-row">
+                    return `<div class="credit-history-row" data-ts="${e.date.getTime()}">
                         <span class="credit-history-date">${fmtDTx(e.date)}</span>
                         <span class="credit-history-icon">${e.icon}</span>
                         <span class="credit-history-note">${e.label}${e.sub ? ` <small style="opacity:0.7">${e.sub}</small>` : ''}</span>
