@@ -342,7 +342,7 @@
                 return;
             }
 
-            const fmtD = d => `${String(d.getDate()).padStart(2,'0')}/${String(d.getMonth()+1).padStart(2,'0')}/${d.getFullYear()}`;
+            const fmtD = d => `${String(d.getDate()).padStart(2,'0')}/${String(d.getMonth()+1).padStart(2,'0')}/${d.getFullYear()} ${String(d.getHours()).padStart(2,'0')}:${String(d.getMinutes()).padStart(2,'0')}`;
             container.innerHTML = entries.map(e => {
                 const pos = e.amount >= 0;
                 const sign = pos ? '+' : '';
