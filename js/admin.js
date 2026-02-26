@@ -767,17 +767,17 @@ function deleteBooking(bookingId, bookingName) {
     if (index !== -1) {
         const booking = bookings[index];
 
-        // Refund credit: full if paid with credit, partial if creditApplied > 0
-        const creditToRefund = (booking.paid && booking.paymentMethod === 'credito')
-            ? (SLOT_PRICES[booking.slotType] || 0)
-            : (booking.creditApplied || 0);
+        // Refund credit: full price if paid (any method), partial if only creditApplied > 0
+        const price = SLOT_PRICES[booking.slotType] || 0;
+        const creditToRefund = booking.paid ? price : (booking.creditApplied || 0);
         if (creditToRefund > 0) {
+            const methodLabel = booking.paymentMethod ? ` (${booking.paymentMethod})` : '';
             CreditStorage.addCredit(
                 booking.whatsapp,
                 booking.email,
                 booking.name,
                 creditToRefund,
-                `Rimborso cancellazione lezione ${booking.date} ${booking.time}`
+                `Rimborso cancellazione lezione ${booking.date} ${booking.time}${methodLabel}`
             );
         }
 
