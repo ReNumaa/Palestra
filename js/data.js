@@ -688,6 +688,80 @@ class CreditStorage {
     }
 }
 
+// Manual debt storage — per-client debts not tied to bookings (es. lezioni private non prenotate)
+class ManualDebtStorage {
+    static DEBTS_KEY = 'gym_manual_debts';
+
+    static _getAll() {
+        try { return JSON.parse(localStorage.getItem(this.DEBTS_KEY) || '{}'); } catch { return {}; }
+    }
+
+    static _save(data) {
+        localStorage.setItem(this.DEBTS_KEY, JSON.stringify(data));
+    }
+
+    static _key(whatsapp, email) {
+        return `${whatsapp}||${email}`;
+    }
+
+    static _normalizePhone(phone) {
+        if (!phone) return '';
+        return phone.replace(/^\+39\s*/, '').replace(/^0039\s*/, '').replace(/[\s\-(). ]/g, '');
+    }
+
+    static _matchContact(record, whatsapp, email) {
+        const normStored = this._normalizePhone(record.whatsapp);
+        const normInput  = this._normalizePhone(whatsapp);
+        const phoneMatch = normInput && normStored && normStored === normInput;
+        const emailMatch = email && record.email && record.email.toLowerCase() === email.toLowerCase();
+        return phoneMatch || emailMatch;
+    }
+
+    static _findKey(whatsapp, email) {
+        const all = this._getAll();
+        for (const [key, record] of Object.entries(all)) {
+            if (this._matchContact(record, whatsapp, email)) return key;
+        }
+        return null;
+    }
+
+    static getBalance(whatsapp, email) {
+        const key = this._findKey(whatsapp, email);
+        return key ? (this._getAll()[key]?.balance || 0) : 0;
+    }
+
+    // Positive amount = add debt; negative = reduce/pay debt
+    static addDebt(whatsapp, email, name, amount, note = '', method = '') {
+        if (amount === 0) return;
+        const all = this._getAll();
+        let key = this._findKey(whatsapp, email);
+        if (!key) key = this._key(whatsapp, email);
+        if (!all[key]) all[key] = { name, whatsapp, email, balance: 0, history: [] };
+        all[key].name = name;
+        all[key].balance = Math.round((all[key].balance + amount) * 100) / 100;
+        if (all[key].balance < 0) all[key].balance = 0;
+        all[key].history.push({ date: new Date().toISOString(), amount, note, method });
+        this._save(all);
+    }
+
+    static getAllWithBalance() {
+        return Object.values(this._getAll())
+            .filter(d => d.balance > 0)
+            .sort((a, b) => b.balance - a.balance);
+    }
+
+    static getRecord(whatsapp, email) {
+        const key = this._findKey(whatsapp, email);
+        return key ? this._getAll()[key] : null;
+    }
+
+    static clearRecord(whatsapp, email) {
+        const all = this._getAll();
+        const key = this._findKey(whatsapp, email);
+        if (key) { delete all[key]; this._save(all); }
+    }
+}
+
 // User storage — client lookup for schedule management (Slot prenotato picker)
 // Sources: registered accounts (gym_users) + unique clients from booking history (gym_bookings)
 // Supabase migration: replace localStorage reads in getAll() with:

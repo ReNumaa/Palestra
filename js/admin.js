@@ -1326,7 +1326,6 @@ function getDebtors() {
         if (!booking.paid && bookingHasPassed(booking)) {
             const normPhone = normalizePhone(booking.whatsapp);
 
-            // Try to find an existing debtor group that matches by phone OR email
             let matchedKey = null;
             for (const [k, debtor] of Object.entries(debtorsMap)) {
                 const phoneMatch = normPhone && normalizePhone(debtor.whatsapp) === normPhone;
@@ -1338,11 +1337,8 @@ function getDebtors() {
             if (!matchedKey) {
                 matchedKey = normPhone || booking.email;
                 debtorsMap[matchedKey] = {
-                    name: booking.name,
-                    whatsapp: booking.whatsapp,
-                    email: booking.email,
-                    unpaidBookings: [],
-                    totalAmount: 0
+                    name: booking.name, whatsapp: booking.whatsapp, email: booking.email,
+                    unpaidBookings: [], manualDebt: 0, totalAmount: 0
                 };
             }
 
@@ -1352,7 +1348,27 @@ function getDebtors() {
         }
     });
 
-    // Convert to array and sort by totalAmount (descending)
+    // Merge in manual debts (not tied to bookings)
+    ManualDebtStorage.getAllWithBalance().forEach(debt => {
+        const normPhone = normalizePhone(debt.whatsapp);
+        let matchedKey = null;
+        for (const [k, debtor] of Object.entries(debtorsMap)) {
+            const phoneMatch = normPhone && normalizePhone(debtor.whatsapp) === normPhone;
+            const emailMatch = debt.email && debtor.email &&
+                debt.email.toLowerCase() === debtor.email.toLowerCase();
+            if (phoneMatch || emailMatch) { matchedKey = k; break; }
+        }
+        if (!matchedKey) {
+            matchedKey = normPhone || debt.email;
+            debtorsMap[matchedKey] = {
+                name: debt.name, whatsapp: debt.whatsapp, email: debt.email,
+                unpaidBookings: [], manualDebt: 0, totalAmount: 0
+            };
+        }
+        debtorsMap[matchedKey].manualDebt = debt.balance;
+        debtorsMap[matchedKey].totalAmount += debt.balance;
+    });
+
     return Object.values(debtorsMap).sort((a, b) => b.totalAmount - a.totalAmount);
 }
 
@@ -1376,6 +1392,24 @@ function createDebtorCard(debtor, cardId) {
             </div>
         `;
     });
+    if (debtor.manualDebt > 0) {
+        const record = ManualDebtStorage.getRecord(debtor.whatsapp, debtor.email);
+        const recentEntries = record ? [...record.history].reverse().slice(0, 3) : [];
+        recentEntries.forEach(entry => {
+            if (entry.amount > 0) {
+                const d = new Date(entry.date);
+                const dateStr = `${d.getDate()}/${d.getMonth()+1}/${d.getFullYear()}`;
+                bookingsHTML += `
+                    <div class="debtor-booking-item debtor-booking-manual">
+                        <div class="debtor-booking-details">✏️ ${dateStr} &nbsp;·&nbsp; ${entry.note || 'Debito manuale'}</div>
+                        <div class="debtor-booking-price">€${entry.amount}</div>
+                    </div>`;
+            }
+        });
+        if (record && record.history.filter(e => e.amount > 0).length > 3) {
+            bookingsHTML += `<div class="debtor-booking-item" style="opacity:0.5;font-size:0.78rem;">… altri movimenti nel storico</div>`;
+        }
+    }
     bookingsHTML += '</div>';
 
     card.innerHTML = `
@@ -1441,6 +1475,14 @@ function payAllDebtsInline(whatsapp, email, name, btn) {
             totalPaid += SLOT_PRICES[b.slotType] || 0;
         }
     });
+
+    // Also pay manual debts for this contact
+    const manualDebt = ManualDebtStorage.getBalance(whatsapp, email);
+    if (manualDebt > 0) {
+        ManualDebtStorage.addDebt(whatsapp, email, name, -manualDebt,
+            `Saldato (${method})`, method);
+        totalPaid += manualDebt;
+    }
 
     if (totalPaid === 0) return;
     BookingStorage.replaceAllBookings(bookings);
@@ -1649,6 +1691,112 @@ function getUnpaidAmountForContact(whatsapp, email) {
     });
 
     return totalUnpaid;
+}
+
+// ===== Manual Credit/Debt Entry Popup =====
+let _manualEntryType = 'debt';
+let _manualEntryContact = null;
+
+function openManualEntryPopup(type) {
+    _manualEntryType = type;
+    _manualEntryContact = null;
+    const isDebt = type === 'debt';
+    document.getElementById('manualEntryTitle').textContent = isDebt ? 'Aggiungi Debito Manuale' : 'Aggiungi Credito Manuale';
+    document.getElementById('manualEntrySubtitle').textContent = isDebt
+        ? 'Debito non legato a prenotazioni (es. lezione privata)'
+        : 'Ricarica il saldo credito del cliente';
+    document.getElementById('manualClientInput').value = '';
+    document.getElementById('manualClientDropdown').style.display = 'none';
+    document.getElementById('manualClientSelected').style.display = 'none';
+    document.getElementById('manualAmountInput').value = '';
+    document.getElementById('manualNoteInput').value = '';
+    document.querySelectorAll('#manualEntryModal .debt-method-btn').forEach(b => b.classList.remove('active'));
+    const defaultBtn = document.querySelector('#manualEntryModal .debt-method-btn[data-method="contanti"]');
+    if (defaultBtn) defaultBtn.classList.add('active');
+    document.getElementById('manualEntryOverlay').classList.add('open');
+    document.getElementById('manualEntryModal').classList.add('open');
+    setTimeout(() => document.getElementById('manualClientInput').focus(), 100);
+}
+
+function closeManualEntryPopup() {
+    document.getElementById('manualEntryOverlay').classList.remove('open');
+    document.getElementById('manualEntryModal').classList.remove('open');
+    _manualEntryContact = null;
+}
+
+function liveSearchManualClient() {
+    const q = document.getElementById('manualClientInput').value.trim();
+    const dropdown = document.getElementById('manualClientDropdown');
+    if (q.length < 2) { dropdown.style.display = 'none'; return; }
+    const results = UserStorage.search(q).slice(0, 6);
+    if (results.length === 0) { dropdown.style.display = 'none'; return; }
+    dropdown.innerHTML = results.map(u => {
+        const safeN = u.name.replace(/'/g, "\\'");
+        const safeW = (u.whatsapp || '').replace(/'/g, "\\'");
+        const safeE = (u.email || '').replace(/'/g, "\\'");
+        return `<div class="debtor-search-option" onclick="selectManualClient('${safeN}','${safeW}','${safeE}')">
+            <strong>${u.name}</strong>
+            <small>${[u.whatsapp, u.email].filter(Boolean).join(' · ')}</small>
+        </div>`;
+    }).join('');
+    dropdown.style.display = 'block';
+}
+
+function selectManualClient(name, whatsapp, email) {
+    _manualEntryContact = { name, whatsapp, email };
+    document.getElementById('manualClientInput').value = '';
+    document.getElementById('manualClientDropdown').style.display = 'none';
+    const sel = document.getElementById('manualClientSelected');
+    sel.style.display = 'flex';
+    const info = [whatsapp, email].filter(Boolean).join(' · ');
+    sel.innerHTML = `<span>${name}${info ? ' &nbsp;·&nbsp; ' + info : ''}</span>
+        <button class="manual-client-clear" onclick="_manualEntryContact=null;
+            document.getElementById('manualClientSelected').style.display='none';
+            document.getElementById('manualClientInput').value='';">✕</button>`;
+}
+
+function selectManualMethod(btn) {
+    btn.closest('.debt-method-btns').querySelectorAll('.debt-method-btn').forEach(b => b.classList.remove('active'));
+    btn.classList.add('active');
+}
+
+function saveManualEntry() {
+    if (!_manualEntryContact) {
+        alert('Seleziona un cliente dalla lista');
+        document.getElementById('manualClientInput').focus();
+        return;
+    }
+    const amount = parseFloat(document.getElementById('manualAmountInput').value);
+    if (!amount || amount <= 0) {
+        alert('Inserisci un importo valido');
+        document.getElementById('manualAmountInput').focus();
+        return;
+    }
+    const note = document.getElementById('manualNoteInput').value.trim();
+    const activeMethodBtn = document.querySelector('#manualEntryModal .debt-method-btn.active');
+    const method = activeMethodBtn ? activeMethodBtn.dataset.method : 'contanti';
+    const { name, whatsapp, email } = _manualEntryContact;
+
+    if (_manualEntryType === 'debt') {
+        ManualDebtStorage.addDebt(whatsapp, email, name, amount,
+            note || 'Debito manuale', method);
+    } else {
+        CreditStorage.addCredit(whatsapp, email, name, amount,
+            note ? `${note} (${method})` : `Credito manuale (${method})`);
+        CreditStorage.applyToUnpaidBookings(whatsapp, email, name);
+    }
+
+    const savedType = _manualEntryType;
+    closeManualEntryPopup();
+    renderPaymentsTab();
+    // Reveal the relevant list so user sees the new entry
+    if (savedType === 'debt') {
+        debtorsListVisible = false;
+        toggleDebtorsList();
+    } else {
+        creditsListVisible = false;
+        toggleCreditsList();
+    }
 }
 
 // ===== Debt Popup =====
