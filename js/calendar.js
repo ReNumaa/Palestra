@@ -168,11 +168,11 @@ function createSlot(dateInfo, timeSlot) {
             ${slotType !== SLOT_TYPES.GROUP_CLASS && remainingSpots > 0 ? `<div class="slot-spots ${spotsColorClass(remainingSpots)}">${remainingSpots} ${remainingSpots === 1 ? 'disponibile' : 'disponibili'}</div>` : ''}
         `;
 
-        // Only allow booking if not full and lesson starts more than 2h from now
-        const [_sh, _sm] = timeSlot.split(' - ')[0].trim().split(':').map(Number);
-        const lessonStart = new Date(dateInfo.date);
-        lessonStart.setHours(_sh, _sm, 0, 0);
-        const bookable = !isFull && (lessonStart - new Date()) > 2 * 60 * 60 * 1000;
+        // Allow booking if not full and the lesson ends in at least 30 minutes from now
+        const [_eh, _em] = timeSlot.split(' - ')[1].trim().split(':').map(Number);
+        const lessonEnd = new Date(dateInfo.date);
+        lessonEnd.setHours(_eh, _em, 0, 0);
+        const bookable = !isFull && (lessonEnd - new Date()) >= 30 * 60 * 1000;
 
         if (bookable) {
             slot.style.cursor = 'pointer';
@@ -286,16 +286,16 @@ function renderMobileSlots(dateInfo) {
     }
 
     const now = new Date();
-    const twoHoursMs = 2 * 60 * 60 * 1000;
+    const thirtyMinMs = 30 * 60 * 1000;
 
     scheduledSlots.forEach(scheduledSlot => {
         const remainingSpots = BookingStorage.getRemainingSpots(dateInfo.formatted, scheduledSlot.time, scheduledSlot.type);
         if (remainingSpots <= 0) return;
 
-        const [_sh, _sm] = scheduledSlot.time.split(' - ')[0].trim().split(':').map(Number);
-        const lessonStart = new Date(dateInfo.date);
-        lessonStart.setHours(_sh, _sm, 0, 0);
-        if ((lessonStart - now) <= twoHoursMs) return;
+        const [_eh, _em] = scheduledSlot.time.split(' - ')[1].trim().split(':').map(Number);
+        const lessonEnd = new Date(dateInfo.date);
+        lessonEnd.setHours(_eh, _em, 0, 0);
+        if ((lessonEnd - now) < thirtyMinMs) return;
 
         const slotCard = createMobileSlotCard(dateInfo, scheduledSlot);
         slotsList.appendChild(slotCard);
@@ -329,11 +329,11 @@ function createMobileSlotCard(dateInfo, scheduledSlot) {
         <div class="mobile-slot-type">${SLOT_NAMES[slotType]}</div>
     `;
 
-    // Only allow booking if lesson starts more than 2h from now
-    const [_sh, _sm] = timeSlot.split(' - ')[0].trim().split(':').map(Number);
-    const lessonStart = new Date(dateInfo.date);
-    lessonStart.setHours(_sh, _sm, 0, 0);
-    const bookable = !isFull && (lessonStart - new Date()) > 2 * 60 * 60 * 1000;
+    // Allow booking if not full and the lesson ends in at least 30 minutes from now
+    const [_eh, _em] = timeSlot.split(' - ')[1].trim().split(':').map(Number);
+    const lessonEnd = new Date(dateInfo.date);
+    lessonEnd.setHours(_eh, _em, 0, 0);
+    const bookable = !isFull && (lessonEnd - new Date()) >= 30 * 60 * 1000;
 
     if (bookable) {
         slotCard.addEventListener('click', () => {
