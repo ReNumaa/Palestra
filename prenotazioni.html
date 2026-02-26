@@ -295,11 +295,11 @@
 
             const methodMap = { contanti: '💵 Contanti', carta: '💳 Carta', iban: '🏦 IBAN', credito: '💳 Credito' };
 
-            // 1. Prenotazioni pagate (escludi quelle pagate con credito: già nello storico crediti)
+            // 1. Tutte le prenotazioni pagate — prezzo pieno, singole
             BookingStorage.getAllBookings()
-                .filter(b => matchUser(b.whatsapp, b.email) && b.paid && b.paymentMethod !== 'credito')
+                .filter(b => matchUser(b.whatsapp, b.email) && b.paid)
                 .forEach(b => {
-                    const price = (SLOT_PRICES[b.slotType] || 0) - (b.creditApplied || 0);
+                    const price = SLOT_PRICES[b.slotType] || 0;
                     if (price <= 0) return;
                     const slotName = (SLOT_NAMES && SLOT_NAMES[b.slotType]) || b.slotType || '—';
                     const [by, bm, bd] = b.date.split('-');
@@ -311,12 +311,13 @@
                     });
                 });
 
-            // 2. Storico crediti
+            // 2. Storico crediti — solo entrate positive (credito ricevuto)
+            //    Le uscite (credito usato) sono già coperte dalle singole prenotazioni
             const creditRec = CreditStorage.getRecord(user.whatsapp, user.email);
-            (creditRec?.history || []).forEach(e => {
+            (creditRec?.history || []).filter(e => e.amount > 0).forEach(e => {
                 entries.push({
                     date: new Date(e.date), icon: '💳',
-                    label: e.note || (e.amount > 0 ? 'Credito aggiunto' : 'Credito utilizzato'),
+                    label: e.note || 'Credito aggiunto',
                     sub: '', amount: e.amount
                 });
             });
