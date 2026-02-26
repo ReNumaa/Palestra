@@ -1973,7 +1973,8 @@ function paySelectedDebts() {
             currentDebtContact.email,
             currentDebtContact.name,
             creditDelta,
-            `Eccedenza pagamento (${paymentMethod})`
+            `Pagamento con credito di €${creditDelta}`,
+            amountPaid
         );
         CreditStorage.applyToUnpaidBookings(
             currentDebtContact.whatsapp,

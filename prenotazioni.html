@@ -318,7 +318,7 @@
                 entries.push({
                     date: new Date(e.date), icon: '💳',
                     label: e.note || 'Credito aggiunto',
-                    sub: '', amount: e.amount
+                    sub: '', amount: e.displayAmount ?? e.amount
                 });
             });
 
