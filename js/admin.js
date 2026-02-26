@@ -769,7 +769,7 @@ function deleteBooking(bookingId, bookingName) {
 
         // Refund credit: full price if paid (any method), partial if only creditApplied > 0
         const price = SLOT_PRICES[booking.slotType] || 0;
-        const creditToRefund = booking.paid ? price : (booking.creditApplied || 0);
+        const creditToRefund = (booking.paid || (booking.creditApplied || 0) > 0) ? price : 0;
         if (creditToRefund > 0) {
             CreditStorage.addCredit(
                 booking.whatsapp,
