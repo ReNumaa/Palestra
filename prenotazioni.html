@@ -232,7 +232,8 @@
             if (b.status === 'cancelled') {
                 payBadge = `<span class="preno-badge preno-badge-cancelled">✕ Annullata</span>`;
             } else if (b.paid) {
-                const method = b.paymentMethod === 'credito' ? '💳 Pagata con Credito' : '✓ Pagata';
+                const methodLabels = { credito: '💳 Pagata con Credito', contanti: '💵 Pagata con Contanti', carta: '💳 Pagata con Carta', iban: '🏦 Pagata con IBAN' };
+                const method = methodLabels[b.paymentMethod] || '✓ Pagata';
                 payBadge = `<span class="preno-badge preno-badge-paid">${method}</span>`;
             } else if ((b.creditApplied || 0) > 0) {
                 const remaining = (SLOT_PRICES[b.slotType] || 0) - b.creditApplied;
