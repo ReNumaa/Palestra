@@ -803,6 +803,12 @@ function renderScheduleManager() {
 
     const weekDates = getScheduleWeekDates(scheduleWeekOffset);
 
+    // Resolve selected date BEFORE building HTML so the active tab gets highlighted.
+    // Reset to Monday if no date is selected or the selection belongs to a different week.
+    if (!selectedScheduleDate || !weekDates.find(d => d.formatted === selectedScheduleDate.formatted)) {
+        selectedScheduleDate = weekDates[0];
+    }
+
     // Week navigation
     const firstDate = weekDates[0].date;
     const lastDate = weekDates[6].date;
@@ -844,11 +850,6 @@ function renderScheduleManager() {
     html += '<div id="scheduleDaySlots"></div>';
 
     manager.innerHTML = html;
-
-    // Select first day if none selected
-    if (!selectedScheduleDate) {
-        selectedScheduleDate = weekDates[0];
-    }
 
     renderAllTimeSlots();
 }
