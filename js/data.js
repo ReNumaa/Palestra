@@ -546,14 +546,18 @@ class BookingStorage {
         localStorage.setItem(this.BOOKINGS_KEY, JSON.stringify(bookings));
     }
 
-    // Rimuove fisicamente una prenotazione per ID (usato da admin per slot prenotato)
-    // Supabase migration: sostituire con supabaseClient.from('bookings').delete().eq('id', id)
+    // Marca come cancellata una prenotazione per ID (preserva lo storico)
     static removeBookingById(id) {
         if (!id) return;
         const all = this.getAllBookings();
         const idx = all.findIndex(b => b.id === id);
-        if (idx !== -1) {
-            all.splice(idx, 1);
+        if (idx !== -1 && all[idx].status !== 'cancelled') {
+            all[idx].status = 'cancelled';
+            all[idx].cancelledAt = new Date().toISOString();
+            all[idx].paid = false;
+            all[idx].paymentMethod = null;
+            all[idx].paidAt = null;
+            all[idx].creditApplied = 0;
             this.replaceAllBookings(all);
         }
     }
