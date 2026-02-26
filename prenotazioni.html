@@ -344,8 +344,8 @@
                     const [by, bm, bd] = b.date.split('-');
                     entries.push({
                         date: new Date(b.cancelledAt || `${b.date}T12:00:00`),
-                        icon: '✕', label: `Annullata — ${slotName}`,
-                        sub: `${bd}/${bm}/${by}`, amount: 0, cancelled: true
+                        icon: '✕', label: slotName,
+                        sub: `${bd}/${bm}/${by} · ✕ Annullata`, amount: 0, cancelled: true
                     });
                 });
 
