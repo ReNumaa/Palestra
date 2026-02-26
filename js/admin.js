@@ -541,6 +541,7 @@ function resetDemoData() {
         localStorage.removeItem(BookingStorage.BOOKINGS_KEY);
         localStorage.removeItem(BookingStorage.STATS_KEY);
         localStorage.removeItem(CreditStorage.CREDITS_KEY);
+        localStorage.removeItem(ManualDebtStorage.DEBTS_KEY);
         localStorage.removeItem('scheduleOverrides');
         localStorage.removeItem('dataClearedByUser');
         BookingStorage.initializeDemoData();
@@ -554,6 +555,7 @@ function clearAllData() {
         localStorage.removeItem(BookingStorage.BOOKINGS_KEY);
         localStorage.removeItem(BookingStorage.STATS_KEY);
         localStorage.removeItem(CreditStorage.CREDITS_KEY);
+        localStorage.removeItem(ManualDebtStorage.DEBTS_KEY);
         localStorage.removeItem('scheduleOverrides');
         localStorage.setItem('dataClearedByUser', 'true');
         alert('✅ Tutti i dati sono stati eliminati.');
