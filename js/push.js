@@ -74,5 +74,6 @@ if ('Notification' in window && Notification.permission === 'granted') {
  *     created_at timestamptz default now()
  *   )
  *
- * VAPID private key (env var VAPID_PRIVATE_KEY): R7OfZe_XBmmwAW4nJdZ5gTCwTqfPd3ON9UB4NnfkUDg
+ * VAPID private key → salvarla SOLO come secret in Supabase (env var VAPID_PRIVATE_KEY)
+ *                      NON scriverla mai nel codice frontend
  */
