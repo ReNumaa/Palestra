@@ -28,6 +28,13 @@
     flex-shrink: 0;
 }
 
+.preno-header-top {
+    display: flex;
+    align-items: center;
+    gap: 0.6rem;
+    flex-wrap: wrap;
+}
+
 .preno-title {
     font-size: 1.5rem;
     color: var(--dark-bg);
@@ -38,6 +45,49 @@
     font-size: 0.88rem;
     color: #777;
     margin: 0;
+}
+
+.preno-edit-btn {
+    background: none;
+    border: 1.5px solid #e0e0e0;
+    color: #666;
+    font-size: 0.72rem;
+    font-weight: 600;
+    padding: 0.18rem 0.55rem;
+    border-radius: 20px;
+    cursor: pointer;
+    transition: background 0.2s, border-color 0.2s;
+    white-space: nowrap;
+    flex-shrink: 0;
+}
+
+.preno-edit-btn:hover {
+    background: #f0f0f0;
+    border-color: #aaa;
+}
+
+/* ── Edit profile modal ───────────────────────────────────────── */
+.edit-profile-title {
+    font-size: 1.15rem;
+    font-weight: 700;
+    color: var(--dark-bg);
+    margin: 0 0 1rem;
+}
+
+.edit-profile-label-note {
+    font-weight: 400;
+    color: #999;
+    font-size: 0.8rem;
+}
+
+.edit-profile-error {
+    background: #fef2f2;
+    color: #dc2626;
+    border: 1px solid #fecaca;
+    border-radius: 8px;
+    padding: 0.5rem 0.75rem;
+    font-size: 0.85rem;
+    margin-top: 0.25rem;
 }
 
 /* ── Saldo card ───────────────────────────────────────────────── */

@@ -28,6 +28,62 @@ function getUserByEmail(email) {
     return _getAllUsers().find(u => u.email.toLowerCase() === email.toLowerCase()) || null;
 }
 
+// Update user profile — returns { ok: true } or { ok: false, error: string }
+function updateUserProfile(currentEmail, updates, newPassword) {
+    const users = _getAllUsers();
+    const idx = users.findIndex(u => u.email.toLowerCase() === currentEmail.toLowerCase());
+    if (idx === -1) return { ok: false, error: 'Utente non trovato.' };
+
+    const user     = users[idx];
+    const newEmail = (updates.email || currentEmail).toLowerCase();
+
+    // Controlla unicità email
+    if (newEmail !== currentEmail.toLowerCase()) {
+        const taken = users.some((u, i) => i !== idx && u.email.toLowerCase() === newEmail);
+        if (taken) return { ok: false, error: 'Email già in uso da un altro account.' };
+    }
+
+    if (updates.name     !== undefined) user.name     = updates.name;
+    if (updates.email    !== undefined) user.email    = newEmail;
+    if (updates.whatsapp !== undefined) user.whatsapp = updates.whatsapp;
+
+    // Certificato medico: aggiorna scadenza e mantieni storico completo
+    if (updates.certificatoMedicoScadenza !== undefined) {
+        const newScad = updates.certificatoMedicoScadenza || null;
+        if (newScad !== (user.certificatoMedicoScadenza || null)) {
+            user.certificatoMedicoScadenza = newScad;
+            if (!user.certificatoMedicoHistory) user.certificatoMedicoHistory = [];
+            user.certificatoMedicoHistory.push({
+                scadenza: newScad,
+                aggiornatoIl: new Date().toISOString()
+            });
+        }
+    }
+
+    if (newPassword) user.passwordHash = _hashPassword(newPassword);
+
+    _saveUsers(users);
+
+    // Se l'email è cambiata, aggiorna tutte le prenotazioni collegate
+    if (newEmail !== currentEmail.toLowerCase()) {
+        try {
+            const bookings = JSON.parse(localStorage.getItem('gym_bookings') || '[]');
+            bookings.forEach(b => {
+                if (b.email && b.email.toLowerCase() === currentEmail.toLowerCase()) b.email = newEmail;
+            });
+            localStorage.setItem('gym_bookings', JSON.stringify(bookings));
+        } catch {}
+    }
+
+    // Aggiorna la sessione corrente
+    const current = getCurrentUser();
+    if (current) {
+        loginUser({ ...current, name: user.name, email: user.email, whatsapp: user.whatsapp });
+    }
+
+    return { ok: true };
+}
+
 // Synchronous password hash — works on all platforms without crypto.subtle
 function _hashPassword(password) {
     const str = password + '|gym-tb|' + password.length;
