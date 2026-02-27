@@ -2123,6 +2123,20 @@ function createClientCard(client, index) {
     const manualDebt  = ManualDebtStorage.getBalance(client.whatsapp, client.email) || 0;
     const netBalance  = Math.round((credit - manualDebt) * 100) / 100;
 
+    // Certificato medico dal profilo utente
+    const userRecord = getUserByEmail(client.email);
+    const certScad   = userRecord?.certificatoMedicoScadenza || '';
+    const certDisplay = (() => {
+        if (!certScad) return '';
+        const today = new Date().toISOString().split('T')[0];
+        const [cy, cm, cd] = certScad.split('-');
+        const label = `${cd}/${cm}/${cy}`;
+        if (certScad < today) return `<span class="cedit-cert-badge cedit-cert-expired">🏥 Cert. scaduto il ${label}</span>`;
+        const daysLeft = Math.ceil((new Date(certScad + 'T00:00:00') - new Date()) / 86400000);
+        if (daysLeft <= 15) return `<span class="cedit-cert-badge cedit-cert-expiring">⏳ Cert. scade il ${label}</span>`;
+        return `<span class="cedit-cert-badge cedit-cert-ok">✅ Cert. valido fino al ${label}</span>`;
+    })();
+
     const totalAllPaid = Math.round((totalPaid + credit) * 100) / 100;
     let statsHTML = `<span class="cstat">${totalBookings} prenotazioni</span>`;
     if (totalAllPaid > 0) statsHTML += `<span class="cstat paid">€${totalAllPaid} pagato</span>`;
@@ -2268,6 +2282,7 @@ function createClientCard(client, index) {
                 <div class="client-contacts">
                     <span>📱 ${client.whatsapp}</span>
                     ${client.email ? `<span>✉️ ${client.email}</span>` : ''}
+                    ${certDisplay}
                 </div>
             </div>
             <div class="client-stats-block">${statsHTML}</div>
@@ -2283,6 +2298,7 @@ function createClientCard(client, index) {
                         <label>Nome<input type="text"  id="cedit-name-${index}"  value="${client.name}"></label>
                         <label>WhatsApp<input type="tel"   id="cedit-phone-${index}" value="${client.whatsapp}"></label>
                         <label>Email<input type="email" id="cedit-email-${index}" value="${client.email || ''}"></label>
+                        <label>Cert. Medico<input type="date" id="cedit-cert-${index}" value="${certScad}"></label>
                     </div>
                     <div class="client-edit-actions">
                         <button class="btn-save-edit"   onclick="saveClientEdit(${index}, '${wEsc}', '${emEsc}')">✓ Salva</button>
@@ -2323,32 +2339,91 @@ function saveClientEdit(index, oldWhatsapp, oldEmail) {
     const newName     = document.getElementById(`cedit-name-${index}`).value.trim();
     const newWhatsapp = document.getElementById(`cedit-phone-${index}`).value.trim();
     const newEmail    = document.getElementById(`cedit-email-${index}`).value.trim();
+    const newCert     = document.getElementById(`cedit-cert-${index}`).value;
     if (!newName || !newWhatsapp) { alert('Nome e WhatsApp sono obbligatori.'); return; }
 
-    const normOld = normalizePhone(oldWhatsapp);
+    const normOld      = normalizePhone(oldWhatsapp);
+    const normNewPhone = normalizePhone(newWhatsapp) || newWhatsapp;
+
+    // ── 1. gym_bookings ───────────────────────────────────────────
     const bookings = BookingStorage.getAllBookings();
     bookings.forEach(b => {
         const phoneMatch = normOld && normalizePhone(b.whatsapp) === normOld;
         const emailMatch = oldEmail && b.email && b.email.toLowerCase() === oldEmail.toLowerCase();
         if (phoneMatch || emailMatch) {
-            b.name = newName;
-            b.whatsapp = newWhatsapp;
-            b.email = newEmail;
+            b.name     = newName;
+            b.whatsapp = normNewPhone;
+            b.email    = newEmail;
         }
     });
     BookingStorage.replaceAllBookings(bookings);
 
-    // Update stored credit record contact info
+    // ── 2. gym_credits ────────────────────────────────────────────
     const creditKey = CreditStorage._findKey(oldWhatsapp, oldEmail);
     if (creditKey) {
         const all = CreditStorage._getAll();
-        all[creditKey].name = newName;
-        all[creditKey].whatsapp = newWhatsapp;
-        all[creditKey].email = newEmail;
+        all[creditKey].name     = newName;
+        all[creditKey].whatsapp = normNewPhone;
+        all[creditKey].email    = newEmail;
         CreditStorage._save(all);
     }
 
-    openClientIndex = null; // name sort may shift the card index
+    // ── 3. gym_manual_debts ───────────────────────────────────────
+    const debtKey = ManualDebtStorage._findKey(oldWhatsapp, oldEmail);
+    if (debtKey) {
+        const all = ManualDebtStorage._getAll();
+        all[debtKey].name     = newName;
+        all[debtKey].whatsapp = normNewPhone;
+        all[debtKey].email    = newEmail;
+        ManualDebtStorage._save(all);
+    }
+
+    // ── 4. gym_users (profilo registrato) ─────────────────────────
+    const users  = _getAllUsers();
+    const oldEmailLow = (oldEmail || '').toLowerCase();
+    let userIdx = users.findIndex(u => {
+        const phoneMatch = normOld && normalizePhone(u.whatsapp) === normOld;
+        const emailMatch = oldEmailLow && u.email && u.email.toLowerCase() === oldEmailLow;
+        return phoneMatch || emailMatch;
+    });
+
+    if (userIdx === -1 && newCert) {
+        // Cliente non registrato: crea profilo minimo per salvare il certificato
+        users.push({ name: newName, email: newEmail, whatsapp: normNewPhone, createdAt: new Date().toISOString() });
+        userIdx = users.length - 1;
+    }
+
+    if (userIdx !== -1) {
+        users[userIdx].name     = newName;
+        users[userIdx].whatsapp = normNewPhone;
+        if (newEmail) users[userIdx].email = newEmail;
+
+        // Cert. medico: aggiorna solo se cambiato, mantieni storico
+        const oldCert = users[userIdx].certificatoMedicoScadenza || '';
+        if (newCert !== oldCert) {
+            users[userIdx].certificatoMedicoScadenza = newCert || null;
+            if (!users[userIdx].certificatoMedicoHistory) users[userIdx].certificatoMedicoHistory = [];
+            users[userIdx].certificatoMedicoHistory.push({
+                scadenza: newCert || null,
+                aggiornatoIl: new Date().toISOString()
+            });
+        }
+        _saveUsers(users);
+
+        // ── 5. Aggiorna sessione se l'utente è loggato ────────────
+        const current = getCurrentUser();
+        if (current) {
+            const sessionPhone = normalizePhone(current.whatsapp);
+            const sessionEmail = (current.email || '').toLowerCase();
+            const isLogged = (normOld && sessionPhone === normOld) ||
+                             (oldEmailLow && sessionEmail === oldEmailLow);
+            if (isLogged) {
+                loginUser({ ...current, name: newName, email: newEmail || current.email, whatsapp: normNewPhone });
+            }
+        }
+    }
+
+    openClientIndex = null; // l'ordinamento per nome può cambiare l'indice della card
     renderClientsTab();
 }
 
