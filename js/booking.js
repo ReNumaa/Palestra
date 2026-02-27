@@ -329,6 +329,8 @@ async function notificaPrenotazione(booking) {
         permission = await Notification.requestPermission();
     }
     if (permission !== 'granted') return;
+    // Registra push subscription per notifiche future (es. reminder 24h prima)
+    if (typeof registerPushSubscription === 'function') registerPushSubscription();
     const reg = await navigator.serviceWorker.ready;
     reg.showNotification('Prenotazione confermata', {
         body: `${SLOT_NAMES[booking.slotType]} · ${booking.dateDisplay} · ${booking.time}`,
