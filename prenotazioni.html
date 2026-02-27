@@ -163,7 +163,7 @@
 
     <script src="js/ui.js?v=1"></script>
     <script src="js/data.js?v=4"></script>
-    <script src="js/auth.js?v=4"></script>
+    <script src="js/auth.js?v=5"></script>
     <script>
         // ── Guard ─────────────────────────────────────────────────────────
         const _user = getCurrentUser();
@@ -207,10 +207,12 @@
                 _pollInterval = setInterval(() => {
                     const user = getCurrentUser();
                     if (!user) { clearInterval(_pollInterval); return; }
-                    const hasPending = BookingStorage.getAllBookings().some(b =>
-                        b.email && b.email.toLowerCase() === user.email.toLowerCase()
-                        && b.status === 'cancellation_requested'
-                    );
+                    const _myPhone = user.whatsapp ? normalizePhone(user.whatsapp) : '';
+                    const hasPending = BookingStorage.getAllBookings().some(b => {
+                        const emailMatch = user.email && b.email && b.email.toLowerCase() === user.email.toLowerCase();
+                        const phoneMatch = _myPhone && b.whatsapp && normalizePhone(b.whatsapp) === _myPhone;
+                        return (emailMatch || phoneMatch) && b.status === 'cancellation_requested';
+                    });
                     if (!hasPending) {
                         clearInterval(_pollInterval);
                         _pollInterval = null;
