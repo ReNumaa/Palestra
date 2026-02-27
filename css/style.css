@@ -25,6 +25,17 @@ body {
     color: var(--text-dark);
     line-height: 1.6;
     overflow-x: hidden;
+    min-height: 100vh;
+    display: flex;
+    flex-direction: column;
+}
+
+/* Il contenuto principale si espande per spingere il footer in fondo */
+.calendar-section,
+.login-page,
+.preno-page,
+.dashboard-section {
+    flex: 1;
 }
 
 .container {
