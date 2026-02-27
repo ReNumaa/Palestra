@@ -1,6 +1,6 @@
 # TB Training — Diario di Sviluppo & Roadmap
 
-> Documento aggiornato al 27/02/2026
+> Documento aggiornato al 27/02/2026 (sessione 2)
 > Prototipo: sistema di prenotazione palestra, frontend-only con localStorage
 > Supabase CLI installato, schema SQL definito, accesso dati centralizzato
 > Supabase cloud attivo (tabelle create), Google OAuth funzionante, numeri normalizzati E.164
@@ -558,6 +558,48 @@ Libreria Canvas custom, nessuna dipendenza esterna.
 
 ---
 
+### 4.17 Fix pagamenti, transazioni, ordinamento e prezzi (feb 2026)
+
+**Export dati — file .xlsx unico con SheetJS (`admin.js` + `admin.html`):**
+- Sostituiti i 6 CSV separati con un singolo file `.xlsx` (`TB_Training_export_YYYY-MM-DD.xlsx`)
+- Libreria SheetJS (`xlsx@0.18.5`) caricata via CDN in `admin.html`
+- 6 fogli: Clienti, Prenotazioni, Pagamenti, Crediti, Debiti Manuali, Gestione Orari
+- Larghezze colonne auto-calcolate (`ws['!cols']`)
+
+**Fix transazioni: pagamento carta/contanti/iban mancante (`data.js` + `admin.js` + `prenotazioni.html`):**
+- Quando si pagava un debito con carta/contanti/iban, lo storico transazioni mostrava solo le voci negative (es. -30€ e -5€ per le lezioni) senza la corrispondente voce positiva (+35€ incassato)
+- `CreditStorage.addCredit()`: rimosso il `return` immediato su `amount === 0` — le voci con importo zero sono ora ammesse come log informativi (non modificano il saldo)
+- `paySelectedDebts()`: quando `paymentMethod !== 'credito'` e `creditDelta <= 0`, aggiunge una voce `{ amount: 0, displayAmount: amountPaid, note: "💳 Carta ricevuto" }` nel registro crediti
+- Filtro sezione 2 della transaction view (entrambe le pagine): `e.amount > 0 || (e.amount === 0 && e.displayAmount > 0)` — include le voci informative
+
+**Badge "Segna pagato" cliccabile in Prenotazioni admin (`admin.js` + `admin.css`):**
+- Il badge "Non pagato" era solo testo; ora è "⊕ Segna pagato", cliccabile, colore ambra con hover
+- Click → apre `openDebtPopup()` direttamente dalla card prenotazione, anche per lezioni future
+- `openDebtPopup()` modificato: rimosso il filtro `bookingHasPassed(b)` → ora mostra **tutte** le prenotazioni non pagate (passate e future)
+- Subtitle aggiornato: "3 lezioni non pagate (1 passata, 2 future)"
+
+**Fix cutoff annullamento (`prenotazioni.html`):**
+- La variabile `_isGroupClass` controllava `b.slotType === 'group-class'` che è lo **Slot prenotato** (rosso), non la Lezione di Gruppo
+- Fix: `_isGroupClass = b.slotType !== 'group-class'` — solo lo Slot prenotato (rosso) ha cutoff 3 giorni; Lezione di Gruppo e Autonomia usano 3 ore
+- Secondo fix: il controllo `b.status === 'cancellation_requested'` era solo nel ramo `else`, mai raggiunto per i tipi con `_isGroupClass = true` → il bottone riappariva dopo la richiesta. Aggiunto il check anche dentro il ramo `if (_isGroupClass)`
+
+**Prezzi lezioni aggiornati (`data.js`):**
+- `personal-training` (Autonomia, verde): €5 (invariato)
+- `small-group` (Lezione di Gruppo, giallo): €10 (era €30)
+- `group-class` (Slot prenotato, rosso): €50 (era €10)
+
+**Ordinamento prenotazioni per orario (`js/auth.js`):**
+- `upcoming`: ordinato per `date ASC, time ASC` (la più vicina in cima) — prima usava solo `date`
+- `past`: ordinato per `date DESC, time DESC` (la più recente in cima) — prima usava solo `date`
+
+**Fix paidAt nell'export e nel form di modifica (`admin.js`):**
+- Foglio "Pagamenti": le righe prenotazione usavano `fmtDate` (solo data) invece di `fmtDateTime` (data+ora) → ora tutte le righe mostrano data e orario come le voci credito
+- Form modifica pagamento in admin Clienti: campo `type="date"` → `type="datetime-local"` per preservare l'orario esatto
+- Valore pre-compilato: `booking.paidAt.slice(0, 16)` (formato `YYYY-MM-DDTHH:MM` per datetime-local)
+- Save: rimosso il suffisso artificiale `+ 'T12:00:00'`; usa `new Date(newPaidAtRaw).toISOString()` direttamente
+
+---
+
 ### 4.12 Notifiche (pianificate, non ancora implementate)
 
 - Il form di prenotazione simula l'invio di un messaggio WhatsApp (solo `console.log`)
@@ -637,6 +679,15 @@ Libreria Canvas custom, nessuna dipendenza esterna.
 | Certificato medico: scadenza corrente + storico completo in gym_users | Funzionante ✅ |
 | Warning certificato scaduto/imminente nel profilo (con link aggiorna) | Funzionante ✅ |
 | Warning certificato scaduto nella card partecipante admin | Funzionante ✅ |
+| Export dati: file .xlsx unico con 6 fogli (SheetJS) | Funzionante ✅ |
+| Transazioni: voce positiva per pagamenti carta/contanti/iban | Funzionante ✅ |
+| Badge "Segna pagato" cliccabile in Prenotazioni (anche lezioni future) | Funzionante ✅ |
+| Popup debiti mostra tutte le lezioni non pagate (passate + future) | Funzionante ✅ |
+| Fix cutoff annullamento: Lezione di Gruppo e Autonomia 3h, Slot prenotato 3gg | Funzionante ✅ |
+| Fix status cancellation_requested nei rami _isGroupClass | Funzionante ✅ |
+| Prezzi: Autonomia €5, Lezione di Gruppo €10, Slot prenotato €50 | Funzionante ✅ |
+| Ordinamento prossime per data+ora ASC, passate per data+ora DESC | Funzionante ✅ |
+| paidAt export e form modifica: data+ora completa (datetime-local) | Funzionante ✅ |
 
 ---
 
