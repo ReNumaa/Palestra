@@ -163,7 +163,7 @@
 
     <script src="js/ui.js?v=1"></script>
     <script src="js/data.js?v=5"></script>
-    <script src="js/auth.js?v=6"></script>
+    <script src="js/auth.js?v=7"></script>
     <script>
         // ── Guard ─────────────────────────────────────────────────────────
         const _user = getCurrentUser();
@@ -350,9 +350,14 @@
                 return (p || '').replace(/[\s\-().+]/g, '').replace(/^0039/, '').replace(/^39/, '');
             }
             const uPhone = normPhone(user.whatsapp);
+            // Email is required; when both sides have a phone it must also match.
+            // This prevents two accounts with the same email but different phones
+            // from seeing each other's booking history.
             function matchUser(w, e) {
-                return (uPhone && normPhone(w) === uPhone) ||
-                       (user.email && e && e.toLowerCase() === user.email.toLowerCase());
+                if (!user.email || !e) return false;
+                if (e.toLowerCase() !== user.email.toLowerCase()) return false;
+                if (uPhone && w && normPhone(w) !== uPhone) return false;
+                return true;
             }
 
             const methodMap = { contanti: '💵 Contanti', carta: '💳 Carta', iban: '🏦 IBAN', credito: '💳 Credito' };

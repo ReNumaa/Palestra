@@ -216,11 +216,13 @@ function getUserBookings() {
     const myPhone = user.whatsapp ? normalizePhone(user.whatsapp) : '';
     const mine = allBookings.filter(b => {
         if (b.id && b.id.startsWith('demo-')) return false;
-        const emailMatch = user.email && b.email &&
-            b.email.toLowerCase() === user.email.toLowerCase();
-        const phoneMatch = myPhone && b.whatsapp &&
-            normalizePhone(b.whatsapp) === myPhone;
-        return emailMatch || phoneMatch;
+        // Email is required — must always match
+        if (!user.email || !b.email) return false;
+        if (b.email.toLowerCase() !== user.email.toLowerCase()) return false;
+        // When both user and booking have a phone, it must also match
+        // (prevents two accounts with the same email but different phones from sharing data)
+        if (myPhone && b.whatsapp && normalizePhone(b.whatsapp) !== myPhone) return false;
+        return true;
     });
 
     function isBookingPast(b) {
