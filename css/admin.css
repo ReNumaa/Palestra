@@ -749,8 +749,13 @@ canvas {
 }
 
 .payment-status.unpaid {
-    color: #999;
-    background: rgba(0, 0, 0, 0.05);
+    color: #d97706;
+    background: rgba(245, 158, 11, 0.1);
+    cursor: pointer;
+}
+
+.payment-status.unpaid:hover {
+    background: rgba(245, 158, 11, 0.2);
 }
 
 /* ===== Clients Tab ===== */

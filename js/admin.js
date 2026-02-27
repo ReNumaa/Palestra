@@ -933,7 +933,7 @@ function createAdminSlotCard(dateInfo, scheduledSlot) {
                         ${cancelPendingBadge}
                         ${certBadge}
                         ${hasDebts ? `<div class="debt-warning" onclick="openDebtPopup('${booking.whatsapp.replace(/'/g, "\\'")}', '${booking.email.replace(/'/g, "\\'")}', '${booking.name.replace(/'/g, "\\'")}')">⚠️ Da pagare: €${unpaidAmount}</div>` : ''}
-                        ${!isCancelPending ? `<div class="payment-status ${isPaid ? 'paid' : 'unpaid'}">${isPaid ? '✓ Pagato' : 'Non pagato'}</div>` : ''}
+                        ${!isCancelPending ? `<div class="payment-status ${isPaid ? 'paid' : 'unpaid'}"${!isPaid ? ` onclick="openDebtPopup('${booking.whatsapp.replace(/'/g, "\\'")}','${booking.email.replace(/'/g, "\\'")}','${booking.name.replace(/'/g, "\\'")}')"`  : ''}>${isPaid ? '✓ Pagato' : '⊕ Segna pagato'}</div>` : ''}
                     </div>
                 </div>
             `;
@@ -2040,7 +2040,7 @@ function openDebtPopup(whatsapp, email, name) {
         .filter(b => {
             const phoneMatch = normWhatsapp && normalizePhone(b.whatsapp) === normWhatsapp;
             const emailMatch = email && b.email && b.email.toLowerCase() === email.toLowerCase();
-            return (phoneMatch || emailMatch) && !b.paid && bookingHasPassed(b) && b.status !== 'cancelled';
+            return (phoneMatch || emailMatch) && !b.paid && b.status !== 'cancelled' && b.status !== 'cancellation_requested';
         })
         .sort((a, b) => a.date.localeCompare(b.date) || a.time.localeCompare(b.time));
 
@@ -2049,8 +2049,13 @@ function openDebtPopup(whatsapp, email, name) {
     currentDebtContact = { whatsapp, email, name, unpaid };
 
     document.getElementById('debtPopupName').textContent = name;
+    const pastCount   = unpaid.filter(b => bookingHasPassed(b)).length;
+    const futureCount = unpaid.length - pastCount;
+    const parts = [];
+    if (pastCount   > 0) parts.push(`${pastCount} passata${pastCount   > 1 ? 'e' : ''}`);
+    if (futureCount > 0) parts.push(`${futureCount} futura${futureCount > 1 ? 'e' : ''}`);
     document.getElementById('debtPopupSubtitle').textContent =
-        `${unpaid.length} lezione${unpaid.length > 1 ? 'i' : ''} non pagata${unpaid.length > 1 ? 'e' : ''}`;
+        `${unpaid.length} lezione${unpaid.length > 1 ? 'i' : ''} non pagata${unpaid.length > 1 ? 'e' : ''} (${parts.join(', ')})`;
 
     // Reset payment method to default
     document.querySelectorAll('.debt-method-btn').forEach(b => b.classList.remove('active'));
