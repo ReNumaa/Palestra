@@ -1,6 +1,6 @@
 # TB Training — Diario di Sviluppo & Roadmap
 
-> Documento aggiornato al 27/02/2026 (sessione 2)
+> Documento aggiornato al 27/02/2026 (sessione 3)
 > Prototipo: sistema di prenotazione palestra, frontend-only con localStorage
 > Supabase CLI installato, schema SQL definito, accesso dati centralizzato
 > Supabase cloud attivo (tabelle create), Google OAuth funzionante, numeri normalizzati E.164
@@ -71,6 +71,7 @@ Palestra-Booking-Prototype/
 │   ├── chart-mini.js       # Libreria grafici su Canvas (linea + torta)
 │   ├── auth.js             # Auth localStorage + normalizePhone() E.164
 │   ├── supabase-client.js  # Inizializzazione Supabase JS SDK (usato da login.html)
+│   ├── push.js             # Push notification subscription (VAPID, localStorage → Supabase)
 │   └── admin.js            # Tutta la logica della dashboard admin
 ├── supabase/           # Configurazione Supabase CLI (locale)
 │   ├── config.toml     # Config progetto Supabase locale
@@ -600,11 +601,53 @@ Libreria Canvas custom, nessuna dipendenza esterna.
 
 ---
 
+### 4.18 PWA miglioramenti e infrastruttura push notification (feb 2026)
+
+**Rinomina app: "TB Training" → "Palestra"**
+- `manifest.json`: `name` e `short_name` aggiornati a "Palestra"
+- Tutti e 6 gli HTML: `apple-mobile-web-app-title` → "Palestra", `manifest.json?v=3`
+- `sw.js`: cache rinominata `palestra-v1` (forza refresh service worker su tutti i dispositivi)
+
+**Fix icona PWA troppo zoomata**
+- `manifest.json`: rimosso `"maskable"` dal campo `purpose` → ora solo `"any"`
+- Con `maskable` Android riempiva il cerchio con il logo senza padding, risultando molto zoomato
+- Con `any` Chrome aggiunge automaticamente padding bianco e il logo appare proporzionato
+- Effettivo dopo disinstallazione e reinstallazione della PWA
+
+**Notifica locale alla conferma prenotazione**
+- `booking.js`: `notificaPrenotazione(savedBooking)` chiamata dopo `showConfirmation()`
+- Richiede permesso notifiche al primo utilizzo (dentro il click handler — gesto utente)
+- Mostra notifica tramite `serviceWorker.showNotification()` con tipo, data e orario
+- `sw.js`: `notificationclick` handler — tap sulla notifica porta in primo piano la finestra app o apre `prenotazioni.html`
+
+**Infrastruttura push notification pronta per Supabase**
+- Generata coppia di chiavi VAPID P-256 (una volta sola):
+  - Public key: hardcoded in `js/push.js` (appartiene al frontend)
+  - Private key: salvata in `.vapid-keys.txt` (ignorato da git via `.gitignore`)
+- `js/push.js` (nuovo file):
+  - `registerPushSubscription()`: ottiene o crea la subscription con `pushManager.subscribe()`
+  - `savePushSubscription()`: salva endpoint + chiavi p256dh/auth in localStorage in formato già compatibile con schema Supabase
+  - Auto-registrazione silenziosa se permesso già concesso (ad ogni apertura)
+  - Codice TODO commentato con il `supabase.upsert()` sostitutivo + schema tabella `push_subscriptions`
+- `booking.js`: dopo il permesso notifiche concesso, chiama `registerPushSubscription()`
+- `sw.js`: aggiunto handler `push` — riceve notifiche dal server (Supabase Edge Function) e le mostra
+- `js/push.js` caricato in tutti e 6 gli HTML dopo `auth.js`
+- `.gitignore` creato: esclude `.vapid-keys.txt`, `.env`, `.claude/`
+
+**Quando si migra a Supabase (3 passi):**
+1. Crea tabella `push_subscriptions` (schema già scritto in `push.js`)
+2. In `push.js`: sostituisci `savePushSubscription()` con `supabase.upsert()` (codice commentato nel file)
+3. Scrivi Edge Function cron: legge prenotazioni di domani, manda push con VAPID private key dai secrets
+
+---
+
 ### 4.12 Notifiche (pianificate, non ancora implementate)
 
 - Il form di prenotazione simula l'invio di un messaggio WhatsApp (solo `console.log`)
 - Decisione presa: usare **email automatiche** (Brevo/Resend, gratis) come canale principale per i promemoria
 - WhatsApp come canale futuro opzionale (whatsapp-web.js, se il volume lo giustifica)
+- **Notifica locale alla conferma prenotazione:** implementata ✅ (vedi 4.18)
+- **Infrastruttura push (subscription + sw handler):** implementata ✅ (vedi 4.18) — manca solo il backend Supabase
 
 ---
 
@@ -692,6 +735,13 @@ Libreria Canvas custom, nessuna dipendenza esterna.
 | Service worker: cache app shell, offline fallback | Funzionante ✅ |
 | ui.js: setLoading(), showToast(), showInlineError() | Funzionante ✅ |
 | CSS spinner, toast success/error/info | Funzionante ✅ |
+| PWA rinominata "Palestra" (manifest + HTML + sw cache) | Funzionante ✅ |
+| Fix icona PWA: rimosso maskable, padding automatico Android | Funzionante ✅ |
+| Notifica locale conferma prenotazione (Notification API) | Funzionante ✅ |
+| Push subscription registrata in localStorage (formato Supabase-ready) | Funzionante ✅ |
+| sw.js: handler push per notifiche server-side (Supabase Edge Function) | Pronto ✅ |
+| VAPID keys generate, private key in .vapid-keys.txt (fuori repo) | Fatto ✅ |
+| .gitignore: esclude .vapid-keys.txt, .env, .claude/ | Fatto ✅ |
 
 ---
 
@@ -710,7 +760,9 @@ Libreria Canvas custom, nessuna dipendenza esterna.
     - `manifest.json`: `start_url` → `/index.html`, rimuovere `scope`
     - `sw.js`: tutti i path in `APP_SHELL` da `/Palestra/xxx` → `/xxx`
     - HTML: `navigator.serviceWorker.register('/Palestra/sw.js')` → `register('/sw.js')`
-  - [ ] Push Notifications (futuro) — richiede permesso notifiche dopo login, integrazione con Supabase Edge Functions
+  - [x] Push Notifications — frontend pronto ✅ (subscription, sw handler, VAPID keys)
+    - Manca solo il backend: tabella `push_subscriptions` + Edge Function cron su Supabase
+    - Da fare nella fase di migrazione (vedere sezione 4.18 per dettaglio e TODO commentati in `push.js`)
 
 - [ ] **Migrazione da localStorage a Supabase**
   - ~~Installare Supabase CLI~~ ✅
