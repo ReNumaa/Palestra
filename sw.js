@@ -20,6 +20,7 @@ const APP_SHELL = [
     '/Palestra/js/auth.js',
     '/Palestra/js/admin.js',
     '/Palestra/js/chart-mini.js',
+    '/Palestra/js/push.js',
     '/Palestra/images/logo-tb---nero.jpg',
     '/Palestra/manifest.json',
 ];
@@ -46,6 +47,21 @@ self.addEventListener('activate', event => {
             ))
             .then(() => self.clients.claim())
     );
+});
+
+// Push: riceve notifiche dal server (Supabase Edge Function)
+self.addEventListener('push', event => {
+    const data = event.data ? event.data.json() : {};
+    const title = data.title || 'Palestra';
+    const options = {
+        body: data.body || '',
+        icon: '/Palestra/images/logo-tb---nero.jpg',
+        badge: '/Palestra/images/logo-tb---nero.jpg',
+        tag: data.tag || 'palestra-push',
+        renotify: true,
+        data: { url: data.url || '/Palestra/prenotazioni.html' }
+    };
+    event.waitUntil(self.registration.showNotification(title, options));
 });
 
 // Notifiche: porta in primo piano la finestra app al click
