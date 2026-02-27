@@ -66,6 +66,10 @@
     border-color: #aaa;
 }
 
+@media (max-width: 480px) {
+    .preno-edit-label { display: none; }
+}
+
 /* ── Certificato medico warning ───────────────────────────────── */
 .preno-cert-warning {
     border-radius: 10px;
