@@ -1517,6 +1517,14 @@ body.nav-open {
     border-left-color: #ff4444;
 }
 
+.nav-sidebar-credit {
+    font-size: 0.6rem;
+    color: rgba(255, 255, 255, 0.2);
+    text-align: right;
+    padding: 0.6rem 1rem;
+    letter-spacing: 0.02em;
+}
+
 /* On mobile: hide navbar Esci (it lives in the sidebar instead) */
 @media (max-width: 768px) {
     .nav-logout-btn {
