@@ -581,7 +581,7 @@ function exportData() {
     const pagRows = [];
     allBookings.filter(b => b.paid || (b.creditApplied || 0) > 0).forEach(b => {
         pagRows.push([
-            fmtDate(b.paidAt || b.date + 'T12:00:00'),
+            fmtDateTime(b.paidAt || b.date + 'T12:00:00'),
             b.name, b.email, b.whatsapp,
             SLOT_LABEL[b.slotType] || b.slotType,
             SLOT_PRICES[b.slotType] || 0,
@@ -2656,7 +2656,7 @@ function startEditBookingRow(bookingId, clientIndex) {
 
     const dateStr = booking.date.split('-').reverse().join('/');
     const paidAtInput = booking.paidAt
-        ? new Date(booking.paidAt).toISOString().split('T')[0]
+        ? new Date(booking.paidAt).toISOString().slice(0, 16)   // "YYYY-MM-DDTHH:MM" per datetime-local
         : '';
 
     row.innerHTML = `
@@ -2676,7 +2676,7 @@ function startEditBookingRow(bookingId, clientIndex) {
             </select>
         </td>
         <td>
-            <input type="date" id="bedit-paidat-${bookingId}" value="${paidAtInput}" class="bedit-date-input">
+            <input type="datetime-local" id="bedit-paidat-${bookingId}" value="${paidAtInput}" class="bedit-date-input">
         </td>
         <td class="booking-actions">
             <button class="btn-row-save"   onclick="saveBookingRowEdit('${bookingId}', ${clientIndex})" title="Salva">✓</button>
@@ -2736,7 +2736,7 @@ function saveBookingRowEdit(bookingId, clientIndex) {
     if (newPaid) {
         // Use manually entered date if provided, otherwise keep existing or use now
         booking.paidAt = newPaidAtRaw
-            ? new Date(newPaidAtRaw + 'T12:00:00').toISOString()
+            ? new Date(newPaidAtRaw).toISOString()   // datetime-local già include HH:MM
             : (booking.paidAt || new Date().toISOString());
     } else {
         delete booking.paidAt;
