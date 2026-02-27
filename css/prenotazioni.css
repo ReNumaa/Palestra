@@ -87,6 +87,17 @@
     border-left: 4px solid #f59e0b;
 }
 
+.preno-cert-update {
+    cursor: pointer;
+    text-decoration: underline;
+    opacity: 0.8;
+    font-weight: 700;
+}
+
+.preno-cert-update:hover {
+    opacity: 1;
+}
+
 /* ── Edit profile modal ───────────────────────────────────────── */
 .edit-profile-title {
     font-size: 1.15rem;

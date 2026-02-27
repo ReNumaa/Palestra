@@ -466,9 +466,9 @@
             const dateLabel = `${d}/${m}/${y}`;
 
             if (diffDays <= 0) {
-                el.innerHTML = `<div class="preno-cert-warning preno-cert-expired">🏥 Certificato medico scaduto il ${dateLabel}</div>`;
+                el.innerHTML = `<div class="preno-cert-warning preno-cert-expired">🏥 Certificato medico scaduto il ${dateLabel} <span class="preno-cert-update" onclick="openEditProfileModal()">(aggiorna)</span></div>`;
             } else if (diffDays <= 15) {
-                el.innerHTML = `<div class="preno-cert-warning preno-cert-expiring">⏳ Mancano ${diffDays} giorn${diffDays === 1 ? 'o' : 'i'} alla scadenza del tuo certificato medico</div>`;
+                el.innerHTML = `<div class="preno-cert-warning preno-cert-expiring">⏳ Mancano ${diffDays} giorn${diffDays === 1 ? 'o' : 'i'} alla scadenza del tuo certificato medico <span class="preno-cert-update" onclick="openEditProfileModal()">(aggiorna)</span></div>`;
             } else {
                 el.innerHTML = '';
             }
