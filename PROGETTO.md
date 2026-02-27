@@ -1,6 +1,6 @@
 # TB Training — Diario di Sviluppo & Roadmap
 
-> Documento aggiornato al 26/02/2026
+> Documento aggiornato al 27/02/2026
 > Prototipo: sistema di prenotazione palestra, frontend-only con localStorage
 > Supabase CLI installato, schema SQL definito, accesso dati centralizzato
 > Supabase cloud attivo (tabelle create), Google OAuth funzionante, numeri normalizzati E.164
@@ -506,6 +506,58 @@ Libreria Canvas custom, nessuna dipendenza esterna.
 
 ---
 
+### 4.16 Profilo utente, certificato medico e fix UI mobile (feb 2026)
+
+**Badge credito parziale — wrap su mobile (`css/prenotazioni.css`):**
+- Il badge "💳 Credito parziale — €X da pagare" usciva dal div su schermi piccoli
+- Fix: `white-space: normal; text-align: center` su `.preno-badge-partial`
+- Stesso fix applicato a `.preno-cancel-locked` ("🔒 Non annullabile...") per lo stesso motivo
+
+**Prenotazioni "Passate" per orario di fine (`js/auth.js`):**
+- `getUserBookings()` confrontava solo la data (`b.date >= today`): una lezione di oggi restava in "Prossime" anche dopo la sua fine
+- Fix: se `b.date === today`, controlla l'orario di fine dalla stringa `b.time` (`"6:40 - 8:00".split(' - ')[1]`)
+- La prenotazione passa in "Passate" all'orario esatto di fine, non a mezzanotte
+
+**Cutoff annullamenti corretti (`prenotazioni.html`):**
+- Regole precedenti erano invertite; corrette con i criteri definitivi:
+  - **Slot prenotato** (PT / Small Group): pulsante "Annulla prenotazione" attivo solo con ≥ 3 giorni di anticipo; altrimenti 🔒 "Non annullabile (meno di 3 giorni)"
+  - **Lezione di gruppo**: pulsante "Richiedi annullamento" attivo solo con ≥ 3 ore di anticipo; altrimenti 🔒 "Non annullabile (meno di 3 ore)"
+- Costanti `THREE_DAYS_MS` e `THREE_HOURS_MS` calcolate da `_msToLesson = _lessonStart - new Date()`
+
+**Modifica profilo utente (`prenotazioni.html` + `js/auth.js` + `css/prenotazioni.css`):**
+- Bottone "✏️ Modifica profilo" affiancato al nome nella barra header (`.preno-header-top`)
+- Modale con campi: Nome, Email, WhatsApp, Scadenza certificato medico (date picker), Nuova password + conferma
+- Sezione password nascosta automaticamente per utenti autenticati con Google (`user.provider === 'google'`)
+- Nuova funzione `updateUserProfile(currentEmail, updates, newPassword)` in `auth.js`:
+  - Aggiorna `gym_users` in localStorage
+  - Controlla unicità email; se cambia, aggiorna anche tutte le prenotazioni collegate (`gym_bookings`)
+  - Aggiorna la sessione `currentUser` senza logout
+  - Ritorna `{ ok, error }`
+- Header (nome, email, avatar) e navbar si aggiornano in real-time dopo il salvataggio
+
+**Certificato medico — struttura dati (`js/auth.js`):**
+- Nuovo campo `certificatoMedicoScadenza` (stringa `YYYY-MM-DD` o `null`) nell'oggetto utente in `gym_users`
+- Nuovo campo `certificatoMedicoHistory`: array di oggetti `{ scadenza, aggiornatoIl }` — ogni modifica alla scadenza aggiunge una voce; lo storico completo viene mantenuto anche dopo aggiornamenti successivi
+- Aggiornato solo se il valore cambia rispetto a quello salvato
+
+**Warning certificato medico — profilo (`prenotazioni.html` + `css/prenotazioni.css`):**
+- `renderCertWarning()` chiamata al caricamento e subito dopo ogni salvataggio del profilo
+- Se il certificato è **scaduto**: banner rosso `🏥 Certificato medico scaduto il DD/MM/YYYY (aggiorna)`
+- Se mancano **≤ 15 giorni**: banner giallo `⏳ Mancano X giorni alla scadenza del tuo certificato medico (aggiorna)`
+- "(aggiorna)" è un link cliccabile che apre direttamente il modale di modifica profilo
+- Nessun banner se la scadenza è oltre 15 giorni o non impostata
+
+**Warning certificato medico — admin prenotazioni (`js/admin.js` + `css/admin.css`):**
+- In `createAdminSlotCard`, per ogni partecipante: lookup `getUserByEmail(booking.email)` → controlla `certificatoMedicoScadenza`
+- Se scaduto: badge rosso `🏥 Cert. scaduto il DD/MM/YY` nella card partecipante (sotto le note, sopra il debito)
+
+**Decisione — recupero password e conflitto Google/email:**
+- Un utente che si registra con email/password non ha modo di recuperare la password in autonomia
+- Un utente che usa prima Google e poi prova email/password con la stessa email riceve messaggi d'errore non chiari
+- **Decisione:** non gestire questi casi ora — Supabase Auth li risolve nativamente (reset via email, account linking). Rimandato alla migrazione Supabase.
+
+---
+
 ### 4.12 Notifiche (pianificate, non ancora implementate)
 
 - Il form di prenotazione simula l'invio di un messaggio WhatsApp (solo `console.log`)
@@ -578,6 +630,13 @@ Libreria Canvas custom, nessuna dipendenza esterna.
 | Rimozione metodo pagamento dai debiti manuali | Funzionante ✅ |
 | Saldo netto barra nome cliente (credito - debiti manuali, verde/rosso) | Funzionante ✅ |
 | Totale "pagato" include credito disponibile (prenotazioni + credito) | Funzionante ✅ |
+| Badge credito parziale e "Non annullabile" con wrap su mobile | Funzionante ✅ |
+| Prenotazioni passate per orario di fine (non solo data) | Funzionante ✅ |
+| Cutoff annullamenti: slot prenotato ≥3gg, lezione di gruppo ≥3h | Funzionante ✅ |
+| Modifica profilo utente (nome, email, WhatsApp, password, certificato) | Funzionante ✅ |
+| Certificato medico: scadenza corrente + storico completo in gym_users | Funzionante ✅ |
+| Warning certificato scaduto/imminente nel profilo (con link aggiorna) | Funzionante ✅ |
+| Warning certificato scaduto nella card partecipante admin | Funzionante ✅ |
 
 ---
 
@@ -830,6 +889,8 @@ Obiettivo: automatizzare ulteriormente, crescere
 | Timing migrazione Supabase | Dopo completamento sito | Evita complessità async durante sviluppo; BookingStorage già centralizzato per migrazione rapida |
 | Formato numeri WhatsApp | E.164 (`+39XXXXXXXXXX`) | Standard richiesto da WhatsApp Business API; normalizzazione automatica lato client |
 | Apple Sign In | Non implementato | Richiede Apple Developer account a pagamento ($99/anno); Google + Facebook coprono la maggior parte degli utenti |
+| Recupero password e conflitto Google/email | Rimandato a Supabase | Supabase Auth gestisce reset via email e account linking nativamente; inutile costruirlo su localStorage |
+| Schema `gym_users` per certificato medico | `certificatoMedicoScadenza` + `certificatoMedicoHistory` | Storico completo mantenuto anche dopo aggiornamenti; migrazione: colonna `cert_expiry` su tabella `profiles` in Supabase |
 
 ---
 
