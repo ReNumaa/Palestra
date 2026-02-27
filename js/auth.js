@@ -215,6 +215,7 @@ function getUserBookings() {
 
     const myPhone = user.whatsapp ? normalizePhone(user.whatsapp) : '';
     const mine = allBookings.filter(b => {
+        if (b.id && b.id.startsWith('demo-')) return false;
         const emailMatch = user.email && b.email &&
             b.email.toLowerCase() === user.email.toLowerCase();
         const phoneMatch = myPhone && b.whatsapp &&
