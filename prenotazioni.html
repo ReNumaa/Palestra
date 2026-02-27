@@ -516,6 +516,7 @@
             const passConf = document.getElementById('editPasswordConfirm').value;
 
             const errEl = document.getElementById('editProfileError');
+            const btn   = e.target.querySelector('button[type="submit"]');
             function showErr(msg) { errEl.textContent = msg; errEl.style.display = 'block'; }
 
             if (!name)  return showErr('Il nome è obbligatorio.');
@@ -523,6 +524,7 @@
             if (pass && pass.length < 6) return showErr('La password deve essere di almeno 6 caratteri.');
             if (pass && pass !== passConf) return showErr('Le password non coincidono.');
 
+            setLoading(btn, true, 'Salvataggio...');
             const result = updateUserProfile(user.email, {
                 name,
                 email,
@@ -530,7 +532,10 @@
                 certificatoMedicoScadenza: certSc
             }, pass || null);
 
-            if (!result.ok) return showErr(result.error);
+            if (!result.ok) {
+                setLoading(btn, false);
+                return showErr(result.error);
+            }
 
             const updated = getCurrentUser();
             document.getElementById('prenoUserName').textContent = updated.name;
@@ -538,7 +543,9 @@
             document.getElementById('prenoAvatar').textContent = updated.name.charAt(0).toUpperCase();
             updateNavAuth();
             renderCertWarning();
+            setLoading(btn, false);
             closeEditProfileModal();
+            showToast('Profilo aggiornato.', 'success');
         });
     </script>
     <script>
