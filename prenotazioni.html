@@ -66,6 +66,9 @@
                 </div>
             </div>
 
+            <!-- Warning certificato medico -->
+            <div id="prenoCertWarning"></div>
+
             <!-- Tabs -->
             <div class="preno-tabs">
                 <button class="preno-tab active" id="tabProssime"    onclick="switchPrenoTab('upcoming')">Prossime</button>
@@ -188,6 +191,7 @@
 
             renderPrenoList();
             renderCreditBalance();
+            renderCertWarning();
 
             // Polling: aggiorna la lista ogni 3s finché ci sono annullamenti in attesa
             // (necessario perché un altro utente potrebbe prenotare lo slot da un altro tab)
@@ -442,6 +446,32 @@
                 BookingStorage.requestCancellation(id);
             }
             renderPrenoList();
+        }
+
+        // ── Certificato medico warning ────────────────────────────────────
+        function renderCertWarning() {
+            const user = getCurrentUser();
+            const el   = document.getElementById('prenoCertWarning');
+            if (!user || !el) return;
+
+            const stored = getUserByEmail(user.email);
+            const scad   = stored?.certificatoMedicoScadenza;
+            if (!scad) { el.innerHTML = ''; return; }
+
+            const today   = new Date(); today.setHours(0,0,0,0);
+            const scadDt  = new Date(scad + 'T00:00:00');
+            const diffMs  = scadDt - today;
+            const diffDays = Math.ceil(diffMs / (1000 * 60 * 60 * 24));
+            const [y, m, d] = scad.split('-');
+            const dateLabel = `${d}/${m}/${y}`;
+
+            if (diffDays <= 0) {
+                el.innerHTML = `<div class="preno-cert-warning preno-cert-expired">🏥 Certificato medico scaduto il ${dateLabel}</div>`;
+            } else if (diffDays <= 15) {
+                el.innerHTML = `<div class="preno-cert-warning preno-cert-expiring">⏳ Mancano ${diffDays} giorn${diffDays === 1 ? 'o' : 'i'} alla scadenza del tuo certificato medico</div>`;
+            } else {
+                el.innerHTML = '';
+            }
         }
 
         // ── Edit profile modal ────────────────────────────────────────────
