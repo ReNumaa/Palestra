@@ -289,7 +289,7 @@
 
             const _lessonStart = new Date(`${b.date}T${b.time.split(' - ')[0].trim()}:00`);
             const _lessonPast  = _lessonStart <= new Date();
-            const _isGroupClass = b.slotType === 'group-class';
+            const _isGroupClass = b.slotType === 'small-group'; // 'small-group' = Lezione di Gruppo (giallo, 3h); 'group-class' = Slot prenotato (rosso, 3gg)
             const THREE_DAYS_MS  = 3 * 24 * 60 * 60 * 1000;
             const THREE_HOURS_MS = 3 * 60 * 60 * 1000;
             const _msToLesson = _lessonStart - new Date();
