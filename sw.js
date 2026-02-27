@@ -1,7 +1,6 @@
 const CACHE_NAME = 'tb-training-v1';
 
 const APP_SHELL = [
-    '/Palestra/',
     '/Palestra/index.html',
     '/Palestra/chi-sono.html',
     '/Palestra/login.html',
@@ -25,12 +24,16 @@ const APP_SHELL = [
     '/Palestra/manifest.json',
 ];
 
-// Installazione: mette in cache l'app shell
+// Installazione: cacha ogni file singolarmente — se uno manca non blocca tutto
 self.addEventListener('install', event => {
     event.waitUntil(
-        caches.open(CACHE_NAME)
-            .then(cache => cache.addAll(APP_SHELL))
-            .then(() => self.skipWaiting())
+        caches.open(CACHE_NAME).then(cache =>
+            Promise.allSettled(
+                APP_SHELL.map(url =>
+                    cache.add(url).catch(() => console.warn('[SW] Skip:', url))
+                )
+            )
+        ).then(() => self.skipWaiting())
     );
 });
 
@@ -45,16 +48,16 @@ self.addEventListener('activate', event => {
     );
 });
 
-// Fetch: Cache First per asset statici, Network First per navigazione
+// Fetch: Network First per HTML, Cache First per asset statici
 self.addEventListener('fetch', event => {
     const { request } = event;
     const url = new URL(request.url);
 
-    // Ignora richieste non-GET e richieste esterne (Supabase, Google, ecc.)
+    // Ignora richieste non-GET e risorse esterne (Supabase, Google Fonts, ecc.)
     if (request.method !== 'GET') return;
     if (url.origin !== self.location.origin) return;
 
-    // Network First per le pagine HTML — sempre aggiornate se online
+    // Network First per le pagine HTML
     if (request.mode === 'navigate') {
         event.respondWith(
             fetch(request)
@@ -70,11 +73,15 @@ self.addEventListener('fetch', event => {
 
     // Cache First per CSS, JS, immagini
     event.respondWith(
-        caches.match(request)
-            .then(cached => cached || fetch(request).then(response => {
-                const clone = response.clone();
-                caches.open(CACHE_NAME).then(cache => cache.put(request, clone));
+        caches.match(request).then(cached => {
+            if (cached) return cached;
+            return fetch(request).then(response => {
+                if (response.ok) {
+                    const clone = response.clone();
+                    caches.open(CACHE_NAME).then(cache => cache.put(request, clone));
+                }
                 return response;
-            }))
+            });
+        })
     );
 });
