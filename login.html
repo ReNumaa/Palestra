@@ -219,6 +219,7 @@
             const email    = document.getElementById('loginEmail').value.trim();
             const password = document.getElementById('loginPassword').value;
             const errEl    = document.getElementById('loginError');
+            const btn      = e.target.querySelector('button[type="submit"]');
             errEl.style.display = 'none';
 
             if (!email || !password) {
@@ -227,10 +228,12 @@
                 return;
             }
 
+            setLoading(btn, true, 'Accesso in corso...');
             const result = loginWithPassword(email, password);
             if (result.ok) {
                 window.location.href = 'index.html';
             } else {
+                setLoading(btn, false);
                 errEl.textContent = result.error;
                 errEl.style.display = 'block';
             }
@@ -245,6 +248,7 @@
             const password = document.getElementById('regPassword').value;
             const confirm  = document.getElementById('regPasswordConfirm').value;
             const errEl    = document.getElementById('registerError');
+            const btn      = e.target.querySelector('button[type="submit"]');
             errEl.style.display = 'none';
 
             if (!name || !email || !whatsapp || !password || !confirm) {
@@ -273,10 +277,12 @@
                 return;
             }
 
+            setLoading(btn, true, 'Registrazione in corso...');
             const result = registerUser(name, email, whatsapp, password);
             if (result.ok) {
                 window.location.href = 'index.html';
             } else {
+                setLoading(btn, false);
                 errEl.textContent = result.error;
                 errEl.style.display = 'block';
             }
@@ -290,9 +296,10 @@
 
         document.getElementById('adminLoginForm').addEventListener('submit', e => {
             e.preventDefault();
-            const user = document.getElementById('adminUser').value.trim();
             const pass = document.getElementById('adminPass').value;
+            const btn  = e.target.querySelector('button[type="submit"]');
             if (pass === 'admin123') {
+                setLoading(btn, true, 'Accesso...');
                 localStorage.setItem('adminAuthenticated', 'true');
                 window.location.href = 'admin.html';
             } else {
@@ -329,6 +336,7 @@
         function confirmCompleteProfile() {
             const raw   = document.getElementById('oauthWhatsapp').value.trim();
             const errEl = document.getElementById('oauthWhatsappError');
+            const btn   = document.querySelector('#completeProfileModal .btn-primary');
             errEl.style.display = 'none';
 
             const whatsapp = normalizePhone(raw);
@@ -338,6 +346,7 @@
                 return;
             }
 
+            setLoading(btn, true, 'Salvataggio...');
             const { name, email, provider } = window._pendingOAuthUser;
 
             // Save/update user in local users list (whatsapp in E.164 for WhatsApp API)
