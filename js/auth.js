@@ -213,9 +213,14 @@ function getUserBookings() {
     const now   = new Date();
     const today = now.toISOString().split('T')[0];
 
-    const mine = allBookings.filter(b =>
-        b.email && b.email.toLowerCase() === user.email.toLowerCase()
-    );
+    const myPhone = user.whatsapp ? normalizePhone(user.whatsapp) : '';
+    const mine = allBookings.filter(b => {
+        const emailMatch = user.email && b.email &&
+            b.email.toLowerCase() === user.email.toLowerCase();
+        const phoneMatch = myPhone && b.whatsapp &&
+            normalizePhone(b.whatsapp) === myPhone;
+        return emailMatch || phoneMatch;
+    });
 
     function isBookingPast(b) {
         if (b.date < today) return true;
