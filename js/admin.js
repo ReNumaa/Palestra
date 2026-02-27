@@ -489,17 +489,221 @@ function updatePopularTimes(bookings) {
 
 // Action buttons
 function exportData() {
-    const bookings = BookingStorage.getAllBookings();
-    const dataStr = JSON.stringify(bookings, null, 2);
-    const dataBlob = new Blob([dataStr], { type: 'application/json' });
+    const date = new Date().toISOString().split('T')[0];
 
-    const url = URL.createObjectURL(dataBlob);
-    const link = document.createElement('a');
-    link.href = url;
-    link.download = `bookings-export-${new Date().toISOString().split('T')[0]}.json`;
-    link.click();
+    // ── Helpers ───────────────────────────────────────────────────
+    function esc(val) {
+        if (val === null || val === undefined) return '';
+        const s = String(val);
+        return (s.includes(',') || s.includes('"') || s.includes('\n'))
+            ? '"' + s.replace(/"/g, '""') + '"'
+            : s;
+    }
+    function row(...cells) { return cells.map(esc).join(',') + '\n'; }
+    function fmtDate(iso) {
+        if (!iso) return '';
+        const d = new Date(iso);
+        return isNaN(d) ? iso : d.toLocaleDateString('it-IT');
+    }
+    function fmtDateTime(iso) {
+        if (!iso) return '';
+        const d = new Date(iso);
+        return isNaN(d) ? iso : d.toLocaleString('it-IT');
+    }
+    function downloadCSV(content, filename) {
+        const blob = new Blob(['\uFEFF' + content], { type: 'text/csv;charset=utf-8;' });
+        const url  = URL.createObjectURL(blob);
+        const a    = document.createElement('a');
+        a.href = url; a.download = filename; a.click();
+        setTimeout(() => URL.revokeObjectURL(url), 2000);
+    }
 
-    alert('Dati esportati con successo!');
+    const SLOT_LABEL = {
+        'personal-training': 'Personal Training',
+        'small-group':       'Small Group',
+        'group-class':       'Lezione di Gruppo'
+    };
+    const STATUS_LABEL = {
+        'confirmed':               'Confermata',
+        'cancelled':               'Annullata',
+        'cancellation_requested':  'Annullamento richiesto'
+    };
+    const METHOD_LABEL = {
+        contanti: 'Contanti', carta: 'Carta', iban: 'IBAN', credito: 'Credito'
+    };
+    const DAYS = ['Domenica','Lunedì','Martedì','Mercoledì','Giovedì','Venerdì','Sabato'];
+
+    // ── Fonti dati ─────────────────────────────────────────────────
+    const allBookings  = BookingStorage.getAllBookings()
+                            .sort((a, b) => b.date.localeCompare(a.date));
+    const allUsers     = _getAllUsers();
+    const allCredits   = CreditStorage._getAll();
+    const allDebts     = ManualDebtStorage._getAll();
+    const allOverrides = BookingStorage.getScheduleOverrides() || {};
+
+    // ── 1. CLIENTI ─────────────────────────────────────────────────
+    // Profili da gym_users + quelli presenti solo nelle prenotazioni (merge per email/tel)
+    const clientMap = {};
+    allUsers.forEach(u => {
+        const key = (u.email || u.whatsapp || '').toLowerCase();
+        clientMap[key] = {
+            nome:        u.name,
+            email:       u.email || '',
+            whatsapp:    u.whatsapp || '',
+            cert_scad:   u.certificatoMedicoScadenza || '',
+            tipo:        u.provider === 'google' ? 'Google OAuth'
+                       : u.passwordHash          ? 'Email/Password'
+                                                 : 'Profilo admin',
+            creato_il:   u.createdAt ? fmtDate(u.createdAt) : ''
+        };
+    });
+    // Aggiungi chi compare solo nelle prenotazioni
+    allBookings.forEach(b => {
+        const key = (b.email || normalizePhone(b.whatsapp) || '').toLowerCase();
+        if (!clientMap[key]) {
+            clientMap[key] = {
+                nome: b.name, email: b.email || '', whatsapp: b.whatsapp || '',
+                cert_scad: '', tipo: 'Solo prenotazioni', creato_il: fmtDate(b.createdAt)
+            };
+        }
+    });
+
+    let csvClienti = row('Nome','Email','WhatsApp','Scadenza Cert. Medico','Tipo Account','Creato Il');
+    Object.values(clientMap).sort((a,b) => a.nome.localeCompare(b.nome)).forEach(c => {
+        csvClienti += row(c.nome, c.email, c.whatsapp, c.cert_scad, c.tipo, c.creato_il);
+    });
+
+    // ── 2. PRENOTAZIONI ────────────────────────────────────────────
+    let csvPrenotazioni = row(
+        'ID','Data','Orario','Tipo Lezione','Nome','Email','WhatsApp','Note',
+        'Stato','Pagato','Metodo Pagamento','Data Pagamento','Credito Applicato (€)','Creato Il'
+    );
+    allBookings.forEach(b => {
+        csvPrenotazioni += row(
+            b.id,
+            fmtDate(b.date + 'T12:00:00'),
+            b.time,
+            SLOT_LABEL[b.slotType] || b.slotType,
+            b.name, b.email, b.whatsapp,
+            b.notes || '',
+            STATUS_LABEL[b.status] || 'Confermata',
+            b.paid ? 'Sì' : 'No',
+            METHOD_LABEL[b.paymentMethod] || '',
+            fmtDateTime(b.paidAt),
+            b.creditApplied || 0,
+            fmtDateTime(b.createdAt)
+        );
+    });
+
+    // ── 3. PAGAMENTI ───────────────────────────────────────────────
+    // Combina: prenotazioni pagate + storici crediti + storici debiti saldati
+    const pagRows = [];
+
+    allBookings.filter(b => b.paid || (b.creditApplied || 0) > 0).forEach(b => {
+        pagRows.push({
+            data:    fmtDate(b.paidAt || b.date + 'T12:00:00'),
+            ts:      b.paidAt || b.date,
+            nome:    b.name,
+            email:   b.email,
+            wa:      b.whatsapp,
+            descr:   SLOT_LABEL[b.slotType] || b.slotType,
+            importo: SLOT_PRICES[b.slotType] || 0,
+            metodo:  METHOD_LABEL[b.paymentMethod] || '',
+            nota:    ''
+        });
+    });
+    Object.values(allCredits).forEach(c => {
+        (c.history || []).forEach(h => {
+            pagRows.push({
+                data: fmtDateTime(h.date), ts: h.date,
+                nome: c.name, email: c.email, wa: c.whatsapp,
+                descr: 'Credito', importo: h.displayAmount ?? h.amount,
+                metodo: 'Credito', nota: h.note || ''
+            });
+        });
+    });
+    Object.values(allDebts).forEach(d => {
+        (d.history || []).filter(h => h.amount < 0).forEach(h => {
+            pagRows.push({
+                data: fmtDateTime(h.date), ts: h.date,
+                nome: d.name, email: d.email, wa: d.whatsapp,
+                descr: 'Saldo debito manuale', importo: Math.abs(h.amount),
+                metodo: METHOD_LABEL[h.method] || h.method || '', nota: h.note || ''
+            });
+        });
+    });
+
+    pagRows.sort((a, b) => (b.ts || '').localeCompare(a.ts || ''));
+    let csvPagamenti = row('Data','Nome','Email','WhatsApp','Descrizione','Importo (€)','Metodo','Nota');
+    pagRows.forEach(p => {
+        csvPagamenti += row(p.data, p.nome, p.email, p.wa, p.descr, p.importo, p.metodo, p.nota);
+    });
+
+    // ── 4. CREDITI ─────────────────────────────────────────────────
+    let csvCrediti = row('Nome','Email','WhatsApp','Saldo Attuale (€)','Data Movimento','Variazione (€)','Nota');
+    Object.values(allCredits).sort((a,b) => a.name.localeCompare(b.name)).forEach(c => {
+        (c.history || []).forEach(h => {
+            csvCrediti += row(
+                c.name, c.email, c.whatsapp, c.balance,
+                fmtDateTime(h.date), h.amount, h.note || ''
+            );
+        });
+    });
+
+    // ── 5. DEBITI MANUALI ──────────────────────────────────────────
+    let csvDebiti = row('Nome','Email','WhatsApp','Saldo Attuale (€)','Data Movimento','Variazione (€)','Nota','Metodo');
+    Object.values(allDebts).sort((a,b) => a.name.localeCompare(b.name)).forEach(d => {
+        (d.history || []).forEach(h => {
+            csvDebiti += row(
+                d.name, d.email, d.whatsapp, d.balance,
+                fmtDateTime(h.date), h.amount, h.note || '',
+                METHOD_LABEL[h.method] || h.method || ''
+            );
+        });
+    });
+
+    // ── 6. GESTIONE ORARI ──────────────────────────────────────────
+    let csvOrari = row('Data','Giorno','Orario','Tipo Lezione','Cliente Assegnato','Booking ID');
+    Object.entries(allOverrides)
+        .sort(([a], [b]) => a.localeCompare(b))
+        .forEach(([dateStr, slots]) => {
+            const d = new Date(dateStr + 'T12:00:00');
+            const giorno = DAYS[d.getDay()];
+            (slots || []).forEach(s => {
+                csvOrari += row(
+                    fmtDate(dateStr + 'T12:00:00'), giorno, s.time,
+                    SLOT_LABEL[s.type] || s.type,
+                    s.client || '', s.bookingId || ''
+                );
+            });
+        });
+
+    // ── Download sequenziale ───────────────────────────────────────
+    const files = [
+        [`TB_clienti_${date}.csv`,          csvClienti],
+        [`TB_prenotazioni_${date}.csv`,      csvPrenotazioni],
+        [`TB_pagamenti_${date}.csv`,         csvPagamenti],
+        [`TB_crediti_${date}.csv`,           csvCrediti],
+        [`TB_debiti_manuali_${date}.csv`,    csvDebiti],
+        [`TB_gestione_orari_${date}.csv`,    csvOrari],
+    ];
+
+    const btn = document.querySelector('[onclick="exportData()"]');
+    const origLabel = btn ? btn.innerHTML : '';
+    if (btn) btn.disabled = true;
+
+    files.forEach(([filename, content], i) => {
+        setTimeout(() => {
+            downloadCSV(content, filename);
+            if (btn) btn.innerHTML = `📥 Esportando… ${i + 1}/${files.length}`;
+        }, i * 500);
+    });
+
+    setTimeout(() => {
+        if (btn) { btn.innerHTML = origLabel; btn.disabled = false; }
+        alert(`✅ Export completato! ${files.length} file scaricati:\n\n` +
+              files.map(([f]) => '  📄 ' + f).join('\n'));
+    }, files.length * 500 + 200);
 }
 
 function sendReminders() {
