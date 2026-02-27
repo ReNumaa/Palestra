@@ -236,7 +236,8 @@
     border-radius: 20px;
     background: #f3f4f6;
     color: #6b7280;
-    white-space: nowrap;
+    white-space: normal;
+    text-align: center;
 }
 
 /* ── Empty state ──────────────────────────────────────────────── */
