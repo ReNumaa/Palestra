@@ -610,13 +610,15 @@ class CreditStorage {
     }
 
     static addCredit(whatsapp, email, name, amount, note = '', displayAmount = null) {
-        if (amount === 0) return;
+        // amount=0 is allowed for informational entries (payment log) that don't affect balance
         const all = this._getAll();
         let key = this._findKey(whatsapp, email);
         if (!key) key = this._key(whatsapp, email);
         if (!all[key]) all[key] = { name, whatsapp, email, balance: 0, history: [] };
         all[key].name = name;
-        all[key].balance = Math.round((all[key].balance + amount) * 100) / 100;
+        if (amount !== 0) {
+            all[key].balance = Math.round((all[key].balance + amount) * 100) / 100;
+        }
         const entry = { date: new Date().toISOString(), amount, note };
         if (displayAmount !== null) entry.displayAmount = displayAmount;
         all[key].history.push(entry);

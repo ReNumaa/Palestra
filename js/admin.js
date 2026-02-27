@@ -2188,6 +2188,19 @@ function paySelectedDebts() {
     });
     BookingStorage.replaceAllBookings(bookings);
 
+    // Record incoming payment as a transaction (carta/contanti/iban only; credit case already handled by load entry)
+    const _payML = { contanti: '💵 Contanti', carta: '💳 Carta', iban: '🏦 IBAN' };
+    if (paymentMethod !== 'credito' && creditDelta <= 0 && currentDebtContact) {
+        CreditStorage.addCredit(
+            currentDebtContact.whatsapp,
+            currentDebtContact.email,
+            currentDebtContact.name,
+            0,                                                    // no balance change
+            `${_payML[paymentMethod] || paymentMethod} ricevuto`,
+            amountPaid                                            // displayed amount
+        );
+    }
+
     // Add credit if overpaid, then auto-apply to any remaining unpaid past bookings
     if (creditDelta > 0 && currentDebtContact) {
         CreditStorage.addCredit(
@@ -2393,9 +2406,9 @@ function createClientCard(client, index) {
             });
         });
 
-    // 2. Credit entries (positive only)
+    // 2. Credit entries (positive = credit loads) + informational payment records (amount=0 with displayAmount)
     const creditRec2 = CreditStorage.getRecord(client.whatsapp, client.email);
-    (creditRec2?.history || []).filter(e => e.amount > 0).forEach(e => {
+    (creditRec2?.history || []).filter(e => e.amount > 0 || (e.amount === 0 && (e.displayAmount || 0) > 0)).forEach(e => {
         txEntries.push({
             date: new Date(e.date), icon: '💳',
             label: e.note || 'Credito aggiunto',
