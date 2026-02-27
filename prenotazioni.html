@@ -299,8 +299,10 @@
             let cancelBtn = '';
             if (showCancel && b.status !== 'cancelled' && !_lessonPast) {
                 if (_isGroupClass) {
-                    // Lezione di gruppo: annullabile fino a 3 ore prima
-                    if (_canCancelGroupClass) {
+                    // Lezione di Gruppo / Autonomia: annullabile fino a 3 ore prima
+                    if (b.status === 'cancellation_requested') {
+                        cancelBtn = `<div class="preno-cancel-pending">⏳ Annullamento in attesa</div>`;
+                    } else if (_canCancelGroupClass) {
                         cancelBtn = `<button class="preno-cancel-btn" onclick="requestCancellation('${b.id}')">Richiedi annullamento</button>`;
                     } else {
                         cancelBtn = `<div class="preno-cancel-locked">🔒 Non annullabile (meno di 3 ore)</div>`;
@@ -308,7 +310,7 @@
                 } else if (b.status === 'cancellation_requested') {
                     cancelBtn = `<div class="preno-cancel-pending">⏳ Annullamento in attesa</div>`;
                 } else if (_canCancelSlot) {
-                    // Slot prenotato (PT / Small group): annullabile solo con 3 giorni di anticipo
+                    // Slot prenotato (rosso): annullabile solo con 3 giorni di anticipo
                     cancelBtn = `<button class="preno-cancel-btn" onclick="requestCancellation('${b.id}')">Annulla prenotazione</button>`;
                 } else {
                     cancelBtn = `<div class="preno-cancel-locked">🔒 Non annullabile (meno di 3 giorni)</div>`;
