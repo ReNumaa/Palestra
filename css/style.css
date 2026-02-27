@@ -1518,10 +1518,10 @@ body.nav-open {
 }
 
 .nav-sidebar-credit {
-    font-size: 0.5rem;
-    color: rgba(255, 255, 255, 0.12);
+    font-size: 0.65rem;
+    color: rgba(255, 255, 255, 0.35);
     text-align: right;
-    padding: 0.5rem 0.85rem;
+    padding: 0.6rem 1rem;
     letter-spacing: 0.02em;
 }
 
