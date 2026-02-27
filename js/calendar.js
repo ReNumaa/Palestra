@@ -52,6 +52,32 @@ function setupCalendarControls() {
             renderMobileCalendar();
         });
     }
+
+    // Swipe orizzontale sul selettore giorni per cambiare settimana
+    const daySelector = document.getElementById('mobileDaySelector');
+    if (daySelector) {
+        let touchStartX = 0;
+        daySelector.addEventListener('touchstart', e => {
+            touchStartX = e.touches[0].clientX;
+        }, { passive: true });
+        daySelector.addEventListener('touchend', e => {
+            const dx = e.changedTouches[0].clientX - touchStartX;
+            if (Math.abs(dx) < 50) return;
+            if (dx < 0) {
+                // Swipe sinistra → settimana successiva
+                if (weekHasSlots(currentWeekOffset + 1)) {
+                    currentWeekOffset++;
+                    renderCalendar();
+                    renderMobileCalendar();
+                }
+            } else if (currentWeekOffset > 0) {
+                // Swipe destra → settimana precedente
+                currentWeekOffset--;
+                renderCalendar();
+                renderMobileCalendar();
+            }
+        }, { passive: true });
+    }
 }
 
 function getWeekDates(offset = 0) {
