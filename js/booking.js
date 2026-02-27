@@ -96,8 +96,10 @@ function handleModalOverlayClick(e) {
 function handleBookingSubmit(e) {
     e.preventDefault();
 
+    const submitBtn = e.target.querySelector('button[type="submit"]');
+
     if (!selectedSlot) {
-        alert('Per favore seleziona uno slot dal calendario prima di prenotare.');
+        showToast('Seleziona uno slot dal calendario prima di prenotare.', 'error');
         return;
     }
 
@@ -106,7 +108,7 @@ function handleBookingSubmit(e) {
     const _lessonEnd = new Date(selectedSlot.date);
     _lessonEnd.setHours(_eh, _em, 0, 0);
     if ((_lessonEnd - new Date()) < 30 * 60 * 1000) {
-        alert('Non è possibile prenotare: la lezione termina tra meno di 30 minuti.');
+        showToast('Non è possibile prenotare: la lezione termina tra meno di 30 minuti.', 'error');
         closeBookingModal();
         return;
     }
@@ -121,21 +123,21 @@ function handleBookingSubmit(e) {
 
     // Basic validation
     if (!formData.name || !formData.email || !formData.whatsapp) {
-        alert('Per favore compila tutti i campi obbligatori.');
+        showToast('Compila tutti i campi obbligatori.', 'error');
         return;
     }
 
     // Validate email
     const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
     if (!emailRegex.test(formData.email)) {
-        alert('Per favore inserisci un indirizzo email valido.');
+        showToast('Inserisci un indirizzo email valido.', 'error');
         return;
     }
 
     // Validate phone (basic check)
     const phoneRegex = /[\d\s+()-]{10,}/;
     if (!phoneRegex.test(formData.whatsapp)) {
-        alert('Per favore inserisci un numero WhatsApp valido.');
+        showToast('Inserisci un numero WhatsApp valido.', 'error');
         return;
     }
 
@@ -147,8 +149,8 @@ function handleBookingSubmit(e) {
     );
 
     if (remainingSpots <= 0) {
-        alert('Spiacenti, questo slot è ora completo. Per favore seleziona un altro orario.');
-        renderCalendar(); // Refresh calendar
+        showToast('Slot completo. Seleziona un altro orario.', 'error');
+        renderCalendar();
         return;
     }
 
@@ -165,9 +167,11 @@ function handleBookingSubmit(e) {
         )
     );
     if (duplicate) {
-        alert('Hai già una prenotazione per questo orario.');
+        showToast('Hai già una prenotazione per questo orario.', 'error');
         return;
     }
+
+    setLoading(submitBtn, true, 'Prenotazione in corso...');
 
     // Create booking
     const booking = {
@@ -235,6 +239,7 @@ function handleBookingSubmit(e) {
 
     // Reset form
     document.getElementById('bookingForm').reset();
+    setLoading(submitBtn, false);
 
     // Refresh calendar to show updated availability
     renderCalendar();
