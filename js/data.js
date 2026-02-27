@@ -392,7 +392,12 @@ class BookingStorage {
         if (existing.length > 0) {
             const hasOutdatedSlots = existing.some(b => !TIME_SLOTS.includes(b.time));
             if (hasOutdatedSlots) {
-                localStorage.removeItem(this.BOOKINGS_KEY);
+                // Keep real bookings (non-demo) even if format is outdated;
+                // only delete demo bookings which will be regenerated below.
+                const realBookings = existing.filter(b =>
+                    !b.id?.startsWith('demo-') && TIME_SLOTS.includes(b.time)
+                );
+                localStorage.setItem(this.BOOKINGS_KEY, JSON.stringify(realBookings));
                 localStorage.removeItem(this.STATS_KEY);
             } else {
                 return; // Data is current, nothing to do
