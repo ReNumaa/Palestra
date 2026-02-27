@@ -55,8 +55,15 @@ function setupCalendarControls() {
 }
 
 function getWeekDates(offset = 0) {
-    const today = new Date();
+    const now = new Date();
+    const today = new Date(now);
     today.setHours(0, 0, 0, 0);
+
+    // Dopo le 20:30 non ci sono più lezioni disponibili oggi: parti da domani
+    const minutesNow = now.getHours() * 60 + now.getMinutes();
+    if (offset === 0 && minutesNow >= 20 * 60 + 30) {
+        today.setDate(today.getDate() + 1);
+    }
 
     // Start from today (offset 0 = today, offset 1 = today + 7 days, etc.)
     const startDate = new Date(today);
