@@ -45,7 +45,10 @@
             <div class="preno-header">
                 <div class="preno-avatar" id="prenoAvatar"></div>
                 <div class="preno-header-info">
-                    <h1 class="preno-title" id="prenoUserName">Le mie prenotazioni</h1>
+                    <div class="preno-header-top">
+                        <h1 class="preno-title" id="prenoUserName">Le mie prenotazioni</h1>
+                        <button class="preno-edit-btn" onclick="openEditProfileModal()">✏️ Modifica profilo</button>
+                    </div>
                     <p class="preno-subtitle" id="prenoUserEmail"></p>
                 </div>
             </div>
@@ -111,6 +114,44 @@
             <li><a href="admin.html">Amministrazione</a></li>
         </ul>
     </nav>
+
+    <!-- Edit profile modal -->
+    <div id="editProfileModal" class="modal-overlay" style="display:none;" onclick="if(event.target===this)closeEditProfileModal()">
+        <div class="modal-box">
+            <button class="modal-close" onclick="closeEditProfileModal()">✕</button>
+            <h3 class="edit-profile-title">Modifica profilo</h3>
+            <form id="editProfileForm" class="booking-form">
+                <div class="form-group">
+                    <label for="editName">Nome completo</label>
+                    <input type="text" id="editName" required autocomplete="name">
+                </div>
+                <div class="form-group">
+                    <label for="editEmail">Email</label>
+                    <input type="email" id="editEmail" required autocomplete="email">
+                </div>
+                <div class="form-group">
+                    <label for="editWhatsapp">Numero WhatsApp</label>
+                    <input type="tel" id="editWhatsapp" placeholder="+39 348 1234567" autocomplete="tel">
+                </div>
+                <div class="form-group">
+                    <label for="editCertScadenza">Scadenza certificato medico</label>
+                    <input type="date" id="editCertScadenza">
+                </div>
+                <div id="editPasswordSection">
+                    <div class="form-group">
+                        <label for="editPassword">Nuova password <span class="edit-profile-label-note">(lascia vuoto per non cambiare)</span></label>
+                        <input type="password" id="editPassword" autocomplete="new-password">
+                    </div>
+                    <div class="form-group">
+                        <label for="editPasswordConfirm">Conferma nuova password</label>
+                        <input type="password" id="editPasswordConfirm" autocomplete="new-password">
+                    </div>
+                </div>
+                <div id="editProfileError" class="edit-profile-error" style="display:none;"></div>
+                <button type="submit" class="btn-primary" style="width:100%;margin-top:0.5rem">Salva modifiche</button>
+            </form>
+        </div>
+    </div>
 
     <script src="js/data.js?v=4"></script>
     <script src="js/auth.js?v=4"></script>
@@ -402,6 +443,64 @@
             }
             renderPrenoList();
         }
+
+        // ── Edit profile modal ────────────────────────────────────────────
+        function openEditProfileModal() {
+            const user = getCurrentUser();
+            if (!user) return;
+            const stored = getUserByEmail(user.email);
+            document.getElementById('editName').value            = user.name || '';
+            document.getElementById('editEmail').value           = user.email || '';
+            document.getElementById('editWhatsapp').value        = user.whatsapp || '';
+            document.getElementById('editCertScadenza').value    = stored?.certificatoMedicoScadenza || '';
+            document.getElementById('editPassword').value        = '';
+            document.getElementById('editPasswordConfirm').value = '';
+            document.getElementById('editPasswordSection').style.display =
+                (user.provider === 'google') ? 'none' : 'block';
+            document.getElementById('editProfileError').style.display = 'none';
+            document.getElementById('editProfileModal').style.display = 'flex';
+        }
+
+        function closeEditProfileModal() {
+            document.getElementById('editProfileModal').style.display = 'none';
+        }
+
+        document.getElementById('editProfileForm').addEventListener('submit', function(e) {
+            e.preventDefault();
+            const user = getCurrentUser();
+            if (!user) return;
+
+            const name     = document.getElementById('editName').value.trim();
+            const email    = document.getElementById('editEmail').value.trim();
+            const whatsapp = document.getElementById('editWhatsapp').value.trim();
+            const certSc   = document.getElementById('editCertScadenza').value;
+            const pass     = document.getElementById('editPassword').value;
+            const passConf = document.getElementById('editPasswordConfirm').value;
+
+            const errEl = document.getElementById('editProfileError');
+            function showErr(msg) { errEl.textContent = msg; errEl.style.display = 'block'; }
+
+            if (!name)  return showErr('Il nome è obbligatorio.');
+            if (!email) return showErr("L'email è obbligatoria.");
+            if (pass && pass.length < 6) return showErr('La password deve essere di almeno 6 caratteri.');
+            if (pass && pass !== passConf) return showErr('Le password non coincidono.');
+
+            const result = updateUserProfile(user.email, {
+                name,
+                email,
+                whatsapp: whatsapp ? normalizePhone(whatsapp) : '',
+                certificatoMedicoScadenza: certSc
+            }, pass || null);
+
+            if (!result.ok) return showErr(result.error);
+
+            const updated = getCurrentUser();
+            document.getElementById('prenoUserName').textContent = updated.name;
+            document.getElementById('prenoUserEmail').textContent = updated.email;
+            document.getElementById('prenoAvatar').textContent = updated.name.charAt(0).toUpperCase();
+            updateNavAuth();
+            closeEditProfileModal();
+        });
     </script>
 </body>
 </html>
