@@ -236,6 +236,7 @@ function handleBookingSubmit(e) {
 
     // Show confirmation
     showConfirmation(savedBooking);
+    notificaPrenotazione(savedBooking);
 
     // Reset form
     document.getElementById('bookingForm').reset();
@@ -317,6 +318,25 @@ function showConfirmation(booking) {
         </div>
     `;
     confirmationDiv.style.display = 'block';
+}
+
+// Notifica di sistema dopo una prenotazione confermata
+async function notificaPrenotazione(booking) {
+    if (!('Notification' in window) || !navigator.serviceWorker) return;
+    let permission = Notification.permission;
+    if (permission === 'denied') return;
+    if (permission === 'default') {
+        permission = await Notification.requestPermission();
+    }
+    if (permission !== 'granted') return;
+    const reg = await navigator.serviceWorker.ready;
+    reg.showNotification('Prenotazione confermata', {
+        body: `${SLOT_NAMES[booking.slotType]} · ${booking.dateDisplay} · ${booking.time}`,
+        icon: '/Palestra/images/logo-tb---nero.jpg',
+        badge: '/Palestra/images/logo-tb---nero.jpg',
+        tag: 'prenotazione-' + booking.id,
+        renotify: false
+    });
 }
 
 // Initialize booking form when DOM is loaded

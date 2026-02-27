@@ -1,4 +1,4 @@
-const CACHE_NAME = 'tb-training-v1';
+const CACHE_NAME = 'palestra-v1';
 
 const APP_SHELL = [
     '/Palestra/index.html',
@@ -45,6 +45,18 @@ self.addEventListener('activate', event => {
                 keys.filter(k => k !== CACHE_NAME).map(k => caches.delete(k))
             ))
             .then(() => self.clients.claim())
+    );
+});
+
+// Notifiche: porta in primo piano la finestra app al click
+self.addEventListener('notificationclick', event => {
+    event.notification.close();
+    event.waitUntil(
+        self.clients.matchAll({ type: 'window', includeUncontrolled: true }).then(clients => {
+            const appClient = clients.find(c => c.url.includes('/Palestra/'));
+            if (appClient) return appClient.focus();
+            return self.clients.openWindow('/Palestra/prenotazioni.html');
+        })
     );
 });
 
