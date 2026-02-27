@@ -723,6 +723,18 @@ function createAdminSlotCard(dateInfo, scheduledSlot) {
                 ? `<div class="admin-cancel-pending-badge">⏳ Annullamento richiesto</div>`
                 : '';
 
+            // Certificato medico scaduto
+            const userRecord = getUserByEmail(booking.email);
+            const certScad   = userRecord?.certificatoMedicoScadenza;
+            let certBadge = '';
+            if (certScad) {
+                const todayStr = new Date().toISOString().split('T')[0];
+                if (certScad < todayStr) {
+                    const [cy, cm, cd] = certScad.split('-');
+                    certBadge = `<div class="cert-expired-badge">🏥 Cert. scaduto il ${cd}/${cm}/${cy}</div>`;
+                }
+            }
+
             participantsHTML += `
                 <div class="admin-participant-card${isCancelPending ? ' cancel-pending' : ''}">
                     <button class="btn-delete-booking" onclick="deleteBooking('${booking.id}', '${booking.name.replace(/'/g, "\\'")}')">✕</button>
@@ -731,6 +743,7 @@ function createAdminSlotCard(dateInfo, scheduledSlot) {
                         <div class="participant-contact">📱 ${booking.whatsapp}</div>
                         ${booking.notes ? `<div class="participant-notes">📝 ${booking.notes}</div>` : ''}
                         ${cancelPendingBadge}
+                        ${certBadge}
                         ${hasDebts ? `<div class="debt-warning" onclick="openDebtPopup('${booking.whatsapp.replace(/'/g, "\\'")}', '${booking.email.replace(/'/g, "\\'")}', '${booking.name.replace(/'/g, "\\'")}')">⚠️ Da pagare: €${unpaidAmount}</div>` : ''}
                         ${!isCancelPending ? `<div class="payment-status ${isPaid ? 'paid' : 'unpaid'}">${isPaid ? '✓ Pagato' : 'Non pagato'}</div>` : ''}
                     </div>
