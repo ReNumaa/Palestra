@@ -1,6 +1,6 @@
 {
-    "name": "TB Training",
-    "short_name": "TB Training",
+    "name": "Palestra",
+    "short_name": "Palestra",
     "description": "Prenota le tue sessioni con Thomas Bresciani Personal Trainer",
     "start_url": "/Palestra/index.html",
     "scope": "/Palestra/",
@@ -14,7 +14,7 @@
             "src": "images/logo-tb---nero.jpg",
             "sizes": "any",
             "type": "image/jpeg",
-            "purpose": "any maskable"
+            "purpose": "any"
         }
     ]
 }
