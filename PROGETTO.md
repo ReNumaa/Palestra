@@ -688,6 +688,10 @@ Libreria Canvas custom, nessuna dipendenza esterna.
 | Prezzi: Autonomia €5, Lezione di Gruppo €10, Slot prenotato €50 | Funzionante ✅ |
 | Ordinamento prossime per data+ora ASC, passate per data+ora DESC | Funzionante ✅ |
 | paidAt export e form modifica: data+ora completa (datetime-local) | Funzionante ✅ |
+| PWA installabile (manifest.json + sw.js + meta tags) | Funzionante ✅ |
+| Service worker: cache app shell, offline fallback | Funzionante ✅ |
+| ui.js: setLoading(), showToast(), showInlineError() | Funzionante ✅ |
+| CSS spinner, toast success/error/info | Funzionante ✅ |
 
 ---
 
@@ -695,14 +699,18 @@ Libreria Canvas custom, nessuna dipendenza esterna.
 
 ### Priorità alta (bloccante per andare online)
 
-- [ ] **PWA + Push Notifications** ← **PRIMA COSA DA FARE**
-  - Aggiungere `manifest.json` (nome, icona, colori, display standalone)
-  - Aggiungere `service-worker.js` (cache offline + ricezione push)
-  - Aggiungere `<link rel="manifest">` in tutti gli HTML
-  - Implementare richiesta permesso notifiche dopo il login
-  - Testare notifica push manuale dall'admin (promemoria lezione)
-  - Funziona già con localStorage — testabile subito, gratis, migliora UX immediata
-  - Se gli utenti accettano le notifiche → riduce o elimina la necessità di WhatsApp Business API
+- [x] **PWA base** ✅ (feb 2026)
+  - ~~Aggiungere `manifest.json`~~ ✅ (nome, icona, colori, display standalone, start_url, scope)
+  - ~~Aggiungere `sw.js`~~ ✅ (cache app shell, Network First per HTML, Cache First per asset)
+  - ~~Aggiungere `<link rel="manifest">` in tutti gli HTML~~ ✅
+  - ~~Meta tags Apple PWA su tutti gli HTML~~ ✅
+  - ~~`js/ui.js`~~ ✅ — `setLoading()`, `showToast()`, `showInlineError()` per loading states e feedback errori
+  - ~~CSS spinner, btn-loading, toast (success/error/info)~~ ✅ in `style.css`
+  - **⚠️ ATTENZIONE DOMINIO CUSTOM:** `sw.js` e `manifest.json` hanno i percorsi hardcoded con `/Palestra/` (es. `start_url`, `scope`, APP_SHELL). Quando si passerà a dominio custom (es. `tbtraining.it`), aggiornare:
+    - `manifest.json`: `start_url` → `/index.html`, rimuovere `scope`
+    - `sw.js`: tutti i path in `APP_SHELL` da `/Palestra/xxx` → `/xxx`
+    - HTML: `navigator.serviceWorker.register('/Palestra/sw.js')` → `register('/sw.js')`
+  - [ ] Push Notifications (futuro) — richiede permesso notifiche dopo login, integrazione con Supabase Edge Functions
 
 - [ ] **Migrazione da localStorage a Supabase**
   - ~~Installare Supabase CLI~~ ✅
