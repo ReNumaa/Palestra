@@ -154,14 +154,27 @@ function getUserBookings() {
     if (!user) return { upcoming: [], past: [] };
 
     const allBookings = JSON.parse(localStorage.getItem('gym_bookings') || '[]');
-    const today = new Date().toISOString().split('T')[0];
+    const now   = new Date();
+    const today = now.toISOString().split('T')[0];
 
     const mine = allBookings.filter(b =>
         b.email && b.email.toLowerCase() === user.email.toLowerCase()
     );
+
+    function isBookingPast(b) {
+        if (b.date < today) return true;
+        if (b.date > today) return false;
+        // Stesso giorno: controlla l'orario di fine
+        const endTimeStr = b.time ? b.time.split(' - ')[1]?.trim() : null;
+        if (!endTimeStr) return false;
+        const [h, m] = endTimeStr.split(':').map(Number);
+        const endDt = new Date(`${b.date}T${String(h).padStart(2,'0')}:${String(m).padStart(2,'0')}:00`);
+        return endDt <= now;
+    }
+
     return {
-        upcoming: mine.filter(b => b.date >= today).sort((a, b) => a.date.localeCompare(b.date)),
-        past:     mine.filter(b => b.date <  today).sort((a, b) => b.date.localeCompare(a.date))
+        upcoming: mine.filter(b => !isBookingPast(b)).sort((a, b) => a.date.localeCompare(b.date)),
+        past:     mine.filter(b =>  isBookingPast(b)).sort((a, b) => b.date.localeCompare(a.date))
     };
 }
 
