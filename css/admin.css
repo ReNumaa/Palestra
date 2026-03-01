@@ -649,15 +649,11 @@ canvas {
     padding: 0.5rem 0.75rem;
     margin-bottom: 0.5rem;
     display: flex;
-    flex-direction: column;
-    gap: 0.4rem;
-}
-.extra-picker-row {
-    display: flex;
+    flex-wrap: wrap;
+    gap: 0.5rem;
     align-items: center;
-    gap: 0.4rem;
 }
-.extra-picker-label { font-size: 0.82rem; color: #666; font-weight: 500; min-width: 7rem; }
+.extra-picker-label { font-size: 0.82rem; color: #666; font-weight: 500; }
 .extra-picker-btn {
     border: none;
     border-radius: 6px;
