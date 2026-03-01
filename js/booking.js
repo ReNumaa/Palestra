@@ -125,7 +125,7 @@ function handleBookingSubmit(e) {
     const formData = {
         name: document.getElementById('name').value.trim(),
         email: document.getElementById('email').value.trim(),
-        whatsapp: document.getElementById('whatsapp').value.trim(),
+        whatsapp: normalizePhone(document.getElementById('whatsapp').value.trim()),
         notes: document.getElementById('notes').value.trim()
     };
 
