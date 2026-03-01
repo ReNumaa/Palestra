@@ -861,8 +861,9 @@ function toggleExtraPicker(date, time) {
     if (el) el.style.display = el.style.display === 'none' ? 'flex' : 'none';
 }
 
-function addExtraSpotToSlot(date, time, extraType) {
-    BookingStorage.addExtraSpot(date, time, extraType);
+function addExtraSpotToSlot(date, time, extraType, quantity) {
+    const qty = quantity || 1;
+    for (let i = 0; i < qty; i++) BookingStorage.addExtraSpot(date, time, extraType);
     toggleExtraPicker(date, time); // chiudi picker
     if (window._currentAdminDate) renderAdminDayView(window._currentAdminDate);
 }
@@ -985,9 +986,16 @@ function createAdminSlotCard(dateInfo, scheduledSlot) {
             <button class="btn-add-extra" onclick="toggleExtraPicker('${dE}','${tE}')" title="Aggiungi posto extra">＋</button>
         </div>
         <div id="${pickerId}" class="extra-picker" style="display:none;">
-            <span class="extra-picker-label">Aggiungi posto:</span>
-            <button class="extra-picker-btn personal-training" onclick="addExtraSpotToSlot('${dE}','${tE}','personal-training')">Autonomia +€${SLOT_PRICES['personal-training']}</button>
-            <button class="extra-picker-btn small-group" onclick="addExtraSpotToSlot('${dE}','${tE}','small-group')">Lezione di Gruppo +€${SLOT_PRICES['small-group']}</button>
+            <div class="extra-picker-row">
+                <span class="extra-picker-label">Autonomia:</span>
+                <button class="extra-picker-btn personal-training" onclick="addExtraSpotToSlot('${dE}','${tE}','personal-training',1)">+1</button>
+                <button class="extra-picker-btn personal-training" onclick="addExtraSpotToSlot('${dE}','${tE}','personal-training',2)">+2</button>
+            </div>
+            <div class="extra-picker-row">
+                <span class="extra-picker-label">Lezione di Gruppo:</span>
+                <button class="extra-picker-btn small-group" onclick="addExtraSpotToSlot('${dE}','${tE}','small-group',1)">+1</button>
+                <button class="extra-picker-btn small-group" onclick="addExtraSpotToSlot('${dE}','${tE}','small-group',2)">+2</button>
+            </div>
         </div>`;
 
     // ── Extras bar ──────────────────────────────────────────────────────────
@@ -2857,3 +2865,10 @@ if (document.readyState === 'loading') {
 } else {
     initAdmin();
 }
+
+// Aggiorna i dati quando la pagina viene ripristinata dal bfcache (back/forward)
+window.addEventListener('pageshow', (event) => {
+    if (!event.persisted) return;
+    const activeTab = document.querySelector('.admin-tab.active');
+    if (activeTab) switchTab(activeTab.dataset.tab);
+});
