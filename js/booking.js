@@ -244,6 +244,9 @@ function handleBookingSubmit(e) {
 
     // Refresh calendar to show updated availability
     renderCalendar();
+    if (typeof renderMobileSlots === 'function' && selectedMobileDay) {
+        renderMobileSlots(selectedMobileDay);
+    }
 
     // Clear selection
     selectedSlot = null;
