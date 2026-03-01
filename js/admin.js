@@ -258,12 +258,14 @@ function updateStatsCards(filteredBookings, allBookings) {
         }
     }
 
-    // Revenue
-    const revenue = filteredBookings.reduce((t, b) => t + (SLOT_PRICES[b.slotType] || 0), 0);
+    // Revenue — exclude free lessons (lezione-gratuita) from revenue stats
+    const revenue = filteredBookings
+        .filter(b => b.paymentMethod !== 'lezione-gratuita')
+        .reduce((t, b) => t + (SLOT_PRICES[b.slotType] || 0), 0);
     document.getElementById('monthlyRevenue').textContent = `€${revenue}`;
     const prevRevBookings = prevRange ? allBookings.filter(b => {
         const d = new Date(b.date + 'T00:00:00');
-        return d >= prevRange.from && d <= prevRange.to;
+        return d >= prevRange.from && d <= prevRange.to && b.paymentMethod !== 'lezione-gratuita';
     }) : [];
     const prevRev = prevRevBookings.reduce((t, b) => t + (SLOT_PRICES[b.slotType] || 0), 0);
     calcChange(revenue, prevRev, document.getElementById('revenueChange'));
@@ -2092,8 +2094,10 @@ function saveManualEntry() {
         ManualDebtStorage.addDebt(whatsapp, email, name, amount,
             note || 'Debito manuale', method);
     } else {
+        const isFreeLesson = method === 'lezione-gratuita';
         CreditStorage.addCredit(whatsapp, email, name, amount,
-            note ? `${note} (${method})` : `Credito manuale (${method})`);
+            note ? `${note}${isFreeLesson ? ' (lezione gratuita)' : ` (${method})`}` : isFreeLesson ? 'Lezione gratuita' : `Credito manuale (${method})`,
+            null, isFreeLesson);
         CreditStorage.applyToUnpaidBookings(whatsapp, email, name);
     }
 
@@ -2429,7 +2433,7 @@ function createClientCard(client, index) {
     if (totalUnpaid  > 0) statsHTML += `<span class="cstat unpaid">€${totalUnpaid} da pagare</span>`;
     if (netBalance  !== 0) statsHTML += `<span class="cstat ${netBalance > 0 ? 'credit' : 'unpaid'}">💳 ${netBalance > 0 ? '+' : ''}€${netBalance}</span>`;
 
-    const methodLabel = m => ({ contanti: '💵 Contanti', carta: '💳 Carta', iban: '🏦 IBAN', credito: '✨ Credito' }[m] || '—');
+    const methodLabel = m => ({ contanti: '💵 Contanti', carta: '💳 Carta', iban: '🏦 IBAN', credito: '✨ Credito', 'lezione-gratuita': '🎁 Gratuita' }[m] || '—');
     const fmtPaidAt = iso => {
         if (!iso) return '<span style="color:#ccc">—</span>';
         const d = new Date(iso);

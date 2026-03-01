@@ -2969,6 +2969,18 @@ canvas {
     font-weight: 600;
 }
 
+.debt-method-btn.method-free-lesson {
+    border-color: #86efac;
+    color: #15803d;
+}
+.debt-method-btn.method-free-lesson:hover,
+.debt-method-btn.method-free-lesson.active {
+    background: #dcfce7;
+    border-color: #16a34a;
+    color: #15803d;
+    font-weight: 600;
+}
+
 /* Amount input */
 .debt-payment-amount-row {
     display: flex;
