@@ -423,3 +423,11 @@ if (document.readyState === 'loading') {
 } else {
     initCalendar();
 }
+
+// Aggiorna i dati quando la pagina viene ripristinata dal bfcache (back/forward)
+window.addEventListener('pageshow', (event) => {
+    if (event.persisted) {
+        renderCalendar();
+        renderMobileCalendar();
+    }
+});

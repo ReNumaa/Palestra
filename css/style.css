@@ -574,6 +574,8 @@ body.nav-open {
 /* Split slot: due tipi nella stessa cella del calendario */
 .calendar-slot.split-slot {
     display: flex;
+    flex-direction: row;
+    align-items: stretch;
     padding: 0;
     overflow: hidden;
     background: none;
