@@ -56,12 +56,20 @@ function openBookingModal(dateInfo, timeSlot, slotType, remainingSpots) {
 
     // Reset form and hide confirmation
     document.getElementById('bookingForm').reset();
-    document.getElementById('bookingForm').style.display = 'flex';
     document.getElementById('confirmationMessage').style.display = 'none';
 
-    // Pre-fill if user is logged in
+    // Check login
     const user = typeof getCurrentUser === 'function' ? getCurrentUser() : null;
-    if (user) {
+    const loginPrompt = document.getElementById('loginPrompt');
+
+    if (!user) {
+        // Not logged in: show login prompt, hide form
+        loginPrompt.style.display = 'block';
+        document.getElementById('bookingForm').style.display = 'none';
+    } else {
+        // Logged in: show form, pre-fill fields
+        loginPrompt.style.display = 'none';
+        document.getElementById('bookingForm').style.display = 'flex';
         document.getElementById('name').value     = user.name     || '';
         document.getElementById('email').value    = user.email    || '';
         document.getElementById('whatsapp').value = user.whatsapp || '';

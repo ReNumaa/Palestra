@@ -1312,6 +1312,17 @@ body.nav-open {
     font-size: 1rem;
 }
 
+.modal-box .login-prompt {
+    padding: 1.5rem 0.5rem;
+    text-align: center;
+}
+
+.modal-box .login-prompt-text {
+    font-size: 1rem;
+    color: #555;
+    margin-bottom: 1.25rem;
+}
+
 .modal-box .confirmation-message {
     background: linear-gradient(135deg, var(--primary-cyan), var(--primary-cyan-dark));
     color: white;
