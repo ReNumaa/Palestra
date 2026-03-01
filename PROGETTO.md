@@ -1,6 +1,6 @@
 # TB Training — Diario di Sviluppo & Roadmap
 
-> Documento aggiornato al 27/02/2026 (sessione 4)
+> Documento aggiornato al 01/03/2026 (sessione 5)
 > Prototipo: sistema di prenotazione palestra, frontend-only con localStorage
 > Supabase CLI installato, schema SQL definito, accesso dati centralizzato
 > Supabase cloud attivo (tabelle create), Google OAuth funzionante, numeri normalizzati E.164
@@ -664,6 +664,44 @@ Libreria Canvas custom, nessuna dipendenza esterna.
 
 ---
 
+### 4.20 Posti extra per slot, login gate, fix bfcache e aggiornamento mobile (mar 2026)
+
+**Posti extra per slot — admin Prenotazioni (`js/admin.js`, `js/data.js`, `js/calendar.js`, `css/admin.css`, `css/style.css`):**
+- Bottone "＋" nell'header di ogni slot admin → apre picker con i tipi disponibili ("Aggiungi 1 posto: [Autonomia] [Lezione di Gruppo]")
+- Click su un tipo → aggiunge esattamente **1 posto extra** a quello slot tramite `BookingStorage.addExtraSpot(date, time, extraType)`
+- Extra rimossi con il bottone "−" nella barra badge, solo se il posto non è già prenotato (`BookingStorage.removeExtraSpot`)
+- Struttura dati: ogni slot in `schedule_overrides` può avere `extras: [{type}]` — uno per ogni posto extra aggiunto
+- `getEffectiveCapacity(date, time, slotType)`: restituisce `SLOT_MAX_CAPACITY[slotType] + count(extras of same type)` se il tipo è quello principale dello slot; altrimenti restituisce solo `count(extras of that type)` (base = 0) → **fix critico**: evita che aggiungere 1 posto di Lezione di Gruppo a uno slot Autonomia mostrasse 6 posti disponibili invece di 1
+- `getRemainingSpots`: filtra le prenotazioni per `slotType` e usa `getEffectiveCapacity` per calcolare i posti liberi
+
+**Vista split slot calendario desktop e mobile:**
+- Se gli extra hanno un tipo diverso dal tipo principale → lo slot nel calendario desktop si divide in due metà affiancate (`.split-slot-half`), ciascuna con colore e contaposti del proprio tipo
+- Fix CSS: `.calendar-slot.split-slot` ora ha `flex-direction: row` e `align-items: stretch` — prima ereditava `flex-direction: column` dalla classe base e le due metà si impillavano con spazio bianco
+
+**Vista split in admin Prenotazioni:**
+- Se lo slot ha extra di tipo diverso → card divisa in colonne (`.admin-slot-split`), una per tipo, con titolo e partecipanti separati per tipo
+
+**Login gate per utenti non loggati (`js/booking.js`, `index.html`):**
+- Prima di aprire il form di prenotazione, `openBookingModal()` controlla `getCurrentUser()`
+- Se non loggato: mostra il div `#loginPrompt` con bottone "Accedi / Registrati" (link a `login.html`) e nasconde il form
+- Se loggato: mostra il form e pre-compila nome, email e WhatsApp dai dati dell'utente
+
+**Fix aggiornamento posti su mobile dopo prenotazione (`js/booking.js`):**
+- `handleBookingSubmit`: dopo `renderCalendar()` (solo desktop), ora chiama anche `renderMobileSlots(selectedMobileDay)` se disponibile → i contatori dei posti si aggiornano immediatamente anche su mobile senza refresh
+
+**Fix bfcache — navigazione tra pagine senza Ctrl+R (`js/calendar.js`, `js/admin.js`):**
+- Problema: il browser restaura la pagina dal Back/Forward Cache (`bfcache`) senza rieseguire `DOMContentLoaded` → i dati rimanevano quelli al momento della navigazione
+- Fix: aggiunto listener `pageshow` in `calendar.js` → se `event.persisted === true`, richiama `renderCalendar()` e `renderMobileCalendar()`
+- Fix parallelo in `admin.js` → rileva il tab attivo (`.admin-tab.active`) e richiama `switchTab()` per re-renderizzare i dati senza riattaccare i listener
+- Entrambi i listener si attivano solo su restore da bfcache (`event.persisted`), non ad ogni caricamento normale
+
+**Service worker cache bump (`sw.js`):**
+- `CACHE_NAME` aggiornato da `palestra-v1` a `palestra-v2`
+- Forza il browser a scartare la cache precedente e scaricare le versioni aggiornate di `data.js`, `calendar.js`, `admin.js`, `booking.js` e CSS
+- **Regola di sviluppo:** incrementare il numero di versione ogni volta che si modificano file JS o CSS significativi
+
+---
+
 ### 4.12 Notifiche (pianificate, non ancora implementate)
 
 - Il form di prenotazione simula l'invio di un messaggio WhatsApp (solo `console.log`)
@@ -769,6 +807,15 @@ Libreria Canvas custom, nessuna dipendenza esterna.
 | "powered by Andrea Pompili" nella sidebar mobile | Funzionante ✅ |
 | Calendario avanza automaticamente al giorno successivo dopo le 20:30 | Funzionante ✅ |
 | Swipe orizzontale su mobile per navigare tra le settimane | Funzionante ✅ |
+| Login gate: utenti non loggati vedono "Accedi / Registrati" nel modal di prenotazione | Funzionante ✅ |
+| Fix aggiornamento posti mobile dopo prenotazione (renderMobileSlots) | Funzionante ✅ |
+| Posti extra per slot in admin Prenotazioni (picker tipo, +1 per click) | Funzionante ✅ |
+| Vista split slot desktop calendario (due metà affiancate per tipi misti) | Funzionante ✅ |
+| Vista split slot admin Prenotazioni (colonne separate per tipo) | Funzionante ✅ |
+| Fix capacità extra tipo diverso: base 0 per tipi non principali | Funzionante ✅ |
+| Fix CSS split slot: flex-direction row + align-items stretch (no spazio bianco) | Funzionante ✅ |
+| Fix bfcache: pageshow listener su calendar.js e admin.js (dati aggiornati al back/forward) | Funzionante ✅ |
+| Service worker: bump a palestra-v2 per forzare reload JS/CSS aggiornati | Fatto ✅ |
 
 ---
 
