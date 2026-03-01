@@ -195,10 +195,12 @@ class BookingStorage {
 
     // Capacità effettiva = base + numero di extra dello stesso tipo salvati sullo slot
     static getEffectiveCapacity(date, time, slotType) {
-        const base = SLOT_MAX_CAPACITY[slotType] || 0;
         const overrides = this.getScheduleOverrides();
         const slots = overrides[date] || [];
         const slot = slots.find(s => s.time === time);
+        // Se il tipo richiesto è diverso dal tipo principale, la base è 0: contano solo gli extra
+        const isMainType = !slot || slot.type === slotType;
+        const base = isMainType ? (SLOT_MAX_CAPACITY[slotType] || 0) : 0;
         if (!slot || !slot.extras || slot.extras.length === 0) return base;
         return base + slot.extras.filter(e => e.type === slotType).length;
     }
