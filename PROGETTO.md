@@ -1,6 +1,6 @@
 # TB Training — Diario di Sviluppo & Roadmap
 
-> Documento aggiornato al 27/02/2026 (sessione 3)
+> Documento aggiornato al 27/02/2026 (sessione 4)
 > Prototipo: sistema di prenotazione palestra, frontend-only con localStorage
 > Supabase CLI installato, schema SQL definito, accesso dati centralizzato
 > Supabase cloud attivo (tabelle create), Google OAuth funzionante, numeri normalizzati E.164
@@ -641,6 +641,29 @@ Libreria Canvas custom, nessuna dipendenza esterna.
 
 ---
 
+### 4.19 UX mobile e layout (feb 2026)
+
+**Footer sempre al fondo (`css/style.css`):**
+- Quando non ci sono lezioni disponibili, il footer non raggiungeva il fondo della pagina lasciando spazio bianco
+- Fix: `body { display: flex; flex-direction: column; min-height: 100vh }` + `flex: 1` sulle sezioni principali (`.calendar-section`, `.login-page`, `.preno-page`, `.dashboard-section`)
+- Il calendario mobile mantiene un'altezza minima pari allo schermo quando non ci sono slot
+
+**"powered by Andrea Pompili" nella sidebar mobile (`css/style.css` + tutti gli HTML):**
+- Aggiunta riga `.nav-sidebar-credit` in fondo alla sidebar mobile: `font-size: 0.65rem; color: rgba(255,255,255,0.35); text-align: right; padding: 0.6rem 1rem`
+- Markup aggiunto in tutti e 6 gli HTML dentro `.nav-sidebar`
+
+**Calendario avanza automaticamente dopo le 20:30 (`js/calendar.js`):**
+- Dopo le 20:30 non ci sono più lezioni disponibili per oggi: `getWeekDates()` controlla `minutesNow >= 20*60+30` con `offset === 0` e imposta `today = domani`
+- Il calendario su offset 0 mostra già il giorno successivo, senza dover mostrare una giornata vuota
+
+**Swipe orizzontale sul selettore giorni mobile (`js/calendar.js`):**
+- Aggiunti `touchstart` / `touchend` su `#mobileDaySelector` in `setupCalendarControls()`
+- Swipe sinistra (dx < −50px) → settimana successiva (solo se ha slot configurati)
+- Swipe destra (dx > +50px) → settimana precedente (solo se `currentWeekOffset > 0`)
+- Listener `passive: true` per non bloccare lo scroll verticale della pagina
+
+---
+
 ### 4.12 Notifiche (pianificate, non ancora implementate)
 
 - Il form di prenotazione simula l'invio di un messaggio WhatsApp (solo `console.log`)
@@ -742,6 +765,10 @@ Libreria Canvas custom, nessuna dipendenza esterna.
 | sw.js: handler push per notifiche server-side (Supabase Edge Function) | Pronto ✅ |
 | VAPID keys generate, private key in .vapid-keys.txt (fuori repo) | Fatto ✅ |
 | .gitignore: esclude .vapid-keys.txt, .env, .claude/ | Fatto ✅ |
+| Footer fisso al fondo con flexbox (min-height 100vh) | Funzionante ✅ |
+| "powered by Andrea Pompili" nella sidebar mobile | Funzionante ✅ |
+| Calendario avanza automaticamente al giorno successivo dopo le 20:30 | Funzionante ✅ |
+| Swipe orizzontale su mobile per navigare tra le settimane | Funzionante ✅ |
 
 ---
 
@@ -793,6 +820,17 @@ Libreria Canvas custom, nessuna dipendenza esterna.
 - [ ] **Normalizzare numeri WhatsApp nel form di prenotazione** (booking.js)
   - `normalizePhone()` è già disponibile in `auth.js`
   - Da applicare al campo WhatsApp in `handleBookingSubmit` per coerenza con il resto
+
+- [ ] **Upload foto certificato medico** (da fare insieme alla migrazione Supabase)
+  - Aggiungere input file nel modal "Modifica profilo" di `prenotazioni.html`
+  - Compressione client-side prima dell'upload (Canvas API, resize ~1200px, JPEG 0.75) → ~300–600 KB
+  - Storage su Supabase bucket `certificates`, path fisso `{user_id}.jpg` (sovrascrittura ad ogni rinnovo)
+  - Salvare `cert_file_path` sulla tabella `profiles`
+  - RLS: ogni utente legge/scrive solo il proprio file
+  - Admin può visualizzare/scaricare il certificato dalla card partecipante
+  - Edge Function cron mensile: elimina file dal bucket per certificati scaduti da più di X mesi
+  - 180 utenti × ~500 KB = ~90 MB → abbondantemente nel free tier Supabase (1 GB)
+  - **Non implementare prima della migrazione** — localStorage non supporta base64 di immagini
 
 ### Priorità media (importante per usabilità)
 
@@ -1135,6 +1173,108 @@ CREATE TABLE manual_debt_history (
 7. **Aggiungere loading states** nell'UI (scheletri o spinner sui tab che aspettano dati)
 
 **Stima impatto:** la logica di business è già corretta e centralizzata in `data.js`. I punti 1-2 sono modifiche DB, il punto 3 è ~100 righe di SQL, i punti 4-5 sono ~50 righe ciascuno. Il punto 6 (riscrittura async) è il lavoro più lungo ma meccanico. Complessivamente: 3-5 giorni di lavoro concentrato.
+
+---
+
+---
+
+## 11. Compatibilità con Supabase Free Tier
+
+> Analisi aggiornata al 01/03/2026
+
+### 11.1 Limiti Supabase Free (2026)
+
+| Risorsa | Limite |
+|---|---|
+| Database storage | 500 MB |
+| Connessioni simultanee | 20 dirette / 200 con connection pooling |
+| Auth MAU | 50.000 utenti attivi/mese |
+| Email Auth rate limit (SMTP default) | **2 email/ora** (signup, recovery) |
+| Edge Function invocazioni | 500.000/mese |
+| Edge Function CPU time | **2 secondi** per esecuzione |
+| Storage file | 1 GB |
+| Egress | 5 GB/mese |
+| Realtime connessioni | 200 simultanee |
+| Backup automatici | **Nessuno** |
+| **Pausa per inattività** | **7 giorni senza richieste API** |
+| Progetti attivi | 2 per account |
+
+---
+
+### 11.2 Analisi per il progetto TB Training
+
+| Aspetto | Compatibilità | Note |
+|---|---|---|
+| Database storage | ✅ Abbondante | Stimato <3 MB anche dopo anni (500 prenotazioni/anno × ~1 KB) |
+| Auth MAU | ✅ Perfetto | 50.000 MAU vs ~50–200 utenti reali |
+| Google OAuth | ✅ Nessun problema | Nessuna email generata lato Supabase |
+| Email signup/recovery | ⚠️ Risolto con SMTP custom | Vedi sezione 11.3 |
+| Edge Functions (cron) | ✅ Sufficiente | ~5.000/mese stimate vs 500.000 incluse |
+| Edge Function CPU time | ⚠️ Da monitorare | 2s per exec; ok per DB piccolo |
+| Storage certificati medici | ✅ Abbondante | ~90 MB previsti (180 utenti × 500 KB) vs 1 GB |
+| Egress | ✅ Sufficiente | Traffico minimo per una palestra locale |
+| **Pausa 7 giorni** | 🔴 **Richiede workaround** | Vedi sezione 11.4 |
+| Backup automatici | 🟡 Richiede workaround | Vedi sezione 11.5 |
+| SLA | 🟡 Nessuna | Accettabile in fase early-stage |
+
+---
+
+### 11.3 Email Auth rate limit — Soluzione: SMTP personalizzato
+
+Il limite di **2 email/ora** si applica **solo all'SMTP di default di Supabase** (condiviso tra tutti i progetti free). Si risolve configurando Brevo o Resend come SMTP personalizzato — già previsti nel progetto per le notifiche (sezione Fase 2).
+
+**Configurazione (5 minuti):**
+Dashboard Supabase → **Auth → Settings → SMTP Settings** → inserire credenziali Brevo o Resend.
+
+| Provider | Free tier | Limite dopo configurazione |
+|---|---|---|
+| **Brevo** | 300 email/giorno, 9.000/mese | Nessun limite Supabase |
+| **Resend** | 100 email/giorno, 3.000/mese | Nessun limite Supabase |
+
+**Nota importante:** gli utenti che si iscrivono tramite Google OAuth (flusso principale) non generano alcuna email di Auth — Google gestisce tutto. Il limite riguarda solo la registrazione email+password manuale (flusso secondario). Con SMTP personalizzato, il problema scompare anche al lancio con molte iscrizioni simultanee.
+
+**⚠️ Da fare prima del go-live:** configurare SMTP personalizzato in Supabase Auth Settings.
+
+---
+
+### 11.4 Pausa automatica dopo 7 giorni di inattività — Soluzione: Uptime Robot
+
+Supabase mette in pausa i progetti free che non ricevono richieste API per 7 giorni consecutivi. Il DB torna online alla prima visita successiva con un ritardo di 15–30 secondi.
+
+**Impatto reale:** durante vacanze del trainer o chiusura stagionale, il sito potrebbe non ricevere traffico per più di 7 giorni. Il primo cliente che accede dopo la pausa trova errori o lentezza.
+
+**Soluzione: Uptime Robot (gratuito)**
+1. Registrarsi su [uptimerobot.com](https://uptimerobot.com)
+2. Creare un monitor HTTP verso l'endpoint Supabase (es. `https://ppymuuyoveyyoswcimck.supabase.co/rest/v1/bookings?select=count&limit=1` con l'`anon key` nell'header)
+3. Intervallo: ogni 5 minuti (gratis)
+4. Risultato: il progetto non va mai in pausa
+
+**⚠️ Da fare prima del go-live:** configurare Uptime Robot.
+
+---
+
+### 11.5 Backup — Soluzione: pg_dump via GitHub Actions
+
+Sul free tier non ci sono backup automatici scaricabili. I dati dei clienti (prenotazioni, crediti, debiti) non hanno protezione automatica.
+
+**Soluzione: GitHub Actions settimanale (gratuito)**
+- Workflow cron che esegue `pg_dump` sulla connection string Supabase
+- Salva il dump su repository privato GitHub o Nextcloud
+- Costo: zero (GitHub Actions è gratis per repository privati fino a 2.000 minuti/mese)
+
+**⚠️ Da fare dopo la migrazione a Supabase:** configurare il workflow di backup.
+
+---
+
+### 11.6 Riepilogo azioni necessarie prima del go-live
+
+| Priorità | Azione | Tempo stimato |
+|---|---|---|
+| 🔴 Alta | Configurare SMTP personalizzato (Brevo/Resend) in Supabase Auth Settings | 5 minuti |
+| 🔴 Alta | Configurare Uptime Robot per evitare pausa inattività | 5 minuti |
+| 🟡 Media | Configurare backup settimanale via GitHub Actions + pg_dump | 30 minuti |
+
+**Conclusione:** il progetto è pienamente compatibile con il free tier di Supabase per le dimensioni di una palestra locale. Con le tre azioni sopra, tutti i rischi concreti vengono eliminati o mitigati — costo totale: **€0/mese**.
 
 ---
 
