@@ -1050,9 +1050,12 @@ function deleteBooking(bookingId, bookingName) {
     if (index !== -1) {
         const booking = bookings[index];
 
-        // Refund credit: full price if paid (any method), partial if only creditApplied > 0
+        // Refund credit only if actually paid and NOT waiting for cancellation fulfillment.
+        // For cancellation_requested bookings, credit is added only by fulfillPendingCancellations
+        // when another person actually books the slot.
         const price = SLOT_PRICES[booking.slotType] || 0;
-        const creditToRefund = (booking.paid || (booking.creditApplied || 0) > 0) ? price : 0;
+        const isCancellationPending = booking.status === 'cancellation_requested';
+        const creditToRefund = (!isCancellationPending && (booking.paid || (booking.creditApplied || 0) > 0)) ? price : 0;
         if (creditToRefund > 0) {
             CreditStorage.addCredit(
                 booking.whatsapp,
