@@ -702,6 +702,28 @@ Libreria Canvas custom, nessuna dipendenza esterna.
 
 ---
 
+### 4.21 Lezione Gratuita e fix rimborso credito su annullamento pendente (mar 2026)
+
+**Metodo di pagamento "Lezione Gratuita" (`js/admin.js`, `js/data.js`, `js/booking.js`, `admin.html`, `css/admin.css`, `prenotazioni.html`):**
+- Nuovo bottone "🎁 Lezione Gratuita" nel popup "Aggiungi Credito Manuale" (verde, distinto dagli altri metodi)
+- Il credito aggiunto con questo metodo viene tracciato separatamente nel campo `freeBalance` del record credito, oltre al normale `balance`
+- `CreditStorage.addCredit(..., freeLesson=true)`: incrementa sia `balance` che `freeBalance`; aggiunge entry con flag `freeLesson: true`
+- Nuovo metodo `CreditStorage.getFreeBalance(whatsapp, email)`: restituisce il saldo disponibile da lezioni gratuite
+- `applyToUnpaidBookings()`: usa prima il `freeBalance`; le prenotazioni pagate con credito gratuito ricevono `paymentMethod = 'lezione-gratuita'`; il `freeBalance` viene decrementato manualmente dopo l'applicazione
+- `booking.js`: al momento della prenotazione, se l'utente ha `freeBalance >= price`, usa il credito gratuito e imposta `paymentMethod = 'lezione-gratuita'`
+- **Esclusione da statistiche/fatturato**: `filteredBookings.filter(b => b.paymentMethod !== 'lezione-gratuita')` prima di sommare i ricavi in admin Statistiche — le lezioni gratuite non compaiono nel fatturato né nel confronto periodi
+- Label display: `'lezione-gratuita': '🎁 Gratuita'` in admin, `'lezione-gratuita': '🎁 Lezione Gratuita'` in prenotazioni.html
+
+**Bug fix — rimborso credito non dovuto su annullamento pendente (`js/admin.js`):**
+- Problema: quando l'admin cliccava ✕ su una prenotazione con `status = 'cancellation_requested'`, `deleteBooking` rimborsava immediatamente il credito, anche se la cancellazione non era ancora stata completata da un'altra prenotazione
+- Regola corretta: il rimborso deve avvenire **solo** tramite `fulfillPendingCancellations` (quando un'altra persona prenota effettivamente lo slot); se l'admin elimina manualmente una prenotazione in attesa di cancellazione, nessun credito viene aggiunto automaticamente (il PT può farlo manualmente se necessario)
+- Fix: aggiunto controllo `isCancellationPending = booking.status === 'cancellation_requested'`; il rimborso viene saltato se vero
+
+**Service worker cache bump (`sw.js`):**
+- `CACHE_NAME` aggiornato da `palestra-v3` a `palestra-v4` per forzare reload dei file aggiornati
+
+---
+
 ### 4.12 Notifiche (pianificate, non ancora implementate)
 
 - Il form di prenotazione simula l'invio di un messaggio WhatsApp (solo `console.log`)
@@ -816,6 +838,9 @@ Libreria Canvas custom, nessuna dipendenza esterna.
 | Fix CSS split slot: flex-direction row + align-items stretch (no spazio bianco) | Funzionante ✅ |
 | Fix bfcache: pageshow listener su calendar.js e admin.js (dati aggiornati al back/forward) | Funzionante ✅ |
 | Service worker: bump a palestra-v2 per forzare reload JS/CSS aggiornati | Fatto ✅ |
+| Metodo pagamento "Lezione Gratuita": credito freeBalance, escluso da fatturato | Funzionante ✅ |
+| Fix rimborso credito: nessun rimborso automatico se annullamento ancora pendente | Funzionante ✅ |
+| Service worker: bump a palestra-v4 | Fatto ✅ |
 
 ---
 
