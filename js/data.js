@@ -658,7 +658,7 @@ class CreditStorage {
         return key ? (all[key]?.balance || 0) : 0;
     }
 
-    static addCredit(whatsapp, email, name, amount, note = '', displayAmount = null) {
+    static addCredit(whatsapp, email, name, amount, note = '', displayAmount = null, freeLesson = false) {
         // amount=0 is allowed for informational entries (payment log) that don't affect balance
         const all = this._getAll();
         let key = this._findKey(whatsapp, email);
@@ -668,10 +668,21 @@ class CreditStorage {
         if (amount !== 0) {
             all[key].balance = Math.round((all[key].balance + amount) * 100) / 100;
         }
+        // Track free (non-revenue) credit separately
+        if (freeLesson && amount > 0) {
+            all[key].freeBalance = Math.round(((all[key].freeBalance || 0) + amount) * 100) / 100;
+        }
         const entry = { date: new Date().toISOString(), amount, note };
         if (displayAmount !== null) entry.displayAmount = displayAmount;
+        if (freeLesson && amount > 0) entry.freeLesson = true;
         all[key].history.push(entry);
         this._save(all);
+    }
+
+    static getFreeBalance(whatsapp, email) {
+        const all = this._getAll();
+        const key = this._findKey(whatsapp, email);
+        return key ? (all[key]?.freeBalance || 0) : 0;
     }
 
     static getAllWithBalance() {
@@ -704,7 +715,12 @@ class CreditStorage {
         const allBookings = BookingStorage.getAllBookings();
         const now = new Date().toISOString();
         let totalApplied = 0;
+        let totalFreeApplied = 0;
         let count = 0;
+
+        // Track free (non-revenue) balance: use it first
+        const credKey = this._findKey(whatsapp, email);
+        let freeBalance = credKey ? (this._getAll()[credKey]?.freeBalance || 0) : 0;
 
         allBookings
             .filter(b => {
@@ -721,15 +737,22 @@ class CreditStorage {
                 if (balance >= remaining) {
                     // Fully cover the remaining amount
                     b.paid = true;
-                    b.paymentMethod = 'credito';
+                    // Use free balance first: if it fully covers the amount → lezione gratuita
+                    b.paymentMethod = freeBalance >= remaining ? 'lezione-gratuita' : 'credito';
                     b.paidAt = now;
                     b.creditApplied = 0; // absorbed into paid
+                    const freeUsed = Math.min(freeBalance, remaining);
+                    freeBalance -= freeUsed;
+                    totalFreeApplied += freeUsed;
                     balance -= remaining;
                     totalApplied += remaining;
                     count++;
                 } else if (balance > 0 && alreadyApplied === 0) {
                     // Partial payment on a booking with no credit yet
                     b.creditApplied = Math.round(balance * 100) / 100;
+                    const freeUsed = Math.min(freeBalance, balance);
+                    freeBalance -= freeUsed;
+                    totalFreeApplied += freeUsed;
                     totalApplied += balance;
                     balance = 0;
                 }
@@ -739,6 +762,15 @@ class CreditStorage {
             BookingStorage.replaceAllBookings(allBookings);
             this.addCredit(whatsapp, email, name, -totalApplied,
                 `Auto-pagamento ${count} lezione${count > 1 ? 'i' : ''} con credito`);
+            // Reduce freeBalance separately (addCredit only handles the main balance)
+            if (totalFreeApplied > 0 && credKey) {
+                const freshAll = this._getAll();
+                if (freshAll[credKey]) {
+                    freshAll[credKey].freeBalance = Math.round(
+                        Math.max(0, (freshAll[credKey].freeBalance || 0) - totalFreeApplied) * 100) / 100;
+                    this._save(freshAll);
+                }
+            }
         }
 
         return totalApplied > 0;

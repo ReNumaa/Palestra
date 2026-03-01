@@ -201,11 +201,13 @@ function handleBookingSubmit(e) {
     const creditBalance = CreditStorage.getBalance(savedBooking.whatsapp, savedBooking.email);
     if (creditBalance >= price) {
         // Full payment with credit
+        const freeBalance = CreditStorage.getFreeBalance(savedBooking.whatsapp, savedBooking.email);
+        const isFreeLesson = freeBalance >= price;
         const allBookings = BookingStorage.getAllBookings();
         const stored = allBookings.find(b => b.id === savedBooking.id);
         if (stored) {
             stored.paid = true;
-            stored.paymentMethod = 'credito';
+            stored.paymentMethod = isFreeLesson ? 'lezione-gratuita' : 'credito';
             stored.paidAt = new Date().toISOString();
             BookingStorage.replaceAllBookings(allBookings);
         }
@@ -214,8 +216,20 @@ function handleBookingSubmit(e) {
             savedBooking.email,
             savedBooking.name,
             -price,
-            `Lezione ${savedBooking.date} ${savedBooking.time} — pagata con credito`
+            `Lezione ${savedBooking.date} ${savedBooking.time} — pagata con ${isFreeLesson ? 'lezione gratuita' : 'credito'}`
         );
+        // Decrement freeBalance if the payment used free credit
+        if (isFreeLesson) {
+            const credKey = CreditStorage._findKey(savedBooking.whatsapp, savedBooking.email);
+            if (credKey) {
+                const freshAll = CreditStorage._getAll();
+                if (freshAll[credKey]) {
+                    freshAll[credKey].freeBalance = Math.round(
+                        Math.max(0, (freshAll[credKey].freeBalance || 0) - price) * 100) / 100;
+                    CreditStorage._save(freshAll);
+                }
+            }
+        }
         savedBooking.paid = true;
         savedBooking.paidWithCredit = true;
         savedBooking.remainingCredit = Math.round((creditBalance - price) * 100) / 100;
