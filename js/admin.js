@@ -853,7 +853,71 @@ function renderAdminDaySelector(weekDates) {
     });
 }
 
+// ── Extra spot management ──────────────────────────────────────────────────
+
+function toggleExtraPicker(date, time) {
+    const id = 'xpick-' + date + '-' + time.replace(/[: -]/g, '');
+    const el = document.getElementById(id);
+    if (el) el.style.display = el.style.display === 'none' ? 'flex' : 'none';
+}
+
+function addExtraSpotToSlot(date, time, extraType) {
+    BookingStorage.addExtraSpot(date, time, extraType);
+    toggleExtraPicker(date, time); // chiudi picker
+    if (window._currentAdminDate) renderAdminDayView(window._currentAdminDate);
+}
+
+function removeExtraSpotFromSlot(date, time, extraType) {
+    if (!BookingStorage.removeExtraSpot(date, time, extraType)) {
+        showToast('Impossibile rimuovere: il posto è già prenotato.', 'error');
+        return;
+    }
+    if (window._currentAdminDate) renderAdminDayView(window._currentAdminDate);
+}
+
+// Helper: HTML di una singola card partecipante
+function _buildParticipantCard(booking) {
+    const isPaid = booking.paid || false;
+    const isCancelPending = booking.status === 'cancellation_requested';
+    const unpaidAmount = getUnpaidAmountForContact(booking.whatsapp, booking.email);
+    const hasDebts = unpaidAmount > 0;
+    const cancelPendingBadge = isCancelPending
+        ? `<div class="admin-cancel-pending-badge">⏳ Annullamento richiesto</div>` : '';
+    const userRecord = getUserByEmail(booking.email);
+    const certScad = userRecord?.certificatoMedicoScadenza;
+    let certBadge = '';
+    if (certScad && certScad < new Date().toISOString().split('T')[0]) {
+        const [cy, cm, cd] = certScad.split('-');
+        certBadge = `<div class="cert-expired-badge">🏥 Cert. scaduto il ${cd}/${cm}/${cy}</div>`;
+    }
+    const wa  = booking.whatsapp.replace(/'/g, "\\'");
+    const em  = booking.email.replace(/'/g, "\\'");
+    const nm  = booking.name.replace(/'/g, "\\'");
+    return `
+        <div class="admin-participant-card${isCancelPending ? ' cancel-pending' : ''}">
+            <button class="btn-delete-booking" onclick="deleteBooking('${booking.id}','${nm}')">✕</button>
+            <div class="participant-card-content">
+                <div class="participant-name">${booking.name}</div>
+                <div class="participant-contact">📱 ${booking.whatsapp}</div>
+                ${booking.notes ? `<div class="participant-notes">📝 ${booking.notes}</div>` : ''}
+                ${cancelPendingBadge}${certBadge}
+                ${hasDebts ? `<div class="debt-warning" onclick="openDebtPopup('${wa}','${em}','${nm}')">⚠️ Da pagare: €${unpaidAmount}</div>` : ''}
+                ${!isCancelPending ? `<div class="payment-status ${isPaid ? 'paid' : 'unpaid'}"${!isPaid ? ` onclick="openDebtPopup('${wa}','${em}','${nm}')"` : ''}>${isPaid ? '✓ Pagato' : '⊕ Segna pagato'}</div>` : ''}
+            </div>
+        </div>`;
+}
+
+// Helper: griglia partecipanti per una lista di booking
+function _buildParticipantsSection(bookings) {
+    if (!bookings || bookings.length === 0)
+        return '<div class="empty-slot">Nessuna prenotazione</div>';
+    return '<div class="admin-participants-grid">' + bookings.map(_buildParticipantCard).join('') + '</div>';
+}
+
+// ────────────────────────────────────────────────────────────────────────────
+
 function renderAdminDayView(dateInfo) {
+    window._currentAdminDate = dateInfo;
     BookingStorage.processPendingCancellations();
     const dayView = document.getElementById('adminDayView');
     dayView.innerHTML = '';
@@ -886,73 +950,89 @@ function createAdminSlotCard(dateInfo, scheduledSlot) {
     const slotCard = document.createElement('div');
     slotCard.className = `admin-slot-card ${scheduledSlot.type}`;
 
+    const date     = dateInfo.formatted;
     const timeSlot = scheduledSlot.time;
-    const slotType = scheduledSlot.type;
-    const bookings = BookingStorage.getBookingsForSlot(dateInfo.formatted, timeSlot);
-    const maxCapacity = SLOT_MAX_CAPACITY[slotType];
-    const confirmedCount = bookings.filter(b => b.status === 'confirmed').length;
-    const remainingSpots = maxCapacity - confirmedCount;
+    const mainType = scheduledSlot.type;
+    const extras   = scheduledSlot.extras || [];
 
-    let participantsHTML = '';
-    if (bookings.length === 0) {
-        participantsHTML = '<div class="empty-slot">Nessuna prenotazione</div>';
-    } else {
-        participantsHTML = '<div class="admin-participants-grid">';
-        bookings.forEach((booking) => {
-            const isPaid = booking.paid || false;
-            const isCancelPending = booking.status === 'cancellation_requested';
+    // Escape per uso in onclick inline
+    const dE = date.replace(/'/g, "\\'");
+    const tE = timeSlot.replace(/'/g, "\\'");
 
-            // Show debt warning for OTHER unpaid bookings even if this one is paid,
-            // so the admin can see there are still outstanding debts for this person.
-            const unpaidAmount = getUnpaidAmountForContact(booking.whatsapp, booking.email);
-            const hasDebts = unpaidAmount > 0;
+    // Tutti i booking per questa data+ora (tutti i tipi)
+    const allBookings = BookingStorage.getBookingsForSlot(date, timeSlot);
 
-            const cancelPendingBadge = isCancelPending
-                ? `<div class="admin-cancel-pending-badge">⏳ Annullamento richiesto</div>`
-                : '';
+    // Info slot principale
+    const mainEffCap   = BookingStorage.getEffectiveCapacity(date, timeSlot, mainType);
+    const mainConfirmed = allBookings.filter(b => b.status === 'confirmed' && (!b.slotType || b.slotType === mainType)).length;
+    const mainRemaining = mainEffCap - mainConfirmed;
 
-            // Certificato medico scaduto
-            const userRecord = getUserByEmail(booking.email);
-            const certScad   = userRecord?.certificatoMedicoScadenza;
-            let certBadge = '';
-            if (certScad) {
-                const todayStr = new Date().toISOString().split('T')[0];
-                if (certScad < todayStr) {
-                    const [cy, cm, cd] = certScad.split('-');
-                    certBadge = `<div class="cert-expired-badge">🏥 Cert. scaduto il ${cd}/${cm}/${cy}</div>`;
-                }
-            }
+    // Tipi extra diversi dal principale
+    const extraTypes = [...new Set(extras.map(e => e.type).filter(t => t !== mainType))];
+    const hasMixedExtras = extraTypes.length > 0;
 
-            participantsHTML += `
-                <div class="admin-participant-card${isCancelPending ? ' cancel-pending' : ''}">
-                    <button class="btn-delete-booking" onclick="deleteBooking('${booking.id}', '${booking.name.replace(/'/g, "\\'")}')">✕</button>
-                    <div class="participant-card-content">
-                        <div class="participant-name">${booking.name}</div>
-                        <div class="participant-contact">📱 ${booking.whatsapp}</div>
-                        ${booking.notes ? `<div class="participant-notes">📝 ${booking.notes}</div>` : ''}
-                        ${cancelPendingBadge}
-                        ${certBadge}
-                        ${hasDebts ? `<div class="debt-warning" onclick="openDebtPopup('${booking.whatsapp.replace(/'/g, "\\'")}', '${booking.email.replace(/'/g, "\\'")}', '${booking.name.replace(/'/g, "\\'")}')">⚠️ Da pagare: €${unpaidAmount}</div>` : ''}
-                        ${!isCancelPending ? `<div class="payment-status ${isPaid ? 'paid' : 'unpaid'}"${!isPaid ? ` onclick="openDebtPopup('${booking.whatsapp.replace(/'/g, "\\'")}','${booking.email.replace(/'/g, "\\'")}','${booking.name.replace(/'/g, "\\'")}')"`  : ''}>${isPaid ? '✓ Pagato' : '⊕ Segna pagato'}</div>` : ''}
-                    </div>
-                </div>
-            `;
-        });
-        participantsHTML += '</div>';
-    }
+    // ── Header ──────────────────────────────────────────────────────────────
+    const capStr = mainType !== 'group-class'
+        ? `${mainConfirmed}/${mainEffCap} posti (${mainRemaining > 0 ? mainRemaining + ' liberi' : 'COMPLETO'})`
+        : '';
+    const pickerId = 'xpick-' + date + '-' + timeSlot.replace(/[: -]/g, '');
 
-    slotCard.innerHTML = `
+    const headerHTML = `
         <div class="admin-slot-header">
             <div class="admin-slot-time">🕐 ${timeSlot}</div>
-            <div class="admin-slot-type">${SLOT_NAMES[slotType]}</div>
-            <div class="admin-slot-capacity">
-                ${confirmedCount}/${maxCapacity} posti occupati
-                ${remainingSpots === 0 ? '(COMPLETO)' : `(${remainingSpots} liberi)`}
-            </div>
+            <div class="admin-slot-type">${SLOT_NAMES[mainType]}</div>
+            ${capStr ? `<div class="admin-slot-capacity">${capStr}</div>` : ''}
+            <button class="btn-add-extra" onclick="toggleExtraPicker('${dE}','${tE}')" title="Aggiungi posto extra">＋</button>
         </div>
-        ${participantsHTML}
-    `;
+        <div id="${pickerId}" class="extra-picker" style="display:none;">
+            <span class="extra-picker-label">Aggiungi posto:</span>
+            <button class="extra-picker-btn personal-training" onclick="addExtraSpotToSlot('${dE}','${tE}','personal-training')">Autonomia +€${SLOT_PRICES['personal-training']}</button>
+            <button class="extra-picker-btn small-group" onclick="addExtraSpotToSlot('${dE}','${tE}','small-group')">Lezione di Gruppo +€${SLOT_PRICES['small-group']}</button>
+        </div>`;
 
+    // ── Extras bar ──────────────────────────────────────────────────────────
+    let extrasBarHTML = '';
+    if (extras.length > 0) {
+        const allExtraTypes = [...new Set(extras.map(e => e.type))];
+        const badges = allExtraTypes.map(t => {
+            const cnt = extras.filter(e => e.type === t).length;
+            return `<span class="extra-badge ${t}">${SLOT_NAMES[t]} ×${cnt}
+                <button class="btn-remove-extra" onclick="removeExtraSpotFromSlot('${dE}','${tE}','${t}')" title="Rimuovi un posto">−</button>
+            </span>`;
+        }).join('');
+        extrasBarHTML = `<div class="admin-extras-bar">Extra: ${badges}</div>`;
+    }
+
+    // ── Participants ─────────────────────────────────────────────────────────
+    let participantsHTML;
+    if (!hasMixedExtras) {
+        // Vista unificata (nessun extra o solo extra dello stesso tipo)
+        const mainBookings = allBookings.filter(b => !b.slotType || b.slotType === mainType);
+        participantsHTML = _buildParticipantsSection(mainBookings);
+    } else {
+        // Vista divisa in colonne
+        const mainBookings = allBookings.filter(b => !b.slotType || b.slotType === mainType);
+        const leftCol = `
+            <div class="split-column">
+                <div class="split-col-title ${mainType}">${SLOT_NAMES[mainType]}</div>
+                ${_buildParticipantsSection(mainBookings)}
+            </div>`;
+        const rightCols = extraTypes.map(t => {
+            const eb = allBookings.filter(b => b.slotType === t);
+            const ec = BookingStorage.getEffectiveCapacity(date, timeSlot, t);
+            const eConf = eb.filter(b => b.status === 'confirmed').length;
+            const eRem  = ec - eConf;
+            return `
+                <div class="split-col-divider-v"></div>
+                <div class="split-column">
+                    <div class="split-col-title ${t}">${SLOT_NAMES[t]} ${eConf}/${ec}${eRem > 0 ? ` · ${eRem} liberi` : ' · COMPLETO'}</div>
+                    ${_buildParticipantsSection(eb)}
+                </div>`;
+        }).join('');
+        participantsHTML = `<div class="admin-slot-split">${leftCol}${rightCols}</div>`;
+    }
+
+    slotCard.innerHTML = headerHTML + extrasBarHTML + participantsHTML;
     return slotCard;
 }
 

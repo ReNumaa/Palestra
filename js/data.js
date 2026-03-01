@@ -193,12 +193,54 @@ class BookingStorage {
         return bookings.filter(b => b.date === date && b.time === time && b.status !== 'cancelled');
     }
 
+    // Capacità effettiva = base + numero di extra dello stesso tipo salvati sullo slot
+    static getEffectiveCapacity(date, time, slotType) {
+        const base = SLOT_MAX_CAPACITY[slotType] || 0;
+        const overrides = this.getScheduleOverrides();
+        const slots = overrides[date] || [];
+        const slot = slots.find(s => s.time === time);
+        if (!slot || !slot.extras || slot.extras.length === 0) return base;
+        return base + slot.extras.filter(e => e.type === slotType).length;
+    }
+
     static getRemainingSpots(date, time, slotType) {
         const bookings = this.getBookingsForSlot(date, time);
-        // Only confirmed bookings count toward capacity; cancellation_requested frees the spot
-        const confirmedCount = bookings.filter(b => b.status === 'confirmed').length;
-        const maxCapacity = SLOT_MAX_CAPACITY[slotType];
+        // Filtra per tipo: ogni "categoria" ha la propria capacità indipendente
+        const confirmedCount = bookings.filter(b => b.status === 'confirmed' && (!b.slotType || b.slotType === slotType)).length;
+        const maxCapacity = this.getEffectiveCapacity(date, time, slotType);
         return maxCapacity - confirmedCount;
+    }
+
+    // Aggiunge un posto extra di tipo extraType allo slot di quella data/ora
+    static addExtraSpot(date, time, extraType) {
+        const overrides = this.getScheduleOverrides();
+        const slots = overrides[date] || [];
+        const slot = slots.find(s => s.time === time);
+        if (!slot) return false;
+        if (!slot.extras) slot.extras = [];
+        slot.extras.push({ type: extraType });
+        this.saveScheduleOverrides(overrides);
+        return true;
+    }
+
+    // Rimuove l'ultimo extra di tipo extraType se non è già prenotato
+    static removeExtraSpot(date, time, extraType) {
+        const overrides = this.getScheduleOverrides();
+        const slots = overrides[date] || [];
+        const slot = slots.find(s => s.time === time);
+        if (!slot || !slot.extras) return false;
+        const extrasOfType = slot.extras.filter(e => e.type === extraType).length;
+        if (extrasOfType === 0) return false;
+        // Controlla se c'è posto libero da rimuovere
+        const base = SLOT_MAX_CAPACITY[extraType] || 0;
+        const bookings = this.getBookingsForSlot(date, time);
+        const bookedCount = bookings.filter(b => b.status === 'confirmed' && b.slotType === extraType).length;
+        const effectiveCap = base + extrasOfType;
+        if (effectiveCap - bookedCount <= 0) return false; // tutti i posti occupati
+        const idx = slot.extras.map(e => e.type).lastIndexOf(extraType);
+        slot.extras.splice(idx, 1);
+        this.saveScheduleOverrides(overrides);
+        return true;
     }
 
     // Cancella immediatamente uno "Slot prenotato" e converte lo slot in "Lezione di Gruppo"

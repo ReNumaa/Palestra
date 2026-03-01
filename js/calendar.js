@@ -179,43 +179,60 @@ function createSlot(dateInfo, timeSlot) {
     const slot = document.createElement('div');
     slot.className = 'calendar-slot';
 
-    // Only show slots that have been explicitly configured for this date
     const overrides = BookingStorage.getScheduleOverrides();
     const scheduledSlots = overrides[dateInfo.formatted] || [];
     const scheduledSlot = scheduledSlots.find(s => s.time === timeSlot);
 
-    if (scheduledSlot) {
-        const slotType = scheduledSlot.type;
-        const bookings = BookingStorage.getBookingsForSlot(dateInfo.formatted, timeSlot);
-        const remainingSpots = BookingStorage.getRemainingSpots(dateInfo.formatted, timeSlot, slotType);
-        const maxCapacity = SLOT_MAX_CAPACITY[slotType];
-        const isFull = remainingSpots <= 0;
-
-        slot.classList.add('has-booking', slotType);
-        if (isFull) {
-            slot.classList.add('slot-full');
-        }
-
-        slot.innerHTML = `
-            <div class="slot-type">${SLOT_NAMES[slotType]}</div>
-            ${slotType !== SLOT_TYPES.GROUP_CLASS && remainingSpots > 0 ? `<div class="slot-spots ${spotsColorClass(remainingSpots)}">${remainingSpots} ${remainingSpots === 1 ? 'disponibile' : 'disponibili'}</div>` : ''}
-        `;
-
-        // Allow booking if not full and the lesson ends in at least 30 minutes from now
-        const [_eh, _em] = timeSlot.split(' - ')[1].trim().split(':').map(Number);
-        const lessonEnd = new Date(dateInfo.date);
-        lessonEnd.setHours(_eh, _em, 0, 0);
-        const bookable = !isFull && (lessonEnd - new Date()) >= 30 * 60 * 1000;
-
-        if (bookable) {
-            slot.style.cursor = 'pointer';
-            slot.addEventListener('click', () => selectSlot(dateInfo, timeSlot, slotType, remainingSpots));
-        } else {
-            slot.style.cursor = 'not-allowed';
-        }
-    } else {
+    if (!scheduledSlot) {
         slot.innerHTML = '<div style="color: #ccc; font-size: 0.85rem;">-</div>';
         slot.style.cursor = 'default';
+        return slot;
+    }
+
+    const mainType = scheduledSlot.type;
+    const extras   = scheduledSlot.extras || [];
+    const extraTypes = [...new Set(extras.map(e => e.type).filter(t => t !== mainType))];
+    const hasMixedExtras = extraTypes.length > 0;
+
+    const [_eh, _em] = timeSlot.split(' - ')[1].trim().split(':').map(Number);
+    const lessonEnd = new Date(dateInfo.date);
+    lessonEnd.setHours(_eh, _em, 0, 0);
+    const timeOk = (lessonEnd - new Date()) >= 30 * 60 * 1000;
+
+    if (!hasMixedExtras) {
+        // Vista unificata (stesso tipo o nessun extra)
+        const remainingSpots = BookingStorage.getRemainingSpots(dateInfo.formatted, timeSlot, mainType);
+        const isFull = remainingSpots <= 0;
+        slot.classList.add('has-booking', mainType);
+        if (isFull) slot.classList.add('slot-full');
+        slot.innerHTML = `
+            <div class="slot-type">${SLOT_NAMES[mainType]}</div>
+            ${mainType !== SLOT_TYPES.GROUP_CLASS && remainingSpots > 0 ? `<div class="slot-spots ${spotsColorClass(remainingSpots)}">${remainingSpots} ${remainingSpots === 1 ? 'disponibile' : 'disponibili'}</div>` : ''}
+        `;
+        const bookable = !isFull && timeOk && mainType !== SLOT_TYPES.GROUP_CLASS;
+        slot.style.cursor = bookable ? 'pointer' : 'not-allowed';
+        if (bookable) slot.addEventListener('click', () => selectSlot(dateInfo, timeSlot, mainType, remainingSpots));
+    } else {
+        // Vista divisa: metà sinistra = tipo principale, metà destra = extra diversi
+        slot.classList.add('has-booking', 'split-slot');
+
+        const buildHalf = (type) => {
+            const rem = BookingStorage.getRemainingSpots(dateInfo.formatted, timeSlot, type);
+            const full = rem <= 0;
+            const bookable = !full && timeOk && type !== SLOT_TYPES.GROUP_CLASS;
+            const half = document.createElement('div');
+            half.className = `split-slot-half ${type}${full ? ' slot-full' : ''}`;
+            half.innerHTML = `
+                <div class="slot-type">${SLOT_NAMES[type]}</div>
+                ${type !== SLOT_TYPES.GROUP_CLASS && rem > 0 ? `<div class="slot-spots ${spotsColorClass(rem)}">${rem} disp.</div>` : ''}
+            `;
+            half.style.cursor = bookable ? 'pointer' : 'not-allowed';
+            if (bookable) half.addEventListener('click', e => { e.stopPropagation(); selectSlot(dateInfo, timeSlot, type, rem); });
+            return half;
+        };
+
+        slot.appendChild(buildHalf(mainType));
+        extraTypes.forEach(t => slot.appendChild(buildHalf(t)));
     }
 
     return slot;
@@ -322,16 +339,26 @@ function renderMobileSlots(dateInfo) {
     const thirtyMinMs = 30 * 60 * 1000;
 
     scheduledSlots.forEach(scheduledSlot => {
-        const remainingSpots = BookingStorage.getRemainingSpots(dateInfo.formatted, scheduledSlot.time, scheduledSlot.type);
-        if (remainingSpots <= 0) return;
-
         const [_eh, _em] = scheduledSlot.time.split(' - ')[1].trim().split(':').map(Number);
         const lessonEnd = new Date(dateInfo.date);
         lessonEnd.setHours(_eh, _em, 0, 0);
         if ((lessonEnd - now) < thirtyMinMs) return;
 
-        const slotCard = createMobileSlotCard(dateInfo, scheduledSlot);
-        slotsList.appendChild(slotCard);
+        // Card tipo principale
+        const mainRemaining = BookingStorage.getRemainingSpots(dateInfo.formatted, scheduledSlot.time, scheduledSlot.type);
+        if (mainRemaining > 0) {
+            slotsList.appendChild(createMobileSlotCard(dateInfo, scheduledSlot));
+        }
+
+        // Card tipi extra diversi dal principale
+        const extras = scheduledSlot.extras || [];
+        const extraTypes = [...new Set(extras.map(e => e.type).filter(t => t !== scheduledSlot.type))];
+        extraTypes.forEach(extraType => {
+            const extraRemaining = BookingStorage.getRemainingSpots(dateInfo.formatted, scheduledSlot.time, extraType);
+            if (extraRemaining > 0) {
+                slotsList.appendChild(createMobileSlotCard(dateInfo, { ...scheduledSlot, type: extraType }));
+            }
+        });
     });
 
     if (!slotsList.hasChildNodes()) {
