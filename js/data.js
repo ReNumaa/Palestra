@@ -296,9 +296,8 @@ class BookingStorage {
         const toCancel = pending[0];
         const idx = all.findIndex(b => b.id === toCancel.id);
         // Salva i dati di pagamento prima di azzerarli
-        const wasPaidWithCredit = toCancel.paid && toCancel.paymentMethod === 'credito';
-        const partialCredit = toCancel.creditApplied || 0;
         const slotType = toCancel.slotType;
+        const wasPaid = toCancel.paid || (toCancel.creditApplied || 0) > 0;
         all[idx].status = 'cancelled';
         all[idx].cancelledAt = new Date().toISOString();
         all[idx].paid = false;
@@ -306,10 +305,8 @@ class BookingStorage {
         all[idx].paidAt = null;
         all[idx].creditApplied = 0;
         this.replaceAllBookings(all);
-        // Rimborso credito: intero se pagato con credito, parziale se creditApplied > 0
-        const creditToRefund = wasPaidWithCredit
-            ? (SLOT_PRICES[slotType] || 0)
-            : partialCredit;
+        // Rimborso credito: prezzo pieno per qualsiasi metodo di pagamento (contanti, carta, iban, credito)
+        const creditToRefund = wasPaid ? (SLOT_PRICES[slotType] || 0) : 0;
         if (creditToRefund > 0) {
             CreditStorage.addCredit(
                 toCancel.whatsapp,
