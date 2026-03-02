@@ -931,9 +931,8 @@ function renderAdminDayView(dateInfo) {
         return;
     }
 
-    // Auto-apply any available credit for each unique contact with ACTIVE bookings on this day
-    // (exclude cancelled so a just-refunded credit isn't immediately consumed)
-    const dayBookings = BookingStorage.getAllBookings().filter(b => b.date === dateInfo.formatted && b.status !== 'cancelled');
+    // Auto-apply any available credit for each unique contact with bookings on this day
+    const dayBookings = BookingStorage.getAllBookings().filter(b => b.date === dateInfo.formatted);
     const seen = new Set();
     dayBookings.forEach(b => {
         const contactKey = `${b.whatsapp}|${b.email}`;
