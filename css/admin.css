@@ -58,6 +58,7 @@
     width: auto;
     margin: 0 auto 1.5rem;
     border-radius: 10px;
+    color-scheme: light;
 }
 
 .login-admin-icon {

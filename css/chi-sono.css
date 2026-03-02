@@ -29,6 +29,7 @@
     border: 4px solid var(--primary-cyan);
     box-shadow: 0 0 0 6px rgba(0,174,239,0.15);
     margin-bottom: 1.5rem;
+    color-scheme: light;
 }
 
 .cs-hero-name {
@@ -143,6 +144,7 @@
     object-fit: cover;
     border: 3px solid var(--primary-cyan);
     opacity: 0.85;
+    color-scheme: light;
 }
 
 .cs-about-text p {

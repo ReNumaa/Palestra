@@ -65,6 +65,7 @@ body {
     width: auto;
     display: block;
     border-radius: 6px;
+    color-scheme: light;
 }
 
 .nav-menu {
@@ -176,6 +177,7 @@ body {
     height: 42px;
     width: auto;
     border-radius: 6px;
+    color-scheme: light;
 }
 
 .nav-sidebar-close {
