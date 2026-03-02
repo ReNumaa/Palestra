@@ -169,6 +169,7 @@ function handleBookingSubmit(e) {
         b.date === selectedSlot.date &&
         b.time === selectedSlot.time &&
         b.status !== 'cancelled' &&
+        b.status !== 'cancellation_requested' &&
         (
             (b.email && b.email.toLowerCase() === formData.email.toLowerCase()) ||
             (normPhone && normalizePhone(b.whatsapp) === normPhone)
