@@ -1131,8 +1131,10 @@ function renderScheduleManager() {
     html += '<div class="schedule-day-tabs">';
     weekDates.forEach(dateInfo => {
         const isActive = selectedScheduleDate && selectedScheduleDate.formatted === dateInfo.formatted ? 'active' : '';
-        const hasSlots = overrides[dateInfo.formatted] && overrides[dateInfo.formatted].length > 0;
-        html += `<button class="schedule-day-tab ${isActive} ${hasSlots ? 'has-slots' : ''}" onclick="selectScheduleDate('${dateInfo.formatted}', '${dateInfo.dayName}')">
+        const daySlots = overrides[dateInfo.formatted] || [];
+        const hasSlots = daySlots.length > 0;
+        const hasMissingClient = daySlots.some(s => s.type === SLOT_TYPES.GROUP_CLASS && !s.client);
+        html += `<button class="schedule-day-tab ${isActive} ${hasSlots ? 'has-slots' : ''} ${hasMissingClient ? 'missing-client' : ''}" onclick="selectScheduleDate('${dateInfo.formatted}', '${dateInfo.dayName}')">
             <div class="admin-day-name">${dateInfo.dayName}</div>
             <div class="admin-day-date">${dateInfo.date.getDate()}</div>
             <div class="admin-day-count">${monthNames[dateInfo.date.getMonth()]}</div>

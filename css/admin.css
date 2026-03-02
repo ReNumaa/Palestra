@@ -1293,6 +1293,16 @@ canvas {
     transform: scale(1.05);
 }
 
+.schedule-day-tab.missing-client {
+    background-color: #fee2e2;
+    border-color: #fca5a5;
+}
+
+.schedule-day-tab.missing-client.active {
+    background: linear-gradient(135deg, var(--primary-cyan), var(--primary-cyan-dark));
+    border-color: var(--primary-cyan);
+}
+
 .schedule-slots-list {
     display: flex;
     flex-direction: column;
