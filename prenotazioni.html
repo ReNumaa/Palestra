@@ -238,15 +238,27 @@
 
             const balance = CreditStorage.getBalance(user.whatsapp, user.email);
             const { upcoming, past } = getUserBookings();
-            const bookingDebt = [...upcoming, ...past]
+            const allUserBookings = [...upcoming, ...past];
+
+            const bookingDebt = allUserBookings
                 .filter(b => !b.paid && b.status !== 'cancelled' && b.status !== 'cancellation_requested')
                 .reduce((sum, b) => sum + (SLOT_PRICES[b.slotType] || 0) - (b.creditApplied || 0), 0);
             const manualDebt = ManualDebtStorage.getBalance(user.whatsapp, user.email);
             const totalDebt = bookingDebt + manualDebt;
 
+            // Credito "in attesa di rimborso" da booking con annullamento pendente:
+            // mostrarlo nel saldo visibile anche se il balance reale verrà aggiornato
+            // solo quando fulfillPendingCancellations scatta (un'altra persona prenota).
+            const pendingRefund = allUserBookings
+                .filter(b => b.status === 'cancellation_requested')
+                .reduce((sum, b) => {
+                    if (b.paid && b.paymentMethod === 'credito') return sum + (SLOT_PRICES[b.slotType] || 0);
+                    return sum + (b.creditApplied || 0);
+                }, 0);
+
             // Compensazione: credito e debito si azzerano a vicenda
-            const displayCredit = Math.max(0, balance - totalDebt);
-            const displayDebit  = Math.max(0, totalDebt - balance);
+            const displayCredit = Math.max(0, balance + pendingRefund - totalDebt);
+            const displayDebit  = Math.max(0, totalDebt - balance - pendingRefund);
 
             document.getElementById('prenoCreditAmount').textContent = `€${displayCredit.toFixed(2)}`;
             document.getElementById('prenoDebitAmount').textContent  = `€${displayDebit.toFixed(2)}`;
