@@ -25,7 +25,7 @@ function _saveUsers(users) {
 }
 
 function getUserByEmail(email) {
-    return _getAllUsers().find(u => u.email.toLowerCase() === email.toLowerCase()) || null;
+    return _getAllUsers().find(u => u.email?.toLowerCase() === email.toLowerCase()) || null;
 }
 
 // Update user profile — returns { ok: true } or { ok: false, error: string }
