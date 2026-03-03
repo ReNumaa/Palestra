@@ -630,16 +630,11 @@ class CreditStorage {
         return `${whatsapp}||${email}`;
     }
 
-    // Strip +39 / 0039 prefix and non-digit chars so numbers can be compared without prefix
-    static _normalizePhone(phone) {
-        if (!phone) return '';
-        return phone.replace(/^\+39\s*/, '').replace(/^0039\s*/, '').replace(/[\s\-(). ]/g, '');
-    }
 
     // Check if a stored record matches the given contact: phone OR email
     static _matchContact(record, whatsapp, email) {
-        const normStored = this._normalizePhone(record.whatsapp);
-        const normInput  = this._normalizePhone(whatsapp);
+        const normStored = normalizePhone(record.whatsapp);
+        const normInput  = normalizePhone(whatsapp);
         const phoneMatch = normInput && normStored && normStored === normInput;
         const emailMatch = email && record.email && record.email.toLowerCase() === email.toLowerCase();
         return phoneMatch || emailMatch;
@@ -730,7 +725,7 @@ class CreditStorage {
         let balance = this.getBalance(whatsapp, email);
         if (balance <= 0) return false;
 
-        const normWhatsapp = this._normalizePhone(whatsapp);
+        const normWhatsapp = normalizePhone(whatsapp);
         const allBookings = BookingStorage.getAllBookings();
         const now = new Date().toISOString();
         let totalApplied = 0;
@@ -743,7 +738,7 @@ class CreditStorage {
 
         allBookings
             .filter(b => {
-                const normB      = CreditStorage._normalizePhone(b.whatsapp);
+                const normB      = normalizePhone(b.whatsapp);
                 const phoneMatch = normWhatsapp && normB && normB === normWhatsapp;
                 const emailMatch = email && b.email && b.email.toLowerCase() === email.toLowerCase();
                 return (phoneMatch || emailMatch) && !b.paid && b.status !== 'cancelled' && b.status !== 'cancellation_requested';
@@ -812,14 +807,10 @@ class ManualDebtStorage {
         return `${whatsapp}||${email}`;
     }
 
-    static _normalizePhone(phone) {
-        if (!phone) return '';
-        return phone.replace(/^\+39\s*/, '').replace(/^0039\s*/, '').replace(/[\s\-(). ]/g, '');
-    }
 
     static _matchContact(record, whatsapp, email) {
-        const normStored = this._normalizePhone(record.whatsapp);
-        const normInput  = this._normalizePhone(whatsapp);
+        const normStored = normalizePhone(record.whatsapp);
+        const normInput  = normalizePhone(whatsapp);
         const phoneMatch = normInput && normStored && normStored === normInput;
         const emailMatch = email && record.email && record.email.toLowerCase() === email.toLowerCase();
         return phoneMatch || emailMatch;

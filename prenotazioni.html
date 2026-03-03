@@ -359,17 +359,14 @@
             const container = document.getElementById('prenoList');
             const entries = [];
 
-            function normPhone(p) {
-                return (p || '').replace(/[\s\-().+]/g, '').replace(/^0039/, '').replace(/^39/, '');
-            }
-            const uPhone = normPhone(user.whatsapp);
+            const uPhone = normalizePhone(user.whatsapp);
             // Email is required; when both sides have a phone it must also match.
             // This prevents two accounts with the same email but different phones
             // from seeing each other's booking history.
             function matchUser(w, e) {
                 if (!user.email || !e) return false;
                 if (e.toLowerCase() !== user.email.toLowerCase()) return false;
-                if (uPhone && w && normPhone(w) !== uPhone) return false;
+                if (uPhone && w && normalizePhone(w) !== uPhone) return false;
                 return true;
             }
 
