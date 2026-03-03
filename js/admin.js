@@ -1063,7 +1063,7 @@ function deleteBooking(bookingId, bookingName) {
                 booking.name,
                 creditToRefund,
                 `Rimborso cancellazione lezione ${booking.date} ${booking.time}`,
-                null, false, booking.paymentMethod === 'credito'
+                null, false, true
             );
         }
 
