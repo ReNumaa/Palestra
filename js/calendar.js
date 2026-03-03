@@ -194,7 +194,8 @@ function createSlot(dateInfo, timeSlot) {
     const extraTypes = [...new Set(extras.map(e => e.type).filter(t => t !== mainType))];
     const hasMixedExtras = extraTypes.length > 0;
 
-    const [_eh, _em] = timeSlot.split(' - ')[1].trim().split(':').map(Number);
+    const _tParts1 = timeSlot.split(' - ');
+    const [_eh, _em] = (_tParts1[1] || _tParts1[0] || '').trim().split(':').map(Number);
     const lessonEnd = new Date(dateInfo.date);
     lessonEnd.setHours(_eh, _em, 0, 0);
     const timeOk = (lessonEnd - new Date()) >= 30 * 60 * 1000;
@@ -390,7 +391,8 @@ function createMobileSlotCard(dateInfo, scheduledSlot) {
     `;
 
     // Allow booking if not full and the lesson ends in at least 30 minutes from now
-    const [_eh, _em] = timeSlot.split(' - ')[1].trim().split(':').map(Number);
+    const _tParts2 = timeSlot.split(' - ');
+    const [_eh, _em] = (_tParts2[1] || _tParts2[0] || '').trim().split(':').map(Number);
     const lessonEnd = new Date(dateInfo.date);
     lessonEnd.setHours(_eh, _em, 0, 0);
     const bookable = !isFull && (lessonEnd - new Date()) >= 30 * 60 * 1000;
