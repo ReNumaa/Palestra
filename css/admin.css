@@ -1204,6 +1204,7 @@ canvas {
 .credit-history-amount { font-weight: 700; white-space: nowrap; }
 .credit-history-amount.plus  { color: #166534; }
 .credit-history-amount.minus { color: #991b1b; }
+.credit-history-amount.free  { color: #9ca3af; }
 
 @media (max-width: 768px) {
     .client-card-header  { flex-wrap: wrap; }

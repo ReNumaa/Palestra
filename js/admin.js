@@ -2594,7 +2594,7 @@ function createClientCard(client, index) {
     const matchCli = (w, e) =>
         (normCPhone && normalizePhone(w) === normCPhone) ||
         (client.email && e && e.toLowerCase() === client.email.toLowerCase());
-    const txMethodMap = { contanti: '💵 Contanti', carta: '💳 Carta', iban: '🏦 IBAN', credito: '💳 Credito' };
+    const txMethodMap = { contanti: '💵 Contanti', carta: '💳 Carta', iban: '🏦 IBAN', credito: '💳 Credito', 'lezione-gratuita': '🎁 Gratuita' };
     const txEntries = [];
 
     // 1. Paid bookings
@@ -2604,11 +2604,13 @@ function createClientCard(client, index) {
             const price = SLOT_PRICES[b.slotType] || 0;
             if (!price) return;
             const [by, bm, bd] = b.date.split('-');
+            const isFree = b.paymentMethod === 'lezione-gratuita';
             txEntries.push({
                 date: new Date(b.paidAt || `${b.date}T12:00:00`),
                 icon: '🏋️', label: SLOT_NAMES[b.slotType] || b.slotType,
                 sub: `${bd}/${bm}/${by} · ${txMethodMap[b.paymentMethod] || b.paymentMethod || ''}`,
-                amount: -price
+                amount: isFree ? 0 : -price,
+                freeLesson: isFree
             });
         });
 
@@ -2657,8 +2659,8 @@ function createClientCard(client, index) {
             <div class="client-credit-history" id="tx-list-${index}">
                 ${txEntries.map(e => {
                     const pos = e.amount > 0;
-                    const sign = (e.cancelled || e.amount < 0) ? '-' : '+';
-                    const cls  = pos ? 'plus' : 'minus';
+                    const sign = (e.cancelled || e.amount < 0 || e.freeLesson) ? '-' : '+';
+                    const cls  = e.freeLesson ? 'free' : (pos ? 'plus' : 'minus');
                     const cleanLabel = (e.label || '')
                         .replace(/^[💵💳🏦✨🎁]\s*/, '')
                         .replace(/\s+ricevuto$/i, '');
