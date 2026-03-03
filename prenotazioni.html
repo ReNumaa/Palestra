@@ -478,7 +478,7 @@
             const stored = getUserByEmail(user.email);
             const scad   = stored?.certificatoMedicoScadenza;
             if (!scad) {
-                el.innerHTML = `<div class="preno-cert-warning preno-cert-expired">🏥 Scadenza certificato medico non impostata <span class="preno-cert-update" onclick="openEditProfileModal()">(aggiorna)</span></div>`;
+                el.innerHTML = `<div class="preno-cert-warning preno-cert-expired">🏥 Imposta scadenza certificato medico <span class="preno-cert-update" onclick="openEditProfileModal()">(qui)</span></div>`;
                 return;
             }
 
