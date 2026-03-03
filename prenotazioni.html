@@ -491,7 +491,7 @@
 
             if (diffDays <= 0) {
                 el.innerHTML = `<div class="preno-cert-warning preno-cert-expired">🏥 Cert. Medico scaduto il ${dateLabel}</div>`;
-            } else if (diffDays <= 15) {
+            } else if (diffDays <= 30) {
                 el.innerHTML = `<div class="preno-cert-warning preno-cert-expiring">⏳ Mancano ${diffDays} giorn${diffDays === 1 ? 'o' : 'i'} alla scadenza del tuo Cert. Medico (porta a Thomas quello nuovo)</div>`;
             } else {
                 el.innerHTML = '';

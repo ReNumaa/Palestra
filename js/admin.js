@@ -2547,7 +2547,7 @@ function createClientCard(client, index) {
         const label = `${cd}/${cm}/${cy}`;
         if (certScad < today) return `<span class="cedit-cert-badge cedit-cert-expired">🏥 Cert. scaduto il ${label}</span>`;
         const daysLeft = Math.ceil((new Date(certScad + 'T00:00:00') - new Date()) / 86400000);
-        if (daysLeft <= 15) return `<span class="cedit-cert-badge cedit-cert-expiring">⏳ Cert. scade il ${label}</span>`;
+        if (daysLeft <= 30) return `<span class="cedit-cert-badge cedit-cert-expiring">⏳ Cert. scade il ${label}</span>`;
         return `<span class="cedit-cert-badge cedit-cert-ok">✅ Cert. valido fino al ${label}</span>`;
     })();
 
