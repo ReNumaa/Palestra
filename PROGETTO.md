@@ -1,6 +1,6 @@
 # TB Training — Diario di Sviluppo & Roadmap
 
-> Documento aggiornato al 01/03/2026 (sessione 5)
+> Documento aggiornato al 02/03/2026 (sessione 6)
 > Prototipo: sistema di prenotazione palestra, frontend-only con localStorage
 > Supabase CLI installato, schema SQL definito, accesso dati centralizzato
 > Supabase cloud attivo (tabelle create), Google OAuth funzionante, numeri normalizzati E.164
@@ -724,6 +724,26 @@ Libreria Canvas custom, nessuna dipendenza esterna.
 
 ---
 
+### 4.22 Evidenziazione giorni con slot prenotato senza cliente e fix logo dark mode (mar 2026)
+
+**Tab giorno rosso se manca il cliente associato (`js/admin.js` + `css/admin.css`):**
+- In `renderScheduleManager()`, il loop dei tab giornalieri calcola `hasMissingClient`: verifica se almeno uno slot del giorno ha `type === 'group-class'` senza proprietà `client`
+- Se vero, il button del tab riceve la classe CSS `missing-client`
+- `.schedule-day-tab.missing-client`: sfondo rosso chiaro `#fee2e2`, bordo `#fca5a5`
+- `.schedule-day-tab.missing-client.active`: quando il tab è anche selezionato, il gradiente cyan torna a prevalere per non perdere la visibilità del tab attivo
+- Il controllo usa `overrides[dateInfo.formatted]` già disponibile nel rendering, senza query aggiuntive
+
+**Fix logo in modalità notturna (`css/style.css`, `css/login.css`, `css/admin.css`, `css/chi-sono.css`):**
+- In dark mode (OS o browser force-dark), il browser applicava una trasformazione automatica al logo `logo-tb---nero.jpg` rendendolo bianco
+- Fix: aggiunta proprietà `color-scheme: light` su tutte le classi che contengono il logo:
+  - `.nav-logo` e `.nav-sidebar-logo` in `style.css`
+  - `.login-logo` in `login.css`
+  - `.login-admin-logo` in `admin.css`
+  - `.cs-hero-photo` e `.cs-about-photo-placeholder img` in `chi-sono.css`
+- `color-scheme: light` comunica al browser che quell'elemento è già progettato per il tema chiaro e non deve essere alterato automaticamente
+
+---
+
 ### 4.12 Notifiche (pianificate, non ancora implementate)
 
 - Il form di prenotazione simula l'invio di un messaggio WhatsApp (solo `console.log`)
@@ -841,6 +861,8 @@ Libreria Canvas custom, nessuna dipendenza esterna.
 | Metodo pagamento "Lezione Gratuita": credito freeBalance, escluso da fatturato | Funzionante ✅ |
 | Fix rimborso credito: nessun rimborso automatico se annullamento ancora pendente | Funzionante ✅ |
 | Service worker: bump a palestra-v4 | Fatto ✅ |
+| Tab giorno rosso in Gestione Orari se slot prenotato senza cliente | Funzionante ✅ |
+| Fix logo dark mode: color-scheme light su tutti i punti (navbar, sidebar, login, chi-sono) | Funzionante ✅ |
 
 ---
 
