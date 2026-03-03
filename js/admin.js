@@ -3,19 +3,43 @@
 const ADMIN_PASSWORD = 'admin123'; // In production, use proper authentication
 
 // ── Privacy toggle ──────────────────────────────────────────────────────────
-(function initPrivacyMode() {
-    if (localStorage.getItem('adminSensitiveHidden') === 'true') {
-        document.body.classList.add('sensitive-hidden');
-        const btn = document.getElementById('btnToggleSensitive');
-        if (btn) btn.textContent = '👁 Mostra dati';
+const SENSITIVE_IDS = ['totalUnpaid','totalDebtors','totalCreditors','totalCreditAmount','monthlyRevenue','revenueChange'];
+let _sensitiveHidden = localStorage.getItem('adminSensitiveHidden') === 'true';
+
+// Scrive il valore nell'elemento e lo salva in dataset; rispetta la modalità privacy
+function sensitiveSet(id, value) {
+    const el = document.getElementById(id);
+    if (!el) return;
+    el.dataset.realValue = value;
+    el.textContent = _sensitiveHidden ? '***' : value;
+}
+
+function _applyPrivacyMask() {
+    SENSITIVE_IDS.forEach(id => {
+        const el = document.getElementById(id);
+        if (!el) return;
+        if (_sensitiveHidden) {
+            if (!el.dataset.realValue) el.dataset.realValue = el.textContent;
+            el.textContent = '***';
+        } else {
+            if (el.dataset.realValue) el.textContent = el.dataset.realValue;
+        }
+    });
+    // Liste debitori/creditori: nascondile del tutto quando i dati sono nascosti
+    const dl = document.getElementById('debtorsList');
+    const cl = document.getElementById('creditsList');
+    if (_sensitiveHidden) {
+        if (dl) dl.style.display = 'none';
+        if (cl) cl.style.display = 'none';
     }
-})();
+    const btn = document.getElementById('btnToggleSensitive');
+    if (btn) btn.textContent = _sensitiveHidden ? '👁 Mostra dati' : '👁 Nascondi dati';
+}
 
 function toggleSensitiveData() {
-    const hidden = document.body.classList.toggle('sensitive-hidden');
-    localStorage.setItem('adminSensitiveHidden', hidden ? 'true' : 'false');
-    const btn = document.getElementById('btnToggleSensitive');
-    if (btn) btn.textContent = hidden ? '👁 Mostra dati' : '👁 Nascondi dati';
+    _sensitiveHidden = !_sensitiveHidden;
+    localStorage.setItem('adminSensitiveHidden', _sensitiveHidden ? 'true' : 'false');
+    _applyPrivacyMask();
 }
 // ────────────────────────────────────────────────────────────────────────────
 let adminWeekOffset = 0;
@@ -279,13 +303,14 @@ function updateStatsCards(filteredBookings, allBookings) {
     const revenue = filteredBookings
         .filter(b => b.paymentMethod !== 'lezione-gratuita')
         .reduce((t, b) => t + (SLOT_PRICES[b.slotType] || 0), 0);
-    document.getElementById('monthlyRevenue').textContent = `€${revenue}`;
+    sensitiveSet('monthlyRevenue', `€${revenue}`);
     const prevRevBookings = prevRange ? allBookings.filter(b => {
         const d = new Date(b.date + 'T00:00:00');
         return d >= prevRange.from && d <= prevRange.to && b.paymentMethod !== 'lezione-gratuita';
     }) : [];
     const prevRev = prevRevBookings.reduce((t, b) => t + (SLOT_PRICES[b.slotType] || 0), 0);
     calcChange(revenue, prevRev, document.getElementById('revenueChange'));
+    sensitiveSet('revenueChange', document.getElementById('revenueChange').textContent);
 
     // Total bookings
     document.getElementById('totalBookings').textContent = filteredBookings.length;
@@ -1588,10 +1613,10 @@ function renderPaymentsTab() {
     const totalCredit = credits.reduce((s, c) => s + c.balance, 0);
 
     // Update stats
-    document.getElementById('totalUnpaid').textContent = `€${totalUnpaid}`;
-    document.getElementById('totalDebtors').textContent = debtors.length;
-    document.getElementById('totalCreditors').textContent = credits.length;
-    document.getElementById('totalCreditAmount').textContent = `€${totalCredit}`;
+    sensitiveSet('totalUnpaid', `€${totalUnpaid}`);
+    sensitiveSet('totalDebtors', debtors.length);
+    sensitiveSet('totalCreditors', credits.length);
+    sensitiveSet('totalCreditAmount', `€${totalCredit}`);
 
     // Reset search UI and list visibility
     clearSearch();
@@ -1631,6 +1656,7 @@ function renderPaymentsTab() {
 }
 
 function toggleCreditsList() {
+    if (_sensitiveHidden) return;
     creditsListVisible = !creditsListVisible;
     const creditsList = document.getElementById('creditsList');
     const hint = document.getElementById('creditorsToggleHint');
@@ -1676,6 +1702,7 @@ function createCreditCard(credit, index) {
 }
 
 function toggleDebtorsList() {
+    if (_sensitiveHidden) return;
     debtorsListVisible = !debtorsListVisible;
     const debtorsList = document.getElementById('debtorsList');
     const hint = document.getElementById('debtorsToggleHint');
@@ -1903,8 +1930,8 @@ function payAllDebtsInline(whatsapp, email, name, btn) {
 
     // Refresh only the top stats numbers, not the full list
     const updatedDebtors = getDebtors();
-    document.getElementById('totalUnpaid').textContent = `€${updatedDebtors.reduce((s, d) => s + d.totalAmount, 0)}`;
-    document.getElementById('totalDebtors').textContent = updatedDebtors.length;
+    sensitiveSet('totalUnpaid', `€${updatedDebtors.reduce((s, d) => s + d.totalAmount, 0)}`);
+    sensitiveSet('totalDebtors', updatedDebtors.length);
 }
 
 function _searchAllContacts(query) {
@@ -2947,4 +2974,5 @@ window.addEventListener('pageshow', (event) => {
     if (!event.persisted) return;
     const activeTab = document.querySelector('.admin-tab.active');
     if (activeTab) switchTab(activeTab.dataset.tab);
+    _applyPrivacyMask();
 });
