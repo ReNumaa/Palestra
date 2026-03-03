@@ -1431,6 +1431,12 @@ body.nav-open {
     border: 1.5px solid rgba(255,255,255,0.5);
 }
 
+@media (max-width: 600px) {
+    .cal-buttons { margin-top: 0.6rem; gap: 0.4rem; }
+    .cal-btn { padding: 0.35rem 0.6rem; font-size: 0.75rem; }
+    .cal-btn svg { width: 13px; height: 13px; }
+}
+
 .confirm-rules {
     margin-top: 1rem;
     border-top: 1px solid rgba(255,255,255,0.15);
