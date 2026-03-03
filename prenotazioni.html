@@ -478,7 +478,7 @@
             const stored = getUserByEmail(user.email);
             const scad   = stored?.certificatoMedicoScadenza;
             if (!scad) {
-                el.innerHTML = `<div class="preno-cert-warning preno-cert-expired">🏥 Imposta scadenza certificato medico <span class="preno-cert-update" onclick="openEditProfileModal()">(qui)</span></div>`;
+                el.innerHTML = `<div class="preno-cert-warning preno-cert-expired">🏥 Imposta scadenza Cert. Medico <span class="preno-cert-update" onclick="openEditProfileModal()">(qui)</span></div>`;
                 return;
             }
 
@@ -490,9 +490,9 @@
             const dateLabel = `${d}/${m}/${y}`;
 
             if (diffDays <= 0) {
-                el.innerHTML = `<div class="preno-cert-warning preno-cert-expired">🏥 Certificato medico scaduto il ${dateLabel}</div>`;
+                el.innerHTML = `<div class="preno-cert-warning preno-cert-expired">🏥 Cert. Medico scaduto il ${dateLabel}</div>`;
             } else if (diffDays <= 15) {
-                el.innerHTML = `<div class="preno-cert-warning preno-cert-expiring">⏳ Mancano ${diffDays} giorn${diffDays === 1 ? 'o' : 'i'} alla scadenza del tuo certificato medico (porta a Thomas quello nuovo)</div>`;
+                el.innerHTML = `<div class="preno-cert-warning preno-cert-expiring">⏳ Mancano ${diffDays} giorn${diffDays === 1 ? 'o' : 'i'} alla scadenza del tuo Cert. Medico (porta a Thomas quello nuovo)</div>`;
             } else {
                 el.innerHTML = '';
             }
