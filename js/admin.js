@@ -3240,7 +3240,7 @@ function applyRegistroFilters() {
 function _updateRegistroSummary(filtered) {
     const totalEvents   = filtered.length;
     const totalPaid     = filtered
-        .filter(e => e.eventType === 'booking_paid')
+        .filter(e => e.eventType === 'booking_paid' && e.paymentMethod !== 'lezione-gratuita')
         .reduce((s, e) => s + (e.amount || 0), 0);
     const totalBookings = filtered.filter(e => e.eventType === 'booking_created').length;
 
