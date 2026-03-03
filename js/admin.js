@@ -559,7 +559,7 @@ function exportData() {
         'cancellation_requested': 'Annullamento richiesto'
     };
     const METHOD_LABEL = {
-        contanti: 'Contanti', carta: 'Carta', iban: 'IBAN', credito: 'Credito'
+        contanti: 'Contanti', carta: 'Carta', iban: 'IBAN', credito: 'Credito', 'lezione-gratuita': 'Gratuita'
     };
     const DAYS = ['Domenica','Lunedì','Martedì','Mercoledì','Giovedì','Venerdì','Sabato'];
 
@@ -2350,8 +2350,10 @@ function updateCreditPreview() {
         }
     }
 
+    const activeMethodBtn = document.querySelector('#debtPopupModal .debt-method-btn.active');
+    const isFreeLessonMethod = activeMethodBtn?.dataset.method === 'lezione-gratuita';
     const payBtn = document.getElementById('debtPayBtn');
-    if (payBtn) payBtn.disabled = checked.length === 0 || amountPaid <= 0;
+    if (payBtn) payBtn.disabled = checked.length === 0 || (!isFreeLessonMethod && amountPaid <= 0);
 }
 
 function toggleAllDebts(checked) {
@@ -2360,8 +2362,12 @@ function toggleAllDebts(checked) {
 }
 
 function selectPaymentMethod(btn) {
-    document.querySelectorAll('.debt-method-btn').forEach(b => b.classList.remove('active'));
+    document.querySelectorAll('#debtPopupModal .debt-method-btn').forEach(b => b.classList.remove('active'));
     btn.classList.add('active');
+    const isFree = btn.dataset.method === 'lezione-gratuita';
+    const amountRow = document.querySelector('#debtPopupModal .debt-payment-amount-row');
+    if (amountRow) amountRow.style.display = isFree ? 'none' : '';
+    updateCreditPreview();
 }
 
 function paySelectedDebts() {
@@ -2369,12 +2375,12 @@ function paySelectedDebts() {
     if (checked.length === 0) return;
 
     const dueTotal = Array.from(checked).reduce((sum, cb) => sum + Number(cb.dataset.price), 0);
-    const amountInput = document.getElementById('debtAmountInput');
-    const amountPaid = amountInput ? (parseFloat(amountInput.value) || dueTotal) : dueTotal;
-    const creditDelta = Math.round((amountPaid - dueTotal) * 100) / 100;
-
-    const activeMethodBtn = document.querySelector('.debt-method-btn.active');
+    const activeMethodBtn = document.querySelector('#debtPopupModal .debt-method-btn.active');
     const paymentMethod = activeMethodBtn ? activeMethodBtn.dataset.method : 'contanti';
+    const isFreeLesson = paymentMethod === 'lezione-gratuita';
+    const amountInput = document.getElementById('debtAmountInput');
+    const amountPaid = isFreeLesson ? 0 : (amountInput ? (parseFloat(amountInput.value) || dueTotal) : dueTotal);
+    const creditDelta = Math.round((amountPaid - dueTotal) * 100) / 100;
 
     const bookings = BookingStorage.getAllBookings();
     const now = new Date().toISOString();
@@ -2388,9 +2394,9 @@ function paySelectedDebts() {
     });
     BookingStorage.replaceAllBookings(bookings);
 
-    // Record incoming payment as a transaction (carta/contanti/iban only; credit case already handled by load entry)
+    // Record incoming payment as a transaction (carta/contanti/iban only; lezione-gratuita and credit excluded)
     const _payML = { contanti: 'Contanti', carta: 'Carta', iban: 'IBAN' };
-    if (paymentMethod !== 'credito' && creditDelta <= 0 && currentDebtContact) {
+    if (!isFreeLesson && paymentMethod !== 'credito' && creditDelta <= 0 && currentDebtContact) {
         CreditStorage.addCredit(
             currentDebtContact.whatsapp,
             currentDebtContact.email,
@@ -2402,7 +2408,7 @@ function paySelectedDebts() {
     }
 
     // Add credit if overpaid, then auto-apply to any remaining unpaid past bookings
-    if (creditDelta > 0 && currentDebtContact) {
+    if (!isFreeLesson && creditDelta > 0 && currentDebtContact) {
         CreditStorage.addCredit(
             currentDebtContact.whatsapp,
             currentDebtContact.email,
@@ -2836,10 +2842,11 @@ function startEditBookingRow(bookingId, clientIndex) {
     row.classList.add('editing');
 
     const methods = [
-        { v: 'contanti', l: '💵 Contanti' },
-        { v: 'carta',    l: '💳 Carta'    },
-        { v: 'iban',     l: '🏦 IBAN'     },
-        { v: 'credito',  l: '✨ Credito'  }
+        { v: 'contanti',         l: '💵 Contanti'  },
+        { v: 'carta',            l: '💳 Carta'     },
+        { v: 'iban',             l: '🏦 IBAN'      },
+        { v: 'credito',          l: '✨ Credito'   },
+        { v: 'lezione-gratuita', l: '🎁 Gratuita'  }
     ];
     const methodOpts = methods.map(m =>
         `<option value="${m.v}" ${booking.paymentMethod === m.v ? 'selected' : ''}>${m.l}</option>`
@@ -2897,6 +2904,8 @@ function saveBookingRowEdit(bookingId, clientIndex) {
     const oldMethod = booking.paymentMethod || '';
     const price     = SLOT_PRICES[booking.slotType];
 
+    const _editPayML = { contanti: 'Contanti', carta: 'Carta', iban: 'IBAN' };
+
     // Credit adjustments
     if (oldPaid && oldMethod === 'credito' && !newPaid) {
         // Was paid with credit → unpaid: refund
@@ -2909,15 +2918,35 @@ function saveBookingRowEdit(bookingId, clientIndex) {
         CreditStorage.addCredit(booking.whatsapp, booking.email, booking.name, -price,
             `Pagamento lezione ${booking.date} ${booking.time} con credito`);
     } else if (oldPaid && oldMethod === 'credito' && newPaid && newMethod !== 'credito') {
-        // Credit → other method: refund credit
+        // Credit → other method: refund credit; record payment entry only if not free lesson
         CreditStorage.addCredit(booking.whatsapp, booking.email, booking.name, price,
             `Cambio metodo da credito — lezione ${booking.date} ${booking.time}`);
-    } else if (oldPaid && oldMethod !== 'credito' && newPaid && newMethod === 'credito') {
-        // Other method → credit: deduct credit
+        if (newMethod !== 'lezione-gratuita') {
+            CreditStorage.addCredit(booking.whatsapp, booking.email, booking.name, 0,
+                `${_editPayML[newMethod] || newMethod} ricevuto`,
+                price, false, false, bookingId);
+        }
+    } else if (oldPaid && oldMethod !== 'credito' && oldMethod !== 'lezione-gratuita' && newPaid && newMethod === 'credito') {
+        // Cash/card/iban → credit: remove old payment entry + deduct credit
+        CreditStorage.hidePaymentEntryByBooking(booking.whatsapp, booking.email, bookingId);
         const bal = CreditStorage.getBalance(booking.whatsapp, booking.email);
         if (bal < price) { alert(`Credito insufficiente (€${bal} < €${price})`); return; }
         CreditStorage.addCredit(booking.whatsapp, booking.email, booking.name, -price,
             `Cambio metodo a credito — lezione ${booking.date} ${booking.time}`);
+    } else if (oldPaid && oldMethod === 'lezione-gratuita' && newPaid && newMethod === 'credito') {
+        // Free lesson → credit: deduct credit (no old entry to hide)
+        const bal = CreditStorage.getBalance(booking.whatsapp, booking.email);
+        if (bal < price) { alert(`Credito insufficiente (€${bal} < €${price})`); return; }
+        CreditStorage.addCredit(booking.whatsapp, booking.email, booking.name, -price,
+            `Cambio metodo a credito — lezione ${booking.date} ${booking.time}`);
+    } else if (!oldPaid && newPaid && newMethod !== 'credito' && newMethod !== 'lezione-gratuita') {
+        // Unpaid → paid with cash/card/iban: record incoming payment
+        CreditStorage.addCredit(booking.whatsapp, booking.email, booking.name, 0,
+            `${_editPayML[newMethod] || newMethod} ricevuto`,
+            price, false, false, bookingId);
+    } else if (oldPaid && oldMethod !== 'credito' && oldMethod !== 'lezione-gratuita' && !newPaid) {
+        // Paid (cash/card/iban) → unpaid: hide the payment entry
+        CreditStorage.hidePaymentEntryByBooking(booking.whatsapp, booking.email, bookingId);
     }
 
     const newPaidAtRaw = document.getElementById(`bedit-paidat-${bookingId}`)?.value;
