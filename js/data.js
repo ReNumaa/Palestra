@@ -660,7 +660,7 @@ class CreditStorage {
         return key ? (all[key]?.balance || 0) : 0;
     }
 
-    static addCredit(whatsapp, email, name, amount, note = '', displayAmount = null, freeLesson = false, hiddenRefund = false, bookingRef = null) {
+    static addCredit(whatsapp, email, name, amount, note = '', displayAmount = null, freeLesson = false, hiddenRefund = false, bookingRef = null, method = '') {
         // amount=0 is allowed for informational entries (payment log) that don't affect balance
         const all = this._getAll();
         let key = this._findKey(whatsapp, email);
@@ -679,6 +679,7 @@ class CreditStorage {
         if (freeLesson && amount > 0) entry.freeLesson = true;
         if (hiddenRefund) entry.hiddenRefund = true;
         if (bookingRef) entry.bookingRef = bookingRef;
+        if (method) entry.method = method;
         all[key].history.push(entry);
         this._save(all);
     }

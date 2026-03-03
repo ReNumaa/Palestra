@@ -2209,8 +2209,8 @@ function saveManualEntry() {
     } else {
         const isFreeLesson = method === 'lezione-gratuita';
         CreditStorage.addCredit(whatsapp, email, name, amount,
-            note ? `${note}${isFreeLesson ? ' (lezione gratuita)' : ` (${method})`}` : isFreeLesson ? 'Lezione gratuita' : `Credito manuale (${method})`,
-            null, isFreeLesson);
+            note || (isFreeLesson ? 'Lezione gratuita' : 'Credito manuale'),
+            null, isFreeLesson, false, null, method);
         CreditStorage.applyToUnpaidBookings(whatsapp, email, name);
     }
 
@@ -2405,7 +2405,8 @@ function paySelectedDebts() {
             currentDebtContact.name,
             0,                                                    // no balance change
             `${_payML[paymentMethod] || paymentMethod} ricevuto`,
-            amountPaid                                            // displayed amount
+            amountPaid,                                           // displayed amount
+            false, false, null, paymentMethod
         );
     }
 
@@ -2416,8 +2417,9 @@ function paySelectedDebts() {
             currentDebtContact.email,
             currentDebtContact.name,
             creditDelta,
-            `Pagamento con credito di €${creditDelta} (${paymentMethod})`,
-            amountPaid
+            `Pagamento in acconto di €${amountPaid}`,
+            amountPaid,
+            false, false, null, paymentMethod
         );
         CreditStorage.applyToUnpaidBookings(
             currentDebtContact.whatsapp,
@@ -3114,8 +3116,9 @@ function buildRegistroEntries() {
                 notes:         h.note || '',
                 eventType:     'credit_added',
                 timestamp:     ts,
-                amount:        Math.abs(h.displayAmount !== undefined ? h.displayAmount : h.amount),
+                amount:        Math.abs(h.amount || 0),
                 paymentMethod: h.method || null,
+                freeLesson:    h.freeLesson || false,
                 bookingStatus: 'credit',
                 bookingPaid:   null,
             });
@@ -3240,7 +3243,10 @@ function applyRegistroFilters() {
 function _updateRegistroSummary(filtered) {
     const totalEvents   = filtered.length;
     const totalPaid     = filtered
-        .filter(e => e.eventType === 'booking_paid' && e.paymentMethod !== 'lezione-gratuita')
+        .filter(e =>
+            (e.eventType === 'booking_paid'  && e.paymentMethod !== 'lezione-gratuita' && e.paymentMethod !== 'credito')
+            || (e.eventType === 'credit_added' && !e.freeLesson)
+        )
         .reduce((s, e) => s + (e.amount || 0), 0);
     const totalBookings = filtered.filter(e => e.eventType === 'booking_created').length;
 
