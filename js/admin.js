@@ -3093,13 +3093,15 @@ function buildRegistroEntries() {
         }
     }
 
-    // 2. Storico crediti (esclude refund interni nascosti)
+    // 2. Storico crediti — solo aggiunte (positive): i consumi di credito sono
+    //    già rappresentati come booking_paid con method='credito', quindi
+    //    mostrare anche credit_used sarebbe ridondante e confuso.
     const allCredits = CreditStorage._getAll();
     for (const record of Object.values(allCredits)) {
         for (const h of (record.history || [])) {
             if (h.hiddenRefund) continue;
-            const ts         = h.date ? new Date(h.date) : new Date();
-            const isPositive = (h.amount || 0) > 0;
+            if ((h.amount || 0) <= 0) continue; // salta i consumi di credito
+            const ts = h.date ? new Date(h.date) : new Date();
             entries.push({
                 bookingId:     h.bookingRef || null,
                 clientName:    record.name     || '—',
@@ -3110,10 +3112,10 @@ function buildRegistroEntries() {
                 slotType:      null,
                 slotLabel:     '',
                 notes:         h.note || '',
-                eventType:     isPositive ? 'credit_added' : 'credit_used',
+                eventType:     'credit_added',
                 timestamp:     ts,
                 amount:        Math.abs(h.displayAmount !== undefined ? h.displayAmount : h.amount),
-                paymentMethod: isPositive ? (h.method || null) : 'credito',
+                paymentMethod: h.method || null,
                 bookingStatus: 'credit',
                 bookingPaid:   null,
             });
@@ -3278,7 +3280,6 @@ function renderRegistroTable() {
         booking_cancelled:        { icon: '❌', cls: 'rtype-cancelled',  label: 'Annullamento' },
         booking_cancellation_req: { icon: '⏳', cls: 'rtype-pending',    label: 'Rich. Annullamento' },
         credit_added:             { icon: '⬆️', cls: 'rtype-credit',     label: 'Credito Aggiunto' },
-        credit_used:              { icon: '💳', cls: 'rtype-creditused', label: 'Credito Usato' },
         manual_debt:              { icon: '📋', cls: 'rtype-debt',       label: 'Debito Manuale' },
         manual_debt_paid:         { icon: '💰', cls: 'rtype-debtpaid',   label: 'Debito Saldato' },
     };
