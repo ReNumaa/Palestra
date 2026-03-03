@@ -755,7 +755,7 @@ function clearAllData() {
 
 function pruneOldData() {
     const months = parseInt(prompt(
-        'Eliminare prenotazioni passate e transazioni più vecchie di quanti mesi?\n(es. 6 = tutto ciò che precede 6 mesi fa)',
+        'Eliminare dati demo e prenotazioni più vecchie di quanti mesi?\n(es. 6 = tutto ciò che precede 6 mesi fa)',
         '12'
     ));
     if (!months || isNaN(months) || months <= 0) return;
@@ -764,11 +764,15 @@ function pruneOldData() {
     cutoff.setMonth(cutoff.getMonth() - months);
     const cutoffStr = cutoff.toISOString().split('T')[0]; // YYYY-MM-DD
 
-    if (!confirm(`⚠️ Verranno eliminati definitivamente:\n• Prenotazioni con data precedente al ${cutoff.toLocaleDateString('it-IT')}\n• Voci di credito/transazioni precedenti a tale data\n\nI saldi credito rimangono invariati. Continuare?`)) return;
+    if (!confirm(`⚠️ Verranno eliminati definitivamente:\n• Tutte le prenotazioni DEMO\n• Prenotazioni reali con data precedente al ${cutoff.toLocaleDateString('it-IT')}\n• Voci di credito/transazioni precedenti a tale data\n\nI saldi credito rimangono invariati. Continuare?`)) return;
 
-    // 1. Rimuovi prenotazioni passate (solo quelle con data < cutoff)
+    // 1. Rimuovi prenotazioni demo (sempre) + prenotazioni reali più vecchie del cutoff
     const bookings = BookingStorage.getAllBookings();
-    BookingStorage.replaceAllBookings(bookings.filter(b => b.date >= cutoffStr));
+    BookingStorage.replaceAllBookings(
+        bookings.filter(b => !b.id?.startsWith('demo-') && b.date >= cutoffStr)
+    );
+    // Impedisci che initializeDemoData rigeneri i dati al prossimo reload
+    localStorage.setItem('dataClearedByUser', 'true');
 
     // 2. Pruning storico crediti (mantieni il saldo, rimuovi solo le voci vecchie)
     const allCredits = JSON.parse(localStorage.getItem(CreditStorage.CREDITS_KEY) || '{}');
@@ -788,7 +792,7 @@ function pruneOldData() {
     });
     localStorage.setItem(ManualDebtStorage.DEBTS_KEY, JSON.stringify(allDebts));
 
-    alert('✅ Dati storici eliminati. I saldi credito sono rimasti invariati.');
+    alert('✅ Dati storici e demo eliminati. I saldi credito sono rimasti invariati.');
     location.reload();
 }
 
