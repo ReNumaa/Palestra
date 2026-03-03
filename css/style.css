@@ -1453,10 +1453,9 @@ body.nav-open {
     margin-top: 0.05rem;
 }
 
-.confirm-rule-item strong {
+.confirm-rule-item > div > strong {
     display: block;
     font-size: 0.9rem;
-    color: #5eead4;
     margin-bottom: 0.2rem;
 }
 
