@@ -1062,11 +1062,14 @@ function deleteBooking(bookingId, bookingName) {
                 booking.email,
                 booking.name,
                 creditToRefund,
-                `Rimborso cancellazione lezione ${booking.date} ${booking.time}`
+                `Rimborso cancellazione lezione ${booking.date} ${booking.time}`,
+                null, false, booking.paymentMethod === 'credito'
             );
         }
 
         // Mark as cancelled (keep record for history) instead of deleting
+        bookings[index].cancelledPaymentMethod = booking.paymentMethod;
+        bookings[index].cancelledPaidAt = booking.paidAt;
         bookings[index].status = 'cancelled';
         bookings[index].cancelledAt = new Date().toISOString();
         bookings[index].paid = false;
@@ -2844,7 +2847,8 @@ function deleteBookingFromClients(bookingId, bookingName) {
         const b = bookings[idx];
         if (b.paid && b.paymentMethod === 'credito') {
             CreditStorage.addCredit(b.whatsapp, b.email, b.name, SLOT_PRICES[b.slotType],
-                `Rimborso cancellazione lezione ${b.date} ${b.time}`);
+                `Rimborso cancellazione lezione ${b.date} ${b.time}`,
+                null, false, true);
         }
         bookings.splice(idx, 1);
         BookingStorage.replaceAllBookings(bookings);
