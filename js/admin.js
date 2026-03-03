@@ -2286,7 +2286,7 @@ function paySelectedDebts() {
     BookingStorage.replaceAllBookings(bookings);
 
     // Record incoming payment as a transaction (carta/contanti/iban only; credit case already handled by load entry)
-    const _payML = { contanti: '💵 Contanti', carta: '💳 Carta', iban: '🏦 IBAN' };
+    const _payML = { contanti: 'Contanti', carta: 'Carta', iban: 'IBAN' };
     if (paymentMethod !== 'credito' && creditDelta <= 0 && currentDebtContact) {
         CreditStorage.addCredit(
             currentDebtContact.whatsapp,

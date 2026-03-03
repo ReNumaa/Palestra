@@ -394,9 +394,13 @@
             //    Le uscite (credito usato) sono già coperte dalle singole prenotazioni
             const creditRec = CreditStorage.getRecord(user.whatsapp, user.email);
             (creditRec?.history || []).filter(e => !e.hiddenRefund && !/^Rimborso (cancellazione|annullamento) lezione/i.test(e.note || '') && (e.amount > 0 || (e.amount === 0 && (e.displayAmount || 0) > 0))).forEach(e => {
+                const rawLabel = e.note || 'Credito aggiunto';
+                const cleanLabel = rawLabel
+                    .replace(/^[💵💳🏦]\s*/, '')          // rimuovi emoji iniziale (vecchie note)
+                    .replace(/\s+ricevuto$/i, '');         // rimuovi " ricevuto" finale (vecchie note)
                 entries.push({
                     date: new Date(e.date), icon: '💳',
-                    label: e.note || 'Credito aggiunto',
+                    label: cleanLabel,
                     sub: '', amount: e.displayAmount ?? e.amount
                 });
             });
