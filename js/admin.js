@@ -976,7 +976,9 @@ function _buildParticipantCard(booking) {
     const userRecord = getUserByEmail(booking.email);
     const certScad = userRecord?.certificatoMedicoScadenza;
     let certBadge = '';
-    if (certScad && certScad < new Date().toISOString().split('T')[0]) {
+    if (!certScad) {
+        certBadge = `<div class="cert-expired-badge">🏥 Senza certificato</div>`;
+    } else if (certScad < new Date().toISOString().split('T')[0]) {
         const [cy, cm, cd] = certScad.split('-');
         certBadge = `<div class="cert-expired-badge">🏥 Cert. scaduto il ${cd}/${cm}/${cy}</div>`;
     }
@@ -2539,7 +2541,7 @@ function createClientCard(client, index) {
     const userRecord = getUserByEmail(client.email);
     const certScad   = userRecord?.certificatoMedicoScadenza || '';
     const certDisplay = (() => {
-        if (!certScad) return '';
+        if (!certScad) return `<span class="cedit-cert-badge cedit-cert-expired">🏥 Certificato non disponibile</span>`;
         const today = new Date().toISOString().split('T')[0];
         const [cy, cm, cd] = certScad.split('-');
         const label = `${cd}/${cm}/${cy}`;

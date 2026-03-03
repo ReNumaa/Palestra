@@ -316,6 +316,15 @@
             const _canCancelSlot       = !_isGroupClass && (_msToLesson >= THREE_DAYS_MS);
             const _canCancelGroupClass =  _isGroupClass && (_msToLesson >= THREE_HOURS_MS);
 
+            let certBadge = '';
+            if (showCancel && b.status !== 'cancelled') {
+                const _cu = getCurrentUser();
+                const _cs = _cu ? getUserByEmail(_cu.email) : null;
+                const _certScad = _cs?.certificatoMedicoScadenza;
+                const _certOk = _certScad && new Date(_certScad + 'T00:00:00') > new Date();
+                if (!_certOk) certBadge = `<span class="preno-badge preno-badge-cancelled" style="background:#fef2f2;color:#b91c1c;border-color:#fca5a5;">🏥 Senza certificato</span>`;
+            }
+
             let cancelBtn = '';
             if (showCancel && b.status !== 'cancelled' && !_lessonPast) {
                 if (_isGroupClass) {
@@ -346,6 +355,7 @@
                     </div>
                     <div class="preno-card-right">
                         ${payBadge}
+                        ${certBadge}
                         ${cancelBtn}
                     </div>
                 </div>`;
@@ -476,7 +486,10 @@
 
             const stored = getUserByEmail(user.email);
             const scad   = stored?.certificatoMedicoScadenza;
-            if (!scad) { el.innerHTML = ''; return; }
+            if (!scad) {
+                el.innerHTML = `<div class="preno-cert-warning preno-cert-expired">🏥 Certificato medico non disponibile <span class="preno-cert-update" onclick="openEditProfileModal()">(aggiorna)</span></div>`;
+                return;
+            }
 
             const today   = new Date(); today.setHours(0,0,0,0);
             const scadDt  = new Date(scad + 'T00:00:00');
