@@ -971,6 +971,7 @@ canvas {
 }
 
 .cstat.paid   { background: rgba(34,197,94,0.1);   color: #166534; }
+.cstat.free   { background: rgba(22,163,74,0.08);  color: #15803d; }
 .cstat.unpaid { background: rgba(239,68,68,0.1);   color: #991b1b; }
 .cstat.credit { background: rgba(0,174,239,0.12);  color: #0369a1; }
 
