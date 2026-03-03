@@ -12,7 +12,7 @@
     <link rel="icon" type="image/jpeg" href="images/logo-tb---nero.jpg">
     <link rel="stylesheet" href="css/style.css?v=6">
     <link rel="stylesheet" href="css/login.css?v=5">
-    <link rel="stylesheet" href="css/admin.css?v=5">
+    <link rel="stylesheet" href="css/admin.css?v=6">
 </head>
 <body>
     <nav class="navbar">
@@ -53,6 +53,7 @@
                 <button class="admin-tab" data-tab="clients">👤 Clienti</button>
                 <button class="admin-tab" data-tab="schedule">⚙️ Gestione Orari</button>
                 <button class="admin-tab" data-tab="analytics">📊 Statistiche & Fatturato</button>
+                <button class="admin-tab" data-tab="registro">📋 Registro</button>
                 <button class="admin-tab admin-tab--privacy" id="btnToggleSensitive" onclick="toggleSensitiveData()" title="Nascondi/mostra dati sensibili">👁 Nascondi dati</button>
             </div>
 
@@ -294,6 +295,143 @@
             </div>
             <!-- End Tab: Analytics -->
 
+            <!-- Tab: Registro / Log DB -->
+            <div id="tab-registro" class="tab-content">
+
+                <!-- Summary bar -->
+                <div class="registro-summary-bar">
+                    <div class="registro-summary-item">
+                        <span class="registro-summary-label">📊 Tot. eventi</span>
+                        <span class="registro-summary-val" id="registroTotalEvents">—</span>
+                    </div>
+                    <div class="registro-summary-item">
+                        <span class="registro-summary-label">💰 Incassato (pagamenti)</span>
+                        <span class="registro-summary-val" id="registroTotalPaid">—</span>
+                    </div>
+                    <div class="registro-summary-item">
+                        <span class="registro-summary-label">📅 Prenotazioni</span>
+                        <span class="registro-summary-val" id="registroTotalBookings">—</span>
+                    </div>
+                    <div class="registro-summary-item registro-export-wrap">
+                        <button class="btn-action" onclick="exportRegistro()" id="registroExportBtn">📥 Esporta Vista</button>
+                    </div>
+                </div>
+
+                <!-- Filter bar -->
+                <div class="registro-filters">
+                    <!-- Periodo -->
+                    <div class="registro-filter-row">
+                        <div class="registro-filter-group" style="width:100%;">
+                            <label class="registro-filter-label">Periodo (data evento)</label>
+                            <div class="registro-date-btns">
+                                <button class="rfilter-btn active" data-range="all" onclick="setRegistroRange('all', this)">Tutto</button>
+                                <button class="rfilter-btn" data-range="this-month" onclick="setRegistroRange('this-month', this)">Questo mese</button>
+                                <button class="rfilter-btn" data-range="last-month" onclick="setRegistroRange('last-month', this)">Mese scorso</button>
+                                <button class="rfilter-btn" data-range="this-year" onclick="setRegistroRange('this-year', this)">Quest'anno</button>
+                                <button class="rfilter-btn" data-range="custom" onclick="setRegistroRange('custom', this)">📅 Personalizzato</button>
+                            </div>
+                            <div id="registroCustomDates" class="registro-custom-dates" style="display:none;">
+                                <input type="date" id="registroDateFrom">
+                                <span>→</span>
+                                <input type="date" id="registroDateTo">
+                                <button class="btn-apply-filter" onclick="applyRegistroCustomRange()">Applica</button>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Dropdowns + search -->
+                    <div class="registro-filter-row">
+                        <div class="registro-filter-group registro-filter-group--sm">
+                            <label class="registro-filter-label">Tipo evento</label>
+                            <select id="registroFilterType" onchange="applyRegistroFilters()">
+                                <option value="all">Tutti</option>
+                                <option value="booking_created">📅 Prenotazione</option>
+                                <option value="booking_paid">✅ Pagamento</option>
+                                <option value="booking_cancelled">❌ Annullamento</option>
+                                <option value="booking_cancellation_req">⏳ Rich. Annullamento</option>
+                                <option value="credit_added">⬆️ Credito Aggiunto</option>
+                                <option value="credit_used">💳 Credito Usato</option>
+                                <option value="manual_debt">📋 Debito Manuale</option>
+                                <option value="manual_debt_paid">💰 Debito Saldato</option>
+                            </select>
+                        </div>
+                        <div class="registro-filter-group registro-filter-group--sm">
+                            <label class="registro-filter-label">Tipo lezione</label>
+                            <select id="registroFilterSlot" onchange="applyRegistroFilters()">
+                                <option value="all">Tutte</option>
+                                <option value="personal-training">Autonomia</option>
+                                <option value="small-group">Lezione di Gruppo</option>
+                                <option value="group-class">Slot prenotato</option>
+                            </select>
+                        </div>
+                        <div class="registro-filter-group registro-filter-group--sm">
+                            <label class="registro-filter-label">Metodo pagamento</label>
+                            <select id="registroFilterMethod" onchange="applyRegistroFilters()">
+                                <option value="all">Tutti</option>
+                                <option value="contanti">💵 Contanti</option>
+                                <option value="carta">💳 Carta</option>
+                                <option value="iban">🏦 IBAN</option>
+                                <option value="credito">🔄 Credito</option>
+                                <option value="lezione-gratuita">🎁 Gratuita</option>
+                            </select>
+                        </div>
+                        <div class="registro-filter-group registro-filter-group--sm">
+                            <label class="registro-filter-label">Stato</label>
+                            <select id="registroFilterStatus" onchange="applyRegistroFilters()">
+                                <option value="all">Tutti</option>
+                                <option value="paid">Pagato</option>
+                                <option value="unpaid">Non pagato</option>
+                                <option value="cancelled">Annullato</option>
+                            </select>
+                        </div>
+                        <div class="registro-filter-group registro-filter-group--search">
+                            <label class="registro-filter-label">Cerca cliente</label>
+                            <input type="text" id="registroSearch" placeholder="Nome, telefono, email..." oninput="applyRegistroFilters()">
+                        </div>
+                        <div class="registro-filter-group">
+                            <label class="registro-filter-label">&nbsp;</label>
+                            <button class="rfilter-btn rfilter-btn--reset" onclick="resetRegistroFilters()">↺ Reset</button>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Table -->
+                <div class="registro-table-wrap dashboard-card">
+                    <table class="registro-table">
+                        <thead>
+                            <tr>
+                                <th class="registro-th-ts" onclick="toggleRegistroSort('timestamp')">
+                                    Data/Ora Evento <span class="registro-sort-icon" id="registroSortTs">↓</span>
+                                </th>
+                                <th>Tipo</th>
+                                <th>Cliente</th>
+                                <th class="registro-th-lesson" onclick="toggleRegistroSort('lessonDate')">
+                                    Data Lezione <span class="registro-sort-icon" id="registroSortLesson"></span>
+                                </th>
+                                <th>Ora</th>
+                                <th>Tipo Lezione</th>
+                                <th>Importo</th>
+                                <th>Metodo</th>
+                                <th>Stato</th>
+                                <th>Nota</th>
+                            </tr>
+                        </thead>
+                        <tbody id="registroTableBody">
+                            <tr><td colspan="10" class="registro-empty">Seleziona il tab per caricare il registro.</td></tr>
+                        </tbody>
+                    </table>
+                </div>
+
+                <!-- Pagination -->
+                <div class="registro-pagination">
+                    <button class="registro-pag-btn" onclick="registroPrevPage()" id="registroPrevBtn" disabled>← Prec</button>
+                    <span class="registro-pag-info" id="registroPaginationInfo">—</span>
+                    <button class="registro-pag-btn" onclick="registroNextPage()" id="registroNextBtn" disabled>Succ →</button>
+                </div>
+
+            </div>
+            <!-- End Tab: Registro -->
+
         </div>
     </div>
 
@@ -443,7 +581,7 @@
     <script src="js/auth.js?v=7"></script>
     <script src="js/push.js?v=1"></script>
     <script src="js/chart-mini.js?v=5"></script>
-    <script src="js/admin.js?v=5"></script>
+    <script src="js/admin.js?v=6"></script>
     <script>
         if ('serviceWorker' in navigator) {
             navigator.serviceWorker.register('/Palestra/sw.js');
