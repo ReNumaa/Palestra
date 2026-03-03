@@ -3219,49 +3219,49 @@ canvas {
 /* Summary bar */
 .registro-summary-bar {
     display: flex;
-    gap: 0.75rem;
-    margin-bottom: 1rem;
+    gap: 1rem;
+    margin-bottom: 1.5rem;
     flex-wrap: wrap;
     align-items: stretch;
 }
 .registro-summary-item {
-    background: rgba(255,255,255,0.04);
-    border: 1px solid rgba(255,255,255,0.08);
+    background: linear-gradient(135deg, white 0%, var(--light-gray) 100%);
     border-radius: 12px;
-    padding: 0.7rem 1.1rem;
+    box-shadow: 0 2px 8px rgba(0,0,0,0.08);
+    padding: 1rem 1.25rem;
     display: flex;
     flex-direction: column;
     gap: 0.15rem;
     flex: 1;
-    min-width: 120px;
+    min-width: 140px;
 }
 .registro-summary-item.registro-export-wrap {
     background: none;
-    border: none;
+    box-shadow: none;
     justify-content: center;
     padding: 0;
     flex: 0 0 auto;
 }
 .registro-summary-label {
     font-size: 0.72rem;
-    color: rgba(255,255,255,0.4);
+    color: #666;
     font-weight: 600;
-    letter-spacing: 0.4px;
+    letter-spacing: 0.5px;
     text-transform: uppercase;
 }
 .registro-summary-val {
-    font-size: 1.25rem;
+    font-size: 1.4rem;
     font-weight: 700;
-    color: #fff;
+    color: var(--dark-bg);
 }
 
 /* Filter bar */
 .registro-filters {
-    background: rgba(255,255,255,0.03);
-    border: 1px solid rgba(255,255,255,0.07);
-    border-radius: 14px;
-    padding: 0.9rem 1.1rem;
-    margin-bottom: 1rem;
+    background: white;
+    border-radius: 12px;
+    box-shadow: 0 2px 8px rgba(0,0,0,0.08);
+    padding: 1rem 1.25rem;
+    margin-bottom: 1.5rem;
     display: flex;
     flex-direction: column;
     gap: 0.85rem;
@@ -3275,13 +3275,13 @@ canvas {
 .registro-filter-group {
     display: flex;
     flex-direction: column;
-    gap: 0.22rem;
+    gap: 0.2rem;
 }
 .registro-filter-group--sm  { min-width: 130px; }
 .registro-filter-group--search { flex: 1; min-width: 160px; }
 .registro-filter-label {
     font-size: 0.7rem;
-    color: rgba(255,255,255,0.38);
+    color: #888;
     font-weight: 700;
     text-transform: uppercase;
     letter-spacing: 0.5px;
@@ -3289,37 +3289,35 @@ canvas {
 .registro-date-btns {
     display: flex;
     flex-wrap: wrap;
-    gap: 0.35rem;
+    gap: 0.4rem;
 }
 .rfilter-btn {
-    background: rgba(255,255,255,0.06);
-    border: 1px solid rgba(255,255,255,0.1);
-    color: rgba(255,255,255,0.65);
-    border-radius: 8px;
-    padding: 0.32rem 0.7rem;
-    font-size: 0.81rem;
+    background: var(--light-gray);
+    border: 2px solid #ddd;
+    color: #555;
+    border-radius: 20px;
+    padding: 0.35rem 0.85rem;
+    font-size: 0.82rem;
+    font-weight: 600;
     cursor: pointer;
-    transition: background 0.15s, border-color 0.15s, color 0.15s;
+    transition: border-color 0.2s, color 0.2s, background 0.2s;
     white-space: nowrap;
     font-family: inherit;
 }
 .rfilter-btn:hover {
-    background: rgba(0,174,239,0.1);
-    border-color: rgba(0,174,239,0.28);
-    color: #fff;
+    border-color: var(--primary-cyan);
+    color: var(--primary-cyan);
 }
 .rfilter-btn.active {
-    background: rgba(0,174,239,0.16);
-    border-color: rgba(0,174,239,0.45);
-    color: #00AEEF;
-    font-weight: 700;
+    background: var(--primary-cyan);
+    border-color: var(--primary-cyan);
+    color: white;
 }
 .rfilter-btn--reset {
     height: 34px;
-    padding: 0 0.9rem;
-    opacity: 0.75;
+    padding: 0 1rem;
+    border-radius: 8px;
 }
-.rfilter-btn--reset:hover { opacity: 1; }
 
 .registro-custom-dates {
     display: flex;
@@ -3329,60 +3327,59 @@ canvas {
     margin-top: 0.3rem;
 }
 .registro-custom-dates input[type="date"] {
-    background: rgba(255,255,255,0.06);
-    border: 1px solid rgba(255,255,255,0.12);
+    padding: 0.35rem 0.6rem;
+    border: 2px solid #ddd;
     border-radius: 8px;
-    color: #fff;
-    padding: 0.32rem 0.6rem;
-    font-size: 0.82rem;
+    font-size: 0.85rem;
     font-family: inherit;
+    outline: none;
+    transition: border-color 0.2s;
 }
-.registro-custom-dates span { color: rgba(255,255,255,0.35); }
+.registro-custom-dates input[type="date"]:focus { border-color: var(--primary-cyan); }
+.registro-custom-dates span { color: #aaa; }
 
 .registro-filter-group select,
 .registro-filter-group input[type="text"] {
-    background: rgba(255,255,255,0.06);
-    border: 1px solid rgba(255,255,255,0.12);
+    background: white;
+    border: 2px solid #ddd;
     border-radius: 8px;
-    color: #fff;
-    padding: 0.38rem 0.6rem;
-    font-size: 0.82rem;
+    color: var(--dark-bg);
+    padding: 0.35rem 0.6rem;
+    font-size: 0.85rem;
     width: 100%;
     height: 34px;
     font-family: inherit;
-    transition: border-color 0.15s;
+    transition: border-color 0.2s;
+    outline: none;
 }
 .registro-filter-group select:focus,
 .registro-filter-group input[type="text"]:focus {
-    outline: none;
-    border-color: rgba(0,174,239,0.4);
+    border-color: var(--primary-cyan);
 }
-.registro-filter-group select option { background: #1c1c1c; color: #fff; }
 
 /* Table */
 .registro-table-wrap {
     overflow-x: auto;
-    border-radius: 14px;
     margin-bottom: 0.5rem;
+    padding: 0 !important;
 }
 .registro-table {
     width: 100%;
     border-collapse: collapse;
-    font-size: 0.82rem;
+    font-size: 0.85rem;
     min-width: 860px;
 }
 .registro-table thead {
-    background: rgba(0,174,239,0.06);
-    border-bottom: 1px solid rgba(0,174,239,0.14);
+    background-color: var(--dark-bg);
 }
 .registro-table th {
-    padding: 0.65rem 0.8rem;
+    padding: 0.75rem 0.85rem;
     text-align: left;
-    font-size: 0.72rem;
-    font-weight: 700;
-    color: rgba(255,255,255,0.5);
+    font-size: 0.75rem;
+    font-weight: 600;
+    color: white;
     text-transform: uppercase;
-    letter-spacing: 0.4px;
+    letter-spacing: 0.5px;
     white-space: nowrap;
 }
 .registro-th-ts,
@@ -3391,53 +3388,53 @@ canvas {
     user-select: none;
 }
 .registro-th-ts:hover,
-.registro-th-lesson:hover { color: #00AEEF; }
-.registro-sort-icon { font-size: 0.78rem; margin-left: 0.15rem; }
+.registro-th-lesson:hover { color: var(--primary-cyan); }
+.registro-sort-icon { font-size: 0.78rem; margin-left: 0.2rem; }
 
 .registro-table td {
-    padding: 0.6rem 0.8rem;
-    border-bottom: 1px solid rgba(255,255,255,0.045);
+    padding: 0.65rem 0.85rem;
+    border-bottom: 1px solid #eee;
     vertical-align: middle;
-    color: rgba(255,255,255,0.82);
+    color: var(--dark-bg);
 }
 .registro-row:last-child td { border-bottom: none; }
-.registro-row:hover td { background: rgba(255,255,255,0.025); }
+.registro-row:hover td { background: var(--light-gray); }
 
 .registro-ts {
     white-space: nowrap;
-    color: rgba(255,255,255,0.45) !important;
-    font-size: 0.76rem !important;
+    color: #888 !important;
+    font-size: 0.78rem !important;
     font-variant-numeric: tabular-nums;
 }
 .registro-time {
     white-space: nowrap;
-    font-size: 0.76rem !important;
-    color: rgba(255,255,255,0.55) !important;
+    font-size: 0.78rem !important;
+    color: #666 !important;
     font-variant-numeric: tabular-nums;
 }
 .registro-amount {
     font-weight: 700;
-    color: #4ade80 !important;
+    color: #059669 !important;
     white-space: nowrap;
     font-variant-numeric: tabular-nums;
 }
-.registro-method { font-size: 0.77rem; white-space: nowrap; }
+.registro-method { font-size: 0.8rem; white-space: nowrap; color: #444; }
 .registro-note {
     max-width: 150px;
     overflow: hidden;
     text-overflow: ellipsis;
     white-space: nowrap;
-    color: rgba(255,255,255,0.4) !important;
-    font-size: 0.76rem !important;
+    color: #888 !important;
+    font-size: 0.78rem !important;
 }
-.registro-client { display: flex; flex-direction: column; gap: 0.08rem; }
+.registro-client { display: flex; flex-direction: column; gap: 0.06rem; }
 .registro-client-name { font-weight: 600; white-space: nowrap; }
-.registro-client-phone { font-size: 0.72rem; color: rgba(255,255,255,0.38); }
+.registro-client-phone { font-size: 0.74rem; color: #888; }
 .registro-empty {
     text-align: center;
     padding: 3rem 1rem;
-    color: rgba(255,255,255,0.28);
-    font-size: 0.88rem;
+    color: #aaa;
+    font-size: 0.9rem;
 }
 
 /* Event-type badges */
@@ -3445,36 +3442,36 @@ canvas {
     display: inline-flex;
     align-items: center;
     gap: 0.25rem;
-    padding: 0.22rem 0.55rem;
-    border-radius: 6px;
-    font-size: 0.72rem;
+    padding: 0.22rem 0.6rem;
+    border-radius: 20px;
+    font-size: 0.74rem;
     font-weight: 700;
     white-space: nowrap;
 }
-.rtype-booking    { background: rgba(59,130,246,0.14);  color: #60a5fa; border: 1px solid rgba(59,130,246,0.22); }
-.rtype-paid       { background: rgba(34,197,94,0.14);   color: #4ade80; border: 1px solid rgba(34,197,94,0.22); }
-.rtype-cancelled  { background: rgba(239,68,68,0.11);   color: #f87171; border: 1px solid rgba(239,68,68,0.2);  }
-.rtype-pending    { background: rgba(251,146,60,0.13);  color: #fb923c; border: 1px solid rgba(251,146,60,0.22); }
-.rtype-credit     { background: rgba(168,85,247,0.13);  color: #c084fc; border: 1px solid rgba(168,85,247,0.22); }
-.rtype-creditused { background: rgba(6,182,212,0.13);   color: #22d3ee; border: 1px solid rgba(6,182,212,0.22); }
-.rtype-debt       { background: rgba(245,158,11,0.11);  color: #fbbf24; border: 1px solid rgba(245,158,11,0.2);  }
-.rtype-debtpaid   { background: rgba(16,185,129,0.14);  color: #34d399; border: 1px solid rgba(16,185,129,0.22); }
+.rtype-booking    { background: #dbeafe; color: #1d4ed8; }
+.rtype-paid       { background: #dcfce7; color: #15803d; }
+.rtype-cancelled  { background: #fee2e2; color: #b91c1c; }
+.rtype-pending    { background: #fef3c7; color: #92400e; }
+.rtype-credit     { background: #f3e8ff; color: #7e22ce; }
+.rtype-creditused { background: #e0f2fe; color: #0369a1; }
+.rtype-debt       { background: #fef9c3; color: #854d0e; }
+.rtype-debtpaid   { background: #d1fae5; color: #065f46; }
 
 /* Status badges */
 .rstatus-badge {
     display: inline-block;
-    padding: 0.18rem 0.5rem;
-    border-radius: 6px;
-    font-size: 0.7rem;
-    font-weight: 700;
+    padding: 0.2rem 0.6rem;
+    border-radius: 20px;
+    font-size: 0.74rem;
+    font-weight: 600;
     white-space: nowrap;
 }
-.rstatus-paid      { background: rgba(34,197,94,0.14);   color: #4ade80; }
-.rstatus-unpaid    { background: rgba(239,68,68,0.1);    color: #f87171; }
-.rstatus-cancelled { background: rgba(100,116,139,0.18); color: rgba(255,255,255,0.38); }
-.rstatus-pending   { background: rgba(251,146,60,0.13);  color: #fb923c; }
-.rstatus-credit    { background: rgba(168,85,247,0.13);  color: #c084fc; }
-.rstatus-debt      { background: rgba(245,158,11,0.11);  color: #fbbf24; }
+.rstatus-paid      { background: rgba(6,214,160,0.15); color: #059669; }
+.rstatus-unpaid    { background: #fee2e2;               color: #b91c1c; }
+.rstatus-cancelled { background: #f3f4f6;               color: #6b7280; }
+.rstatus-pending   { background: #fef3c7;               color: #92400e; }
+.rstatus-credit    { background: #f3e8ff;               color: #7e22ce; }
+.rstatus-debt      { background: #fef9c3;               color: #854d0e; }
 
 /* Pagination */
 .registro-pagination {
@@ -3482,28 +3479,28 @@ canvas {
     align-items: center;
     justify-content: center;
     gap: 1.25rem;
-    padding: 0.85rem 0 0.4rem;
+    padding: 1rem 0 0.5rem;
 }
 .registro-pag-btn {
-    background: rgba(255,255,255,0.06);
-    border: 1px solid rgba(255,255,255,0.11);
-    color: rgba(255,255,255,0.65);
+    background: var(--light-gray);
+    border: 2px solid #ddd;
+    color: #555;
     border-radius: 8px;
-    padding: 0.38rem 1rem;
-    font-size: 0.83rem;
+    padding: 0.4rem 1rem;
+    font-size: 0.85rem;
+    font-weight: 600;
     cursor: pointer;
     font-family: inherit;
-    transition: background 0.15s, border-color 0.15s, color 0.15s;
+    transition: border-color 0.2s, color 0.2s;
 }
 .registro-pag-btn:hover:not(:disabled) {
-    background: rgba(0,174,239,0.1);
-    border-color: rgba(0,174,239,0.28);
-    color: #00AEEF;
+    border-color: var(--primary-cyan);
+    color: var(--primary-cyan);
 }
-.registro-pag-btn:disabled { opacity: 0.28; cursor: not-allowed; }
+.registro-pag-btn:disabled { opacity: 0.35; cursor: not-allowed; }
 .registro-pag-info {
-    color: rgba(255,255,255,0.4);
-    font-size: 0.83rem;
+    color: #666;
+    font-size: 0.85rem;
     min-width: 130px;
     text-align: center;
     font-variant-numeric: tabular-nums;
@@ -3513,7 +3510,7 @@ canvas {
     .registro-filter-row { flex-direction: column; }
     .registro-filter-group--sm,
     .registro-filter-group--search { min-width: unset; width: 100%; }
-    .registro-summary-bar { gap: 0.5rem; }
+    .registro-summary-bar { gap: 0.75rem; }
     .registro-summary-item { min-width: calc(50% - 0.5rem); }
     .registro-summary-item.registro-export-wrap { min-width: 100%; }
 }
