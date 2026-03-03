@@ -1,6 +1,23 @@
 // Admin dashboard functionality
 
 const ADMIN_PASSWORD = 'admin123'; // In production, use proper authentication
+
+// ── Privacy toggle ──────────────────────────────────────────────────────────
+(function initPrivacyMode() {
+    if (localStorage.getItem('adminSensitiveHidden') === 'true') {
+        document.body.classList.add('sensitive-hidden');
+        const btn = document.getElementById('btnToggleSensitive');
+        if (btn) btn.textContent = '👁 Mostra dati';
+    }
+})();
+
+function toggleSensitiveData() {
+    const hidden = document.body.classList.toggle('sensitive-hidden');
+    localStorage.setItem('adminSensitiveHidden', hidden ? 'true' : 'false');
+    const btn = document.getElementById('btnToggleSensitive');
+    if (btn) btn.textContent = hidden ? '👁 Mostra dati' : '👁 Nascondi dati';
+}
+// ────────────────────────────────────────────────────────────────────────────
 let adminWeekOffset = 0;
 let selectedAdminDay = null;
 
