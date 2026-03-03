@@ -2376,11 +2376,11 @@ function liveSearchClients() {
     renderClientsTab();
 }
 
-function filterClientTx(listId, days, btn) {
-    const list = document.getElementById(listId);
-    if (!list) return;
+function filterClientTx(cardIndex, days, btn) {
+    const card = document.getElementById(`client-card-${cardIndex}`);
+    if (!card) return;
     const cutoff = Date.now() - days * 24 * 60 * 60 * 1000;
-    list.querySelectorAll('.credit-history-row').forEach(row => {
+    card.querySelectorAll('.credit-history-row, tr[data-ts]').forEach(row => {
         row.style.display = parseInt(row.dataset.ts) >= cutoff ? '' : 'none';
     });
     btn.closest('.tx-filter-bar').querySelectorAll('.tx-filter-btn').forEach(b => b.classList.remove('active'));
@@ -2481,7 +2481,7 @@ function createClientCard(client, index) {
                 : isPartialCredit
                     ? `<span class="payment-status" style="background:#ede9fe;color:#5b21b6">💳 Parziale (€${(SLOT_PRICES[b.slotType] || 0) - b.creditApplied} da pagare)</span>`
                     : `<span class="payment-status ${b.paid ? 'paid' : 'unpaid'}">${b.paid ? '✓ Pagato' : 'Non pagato'}</span>`;
-        return `<tr id="brow-${b.id}" class="${rowClass}">
+        return `<tr id="brow-${b.id}" class="${rowClass}" data-ts="${new Date(b.date + 'T12:00:00').getTime()}">
             <td>${dateStr}</td>
             <td>${b.time}</td>
             <td>${SLOT_NAMES[b.slotType]}</td>
@@ -2549,26 +2549,29 @@ function createClientCard(client, index) {
 
     const fmtDTx = d => `${String(d.getDate()).padStart(2,'0')}/${String(d.getMonth()+1).padStart(2,'0')}/${d.getFullYear()} ${String(d.getHours()).padStart(2,'0')}:${String(d.getMinutes()).padStart(2,'0')}`;
 
+    const filterBarHTML = `<div class="tx-filter-bar">
+        <button class="tx-filter-btn" onclick="filterClientTx(${index}, 7, this)">Settimana</button>
+        <button class="tx-filter-btn" onclick="filterClientTx(${index}, 30, this)">Mese</button>
+        <button class="tx-filter-btn" onclick="filterClientTx(${index}, 180, this)">6 mesi</button>
+        <button class="tx-filter-btn active" onclick="filterClientTx(${index}, 365, this)">1 anno</button>
+    </div>`;
+
     let creditHTML = '';
     if (txEntries.length > 0) {
-        const txListId = `tx-list-${index}`;
         creditHTML = `<div class="client-credit-section">
             <h4>📊 Storico transazioni — saldo: ${netBalance >= 0 ? '+' : ''}€${netBalance}</h4>
-            <div class="tx-filter-bar">
-                <button class="tx-filter-btn" onclick="filterClientTx('${txListId}', 7, this)">Settimana</button>
-                <button class="tx-filter-btn" onclick="filterClientTx('${txListId}', 30, this)">Mese</button>
-                <button class="tx-filter-btn" onclick="filterClientTx('${txListId}', 180, this)">6 mesi</button>
-                <button class="tx-filter-btn active" onclick="filterClientTx('${txListId}', 365, this)">1 anno</button>
-            </div>
-            <div class="client-credit-history" id="${txListId}">
+            <div class="client-credit-history" id="tx-list-${index}">
                 ${txEntries.map(e => {
                     const pos = e.amount > 0;
                     const sign = (e.cancelled || e.amount < 0) ? '-' : '+';
                     const cls  = pos ? 'plus' : 'minus';
+                    const cleanLabel = (e.label || '')
+                        .replace(/^[💵💳🏦✨🎁]\s*/, '')
+                        .replace(/\s+ricevuto$/i, '');
                     return `<div class="credit-history-row" data-ts="${e.date.getTime()}">
                         <span class="credit-history-date">${fmtDTx(e.date)}</span>
                         <span class="credit-history-icon">${e.icon}</span>
-                        <span class="credit-history-note">${e.label}${e.sub ? ` <small style="opacity:0.7">${e.sub}</small>` : ''}</span>
+                        <span class="credit-history-note">${cleanLabel}${e.sub ? ` <small style="opacity:0.7">${e.sub}</small>` : ''}</span>
                         <span class="credit-history-amount ${cls}">${sign}€${Math.abs(e.amount).toFixed(2)}</span>
                     </div>`;
                 }).join('')}
@@ -2594,6 +2597,7 @@ function createClientCard(client, index) {
             <div class="client-chevron">▼</div>
         </div>
         <div class="client-card-body">
+            ${filterBarHTML}
             <div class="client-contact-edit" id="cedit-section-${index}">
                 <div class="client-view-mode">
                     <button class="btn-edit-contact" onclick="event.stopPropagation(); startEditClient(${index}, '${wEsc}', '${emEsc}', '${nEsc}')">✏️ Modifica contatto</button>
