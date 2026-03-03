@@ -322,7 +322,7 @@
                 const _cs = _cu ? getUserByEmail(_cu.email) : null;
                 const _certScad = _cs?.certificatoMedicoScadenza;
                 const _certOk = _certScad && new Date(_certScad + 'T00:00:00') > new Date();
-                if (!_certOk) certBadge = `<span class="preno-badge preno-badge-cancelled" style="background:#fef2f2;color:#b91c1c;border-color:#fca5a5;">🏥 Senza certificato</span>`;
+                if (!_certOk) certBadge = `<span class="preno-badge preno-badge-cancelled" style="background:#fef2f2;color:#b91c1c;border-color:#fca5a5;">🏥 Senza scadenza certificato</span>`;
             }
 
             let cancelBtn = '';
@@ -487,7 +487,7 @@
             const stored = getUserByEmail(user.email);
             const scad   = stored?.certificatoMedicoScadenza;
             if (!scad) {
-                el.innerHTML = `<div class="preno-cert-warning preno-cert-expired">🏥 Certificato medico non disponibile <span class="preno-cert-update" onclick="openEditProfileModal()">(aggiorna)</span></div>`;
+                el.innerHTML = `<div class="preno-cert-warning preno-cert-expired">🏥 Scadenza certificato medico non impostata <span class="preno-cert-update" onclick="openEditProfileModal()">(aggiorna)</span></div>`;
                 return;
             }
 
