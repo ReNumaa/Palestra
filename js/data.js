@@ -318,7 +318,7 @@ class BookingStorage {
                 toCancel.name,
                 creditToRefund,
                 `Rimborso annullamento ${toCancel.date} ${toCancel.time}`,
-                null, false, wasPaymentMethod === 'credito'
+                null, false, true
             );
         }
         return true;
