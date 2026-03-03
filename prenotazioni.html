@@ -393,7 +393,7 @@
             // 2. Storico crediti — entrate positive + pagamenti informativi (amount=0, displayAmount>0)
             //    Le uscite (credito usato) sono già coperte dalle singole prenotazioni
             const creditRec = CreditStorage.getRecord(user.whatsapp, user.email);
-            (creditRec?.history || []).filter(e => !e.hiddenRefund && (e.amount > 0 || (e.amount === 0 && (e.displayAmount || 0) > 0))).forEach(e => {
+            (creditRec?.history || []).filter(e => !e.hiddenRefund && !/^Rimborso (cancellazione|annullamento) lezione/i.test(e.note || '') && (e.amount > 0 || (e.amount === 0 && (e.displayAmount || 0) > 0))).forEach(e => {
                 entries.push({
                     date: new Date(e.date), icon: '💳',
                     label: e.note || 'Credito aggiunto',
