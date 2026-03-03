@@ -753,6 +753,45 @@ function clearAllData() {
     }
 }
 
+function pruneOldData() {
+    const months = parseInt(prompt(
+        'Eliminare prenotazioni passate e transazioni più vecchie di quanti mesi?\n(es. 6 = tutto ciò che precede 6 mesi fa)',
+        '12'
+    ));
+    if (!months || isNaN(months) || months <= 0) return;
+
+    const cutoff = new Date();
+    cutoff.setMonth(cutoff.getMonth() - months);
+    const cutoffStr = cutoff.toISOString().split('T')[0]; // YYYY-MM-DD
+
+    if (!confirm(`⚠️ Verranno eliminati definitivamente:\n• Prenotazioni con data precedente al ${cutoff.toLocaleDateString('it-IT')}\n• Voci di credito/transazioni precedenti a tale data\n\nI saldi credito rimangono invariati. Continuare?`)) return;
+
+    // 1. Rimuovi prenotazioni passate (solo quelle con data < cutoff)
+    const bookings = BookingStorage.getAllBookings();
+    BookingStorage.replaceAllBookings(bookings.filter(b => b.date >= cutoffStr));
+
+    // 2. Pruning storico crediti (mantieni il saldo, rimuovi solo le voci vecchie)
+    const allCredits = JSON.parse(localStorage.getItem(CreditStorage.CREDITS_KEY) || '{}');
+    Object.values(allCredits).forEach(rec => {
+        if (rec.history) {
+            rec.history = rec.history.filter(e => new Date(e.date) >= cutoff);
+        }
+    });
+    localStorage.setItem(CreditStorage.CREDITS_KEY, JSON.stringify(allCredits));
+
+    // 3. Pruning storico debiti manuali (mantieni il saldo, rimuovi solo le voci vecchie)
+    const allDebts = JSON.parse(localStorage.getItem(ManualDebtStorage.DEBTS_KEY) || '{}');
+    Object.values(allDebts).forEach(rec => {
+        if (rec.history) {
+            rec.history = rec.history.filter(e => new Date(e.date) >= cutoff);
+        }
+    });
+    localStorage.setItem(ManualDebtStorage.DEBTS_KEY, JSON.stringify(allDebts));
+
+    alert('✅ Dati storici eliminati. I saldi credito sono rimasti invariati.');
+    location.reload();
+}
+
 // Admin Calendar Functions
 function setupAdminCalendar() {
     renderAdminCalendar();
