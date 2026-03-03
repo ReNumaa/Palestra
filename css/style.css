@@ -1431,6 +1431,42 @@ body.nav-open {
     border: 1.5px solid rgba(255,255,255,0.5);
 }
 
+.confirm-rules {
+    margin-top: 1.25rem;
+    border-top: 1px solid rgba(255,255,255,0.15);
+    padding-top: 1rem;
+    display: flex;
+    flex-direction: column;
+    gap: 0.85rem;
+    text-align: left;
+}
+
+.confirm-rule-item {
+    display: flex;
+    gap: 0.75rem;
+    align-items: flex-start;
+}
+
+.confirm-rule-icon {
+    font-size: 1.4rem;
+    flex-shrink: 0;
+    margin-top: 0.05rem;
+}
+
+.confirm-rule-item strong {
+    display: block;
+    font-size: 0.9rem;
+    color: #5eead4;
+    margin-bottom: 0.2rem;
+}
+
+.confirm-rule-item p {
+    margin: 0;
+    font-size: 0.8rem;
+    opacity: 0.85;
+    line-height: 1.45;
+}
+
 @media (max-width: 600px) {
     /* Bottom sheet layout */
     .modal-overlay {
