@@ -2659,7 +2659,7 @@ function createClientCard(client, index) {
             <div class="client-credit-history" id="tx-list-${index}">
                 ${txEntries.map(e => {
                     const pos = e.amount > 0;
-                    const sign = (e.cancelled || e.amount < 0 || e.freeLesson) ? '-' : '+';
+                    const sign = e.freeLesson ? '' : ((e.cancelled || e.amount < 0) ? '-' : '+');
                     const cls  = e.freeLesson ? 'free' : (pos ? 'plus' : 'minus');
                     const cleanLabel = (e.label || '')
                         .replace(/^[💵💳🏦✨🎁]\s*/, '')
