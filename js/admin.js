@@ -224,6 +224,7 @@ function setupTabs() {
     tabs.forEach(tab => {
         tab.addEventListener('click', () => {
             const tabName = tab.dataset.tab;
+            if (!tabName) return;
             switchTab(tabName);
         });
     });
