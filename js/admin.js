@@ -1801,6 +1801,20 @@ function payAllDebtsInline(whatsapp, email, name, btn) {
     if (totalPaid === 0) return;
     BookingStorage.replaceAllBookings(bookings);
 
+    // Use existing credit to offset the total, then collect only the net cash
+    const existingCredit = CreditStorage.getRecord(whatsapp, email)?.balance || 0;
+    const creditToUse = Math.round(Math.min(existingCredit, totalPaid) * 100) / 100;
+    if (creditToUse > 0) {
+        CreditStorage.addCredit(whatsapp, email, name, -creditToUse,
+            `Credito applicato (${method})`);
+    }
+    const cashCollected = Math.round((totalPaid - creditToUse) * 100) / 100;
+    if (cashCollected > 0) {
+        const methodLabel = { contanti: 'Contanti', carta: 'Carta', iban: 'IBAN' }[method] || method;
+        CreditStorage.addCredit(whatsapp, email, name, 0,
+            `${methodLabel} ricevuto`, cashCollected);
+    }
+
     // Update card in-place — keep it visible with paid state
     const card = btn.closest('.debtor-card');
 
@@ -1812,10 +1826,11 @@ function payAllDebtsInline(whatsapp, email, name, btn) {
     });
 
     // Replace the pay footer with a success banner
+    const displayAmount = cashCollected > 0 ? cashCollected : `0 (credito)`;
     footer.innerHTML = `
         <div class="debtor-pay-success">
             <span>✓</span>
-            <span>€${totalPaid} incassati · ${methodLabels[method] || method}</span>
+            <span>€${displayAmount} incassati · ${methodLabels[method] || method}</span>
         </div>
     `;
 
@@ -2517,15 +2532,16 @@ function createClientCard(client, index) {
             });
         });
 
-    // 3. Manual debt history
+    // 3. Manual debt history — solo addebiti (amount > 0); i "Saldato" sono nascosti
+    //    perché il pagamento cash appare già come entry credito positiva
     const debtRec2 = ManualDebtStorage.getRecord(client.whatsapp, client.email);
-    (debtRec2?.history || []).forEach(e => {
+    (debtRec2?.history || []).filter(e => e.amount > 0).forEach(e => {
         txEntries.push({
             date: new Date(e.date),
-            icon: e.amount < 0 ? '✓' : '✏️',
-            label: e.note || (e.amount < 0 ? 'Debito saldato' : 'Addebito'),
+            icon: '✏️',
+            label: e.note || 'Addebito',
             sub: '',
-            amount: -Math.abs(e.amount)
+            amount: -e.amount
         });
     });
 
