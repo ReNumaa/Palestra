@@ -2504,14 +2504,18 @@ function createClientCard(client, index) {
         });
 
     // 2. Credit entries (positive = credit loads) + informational payment records (amount=0 with displayAmount)
+    //    Escludi rimborsi di cancellazione (hiddenRefund o nota corrispondente)
     const creditRec2 = CreditStorage.getRecord(client.whatsapp, client.email);
-    (creditRec2?.history || []).filter(e => e.amount > 0 || (e.amount === 0 && (e.displayAmount || 0) > 0)).forEach(e => {
-        txEntries.push({
-            date: new Date(e.date), icon: '💳',
-            label: e.note || 'Credito aggiunto',
-            sub: '', amount: e.displayAmount !== undefined ? e.displayAmount : e.amount
+    (creditRec2?.history || [])
+        .filter(e => !e.hiddenRefund && !/^Rimborso (cancellazione|annullamento) lezione/i.test(e.note || '') &&
+            (e.amount > 0 || (e.amount === 0 && (e.displayAmount || 0) > 0)))
+        .forEach(e => {
+            txEntries.push({
+                date: new Date(e.date), icon: '💳',
+                label: e.note || 'Credito aggiunto',
+                sub: '', amount: e.displayAmount !== undefined ? e.displayAmount : e.amount
+            });
         });
-    });
 
     // 3. Manual debt history
     const debtRec2 = ManualDebtStorage.getRecord(client.whatsapp, client.email);
@@ -2524,19 +2528,6 @@ function createClientCard(client, index) {
             amount: -Math.abs(e.amount)
         });
     });
-
-    // 4. Cancelled bookings
-    BookingStorage.getAllBookings()
-        .filter(b => matchCli(b.whatsapp, b.email) && b.status === 'cancelled')
-        .forEach(b => {
-            const [by, bm, bd] = b.date.split('-');
-            txEntries.push({
-                date: new Date(b.cancelledAt || `${b.date}T12:00:00`),
-                icon: '✕', label: SLOT_NAMES[b.slotType] || b.slotType,
-                sub: `${bd}/${bm}/${by} · ✕ Annullata`,
-                amount: -(SLOT_PRICES[b.slotType] || 0), cancelled: true
-            });
-        });
 
     txEntries.sort((a, b) => b.date - a.date);
 
