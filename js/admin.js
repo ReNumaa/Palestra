@@ -2526,7 +2526,8 @@ function createClientCard(client, index) {
 
     const activeBookings = client.bookings.filter(b => b.status !== 'cancelled');
     const totalBookings = activeBookings.length;
-    const totalPaid   = activeBookings.filter(b => b.paid).reduce((s, b) => s + (SLOT_PRICES[b.slotType] || 0), 0);
+    const totalPaid   = activeBookings.filter(b => b.paid && b.paymentMethod !== 'lezione-gratuita').reduce((s, b) => s + (SLOT_PRICES[b.slotType] || 0), 0);
+    const totalFree   = activeBookings.filter(b => b.paid && b.paymentMethod === 'lezione-gratuita').reduce((s, b) => s + (SLOT_PRICES[b.slotType] || 0), 0);
     const totalUnpaid = activeBookings.filter(b => !b.paid && bookingHasPassed(b) && b.status !== 'cancellation_requested').reduce((s, b) => s + (SLOT_PRICES[b.slotType] || 0) - (b.creditApplied || 0), 0);
     const credit      = CreditStorage.getBalance(client.whatsapp, client.email);
     const manualDebt  = ManualDebtStorage.getBalance(client.whatsapp, client.email) || 0;
@@ -2549,6 +2550,7 @@ function createClientCard(client, index) {
     const totalAllPaid = Math.round((totalPaid + credit) * 100) / 100;
     let statsHTML = `<span class="cstat">${totalBookings} prenotazioni</span>`;
     if (totalAllPaid > 0) statsHTML += `<span class="cstat paid">€${totalAllPaid} pagato</span>`;
+    if (totalFree    > 0) statsHTML += `<span class="cstat free">🎁 €${totalFree} regalate</span>`;
     if (totalUnpaid  > 0) statsHTML += `<span class="cstat unpaid">€${totalUnpaid} da pagare</span>`;
     if (netBalance  !== 0) statsHTML += `<span class="cstat ${netBalance > 0 ? 'credit' : 'unpaid'}">💳 ${netBalance > 0 ? '+' : ''}€${netBalance}</span>`;
 
