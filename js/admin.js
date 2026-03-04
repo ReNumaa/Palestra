@@ -2244,8 +2244,11 @@ function openDebtPopup(whatsapp, email, name) {
         })
         .sort((a, b) => a.date.localeCompare(b.date) || a.time.localeCompare(b.time));
 
-    const debtBalance = ManualDebtStorage.getBalance(whatsapp, email);
-    if (unpaid.length === 0 && debtBalance <= 0) return;
+    const debtRecord  = ManualDebtStorage.getRecord(whatsapp, email);
+    const debtBalance = debtRecord?.balance || 0;
+    const oldestDebt  = debtRecord?.history?.find(h => h.amount > 0);
+    const debtInfo    = debtBalance > 0 ? { balance: debtBalance, date: oldestDebt?.date || null } : null;
+    if (unpaid.length === 0 && !debtInfo) return;
 
     currentDebtContact = { whatsapp, email, name, unpaid };
 
@@ -2284,54 +2287,64 @@ function openDebtPopup(whatsapp, email, name) {
     const creditRow = document.getElementById('debtCreditRow');
     if (creditRow) creditRow.style.display = 'none';
 
-    renderDebtPopupList(unpaid, debtBalance);
+    renderDebtPopupList(unpaid, debtInfo);
     updateDebtTotal();
 
     document.getElementById('debtPopupOverlay').classList.add('open');
     document.getElementById('debtPopupModal').classList.add('open');
 }
 
-function renderDebtPopupList(unpaid, debtBalance = 0) {
+function renderDebtPopupList(unpaid, debtInfo = null) {
     const list = document.getElementById('debtPopupList');
     list.innerHTML = '';
 
-    unpaid.forEach(booking => {
-        const [y, m, d] = booking.date.split('-').map(Number);
-        const dateDisplay = `${d}/${m}/${y}`;
-        const fullPrice = SLOT_PRICES[booking.slotType];
-        const creditApplied = booking.creditApplied || 0;
-        const price = fullPrice - creditApplied;
-
-        const item = document.createElement('div');
-        item.className = 'debt-popup-item';
-        item.innerHTML = `
-            <label class="debt-item-label">
-                <input type="checkbox" class="debt-item-check" data-id="${booking.id}" data-price="${price}" onchange="updateDebtTotal()">
-                <div class="debt-item-info">
-                    <span class="debt-item-date">📅 ${dateDisplay} &nbsp;·&nbsp; 🕐 ${booking.time}</span>
-                    <span class="debt-item-type">${SLOT_NAMES[booking.slotType]}${creditApplied > 0 ? ` <span style="color:#92400e;font-size:0.8em">(💳 €${creditApplied} già applicato)</span>` : ''}</span>
-                </div>
-                <span class="debt-item-price">€${price}</span>
-            </label>
-        `;
-        list.appendChild(item);
+    // Costruisce lista unificata con sortDate per ordinamento
+    const items = unpaid.map(b => {
+        const startTime = (b.time || '').split(' - ')[0] || '00:00';
+        return { type: 'booking', sortDate: new Date(`${b.date}T${startTime}`), booking: b };
     });
-
-    if (debtBalance > 0) {
-        const item = document.createElement('div');
-        item.className = 'debt-popup-item';
-        item.innerHTML = `
-            <label class="debt-item-label">
-                <input type="checkbox" class="debt-item-check" data-id="manual-debt" data-price="${debtBalance}" onchange="updateDebtTotal()">
-                <div class="debt-item-info">
-                    <span class="debt-item-date">📋 Debito manuale</span>
-                    <span class="debt-item-type">Saldo residuo</span>
-                </div>
-                <span class="debt-item-price">€${debtBalance.toFixed(2)}</span>
-            </label>
-        `;
-        list.appendChild(item);
+    if (debtInfo) {
+        items.push({ type: 'manual-debt', sortDate: debtInfo.date ? new Date(debtInfo.date) : new Date(0), debtInfo });
     }
+    items.sort((a, b) => a.sortDate - b.sortDate); // più vecchio → più nuovo
+
+    items.forEach(it => {
+        const el = document.createElement('div');
+        el.className = 'debt-popup-item';
+
+        if (it.type === 'booking') {
+            const { booking } = it;
+            const [y, m, d] = booking.date.split('-').map(Number);
+            const dateDisplay = `${d}/${m}/${y}`;
+            const fullPrice   = SLOT_PRICES[booking.slotType];
+            const creditApplied = booking.creditApplied || 0;
+            const price = fullPrice - creditApplied;
+            el.innerHTML = `
+                <label class="debt-item-label">
+                    <input type="checkbox" class="debt-item-check" data-id="${booking.id}" data-price="${price}" onchange="updateDebtTotal()">
+                    <div class="debt-item-info">
+                        <span class="debt-item-date">📅 ${dateDisplay} &nbsp;·&nbsp; 🕐 ${booking.time}</span>
+                        <span class="debt-item-type">${SLOT_NAMES[booking.slotType]}${creditApplied > 0 ? ` <span style="color:#92400e;font-size:0.8em">(💳 €${creditApplied} già applicato)</span>` : ''}</span>
+                    </div>
+                    <span class="debt-item-price">€${price}</span>
+                </label>`;
+        } else {
+            const { balance, date } = it.debtInfo;
+            const dateDisplay = date
+                ? (() => { const dt = new Date(date); return `${dt.getDate()}/${dt.getMonth()+1}/${dt.getFullYear()}`; })()
+                : '—';
+            el.innerHTML = `
+                <label class="debt-item-label">
+                    <input type="checkbox" class="debt-item-check" data-id="manual-debt" data-price="${balance}" onchange="updateDebtTotal()">
+                    <div class="debt-item-info">
+                        <span class="debt-item-date">📋 ${dateDisplay}</span>
+                        <span class="debt-item-type">Debito manuale</span>
+                    </div>
+                    <span class="debt-item-price">€${balance.toFixed(2)}</span>
+                </label>`;
+        }
+        list.appendChild(el);
+    });
 }
 
 function updateDebtTotal() {
@@ -2433,22 +2446,37 @@ function paySelectedDebts() {
         );
     }
 
-    // Add credit if overpaid, then auto-apply to any remaining unpaid past bookings
-    if (!isFreeLesson && creditDelta > 0 && currentDebtContact) {
-        CreditStorage.addCredit(
-            currentDebtContact.whatsapp,
-            currentDebtContact.email,
-            currentDebtContact.name,
-            creditDelta,
-            `Pagamento in acconto di €${amountPaid}`,
-            amountPaid,
-            false, false, null, paymentMethod
-        );
-        CreditStorage.applyToUnpaidBookings(
-            currentDebtContact.whatsapp,
-            currentDebtContact.email,
-            currentDebtContact.name
-        );
+    // Record payment received + handle overpayment
+    if (!isFreeLesson && amountPaid > 0 && currentDebtContact) {
+        const methodLabel = { contanti: 'Contanti', carta: 'Carta', iban: 'IBAN' }[paymentMethod] || paymentMethod;
+        if (creditDelta > 0) {
+            // Overpayment: add positive credit entry (shows +€amountPaid in transactions)
+            CreditStorage.addCredit(
+                currentDebtContact.whatsapp,
+                currentDebtContact.email,
+                currentDebtContact.name,
+                creditDelta,
+                `Pagamento in acconto di €${amountPaid}`,
+                amountPaid,
+                false, false, null, paymentMethod
+            );
+            CreditStorage.applyToUnpaidBookings(
+                currentDebtContact.whatsapp,
+                currentDebtContact.email,
+                currentDebtContact.name
+            );
+        } else {
+            // Exact or partial payment: add informational entry (amount=0, shows +€amountPaid)
+            CreditStorage.addCredit(
+                currentDebtContact.whatsapp,
+                currentDebtContact.email,
+                currentDebtContact.name,
+                0,
+                `${methodLabel} ricevuto`,
+                amountPaid,
+                false, false, null, paymentMethod
+            );
+        }
     }
 
     closeDebtPopup();
