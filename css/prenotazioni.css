@@ -154,6 +154,9 @@
 
 .preno-saldo-credit { color: #166534; }
 .preno-saldo-debit  { color: #92400e; }
+.preno-saldo-bonus  { color: #6b21a8; }
+.preno-saldo-bonus-available { color: #6b21a8; }
+.preno-saldo-bonus-used      { color: #9ca3af; }
 
 .preno-saldo-divider {
     height: 1px;
@@ -301,6 +304,22 @@
 .preno-cancel-btn:hover {
     background: #fee2e2;
     border-color: #dc2626;
+}
+
+/* ── Bonus cancel button ──────────────────────────────────────── */
+.preno-cancel-bonus {
+    color: #6b21a8;
+    border-color: #d8b4fe;
+}
+.preno-cancel-bonus:hover {
+    background: #f3e8ff;
+    border-color: #6b21a8;
+}
+.preno-bonus-hint {
+    font-size: 0.7rem;
+    color: #9ca3af;
+    margin-top: 0.25rem;
+    text-align: center;
 }
 
 /* ── Cancellation pending badge ───────────────────────────────── */
