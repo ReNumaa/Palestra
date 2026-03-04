@@ -3038,7 +3038,7 @@ function buildRegistroEntries() {
             eventType:     'booking_created',
             timestamp:     createdAt,
             amount:        SLOT_PRICES[b.slotType] || 0,
-            paymentMethod: null,
+            paymentMethod: b.paymentMethod || null,
             bookingStatus: b.status,
             bookingPaid:   b.paid,
         });
