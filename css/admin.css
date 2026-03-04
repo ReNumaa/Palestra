@@ -3319,6 +3319,12 @@ canvas {
     border-radius: 8px;
 }
 
+.rfilter-type-pills {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.4rem;
+}
+
 .registro-custom-dates {
     display: flex;
     gap: 0.5rem;

@@ -3254,11 +3254,17 @@ function _registroGetDateRange() {
     }
 }
 
+// ── Toggle singolo pill tipo evento ───────────────────────────────────────
+function toggleRegistroType(btn) {
+    btn.classList.toggle('active');
+    applyRegistroFilters();
+}
+
 // ── Applica tutti i filtri e rirenderizza ──────────────────────────────────
 function applyRegistroFilters() {
     const all          = buildRegistroEntries();
     const range        = _registroGetDateRange();
-    const filterType   = document.getElementById('registroFilterType')?.value   || 'all';
+    const activeTypes  = Array.from(document.querySelectorAll('.rfilter-type-pills .rfilter-btn.active')).map(b => b.dataset.etype);
     const filterSlot   = document.getElementById('registroFilterSlot')?.value   || 'all';
     const filterMethod = document.getElementById('registroFilterMethod')?.value || 'all';
     const filterStatus = document.getElementById('registroFilterStatus')?.value || 'all';
@@ -3270,8 +3276,8 @@ function applyRegistroFilters() {
             if (range.from && e.timestamp < range.from) return false;
             if (range.to   && e.timestamp > range.to)   return false;
         }
-        // Tipo evento
-        if (filterType !== 'all' && e.eventType !== filterType) return false;
+        // Tipo evento (multi-selezione: nessun bottone attivo = tutti)
+        if (activeTypes.length > 0 && !activeTypes.includes(e.eventType)) return false;
         // Tipo lezione
         if (filterSlot !== 'all' && e.slotType !== filterSlot) return false;
         // Metodo pagamento
@@ -3468,7 +3474,8 @@ function resetRegistroFilters() {
     const customDiv = document.getElementById('registroCustomDates');
     if (customDiv) customDiv.style.display = 'none';
 
-    ['registroFilterType', 'registroFilterSlot', 'registroFilterMethod', 'registroFilterStatus'].forEach(id => {
+    document.querySelectorAll('.rfilter-type-pills .rfilter-btn').forEach(b => b.classList.remove('active'));
+    ['registroFilterSlot', 'registroFilterMethod', 'registroFilterStatus'].forEach(id => {
         const el = document.getElementById(id);
         if (el) el.value = 'all';
     });
