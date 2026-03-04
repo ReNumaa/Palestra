@@ -436,6 +436,32 @@ class BookingStorage {
         return changed;
     }
 
+    // Calcola il debito passato non pagato di un contatto (telefono OPPURE email)
+    // Usato per verificare la soglia blocco prenotazioni
+    static getUnpaidPastDebt(whatsapp, email) {
+        const normW = normalizePhone(whatsapp);
+        const allBookings = this.getAllBookings();
+        let total = 0;
+        const now = new Date();
+        allBookings.forEach(b => {
+            if (b.paid || b.status === 'cancelled' || b.status === 'cancellation_requested') return;
+            const phoneMatch = normW && normalizePhone(b.whatsapp) === normW;
+            const emailMatch = email && b.email && b.email.toLowerCase() === email.toLowerCase();
+            if (!phoneMatch && !emailMatch) return;
+            // Controlla se la lezione è già terminata
+            const endPart = b.time.split(' - ')[1];
+            if (!endPart || !b.date) return;
+            const [eh, em] = endPart.trim().split(':').map(Number);
+            const [yr, mo, dy] = b.date.split('-').map(Number);
+            const endDt = new Date(yr, mo - 1, dy, eh, em, 0);
+            if (now >= endDt) {
+                total += (SLOT_PRICES[b.slotType] || 0) - (b.creditApplied || 0);
+            }
+        });
+        total += ManualDebtStorage.getBalance(whatsapp, email);
+        return Math.round(total * 100) / 100;
+    }
+
     static updateStats(booking) {
         const stats = this.getStats();
         stats.totalBookings = (stats.totalBookings || 0) + 1;
@@ -1013,6 +1039,13 @@ class BonusStorage {
         all[key].name = name;
         this._save(all);
     }
+}
+
+// Debt threshold storage — global setting: max past unpaid debt allowed to make new bookings
+class DebtThresholdStorage {
+    static KEY = 'gym_debt_threshold';
+    static get() { return parseFloat(localStorage.getItem(this.KEY) || '0') || 0; }
+    static set(amount) { localStorage.setItem(this.KEY, String(parseFloat(amount) || 0)); }
 }
 
 // User storage — client lookup for schedule management (Slot prenotato picker)

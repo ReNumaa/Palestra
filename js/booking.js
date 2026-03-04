@@ -182,6 +182,16 @@ function handleBookingSubmit(e) {
         return;
     }
 
+    // Check debt threshold
+    const _threshold = DebtThresholdStorage.get();
+    if (_threshold > 0) {
+        const _pastDebt = BookingStorage.getUnpaidPastDebt(formData.whatsapp, formData.email);
+        if (_pastDebt > _threshold) {
+            showToast(`Prenotazione bloccata: hai un debito di €${_pastDebt} che supera la soglia massima di €${_threshold}. Contatta il trainer per regolarizzare.`, 'error');
+            return;
+        }
+    }
+
     setLoading(submitBtn, true, 'Prenotazione in corso...');
 
     // Create booking

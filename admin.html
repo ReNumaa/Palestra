@@ -12,7 +12,7 @@
     <link rel="icon" type="image/jpeg" href="images/logo-tb---nero.jpg">
     <link rel="stylesheet" href="css/style.css?v=6">
     <link rel="stylesheet" href="css/login.css?v=5">
-    <link rel="stylesheet" href="css/admin.css?v=6">
+    <link rel="stylesheet" href="css/admin.css?v=7">
 </head>
 <body>
     <nav class="navbar">
@@ -125,6 +125,16 @@
                             <button class="btn-clear-search" onclick="clearSearch()">✕ Chiudi</button>
                         </div>
                         <div id="searchResultsList"></div>
+                    </div>
+
+                    <!-- Debt Threshold Setting -->
+                    <div class="debt-threshold-setting" id="debtThresholdSetting">
+                        <span class="debt-threshold-label">🚫 Soglia blocco prenotazioni</span>
+                        <div class="debt-threshold-input-wrap">
+                            <span class="debt-euro-sign">€</span>
+                            <input type="number" id="debtThresholdInput" class="debt-threshold-input" min="0" step="1" placeholder="0" oninput="saveDebtThreshold()">
+                        </div>
+                        <span class="debt-threshold-hint">Chi ha debiti passati superiori a questa soglia non può prenotare (0 = nessun blocco)</span>
                     </div>
 
                     <!-- All Debtors Collapsible List -->
@@ -576,11 +586,11 @@
     </script>
     <script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
     <script src="js/ui.js?v=1"></script>
-    <script src="js/data.js?v=6"></script>
+    <script src="js/data.js?v=7"></script>
     <script src="js/auth.js?v=7"></script>
     <script src="js/push.js?v=1"></script>
     <script src="js/chart-mini.js?v=5"></script>
-    <script src="js/admin.js?v=10"></script>
+    <script src="js/admin.js?v=11"></script>
     <script>
         if ('serviceWorker' in navigator) {
             navigator.serviceWorker.register('/sw.js');
