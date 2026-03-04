@@ -245,8 +245,20 @@ class BookingStorage {
         return true;
     }
 
+    // Cancella direttamente una prenotazione (small-group, autonomia) senza conversione slot
+    // Usato quando il cliente annulla con più di 24h di anticipo
+    static cancelDirectly(id) {
+        const all = this.getAllBookings();
+        const booking = all.find(b => b.id === id);
+        if (!booking || booking.status !== 'confirmed') return false;
+        booking.status = 'cancelled';
+        booking.cancelledAt = new Date().toISOString();
+        this.replaceAllBookings(all);
+        return true;
+    }
+
     // Cancella immediatamente uno "Slot prenotato" e converte lo slot in "Lezione di Gruppo"
-    // Usato quando il cliente annulla con almeno 3 giorni di anticipo
+    // Usato quando il cliente annulla con più di 24h di anticipo
     // Supabase migration: sostituire le due operazioni con una RPC atomica
     static cancelAndConvertSlot(id) {
         const all = this.getAllBookings();
