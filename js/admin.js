@@ -3155,7 +3155,6 @@ function buildRegistroEntries() {
     const allCredits = CreditStorage._getAll();
     for (const record of Object.values(allCredits)) {
         for (const h of (record.history || [])) {
-            if (h.hiddenRefund) continue;
             if ((h.amount || 0) <= 0) continue; // salta i consumi di credito
             const ts = h.date ? new Date(h.date) : new Date();
 
