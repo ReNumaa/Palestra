@@ -2111,6 +2111,7 @@ function getUnpaidAmountForContact(whatsapp, email) {
         }
     });
 
+    totalUnpaid += ManualDebtStorage.getBalance(whatsapp, email);
     return totalUnpaid;
 }
 
@@ -2243,7 +2244,8 @@ function openDebtPopup(whatsapp, email, name) {
         })
         .sort((a, b) => a.date.localeCompare(b.date) || a.time.localeCompare(b.time));
 
-    if (unpaid.length === 0) return;
+    const debtBalance = ManualDebtStorage.getBalance(whatsapp, email);
+    if (unpaid.length === 0 && debtBalance <= 0) return;
 
     currentDebtContact = { whatsapp, email, name, unpaid };
 
@@ -2253,8 +2255,11 @@ function openDebtPopup(whatsapp, email, name) {
     const parts = [];
     if (pastCount   > 0) parts.push(`${pastCount} passata${pastCount   > 1 ? 'e' : ''}`);
     if (futureCount > 0) parts.push(`${futureCount} futura${futureCount > 1 ? 'e' : ''}`);
-    document.getElementById('debtPopupSubtitle').textContent =
-        `${unpaid.length} lezione${unpaid.length > 1 ? 'i' : ''} non pagata${unpaid.length > 1 ? 'e' : ''} (${parts.join(', ')})`;
+    let subtitle = unpaid.length > 0
+        ? `${unpaid.length} lezione${unpaid.length > 1 ? 'i' : ''} non pagata${unpaid.length > 1 ? 'e' : ''} (${parts.join(', ')})`
+        : '';
+    if (debtBalance > 0) subtitle = subtitle ? `${subtitle} · Debito manuale: €${debtBalance.toFixed(2)}` : `Debito manuale: €${debtBalance.toFixed(2)}`;
+    document.getElementById('debtPopupSubtitle').textContent = subtitle;
 
     // Reset payment method to default
     document.querySelectorAll('.debt-method-btn').forEach(b => b.classList.remove('active'));
@@ -2279,14 +2284,14 @@ function openDebtPopup(whatsapp, email, name) {
     const creditRow = document.getElementById('debtCreditRow');
     if (creditRow) creditRow.style.display = 'none';
 
-    renderDebtPopupList(unpaid);
+    renderDebtPopupList(unpaid, debtBalance);
     updateDebtTotal();
 
     document.getElementById('debtPopupOverlay').classList.add('open');
     document.getElementById('debtPopupModal').classList.add('open');
 }
 
-function renderDebtPopupList(unpaid) {
+function renderDebtPopupList(unpaid, debtBalance = 0) {
     const list = document.getElementById('debtPopupList');
     list.innerHTML = '';
 
@@ -2311,6 +2316,22 @@ function renderDebtPopupList(unpaid) {
         `;
         list.appendChild(item);
     });
+
+    if (debtBalance > 0) {
+        const item = document.createElement('div');
+        item.className = 'debt-popup-item';
+        item.innerHTML = `
+            <label class="debt-item-label">
+                <input type="checkbox" class="debt-item-check" data-id="manual-debt" data-price="${debtBalance}" onchange="updateDebtTotal()">
+                <div class="debt-item-info">
+                    <span class="debt-item-date">📋 Debito manuale</span>
+                    <span class="debt-item-type">Saldo residuo</span>
+                </div>
+                <span class="debt-item-price">€${debtBalance.toFixed(2)}</span>
+            </label>
+        `;
+        list.appendChild(item);
+    }
 }
 
 function updateDebtTotal() {
@@ -2397,6 +2418,20 @@ function paySelectedDebts() {
         }
     });
     BookingStorage.replaceAllBookings(bookings);
+
+    // Salda debiti manuali se selezionati
+    const manualDebtCb = document.querySelector('.debt-item-check[data-id="manual-debt"]:checked');
+    if (manualDebtCb && currentDebtContact) {
+        const debtAmount = Number(manualDebtCb.dataset.price);
+        ManualDebtStorage.addDebt(
+            currentDebtContact.whatsapp,
+            currentDebtContact.email,
+            currentDebtContact.name,
+            -debtAmount,
+            'Saldo debito manuale',
+            paymentMethod
+        );
+    }
 
     // Add credit if overpaid, then auto-apply to any remaining unpaid past bookings
     if (!isFreeLesson && creditDelta > 0 && currentDebtContact) {
