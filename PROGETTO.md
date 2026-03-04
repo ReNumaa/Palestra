@@ -1,9 +1,10 @@
 # TB Training — Diario di Sviluppo & Roadmap
 
-> Documento aggiornato al 04/03/2026 (sessione 13)
+> Documento aggiornato al 04/03/2026 (sessione 14)
 > Prototipo: sistema di prenotazione palestra, frontend-only con localStorage
 > Supabase CLI installato, schema SQL definito, accesso dati centralizzato
 > Supabase cloud attivo (tabelle create), Google OAuth funzionante, numeri normalizzati E.164
+> Dominio custom thomasbresciani.com attivo, repo rinominato Thomas-Bresciani, Brevo SMTP configurato
 
 ---
 
@@ -37,7 +38,8 @@ Sistema di prenotazione online per la palestra **TB Training**. Permette ai clie
 | Persistenza dati | localStorage | Solo per il prototipo |
 | Grafici | Canvas API custom (`chart-mini.js`) | Nessuna libreria esterna |
 | Autenticazione | Supabase Auth + Google OAuth | SDK via CDN (`@supabase/supabase-js@2`) |
-| Hosting | GitHub Pages | https://renumaa.github.io/Palestra |
+| Hosting | GitHub Pages | https://thomasbresciani.com (repo: ReNumaa/Thomas-Bresciani) |
+| Email transazionale | Brevo (SMTP) | Configurato, attivo dopo migrazione Supabase Auth |
 
 **Stack target per la produzione:**
 
@@ -873,6 +875,36 @@ Libreria Canvas custom, nessuna dipendenza esterna.
 
 ---
 
+### 4.29 Dominio custom, migrazione repo e Brevo SMTP (sessione 14, mar 2026)
+
+**Dominio custom `thomasbresciani.com`:**
+- Acquistato dominio `thomasbresciani.com`, configurato su GitHub Pages
+- Repository rinominato da `Palestra` a `Thomas-Bresciani` (`ReNumaa/Thomas-Bresciani`)
+- Remote git aggiornato al nuovo repo
+
+**Fix path post-migrazione repo:**
+- Service Worker: `register('/Palestra/sw.js')` → `register('/sw.js')` in tutti i 6 HTML
+- OAuth `redirectTo`: `https://renumaa.github.io/Palestra/login.html` → `https://thomasbresciani.com/login.html`
+- `apple-mobile-web-app-title`: aggiornato da `Palestra` a `Gym` (nome PWA invariato)
+- Supabase: aggiunto `https://thomasbresciani.com/login.html` agli **Allowed Redirect URLs**
+- Supabase **Site URL** lasciato invariato (cambio URL causava blocco dashboard — da aggiornare quando stabile)
+
+**URL puliti (rimozione `/index.html`):**
+- Redirect JS in `index.html`: se path termina con `/index.html` → redirect a `/`
+- Tutti i link `href="index.html"` → `href="/"` in tutti gli HTML
+- `auth.js`: redirect logout da `index.html` → `/`
+
+**Brevo SMTP configurato:**
+- Account Brevo creato
+- SMTP configurato in Supabase (Authentication → Email → SMTP Settings): `smtp-relay.brevo.com:587`
+- Sender: `noreply@thomasbresciani.com` / `Thomas Bresciani`
+- Email di autenticazione (confirm signup, reset password) attive dopo migrazione a Supabase Auth
+- Template email da personalizzare in italiano al momento della migrazione
+
+**File modificati:** `index.html`, `admin.html`, `chi-sono.html`, `dove-sono.html`, `login.html`, `prenotazioni.html`, `js/auth.js`
+
+---
+
 ### 4.28 Logica annullamento unificata a 24h e fix rimborso (sessione 13, mar 2026)
 
 **Nuova soglia unica per tutti i tipi di prenotazione:**
@@ -1039,10 +1071,7 @@ La precedente logica con soglie diverse per tipo (3 giorni per Slot prenotato, 3
   - ~~Meta tags Apple PWA su tutti gli HTML~~ ✅
   - ~~`js/ui.js`~~ ✅ — `setLoading()`, `showToast()`, `showInlineError()` per loading states e feedback errori
   - ~~CSS spinner, btn-loading, toast (success/error/info)~~ ✅ in `style.css`
-  - **⚠️ ATTENZIONE DOMINIO CUSTOM:** `sw.js` e `manifest.json` hanno i percorsi hardcoded con `/Palestra/` (es. `start_url`, `scope`, APP_SHELL). Quando si passerà a dominio custom (es. `tbtraining.it`), aggiornare:
-    - `manifest.json`: `start_url` → `/index.html`, rimuovere `scope`
-    - `sw.js`: tutti i path in `APP_SHELL` da `/Palestra/xxx` → `/xxx`
-    - HTML: `navigator.serviceWorker.register('/Palestra/sw.js')` → `register('/sw.js')`
+  - ~~**⚠️ ATTENZIONE DOMINIO CUSTOM:**~~ ✅ Risolto in sessione 14 — tutti i path `/Palestra/` aggiornati, dominio custom attivo
   - [x] Push Notifications — frontend pronto ✅ (subscription, sw handler, VAPID keys)
     - Manca solo il backend: tabella `push_subscriptions` + Edge Function cron su Supabase
     - Da fare nella fase di migrazione (vedere sezione 4.18 per dettaglio e TODO commentati in `push.js`)
@@ -1071,7 +1100,8 @@ La precedente logica con soglie diverse per tipo (3 giorni per Slot prenotato, 3
 - ~~[ ] **Deploy su GitHub Pages**~~ ✅
   - ~~Creare repository GitHub~~ ✅
   - ~~Abilitare GitHub Pages~~ ✅
-  - Sito live: https://renumaa.github.io/Palestra
+  - ~~Dominio custom `thomasbresciani.com`~~ ✅ (sessione 14)
+  - Sito live: https://thomasbresciani.com
 
 - [x] **Normalizzare numeri WhatsApp — unificazione `normalizePhone`** ✅ (mar 2026)
   - `_normalizePhone` rimosso da `CreditStorage` e `ManualDebtStorage`
