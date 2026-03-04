@@ -363,8 +363,8 @@ class BookingStorage {
                 toCancel.email,
                 toCancel.name,
                 creditToRefund,
-                `Rimborso annullamento ${toCancel.date} ${toCancel.time}`,
-                null, false, true
+                `Rimborso lezione ${toCancel.date}`,
+                null, false, false, null, wasPaymentMethod || ''
             );
         }
         return true;

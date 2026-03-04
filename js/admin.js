@@ -1152,8 +1152,8 @@ function deleteBooking(bookingId, bookingName) {
                 booking.email,
                 booking.name,
                 creditToRefund,
-                `Rimborso cancellazione lezione ${booking.date} ${booking.time}`,
-                null, false, true
+                `Rimborso lezione ${booking.date}`,
+                null, false, false, null, booking.paymentMethod || ''
             );
         }
 
@@ -3032,10 +3032,10 @@ function deleteBookingFromClients(bookingId, bookingName) {
     const idx = bookings.findIndex(b => b.id === bookingId);
     if (idx !== -1) {
         const b = bookings[idx];
-        if (b.paid && b.paymentMethod === 'credito') {
+        if (b.paid) {
             CreditStorage.addCredit(b.whatsapp, b.email, b.name, SLOT_PRICES[b.slotType],
-                `Rimborso cancellazione lezione ${b.date} ${b.time}`,
-                null, false, true);
+                `Rimborso lezione ${b.date}`,
+                null, false, false, null, b.paymentMethod || '');
         }
         bookings.splice(idx, 1);
         BookingStorage.replaceAllBookings(bookings);
@@ -3139,7 +3139,7 @@ function buildRegistroEntries() {
                 eventType:     'booking_cancelled',
                 timestamp:     new Date(b.cancelledAt),
                 amount:        null,
-                paymentMethod: b.cancelledPaymentMethod || null,
+                paymentMethod: null,
                 bookingStatus: 'cancelled',
                 bookingPaid:   false,
             });
@@ -3184,7 +3184,7 @@ function buildRegistroEntries() {
                 slotType:      null,
                 slotLabel:     '',
                 notes:         creditNote,
-                eventType:     'credit_added',
+                eventType:     /^Rimborso/i.test(creditNote) ? 'booking_refund' : 'credit_added',
                 timestamp:     ts,
                 amount:        Math.abs(h.amount || 0),
                 paymentMethod: creditMethod,
@@ -3363,6 +3363,7 @@ function renderRegistroTable() {
         booking_cancelled:        { icon: '❌', cls: 'rtype-cancelled',  label: 'Annullamento' },
         booking_cancellation_req: { icon: '⏳', cls: 'rtype-pending',    label: 'Rich. Annullamento' },
         credit_added:             { icon: '⬆️', cls: 'rtype-credit',     label: 'Credito Manuale' },
+        booking_refund:           { icon: '🔄', cls: 'rtype-refund',     label: 'Rimborso' },
         manual_debt:              { icon: '📋', cls: 'rtype-debt',       label: 'Debito Manuale' },
         manual_debt_paid:         { icon: '💰', cls: 'rtype-debtpaid',   label: 'Debito Saldato' },
     };
@@ -3518,6 +3519,7 @@ function exportRegistro() {
         booking_cancelled:        'Annullamento',
         booking_cancellation_req: 'Rich. Annullamento',
         credit_added:             'Credito Manuale',
+        booking_refund:           'Rimborso',
         manual_debt:              'Debito Manuale',
         manual_debt_paid:         'Debito Saldato',
     };

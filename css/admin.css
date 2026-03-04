@@ -3460,6 +3460,7 @@ canvas {
 .rtype-pending    { background: #fef3c7; color: #92400e; }
 .rtype-credit     { background: #f3e8ff; color: #7e22ce; }
 .rtype-creditused { background: #e0f2fe; color: #0369a1; }
+.rtype-refund     { background: #cffafe; color: #0e7490; }
 .rtype-debt       { background: #fef9c3; color: #854d0e; }
 .rtype-debtpaid   { background: #d1fae5; color: #065f46; }
 
