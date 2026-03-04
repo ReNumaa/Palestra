@@ -1,28 +1,28 @@
-const CACHE_NAME = 'palestra-v5';
+const CACHE_NAME = 'palestra-v6';
 
 const APP_SHELL = [
-    '/Palestra/index.html',
-    '/Palestra/chi-sono.html',
-    '/Palestra/login.html',
-    '/Palestra/prenotazioni.html',
-    '/Palestra/dove-sono.html',
-    '/Palestra/admin.html',
-    '/Palestra/css/style.css',
-    '/Palestra/css/admin.css',
-    '/Palestra/css/login.css',
-    '/Palestra/css/prenotazioni.css',
-    '/Palestra/css/chi-sono.css',
-    '/Palestra/css/dove-sono.css',
-    '/Palestra/js/ui.js',
-    '/Palestra/js/data.js',
-    '/Palestra/js/calendar.js',
-    '/Palestra/js/booking.js',
-    '/Palestra/js/auth.js',
-    '/Palestra/js/admin.js',
-    '/Palestra/js/chart-mini.js',
-    '/Palestra/js/push.js',
-    '/Palestra/images/logo-tb---nero.jpg',
-    '/Palestra/manifest.json',
+    '/',
+    '/chi-sono.html',
+    '/login.html',
+    '/prenotazioni.html',
+    '/dove-sono.html',
+    '/admin.html',
+    '/css/style.css',
+    '/css/admin.css',
+    '/css/login.css',
+    '/css/prenotazioni.css',
+    '/css/chi-sono.css',
+    '/css/dove-sono.css',
+    '/js/ui.js',
+    '/js/data.js',
+    '/js/calendar.js',
+    '/js/booking.js',
+    '/js/auth.js',
+    '/js/admin.js',
+    '/js/chart-mini.js',
+    '/js/push.js',
+    '/images/logo-tb---nero.jpg',
+    '/manifest.json',
 ];
 
 // Installazione: cacha ogni file singolarmente — se uno manca non blocca tutto
@@ -52,14 +52,14 @@ self.addEventListener('activate', event => {
 // Push: riceve notifiche dal server (Supabase Edge Function)
 self.addEventListener('push', event => {
     const data = event.data ? event.data.json() : {};
-    const title = data.title || 'Palestra';
+    const title = data.title || 'Thomas Bresciani';
     const options = {
         body: data.body || '',
-        icon: '/Palestra/images/logo-tb---nero.jpg',
-        badge: '/Palestra/images/logo-tb---nero.jpg',
-        tag: data.tag || 'palestra-push',
+        icon: '/images/logo-tb---nero.jpg',
+        badge: '/images/logo-tb---nero.jpg',
+        tag: data.tag || 'tb-push',
         renotify: true,
-        data: { url: data.url || '/Palestra/prenotazioni.html' }
+        data: { url: data.url || '/prenotazioni.html' }
     };
     event.waitUntil(self.registration.showNotification(title, options));
 });
@@ -69,9 +69,9 @@ self.addEventListener('notificationclick', event => {
     event.notification.close();
     event.waitUntil(
         self.clients.matchAll({ type: 'window', includeUncontrolled: true }).then(clients => {
-            const appClient = clients.find(c => c.url.includes('/Palestra/'));
+            const appClient = clients.find(c => c.url.includes('thomasbresciani.com'));
             if (appClient) return appClient.focus();
-            return self.clients.openWindow('/Palestra/prenotazioni.html');
+            return self.clients.openWindow('/prenotazioni.html');
         })
     );
 });
