@@ -341,18 +341,17 @@
 
                     <!-- Dropdowns + search -->
                     <div class="registro-filter-row">
-                        <div class="registro-filter-group registro-filter-group--sm">
+                        <div class="registro-filter-group">
                             <label class="registro-filter-label">Tipo evento</label>
-                            <select id="registroFilterType" onchange="applyRegistroFilters()">
-                                <option value="all">Tutti</option>
-                                <option value="booking_created">📅 Prenotazione</option>
-                                <option value="booking_paid">✅ Pagamento</option>
-                                <option value="booking_cancelled">❌ Annullamento</option>
-                                <option value="booking_cancellation_req">⏳ Rich. Annullamento</option>
-                                <option value="credit_added">⬆️ Credito Manuale</option>
-                                <option value="manual_debt">📋 Debito Manuale</option>
-                                <option value="manual_debt_paid">💰 Debito Saldato</option>
-                            </select>
+                            <div class="rfilter-type-pills">
+                                <button class="rfilter-btn" data-etype="booking_created"          onclick="toggleRegistroType(this)">📅 Prenotazione</button>
+                                <button class="rfilter-btn" data-etype="booking_paid"             onclick="toggleRegistroType(this)">✅ Pagamento</button>
+                                <button class="rfilter-btn" data-etype="booking_cancelled"        onclick="toggleRegistroType(this)">❌ Annullamento</button>
+                                <button class="rfilter-btn" data-etype="booking_cancellation_req" onclick="toggleRegistroType(this)">⏳ Rich. Annullamento</button>
+                                <button class="rfilter-btn" data-etype="credit_added"             onclick="toggleRegistroType(this)">⬆️ Credito Manuale</button>
+                                <button class="rfilter-btn" data-etype="manual_debt"              onclick="toggleRegistroType(this)">📋 Debito Manuale</button>
+                                <button class="rfilter-btn" data-etype="manual_debt_paid"         onclick="toggleRegistroType(this)">💰 Debito Saldato</button>
+                            </div>
                         </div>
                         <div class="registro-filter-group registro-filter-group--sm">
                             <label class="registro-filter-label">Tipo lezione</label>
