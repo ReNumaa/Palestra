@@ -14,7 +14,7 @@ const SLOT_MAX_CAPACITY = {
 const SLOT_PRICES = {
     'personal-training': 5,
     'small-group': 10,
-    'group-class': 50
+    'group-class': 30
 };
 
 const SLOT_NAMES = {
