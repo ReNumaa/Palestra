@@ -3092,6 +3092,25 @@ function buildRegistroEntries() {
             if (h.hiddenRefund) continue;
             if ((h.amount || 0) <= 0) continue; // salta i consumi di credito
             const ts = h.date ? new Date(h.date) : new Date();
+
+            // Retrocompatibilità: vecchi dati incorporavano il metodo nella nota come "(carta)"
+            let creditNote   = h.note   || '';
+            let creditMethod = h.method || null;
+            if (!creditMethod && creditNote) {
+                const m = creditNote.match(/\s*\(([^)]+)\)\s*$/);
+                if (m) {
+                    const raw = m[1].toLowerCase().trim();
+                    const methodMap = {
+                        'carta': 'carta', 'contanti': 'contanti', 'iban': 'iban',
+                        'lezione-gratuita': 'lezione-gratuita', 'lezione gratuita': 'lezione-gratuita',
+                    };
+                    if (methodMap[raw]) {
+                        creditMethod = methodMap[raw];
+                        creditNote   = creditNote.replace(/\s*\([^)]+\)\s*$/, '').trim();
+                    }
+                }
+            }
+
             entries.push({
                 bookingId:     h.bookingRef || null,
                 clientName:    record.name     || '—',
@@ -3101,11 +3120,11 @@ function buildRegistroEntries() {
                 lessonTime:    null,
                 slotType:      null,
                 slotLabel:     '',
-                notes:         h.note || '',
+                notes:         creditNote,
                 eventType:     'credit_added',
                 timestamp:     ts,
                 amount:        Math.abs(h.amount || 0),
-                paymentMethod: h.method || null,
+                paymentMethod: creditMethod,
                 freeLesson:    h.freeLesson || false,
                 bookingStatus: 'credit',
                 bookingPaid:   null,
@@ -3273,7 +3292,7 @@ function renderRegistroTable() {
         booking_paid:             { icon: '✅', cls: 'rtype-paid',       label: 'Pagamento' },
         booking_cancelled:        { icon: '❌', cls: 'rtype-cancelled',  label: 'Annullamento' },
         booking_cancellation_req: { icon: '⏳', cls: 'rtype-pending',    label: 'Rich. Annullamento' },
-        credit_added:             { icon: '⬆️', cls: 'rtype-credit',     label: 'Credito Aggiunto' },
+        credit_added:             { icon: '⬆️', cls: 'rtype-credit',     label: 'Credito Manuale' },
         manual_debt:              { icon: '📋', cls: 'rtype-debt',       label: 'Debito Manuale' },
         manual_debt_paid:         { icon: '💰', cls: 'rtype-debtpaid',   label: 'Debito Saldato' },
     };
@@ -3427,8 +3446,7 @@ function exportRegistro() {
         booking_paid:             'Pagamento',
         booking_cancelled:        'Annullamento',
         booking_cancellation_req: 'Rich. Annullamento',
-        credit_added:             'Credito Aggiunto',
-        credit_used:              'Credito Usato',
+        credit_added:             'Credito Manuale',
         manual_debt:              'Debito Manuale',
         manual_debt_paid:         'Debito Saldato',
     };
