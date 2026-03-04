@@ -3366,7 +3366,7 @@ function renderRegistroTable() {
     const statusHTML = (e) => {
         if (e.bookingStatus === 'cancelled')              return `<span class="rstatus-badge rstatus-cancelled">Annullato</span>`;
         if (e.bookingStatus === 'cancellation_requested') return `<span class="rstatus-badge rstatus-pending">In attesa</span>`;
-        if (e.bookingStatus === 'credit')                 return `<span class="rstatus-badge rstatus-credit">Credito</span>`;
+        if (e.bookingStatus === 'credit')                 return `<span class="rstatus-badge rstatus-paid">Pagato</span>`;
         if (e.bookingStatus === 'debt')                   return `<span class="rstatus-badge rstatus-debt">Da pagare</span>`;
         if (e.bookingPaid === true)                       return `<span class="rstatus-badge rstatus-paid">Pagato</span>`;
         if (e.bookingPaid === false)                      return `<span class="rstatus-badge rstatus-unpaid">Non pagato</span>`;
