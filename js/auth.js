@@ -191,7 +191,7 @@ function _injectSidebarLogout() {
         logoutUser();
         localStorage.removeItem('adminAuthenticated');
         sessionStorage.removeItem('adminAuth');
-        window.location.href = 'index.html';
+        window.location.href = '/';
     });
     li.appendChild(btn);
     sidebar.append(li);
@@ -305,7 +305,7 @@ document.addEventListener('DOMContentLoaded', () => {
             logoutUser();
             localStorage.removeItem('adminAuthenticated');
             sessionStorage.removeItem('adminAuth');
-            window.location.href = 'index.html';
+            window.location.href = '/';
         });
     }
 
