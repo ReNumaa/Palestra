@@ -251,9 +251,26 @@ class BookingStorage {
         const all = this.getAllBookings();
         const booking = all.find(b => b.id === id);
         if (!booking || booking.status !== 'confirmed') return false;
+        const wasPaid = booking.paid || (booking.creditApplied || 0) > 0;
+        const slotType = booking.slotType;
+        booking.cancelledPaymentMethod = booking.paymentMethod;
+        booking.cancelledPaidAt = booking.paidAt;
         booking.status = 'cancelled';
         booking.cancelledAt = new Date().toISOString();
+        booking.paid = false;
+        booking.paymentMethod = null;
+        booking.paidAt = null;
+        booking.creditApplied = 0;
         this.replaceAllBookings(all);
+        const creditToRefund = wasPaid ? (SLOT_PRICES[slotType] || 0) : 0;
+        if (creditToRefund > 0) {
+            CreditStorage.addCredit(
+                booking.whatsapp, booking.email, booking.name,
+                creditToRefund,
+                `Rimborso annullamento ${booking.date} ${booking.time}`,
+                null, false, true
+            );
+        }
         return true;
     }
 
@@ -264,11 +281,28 @@ class BookingStorage {
         const all = this.getAllBookings();
         const booking = all.find(b => b.id === id);
         if (!booking || booking.status !== 'confirmed') return false;
+        const wasPaid = booking.paid || (booking.creditApplied || 0) > 0;
+        const slotType = booking.slotType;
 
         // Cancella subito la prenotazione
+        booking.cancelledPaymentMethod = booking.paymentMethod;
+        booking.cancelledPaidAt = booking.paidAt;
         booking.status = 'cancelled';
         booking.cancelledAt = new Date().toISOString();
+        booking.paid = false;
+        booking.paymentMethod = null;
+        booking.paidAt = null;
+        booking.creditApplied = 0;
         this.replaceAllBookings(all);
+        const creditToRefund = wasPaid ? (SLOT_PRICES[slotType] || 0) : 0;
+        if (creditToRefund > 0) {
+            CreditStorage.addCredit(
+                booking.whatsapp, booking.email, booking.name,
+                creditToRefund,
+                `Rimborso annullamento ${booking.date} ${booking.time}`,
+                null, false, true
+            );
+        }
 
         // Converte lo slot in Gestione Orari da group-class a small-group
         const overrides = this.getScheduleOverrides();
