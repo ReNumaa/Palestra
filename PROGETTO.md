@@ -1,6 +1,6 @@
 # TB Training — Diario di Sviluppo & Roadmap
 
-> Documento aggiornato al 03/03/2026 (sessione 9)
+> Documento aggiornato al 04/03/2026 (sessione 10)
 > Prototipo: sistema di prenotazione palestra, frontend-only con localStorage
 > Supabase CLI installato, schema SQL definito, accesso dati centralizzato
 > Supabase cloud attivo (tabelle create), Google OAuth funzionante, numeri normalizzati E.164
@@ -782,6 +782,45 @@ Libreria Canvas custom, nessuna dipendenza esterna.
 - `auth.js`: `u.email?.toLowerCase()` con optional chaining — nessun crash se un record utente è privo di email
 
 ---
+
+### 4.25 Tab Registro — log unificato di tutte le attività (mar 2026)
+
+**Nuova tab `📋 Registro`** posizionata accanto a `📊 Statistiche & Fatturato` nell'admin panel.
+
+**Funzionalità:**
+- Aggregazione in un unico stream di eventi ordinati per timestamp decrescente (event sourcing pattern):
+  - `booking_created` — nuova prenotazione
+  - `booking_paid` — pagamento registrato
+  - `booking_cancellation_req` — richiesta di annullamento
+  - `booking_cancelled` — annullamento confermato
+  - `credit_added` — credito aggiunto manualmente o come acconto
+  - `manual_debt` — debito manuale registrato
+  - `manual_debt_paid` — debito manuale saldato
+- Filtri: periodo (7gg / 30gg / 90gg / tutto / range custom), tipo evento, tipo lezione, metodo pagamento, stato, ricerca cliente
+- Ordinamento cliccabile su qualsiasi colonna
+- Paginazione 50 righe per pagina
+- Scheda summary con: totale eventi, incassato, nuove prenotazioni
+- Export Excel (SheetJS, filename `TB_Registro_YYYY-MM-DD.xlsx`, 13 colonne)
+- XSS prevention con `_escHtml()` su tutti i dati utente
+- Badge colorati (pastello) per tipo evento e stato, coerenti con il design system esistente
+- "Bubble to top" naturale: la modifica di una prenotazione genera un nuovo evento con timestamp corrente
+
+**Fix progressivi durante la sessione:**
+- CSS riscritto in light-mode (testo scuro su sfondo bianco) dopo errore iniziale con colori dark-mode invisibili
+- Rimossi eventi `credit_used` (ridondanti: il consumo di credito è già visibile come `booking_paid` con metodo credito)
+- `Incassato` esclude lezioni gratuite (`paymentMethod !== 'lezione-gratuita'`)
+
+**Fix metodo pagamento e fatturato crediti (sessione 10):**
+- `CreditStorage.addCredit` in `data.js`: aggiunto parametro `method`, salvato come `entry.method` nel record storico
+- `saveManualEntry`: nota semplificata (non contiene più il metodo tra parentesi), metodo passato come campo separato
+- `paySelectedDebts`: metodo passato ad `addCredit` in entrambe le chiamate (log pagamento + acconto)
+- `buildRegistroEntries`: crediti usano `h.amount` (non `displayAmount`) e espongono flag `freeLesson`
+- `_updateRegistroSummary` — formula fatturato aggiornata:
+  - `booking_paid` dove metodo ≠ `credito` AND ≠ `lezione-gratuita`
+  - PLUS `credit_added` dove `freeLesson = false`
+  - Evita doppio conteggio: la stessa somma non compare sia come `credit_added` che come `booking_paid (credito)`
+
+---
 ### 4.12 Notifiche (pianificate, non ancora implementate)
 
 - Il form di prenotazione simula l'invio di un messaggio WhatsApp (solo `console.log`)
@@ -903,6 +942,10 @@ Libreria Canvas custom, nessuna dipendenza esterna.
 | Fix logo dark mode: color-scheme light su tutti i punti (navbar, sidebar, login, chi-sono) | Funzionante ✅ |
 | Hero name in maiuscolo (THOMAS BRESCIANI) | Fatto ✅ |
 | PWA rinominata da "Palestra" a "Gym" (manifest.json + meta tag Apple) | Fatto ✅ |
+| Tab Registro: log unificato eventi con filtri, ordinamento, paginazione | Funzionante ✅ |
+| Export Excel dal Registro (SheetJS, 13 colonne) | Funzionante ✅ |
+| Metodo pagamento salvato come campo dedicato nei crediti (non nelle note) | Funzionante ✅ |
+| Fatturato Registro: credit_added (non gratuiti) + booking_paid (no credito, no gratuiti) | Funzionante ✅ |
 
 ---
 
