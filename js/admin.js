@@ -2326,7 +2326,7 @@ function renderDebtPopupList(unpaid, debtInfo = null) {
                         <span class="debt-item-date">📅 ${dateDisplay} &nbsp;·&nbsp; 🕐 ${booking.time}</span>
                         <span class="debt-item-type">${SLOT_NAMES[booking.slotType]}${creditApplied > 0 ? ` <span style="color:#92400e;font-size:0.8em">(💳 €${creditApplied} già applicato)</span>` : ''}</span>
                     </div>
-                    <span class="debt-item-price">€${price}</span>
+                    <span class="debt-item-price">€${Number(price).toFixed(2).replace('.', ',')}</span>
                 </label>`;
         } else {
             const { balance, date } = it.debtInfo;
@@ -2340,7 +2340,7 @@ function renderDebtPopupList(unpaid, debtInfo = null) {
                         <span class="debt-item-date">📋 ${dateDisplay}</span>
                         <span class="debt-item-type">Debito manuale</span>
                     </div>
-                    <span class="debt-item-price">€${balance.toFixed(2)}</span>
+                    <span class="debt-item-price">€${balance.toFixed(2).replace('.', ',')}</span>
                 </label>`;
         }
         list.appendChild(el);
