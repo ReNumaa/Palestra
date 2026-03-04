@@ -1,6 +1,6 @@
 # TB Training — Diario di Sviluppo & Roadmap
 
-> Documento aggiornato al 04/03/2026 (sessione 10)
+> Documento aggiornato al 04/03/2026 (sessione 11)
 > Prototipo: sistema di prenotazione palestra, frontend-only con localStorage
 > Supabase CLI installato, schema SQL definito, accesso dati centralizzato
 > Supabase cloud attivo (tabelle create), Google OAuth funzionante, numeri normalizzati E.164
@@ -821,6 +821,32 @@ Libreria Canvas custom, nessuna dipendenza esterna.
   - Evita doppio conteggio: la stessa somma non compare sia come `credit_added` che come `booking_paid (credito)`
 
 ---
+
+### 4.26 Annullamento diretto, debiti nel popup e fix transazioni (sessione 11, mar 2026)
+
+**Annullamento diretto entro 24h prima della lezione:**
+- Finestra temporale distinta:
+  - **> 24h prima:** bottone "Annulla" diretto → annullamento immediato (già funzionante)
+  - **≤ 24h prima e > 2h prima:** bottone "Richiedi annullamento" → flow con sostituzione cliente
+  - **≤ 2h prima:** nessun bottone (né annullamento né richiesta)
+- Revisione della logica `BookingStorage.cancelDirectly()` e del render in `prenotazioni.html`
+
+**Debiti manuali visibili e pagabili nel popup prenotazioni (admin calendar):**
+- Il popup "⚠️ Da pagare" / "⊕ Segna pagato" mostra ora anche i debiti manuali del cliente (oltre alle prenotazioni non pagate)
+- I debiti manuali sono selezionabili come checkbox e vengono saldati insieme alle prenotazioni
+- Ordinamento cronologico dal più vecchio al più nuovo (backlog prima)
+- Fix data visualizzata: usa `debtRec.history[i].date` (ISO string) invece del campo `date` del record aggregate
+
+**Fix formato prezzi nel popup:**
+- `€5,00` e `€10,00` mostrati uniformi con `.toFixed(2).replace('.', ',')`
+
+**Fix voce "+€" mancante in Transazioni su pagamento carta/contanti/iban:**
+- **Problema:** `paySelectedDebts()` (popup dal calendario) marcava le prenotazioni come pagate ma non aggiungeva alcuna voce al credit history — il cliente vedeva solo `-€X` (addebito lezione) senza il corrispondente `+€X` (incasso ricevuto)
+- **Root cause:** la funzione gestiva solo il caso di sovrapagamento (`creditDelta > 0`) ma non il pagamento esatto (`creditDelta = 0`) né il pagamento parziale
+- **Fix:** aggiunta branch `else` che chiama `CreditStorage.addCredit(..., 0, 'Carta ricevuto', amountPaid, ...)` con `amount=0` e `displayAmount=amountPaid` — coerente con quanto già faceva `saveBookingEdit()` dalla tab Clienti
+- **Fix cache:** bump `admin.js?v=7` → `v=8` in `admin.html` per forzare il reload del browser (il fix era in produzione ma il browser serviva la versione cachata)
+
+---
 ### 4.12 Notifiche (pianificate, non ancora implementate)
 
 - Il form di prenotazione simula l'invio di un messaggio WhatsApp (solo `console.log`)
@@ -946,6 +972,9 @@ Libreria Canvas custom, nessuna dipendenza esterna.
 | Export Excel dal Registro (SheetJS, 13 colonne) | Funzionante ✅ |
 | Metodo pagamento salvato come campo dedicato nei crediti (non nelle note) | Funzionante ✅ |
 | Fatturato Registro: credit_added (non gratuiti) + booking_paid (no credito, no gratuiti) | Funzionante ✅ |
+| Annullamento diretto entro 24h / richiesta nelle ultime 24h (finestre distinte) | Funzionante ✅ |
+| Debiti manuali visibili e pagabili nel popup "Segna pagato" del calendario | Funzionante ✅ |
+| Fix voce "+€" in Transazioni su pagamento carta/contanti/iban dal popup calendario | Funzionante ✅ |
 
 ---
 
