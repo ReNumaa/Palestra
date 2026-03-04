@@ -3101,19 +3101,22 @@ function buildRegistroEntries() {
             eventType:     'booking_created',
             timestamp:     createdAt,
             amount:        SLOT_PRICES[b.slotType] || 0,
-            paymentMethod: b.paymentMethod || null,
+            paymentMethod: b.paymentMethod || (b.status === 'cancelled' ? b.cancelledPaymentMethod : null) || null,
             bookingStatus: b.status,
-            bookingPaid:   b.paid,
+            bookingPaid:   b.paid || (b.status === 'cancelled' && !!b.cancelledPaidAt),
         });
 
         // Evento: pagamento ricevuto
-        if (b.paid && b.paidAt) {
+        // Per prenotazioni annullate-dopo-pagamento usiamo cancelledPaidAt/cancelledPaymentMethod
+        const paidAtTs  = b.paidAt || (b.status === 'cancelled' ? b.cancelledPaidAt  : null);
+        const paidMeth  = b.paymentMethod || (b.status === 'cancelled' ? b.cancelledPaymentMethod : null);
+        if (paidAtTs) {
             entries.push({
                 ...base,
                 eventType:     'booking_paid',
-                timestamp:     new Date(b.paidAt),
+                timestamp:     new Date(paidAtTs),
                 amount:        SLOT_PRICES[b.slotType] || 0,
-                paymentMethod: b.paymentMethod,
+                paymentMethod: paidMeth,
                 bookingStatus: b.status,
                 bookingPaid:   true,
             });
