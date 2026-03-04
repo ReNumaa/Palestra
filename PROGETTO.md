@@ -1,6 +1,6 @@
 # TB Training — Diario di Sviluppo & Roadmap
 
-> Documento aggiornato al 04/03/2026 (sessione 14)
+> Documento aggiornato al 04/03/2026 (sessione 15)
 > Prototipo: sistema di prenotazione palestra, frontend-only con localStorage
 > Supabase CLI installato, schema SQL definito, accesso dati centralizzato
 > Supabase cloud attivo (tabelle create), Google OAuth funzionante, numeri normalizzati E.164
@@ -905,6 +905,71 @@ Libreria Canvas custom, nessuna dipendenza esterna.
 
 ---
 
+### 4.30 Bonus annullamento, fix bfcache prenotazioni e soglia debito (sessione 15, mar 2026)
+
+#### Bonus annullamento
+
+Ogni cliente ha un **bonus giornaliero** (0 o 1) che permette di annullare una prenotazione normalmente bloccata. Non è cumulabile: al cambio giorno si ripristina da 0→1, ma non va oltre 1.
+
+**Logica finestre di annullamento rivista per tipo:**
+
+| Tipo | Annullamento diretto | Richiesta annullamento | Bloccato (bonus o niente) |
+|---|---|---|---|
+| Personal Training / Lezione di Gruppo | > 24h | ≤ 24h e > 2h | ≤ 2h |
+| Slot prenotato (group-class) | > 3 giorni | — | ≤ 3 giorni e > 2h |
+
+**Comportamento bonus:**
+- Se il cliente ha bonus = 1 e la prenotazione è bloccata: compare il pulsante "🎟️ Usa bonus e annulla"
+- Utilizzando il bonus: credito rimborsato normalmente, bonus passa a 0
+- Se bonus = 0: il pulsante è sostituito da "🔒 Non annullabile" (come prima)
+
+**Implementazione:**
+- `BonusStorage` in `data.js`: salva `{ bonus, lastResetDate }` per contatto in localStorage; auto-ripristino giornaliero
+- `BookingStorage.cancelWithBonus(id)` in `data.js`: annulla + rimborsa credito + chiama `BonusStorage.useBonus()` + riconverte slot group-class in small-group
+- `prenotazioni.html`: UI "🎟️ Bonus annullamento" nella saldo card, pulsante bonus nel buildCard, `renderBonusBalance()`, `cancelWithBonus()`
+- `css/prenotazioni.css`: stile pulsante viola per il bonus
+
+**Nota Supabase:** `BonusStorage` → tabella `bonus_balance(whatsapp, email, bonus, last_reset_date)` o colonna su `profiles`.
+
+---
+
+#### Fix navigazione index.html → prenotazioni.html (bfcache)
+
+**Problema:** navigando da `index.html` a `prenotazioni.html` i dati non si caricavano; funzionava solo dopo refresh.
+
+**Cause:**
+1. `data.js` servito dal cache del browser (versione vecchia senza `BonusStorage` → `ReferenceError`)
+2. Il browser usa `bfcache` (Back/Forward Cache): restaura la pagina senza rieseguire `DOMContentLoaded`
+
+**Fix:**
+- Bump versione `data.js` v5→v6 in tutti gli HTML (cache busting)
+- `prenotazioni.html`: aggiunto check `document.readyState === 'loading'` + listener `pageshow` con `event.persisted` per forzare il reinit su restore da bfcache
+- Estratto `_initPrenoPage()` come funzione richiamabile indipendentemente dal lifecycle evento
+
+---
+
+#### Soglia debito per blocco prenotazioni
+
+**Funzionalità:** l'admin può impostare una soglia in € nella sezione 💳 Pagamenti. Chi ha debiti passati non pagati superiori alla soglia non può effettuare nuove prenotazioni.
+
+- Solo debiti **passati** contano (prenotazioni già terminate + debiti manuali); le prenotazioni future vengono ignorate
+- Soglia = 0 → nessun blocco (default)
+- Il credito disponibile viene nettato dal debito prima del confronto
+
+**Implementazione:**
+- `DebtThresholdStorage` in `data.js`: `get()` / `set(amount)` su localStorage (chiave `gym_debt_threshold`)
+- `BookingStorage.getUnpaidPastDebt(whatsapp, email)` in `data.js`: calcola debito passato per contatto (phone OR email match)
+- `admin.html`: riquadro "🚫 Soglia blocco prenotazioni" con input € nella tab Pagamenti
+- `admin.js`: `renderDebtThresholdUI()` + `saveDebtThreshold()` (oninput, salvataggio immediato)
+- `booking.js`: validazione prima del salvataggio — se `pastDebt > threshold` mostra toast e blocca
+- `css/admin.css`: stile riquadro giallo/ambra per il pannello soglia
+
+**Nota Supabase:** `DebtThresholdStorage` → tabella `settings(key TEXT PRIMARY KEY, value TEXT)` con `key = 'debt_threshold'`. `getUnpaidPastDebt` → query SQL su `bookings` con filtro `paid = false` e `ended_at < now()`.
+
+**File modificati:** `js/data.js` (v7), `js/admin.js` (v11), `js/booking.js` (v5), `admin.html`, `css/admin.css` (v7), più bump v7 `data.js` in tutti gli altri HTML
+
+---
+
 ### 4.28 Logica annullamento unificata a 24h e fix rimborso (sessione 13, mar 2026)
 
 **Nuova soglia unica per tutti i tipi di prenotazione:**
@@ -1057,6 +1122,9 @@ La precedente logica con soglie diverse per tipo (3 giorni per Slot prenotato, 3
 | Annullamento diretto entro 24h / richiesta nelle ultime 24h (finestre distinte) | Funzionante ✅ |
 | Debiti manuali visibili e pagabili nel popup "Segna pagato" del calendario | Funzionante ✅ |
 | Fix voce "+€" in Transazioni su pagamento carta/contanti/iban dal popup calendario | Funzionante ✅ |
+| Bonus annullamento giornaliero: BonusStorage, cancelWithBonus, UI in prenotazioni.html | Funzionante ✅ |
+| Fix bfcache prenotazioni.html: readyState check + pageshow listener | Funzionante ✅ |
+| Soglia debito blocco prenotazioni: DebtThresholdStorage, getUnpaidPastDebt, UI admin | Funzionante ✅ |
 
 ---
 
