@@ -1,6 +1,6 @@
 # TB Training — Diario di Sviluppo & Roadmap
 
-> Documento aggiornato al 04/03/2026 (sessione 12)
+> Documento aggiornato al 04/03/2026 (sessione 13)
 > Prototipo: sistema di prenotazione palestra, frontend-only con localStorage
 > Supabase CLI installato, schema SQL definito, accesso dati centralizzato
 > Supabase cloud attivo (tabelle create), Google OAuth funzionante, numeri normalizzati E.164
@@ -870,6 +870,31 @@ Libreria Canvas custom, nessuna dipendenza esterna.
 ```
 
 **File modificati:** `js/admin.js` (v=10), `admin.html`, `sw.js`
+
+---
+
+### 4.28 Logica annullamento unificata a 24h e fix rimborso (sessione 13, mar 2026)
+
+**Nuova soglia unica per tutti i tipi di prenotazione:**
+
+La precedente logica con soglie diverse per tipo (3 giorni per Slot prenotato, 3 ore per Lezione di Gruppo/Autonomia) è stata sostituita da una soglia unica a 24h:
+
+| Tempo alla lezione | Comportamento |
+|---|---|
+| > 24h | "Annulla prenotazione" → annullamento diretto (group-class converte lo slot in Lezione di Gruppo) |
+| ≤ 24h e > 2h | "Richiedi annullamento" → condizionale: il posto deve essere preso da un altro cliente |
+| ≤ 2h | 🔒 Bloccato (coerente con `processPendingCancellations`) |
+
+- Separazione netta in `prenotazioni.html`: `cancelDirect(id)` per il flusso diretto e `requestCancellation(id)` per il flusso condizionale
+- Rimosso il branching per tipo slot dal render del bottone: ora unica logica `_canCancelDirect` / `_canRequestCancel`
+
+**Fix rimborso credito su annullamento diretto (bug pre-esistente):**
+
+- **Problema:** `cancelDirectly()` e `cancelAndConvertSlot()` non azzeravano i campi di pagamento né accreditavano il rimborso — la prenotazione veniva annullata ma il credito del cliente restava invariato
+- **Root cause:** il rimborso automatico era implementato solo in `fulfillPendingCancellations` (flusso sostituzione cliente), non nei metodi di cancellazione diretta; il bug era già presente nel vecchio flusso group-class (> 3 giorni prima)
+- **Fix:** entrambi i metodi ora applicano la stessa logica di `fulfillPendingCancellations`: reset di `paid`, `paymentMethod`, `paidAt`, `creditApplied`; salvataggio di `cancelledPaymentMethod` e `cancelledPaidAt` per lo storico; `CreditStorage.addCredit` con il prezzo pieno e `hiddenRefund=true`
+
+**File modificati:** `js/data.js`, `prenotazioni.html`
 
 ---
 ### 4.12 Notifiche (pianificate, non ancora implementate)
