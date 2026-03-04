@@ -69,6 +69,11 @@
                     <span class="preno-saldo-label">⚠️ Da pagare</span>
                     <span class="preno-saldo-value preno-saldo-debit" id="prenoDebitAmount">€0,00</span>
                 </div>
+                <div class="preno-saldo-divider"></div>
+                <div class="preno-saldo-row">
+                    <span class="preno-saldo-label">🎟️ Bonus annullamento</span>
+                    <span class="preno-saldo-value preno-saldo-bonus" id="prenoBonusAmount">1/1</span>
+                </div>
             </div>
 
             <!-- Warning certificato medico -->
@@ -199,6 +204,7 @@
 
             renderPrenoList();
             renderCreditBalance();
+            renderBonusBalance();
             renderCertWarning();
 
             // Polling: aggiorna la lista ogni 3s finché ci sono annullamenti in attesa
@@ -222,6 +228,7 @@
                     BookingStorage.processPendingCancellations();
                     renderPrenoList();
                     renderCreditBalance();
+                    renderBonusBalance();
                 }, 3000);
             }
             function _stopPolling() { if (_pollInterval) { clearInterval(_pollInterval); _pollInterval = null; } }
@@ -230,6 +237,17 @@
             });
             _startPolling();
         });
+
+        // ── Bonus balance ─────────────────────────────────────────────────
+        function renderBonusBalance() {
+            const user = getCurrentUser();
+            if (!user) return;
+            const bonus = BonusStorage.getBonus(user.whatsapp, user.email);
+            const el = document.getElementById('prenoBonusAmount');
+            if (!el) return;
+            el.textContent = `${bonus}/1`;
+            el.className = `preno-saldo-value preno-saldo-bonus ${bonus > 0 ? 'preno-saldo-bonus-available' : 'preno-saldo-bonus-used'}`;
+        }
 
         // ── Credit / debit balance ────────────────────────────────────────
         function renderCreditBalance() {
@@ -307,26 +325,41 @@
                 payBadge = `<span class="preno-badge preno-badge-unpaid">Da pagare</span>`;
             }
 
-            const _lessonStart = new Date(`${b.date}T${b.time.split(' - ')[0].trim()}:00`);
-            const _lessonPast  = _lessonStart <= new Date();
-            const ONE_DAY_MS   = 24 * 60 * 60 * 1000;
-            const TWO_HOURS_MS = 2 * 60 * 60 * 1000;
-            const _msToLesson  = _lessonStart - new Date();
-            const _canCancelDirect  = _msToLesson > ONE_DAY_MS;
-            const _canRequestCancel = !_canCancelDirect && _msToLesson > TWO_HOURS_MS;
+            const _lessonStart  = new Date(`${b.date}T${b.time.split(' - ')[0].trim()}:00`);
+            const _lessonPast   = _lessonStart <= new Date();
+            const ONE_DAY_MS    = 24 * 60 * 60 * 1000;
+            const TWO_HOURS_MS  = 2 * 60 * 60 * 1000;
+            const THREE_DAYS_MS = 3 * 24 * 60 * 60 * 1000;
+            const _msToLesson   = _lessonStart - new Date();
+            const _isGroupClass = b.slotType === 'group-class';
+            // group-class: annullamento diretto solo se > 3 giorni; altri: > 24h
+            const _canCancelDirect  = _isGroupClass ? _msToLesson > THREE_DAYS_MS : _msToLesson > ONE_DAY_MS;
+            // richiesta annullamento (2h–24h) solo per non-group-class
+            const _canRequestCancel = !_isGroupClass && !_canCancelDirect && _msToLesson > TWO_HOURS_MS;
+            // locked = non rientra in nessuna finestra annullabile
+            const _isLocked = !_canCancelDirect && !_canRequestCancel && _msToLesson > 0;
 
             let cancelBtn = '';
             if (showCancel && b.status !== 'cancelled' && !_lessonPast) {
                 if (b.status === 'cancellation_requested') {
                     cancelBtn = `<div class="preno-cancel-pending">⏳ Annullamento in attesa</div>`;
                 } else if (_canCancelDirect) {
-                    // Più di 24h: annullamento diretto
+                    // Più di 24h (o > 3 giorni per group-class): annullamento diretto
                     cancelBtn = `<button class="preno-cancel-btn" onclick="cancelDirect('${b.id}')">Annulla prenotazione</button>`;
                 } else if (_canRequestCancel) {
-                    // Ultime 24h: richiesta annullamento (condizionale)
+                    // Ultime 24h (solo non-group-class): richiesta annullamento condizionale
                     cancelBtn = `<button class="preno-cancel-btn" onclick="requestCancellation('${b.id}')">Richiedi annullamento</button>`;
-                } else {
-                    cancelBtn = `<div class="preno-cancel-locked">🔒 Non annullabile (meno di 2 ore)</div>`;
+                } else if (_isLocked) {
+                    const _user = getCurrentUser();
+                    const _bonus = _user ? BonusStorage.getBonus(_user.whatsapp, _user.email) : 0;
+                    if (_bonus > 0) {
+                        const _lockReason = _msToLesson <= TWO_HOURS_MS ? 'meno di 2 ore' : 'slot prenotato entro 3 giorni';
+                        cancelBtn = `<button class="preno-cancel-btn preno-cancel-bonus" onclick="cancelWithBonus('${b.id}')">🎟️ Usa bonus e annulla</button>
+                                     <div class="preno-bonus-hint">Non annullabile (${_lockReason}) — hai 1 bonus disponibile</div>`;
+                    } else {
+                        const _lockReason = _msToLesson <= TWO_HOURS_MS ? 'meno di 2 ore' : 'slot prenotato entro 3 giorni';
+                        cancelBtn = `<div class="preno-cancel-locked">🔒 Non annullabile (${_lockReason})</div>`;
+                    }
                 }
             }
 
@@ -451,6 +484,20 @@
                 BookingStorage.cancelDirectly(id);
             }
             renderPrenoList();
+        }
+
+        // ── Annullamento con bonus (slot non annullabile) ─────────────────
+        function cancelWithBonus(id) {
+            const booking = BookingStorage.getAllBookings().find(b => b.id === id);
+            if (!booking) return;
+            const msg = 'Vuoi usare il tuo bonus giornaliero per annullare questa prenotazione?\n\n' +
+                '• Il bonus verrà consumato (disponibile di nuovo domani).\n' +
+                '• Il credito eventualmente pagato ti verrà rimborsato.';
+            if (!confirm(msg)) return;
+            BookingStorage.cancelWithBonus(id);
+            renderPrenoList();
+            renderCreditBalance();
+            renderBonusBalance();
         }
 
         // ── Richiesta annullamento (ultime 24h) ───────────────────────────

@@ -319,6 +319,51 @@ class BookingStorage {
         return true;
     }
 
+    // Cancella una prenotazione non annullabile usando il bonus giornaliero.
+    // Rimborsa il credito (come cancelDirectly) e consuma il bonus (1 → 0).
+    static cancelWithBonus(id) {
+        const all = this.getAllBookings();
+        const booking = all.find(b => b.id === id);
+        if (!booking || booking.status !== 'confirmed') return false;
+        const wasPaid = booking.paid || (booking.creditApplied || 0) > 0;
+        const slotType = booking.slotType;
+        booking.cancelledPaymentMethod = booking.paymentMethod;
+        booking.cancelledPaidAt = booking.paidAt;
+        booking.status = 'cancelled';
+        booking.cancelledAt = new Date().toISOString();
+        booking.cancelledWithBonus = true;
+        booking.paid = false;
+        booking.paymentMethod = null;
+        booking.paidAt = null;
+        booking.creditApplied = 0;
+        this.replaceAllBookings(all);
+        // Per group-class: riconverte lo slot in small-group
+        if (slotType === SLOT_TYPES.GROUP_CLASS) {
+            const overrides = this.getScheduleOverrides();
+            const dateSlots = overrides[booking.date];
+            if (dateSlots) {
+                const slot = dateSlots.find(s => s.time === booking.time && s.type === SLOT_TYPES.GROUP_CLASS);
+                if (slot) {
+                    slot.type = SLOT_TYPES.SMALL_GROUP;
+                    delete slot.client;
+                    delete slot.bookingId;
+                    this.saveScheduleOverrides(overrides);
+                }
+            }
+        }
+        const creditToRefund = wasPaid ? (SLOT_PRICES[slotType] || 0) : 0;
+        if (creditToRefund > 0) {
+            CreditStorage.addCredit(
+                booking.whatsapp, booking.email, booking.name,
+                creditToRefund,
+                `Rimborso annullamento con bonus ${booking.date} ${booking.time}`,
+                null, false, true
+            );
+        }
+        BonusStorage.useBonus(booking.whatsapp, booking.email, booking.name);
+        return true;
+    }
+
     // Marca una prenotazione come "annullamento richiesto" (il posto torna disponibile)
     static requestCancellation(id) {
         const all = this.getAllBookings();
@@ -904,6 +949,69 @@ class ManualDebtStorage {
         const all = this._getAll();
         const key = this._findKey(whatsapp, email);
         if (key) { delete all[key]; this._save(all); }
+    }
+}
+
+// Bonus storage — one free cancellation bonus per client per day (non-cumulative)
+class BonusStorage {
+    static BONUS_KEY = 'gym_bonus';
+
+    static _getAll() {
+        try { return JSON.parse(localStorage.getItem(this.BONUS_KEY) || '{}'); } catch { return {}; }
+    }
+
+    static _save(data) {
+        localStorage.setItem(this.BONUS_KEY, JSON.stringify(data));
+    }
+
+    static _todayStr() {
+        const d = new Date();
+        return `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`;
+    }
+
+    static _matchContact(record, whatsapp, email) {
+        const normStored = normalizePhone(record.whatsapp);
+        const normInput  = normalizePhone(whatsapp);
+        const phoneMatch = normInput && normStored && normStored === normInput;
+        const emailMatch = email && record.email && record.email.toLowerCase() === email.toLowerCase();
+        return phoneMatch || emailMatch;
+    }
+
+    static _findKey(whatsapp, email) {
+        const all = this._getAll();
+        for (const [key, record] of Object.entries(all)) {
+            if (this._matchContact(record, whatsapp, email)) return key;
+        }
+        return null;
+    }
+
+    // Returns current bonus (0 or 1). Auto-restores to 1 on day change (non-cumulative).
+    static getBonus(whatsapp, email) {
+        const all  = this._getAll();
+        const key  = this._findKey(whatsapp, email);
+        const today = this._todayStr();
+        if (!key || !all[key]) return 1; // new user: bonus starts at 1
+        const record = all[key];
+        // Daily reset: day changed AND bonus was 0 → restore to 1 (if already 1, keep 1)
+        if (record.lastResetDate !== today && record.bonus === 0) {
+            record.bonus = 1;
+            record.lastResetDate = today;
+            this._save(all);
+        }
+        return record.bonus ?? 1;
+    }
+
+    // Consume the bonus (1 → 0)
+    static useBonus(whatsapp, email, name) {
+        const all   = this._getAll();
+        const today = this._todayStr();
+        let key = this._findKey(whatsapp, email);
+        if (!key) key = `${normalizePhone(whatsapp) || ''}||${(email || '').toLowerCase()}`;
+        if (!all[key]) all[key] = { name, whatsapp, email, bonus: 1, lastResetDate: today };
+        all[key].bonus = 0;
+        all[key].lastResetDate = today;
+        all[key].name = name;
+        this._save(all);
     }
 }
 
