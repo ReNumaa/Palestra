@@ -1603,7 +1603,22 @@ let creditsListVisible = false;
 let openClientIndex = null;
 let clientsSearchQuery = '';
 
+function renderDebtThresholdUI() {
+    const input = document.getElementById('debtThresholdInput');
+    if (input) {
+        const val = DebtThresholdStorage.get();
+        input.value = val > 0 ? val : '';
+    }
+}
+
+function saveDebtThreshold() {
+    const input = document.getElementById('debtThresholdInput');
+    const val = parseFloat(input.value) || 0;
+    DebtThresholdStorage.set(val);
+}
+
 function renderPaymentsTab() {
+    renderDebtThresholdUI();
     const debtors = getDebtors();
     const totalUnpaid = debtors.reduce((sum, debtor) => sum + debtor.totalAmount, 0);
     // Net debts against credit balance: only show as creditor if credit > debt
