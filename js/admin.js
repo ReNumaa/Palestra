@@ -2398,20 +2398,6 @@ function paySelectedDebts() {
     });
     BookingStorage.replaceAllBookings(bookings);
 
-    // Record incoming payment as a transaction (carta/contanti/iban only; lezione-gratuita and credit excluded)
-    const _payML = { contanti: 'Contanti', carta: 'Carta', iban: 'IBAN' };
-    if (!isFreeLesson && paymentMethod !== 'credito' && creditDelta <= 0 && currentDebtContact) {
-        CreditStorage.addCredit(
-            currentDebtContact.whatsapp,
-            currentDebtContact.email,
-            currentDebtContact.name,
-            0,                                                    // no balance change
-            `${_payML[paymentMethod] || paymentMethod} ricevuto`,
-            amountPaid,                                           // displayed amount
-            false, false, null, paymentMethod
-        );
-    }
-
     // Add credit if overpaid, then auto-apply to any remaining unpaid past bookings
     if (!isFreeLesson && creditDelta > 0 && currentDebtContact) {
         CreditStorage.addCredit(
