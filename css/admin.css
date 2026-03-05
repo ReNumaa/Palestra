@@ -3563,6 +3563,12 @@ canvas {
     color: #1c1917;
     background: transparent;
 }
+.debt-threshold-save-btn {
+    padding: 5px 14px;
+    font-size: 0.85rem;
+    line-height: 1;
+    margin: 0;
+}
 .debt-threshold-hint {
     font-size: 0.76rem;
     color: #92400e;
