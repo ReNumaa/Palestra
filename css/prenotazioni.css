@@ -497,6 +497,9 @@
     .preno-badge {
         white-space: normal;
         text-align: center;
+    }
+
+    .preno-badge-paid {
         padding-left: 0.3rem;
         padding-right: 0.3rem;
     }
