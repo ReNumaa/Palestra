@@ -257,6 +257,8 @@ function switchTab(tabName) {
         renderClientsTab();
     } else if (tabName === 'schedule') {
         renderScheduleManager();
+    } else if (tabName === 'settings') {
+        renderSettingsTab();
     } else if (tabName === 'registro') {
         renderRegistroTab();
     }
@@ -1602,6 +1604,19 @@ let creditsListVisible = false;
 // Clients Tab State
 let openClientIndex = null;
 let clientsSearchQuery = '';
+
+// ── Settings Tab ──────────────────────────────────────────────────────────────
+
+function renderSettingsTab() {
+    const mode = CancellationModeStorage.get();
+    document.querySelectorAll('input[name="cancellationMode"]').forEach(radio => {
+        radio.checked = radio.value === mode;
+    });
+}
+
+function saveCancellationMode(mode) {
+    CancellationModeStorage.set(mode);
+}
 
 function renderDebtThresholdUI() {
     const input = document.getElementById('debtThresholdInput');

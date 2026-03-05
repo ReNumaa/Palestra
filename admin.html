@@ -12,7 +12,7 @@
     <link rel="icon" type="image/jpeg" href="images/logo-tb---nero.jpg">
     <link rel="stylesheet" href="css/style.css?v=6">
     <link rel="stylesheet" href="css/login.css?v=5">
-    <link rel="stylesheet" href="css/admin.css?v=7">
+    <link rel="stylesheet" href="css/admin.css?v=8">
 </head>
 <body>
     <nav class="navbar">
@@ -53,6 +53,7 @@
                 <button class="admin-tab" data-tab="clients">👤 Clienti</button>
                 <button class="admin-tab" data-tab="schedule">⚙️ Gestione Orari</button>
                 <button class="admin-tab" data-tab="analytics">📊 Statistiche & Fatturato</button>
+                <button class="admin-tab" data-tab="settings">🔧 Impostazioni</button>
                 <button class="admin-tab" data-tab="registro">📋 Registro</button>
                 <button class="admin-tab admin-tab--privacy" id="btnToggleSensitive" onclick="toggleSensitiveData()" title="Nascondi/mostra dati sensibili">👁 Nascondi dati</button>
             </div>
@@ -304,6 +305,45 @@
 
             </div>
             <!-- End Tab: Analytics -->
+
+            <!-- Tab: Impostazioni -->
+            <div id="tab-settings" class="tab-content">
+                <div class="dashboard-card settings-card">
+
+                    <!-- Tipo annullamento in finestra ristretta -->
+                    <div class="settings-section">
+                        <h4 class="settings-section-title">Tipo di annullamento in finestra ristretta</h4>
+                        <p class="settings-section-desc">
+                            Comportamento quando un cliente vuole annullare una prenotazione nella finestra
+                            in cui l'annullamento diretto non è più consentito
+                            (ultime 24h per Autonomia/Lezione di Gruppo — ultimi 3 giorni per Slot prenotato).
+                        </p>
+                        <div class="settings-options" id="cancellationModeOptions">
+
+                            <label class="settings-option" id="optNewPerson">
+                                <input type="radio" name="cancellationMode" value="new-person"
+                                       onchange="saveCancellationMode(this.value)">
+                                <div class="settings-option-body">
+                                    <strong>👤 Annullamento con nuova persona</strong>
+                                    <span>Il cliente richiede l'annullamento. La prenotazione viene annullata solo se qualcun altro prende il suo posto prima delle 2h dalla lezione. Se nessuno si fa avanti, l'annullamento viene negato.</span>
+                                </div>
+                            </label>
+
+                            <label class="settings-option" id="optPenalty50">
+                                <input type="radio" name="cancellationMode" value="penalty-50"
+                                       onchange="saveCancellationMode(this.value)">
+                                <div class="settings-option-body">
+                                    <strong>💸 Mora del 50%</strong>
+                                    <span>Il cliente può annullare immediatamente, ma riceve solo il 50% del costo come rimborso credito. Es.: lezione da €10 → rimborso €5, mora €5.</span>
+                                </div>
+                            </label>
+
+                        </div>
+                    </div>
+
+                </div>
+            </div>
+            <!-- End Tab: Impostazioni -->
 
             <!-- Tab: Registro / Log DB -->
             <div id="tab-registro" class="tab-content">
@@ -586,11 +626,11 @@
     </script>
     <script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
     <script src="js/ui.js?v=1"></script>
-    <script src="js/data.js?v=8"></script>
+    <script src="js/data.js?v=9"></script>
     <script src="js/auth.js?v=7"></script>
     <script src="js/push.js?v=1"></script>
     <script src="js/chart-mini.js?v=5"></script>
-    <script src="js/admin.js?v=11"></script>
+    <script src="js/admin.js?v=12"></script>
     <script>
         if ('serviceWorker' in navigator) {
             navigator.serviceWorker.register('/sw.js');

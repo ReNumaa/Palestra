@@ -3569,3 +3569,54 @@ canvas {
     opacity: 0.85;
     flex-basis: 100%;
 }
+
+/* Settings Tab */
+.settings-card { padding: 1rem; }
+.settings-section { margin-bottom: 1.5rem; }
+.settings-section:last-child { margin-bottom: 0; }
+.settings-section-title {
+    font-size: 0.95rem;
+    font-weight: 700;
+    color: #1c1917;
+    margin: 0 0 0.4rem;
+}
+.settings-section-desc {
+    font-size: 0.82rem;
+    color: #6b7280;
+    margin: 0 0 0.9rem;
+    line-height: 1.5;
+}
+.settings-options { display: flex; flex-direction: column; gap: 0.6rem; }
+.settings-option {
+    display: flex;
+    align-items: flex-start;
+    gap: 0.75rem;
+    padding: 0.85rem 1rem;
+    border: 1.5px solid #e5e7eb;
+    border-radius: 0.6rem;
+    cursor: pointer;
+    transition: border-color 0.15s, background 0.15s;
+}
+.settings-option:has(input:checked) {
+    border-color: var(--primary-cyan, #00AEEF);
+    background: #f0fbff;
+}
+.settings-option input[type="radio"] {
+    margin-top: 0.2rem;
+    accent-color: var(--primary-cyan, #00AEEF);
+    flex-shrink: 0;
+}
+.settings-option-body {
+    display: flex;
+    flex-direction: column;
+    gap: 0.25rem;
+}
+.settings-option-body strong {
+    font-size: 0.9rem;
+    color: #1c1917;
+}
+.settings-option-body span {
+    font-size: 0.8rem;
+    color: #6b7280;
+    line-height: 1.45;
+}

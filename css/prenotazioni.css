@@ -321,6 +321,14 @@
     margin-top: 0.25rem;
     text-align: center;
 }
+.preno-cancel-penalty {
+    color: #b45309;
+    border-color: #fcd34d;
+}
+.preno-cancel-penalty:hover {
+    background: #fffbeb;
+    border-color: #b45309;
+}
 
 /* ── Cancellation pending badge ───────────────────────────────── */
 .preno-cancel-pending {

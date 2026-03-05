@@ -364,6 +364,53 @@ class BookingStorage {
         return true;
     }
 
+    // Annulla con mora del 50%: rimborso immediato al 50% del prezzo
+    // Usato quando il cliente è nella finestra ristretta e la modalità è 'penalty-50'
+    static cancelWithPenalty(id) {
+        const all = this.getAllBookings();
+        const booking = all.find(b => b.id === id);
+        if (!booking || booking.status !== 'confirmed') return false;
+        const wasPaid = booking.paid || (booking.creditApplied || 0) > 0;
+        const slotType = booking.slotType;
+        booking.cancelledPaymentMethod = booking.paymentMethod;
+        booking.cancelledPaidAt = booking.paidAt;
+        booking.status = 'cancelled';
+        booking.cancelledAt = new Date().toISOString();
+        booking.cancelledWithPenalty = true;
+        booking.paid = false;
+        booking.paymentMethod = null;
+        booking.paidAt = null;
+        booking.creditApplied = 0;
+        this.replaceAllBookings(all);
+        // Per group-class: riconverte lo slot in small-group
+        if (slotType === SLOT_TYPES.GROUP_CLASS) {
+            const overrides = this.getScheduleOverrides();
+            const dateSlots = overrides[booking.date];
+            if (dateSlots) {
+                const slot = dateSlots.find(s => s.time === booking.time && s.type === SLOT_TYPES.GROUP_CLASS);
+                if (slot) {
+                    slot.type = SLOT_TYPES.SMALL_GROUP;
+                    delete slot.client;
+                    delete slot.bookingId;
+                    this.saveScheduleOverrides(overrides);
+                }
+            }
+        }
+        // Rimborso 50% del prezzo (solo se era stata pagata)
+        if (wasPaid) {
+            const refund = Math.round((SLOT_PRICES[slotType] || 0) * 0.5 * 100) / 100;
+            if (refund > 0) {
+                CreditStorage.addCredit(
+                    booking.whatsapp, booking.email, booking.name,
+                    refund,
+                    `Rimborso parziale 50% — annullamento con mora ${booking.date} ${booking.time}`,
+                    null, false, true
+                );
+            }
+        }
+        return true;
+    }
+
     // Marca una prenotazione come "annullamento richiesto" (il posto torna disponibile)
     static requestCancellation(id) {
         const all = this.getAllBookings();
@@ -1047,6 +1094,16 @@ class DebtThresholdStorage {
     static KEY = 'gym_debt_threshold';
     static get() { return parseFloat(localStorage.getItem(this.KEY) || '0') || 0; }
     static set(amount) { localStorage.setItem(this.KEY, String(parseFloat(amount) || 0)); }
+}
+
+// Cancellation mode — global setting: how the restricted cancellation window is handled
+// 'new-person': classic "richiedi annullamento" (conditional on someone else booking the slot)
+// 'penalty-50': client can cancel immediately with a 50% refund penalty
+// Supabase migration: settings table, key = 'cancellation_mode'
+class CancellationModeStorage {
+    static KEY = 'gym_cancellation_mode';
+    static get() { return localStorage.getItem(this.KEY) || 'new-person'; }
+    static set(mode) { localStorage.setItem(this.KEY, mode); }
 }
 
 // User storage — client lookup for schedule management (Slot prenotato picker)

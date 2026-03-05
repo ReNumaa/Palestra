@@ -12,7 +12,7 @@
     <link rel="icon" type="image/jpeg" href="images/logo-tb---nero.jpg">
     <link rel="stylesheet" href="css/style.css?v=6">
     <link rel="stylesheet" href="css/login.css?v=4">
-    <link rel="stylesheet" href="css/prenotazioni.css?v=5">
+    <link rel="stylesheet" href="css/prenotazioni.css?v=6">
 </head>
 <body>
     <nav class="navbar">
@@ -168,7 +168,7 @@
     </div>
 
     <script src="js/ui.js?v=1"></script>
-    <script src="js/data.js?v=8"></script>
+    <script src="js/data.js?v=9"></script>
     <script src="js/auth.js?v=7"></script>
     <script src="js/push.js?v=1"></script>
     <script>
@@ -344,10 +344,16 @@
             const _isGroupClass = b.slotType === 'group-class';
             // group-class: annullamento diretto solo se > 3 giorni; altri: > 24h
             const _canCancelDirect  = _isGroupClass ? _msToLesson > THREE_DAYS_MS : _msToLesson > ONE_DAY_MS;
-            // richiesta annullamento (2h–24h) solo per non-group-class
-            const _canRequestCancel = !_isGroupClass && !_canCancelDirect && _msToLesson > TWO_HOURS_MS;
-            // locked = non rientra in nessuna finestra annullabile
-            const _isLocked = !_canCancelDirect && !_canRequestCancel && _msToLesson > 0;
+            // finestra ristretta: non ancora annullabile direttamente ma mancano più di 2h
+            const _inRestrictedWindow = !_canCancelDirect && _msToLesson > TWO_HOURS_MS;
+            // modalità configurata dall'admin
+            const _cancelMode = CancellationModeStorage.get();
+            // richiesta con nuova persona: solo non-group-class (group-class non ha questo flusso)
+            const _canRequestCancel = _cancelMode === 'new-person' && !_isGroupClass && _inRestrictedWindow;
+            // mora 50%: tutti i tipi nella finestra ristretta
+            const _canCancelWithPenalty = _cancelMode === 'penalty-50' && _inRestrictedWindow;
+            // locked = nessuna opzione applicabile ma la lezione non è ancora iniziata
+            const _isLocked = !_canCancelDirect && !_canRequestCancel && !_canCancelWithPenalty && _msToLesson > 0;
 
             let cancelBtn = '';
             if (showCancel && b.status !== 'cancelled' && !_lessonPast) {
@@ -357,8 +363,14 @@
                     // Più di 24h (o > 3 giorni per group-class): annullamento diretto
                     cancelBtn = `<button class="preno-cancel-btn" onclick="cancelDirect('${b.id}')">Annulla prenotazione</button>`;
                 } else if (_canRequestCancel) {
-                    // Ultime 24h (solo non-group-class): richiesta annullamento condizionale
+                    // Ultime 24h (solo non-group-class, modalità "nuova persona")
                     cancelBtn = `<button class="preno-cancel-btn" onclick="requestCancellation('${b.id}')">Richiedi annullamento</button>`;
+                } else if (_canCancelWithPenalty) {
+                    // Modalità "mora 50%": annullamento immediato con rimborso parziale
+                    const _price = SLOT_PRICES[b.slotType] || 0;
+                    const _refund = Math.round(_price * 0.5 * 100) / 100;
+                    cancelBtn = `<button class="preno-cancel-btn preno-cancel-penalty" onclick="cancelWithPenalty('${b.id}')">💸 Annulla con mora (rimborso €${_refund})</button>
+                                 <div class="preno-bonus-hint">Rimborso del 50% del costo (€${_refund} su €${_price})</div>`;
                 } else if (_isLocked) {
                     const _user = getCurrentUser();
                     const _bonus = _user ? BonusStorage.getBonus(_user.whatsapp, _user.email) : 0;
@@ -508,6 +520,23 @@
             renderPrenoList();
             renderCreditBalance();
             renderBonusBalance();
+        }
+
+        // ── Annullamento con mora del 50% ─────────────────────────────────
+        function cancelWithPenalty(id) {
+            const booking = BookingStorage.getAllBookings().find(b => b.id === id);
+            if (!booking) return;
+            const price  = SLOT_PRICES[booking.slotType] || 0;
+            const refund = Math.round(price * 0.5 * 100) / 100;
+            const mora   = Math.round((price - refund) * 100) / 100;
+            const msg = `Vuoi annullare con mora del 50%?\n\n` +
+                `• Rimborso credito: €${refund} (invece di €${price})\n` +
+                `• Mora trattenuta: €${mora}\n\n` +
+                `L'annullamento è immediato e definitivo.`;
+            if (!confirm(msg)) return;
+            BookingStorage.cancelWithPenalty(id);
+            renderPrenoList();
+            renderCreditBalance();
         }
 
         // ── Richiesta annullamento (ultime 24h) ───────────────────────────
