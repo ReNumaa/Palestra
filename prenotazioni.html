@@ -350,8 +350,8 @@
             const _cancelMode = CancellationModeStorage.get();
             // richiesta con nuova persona: solo non-group-class (group-class non ha questo flusso)
             const _canRequestCancel = _cancelMode === 'new-person' && !_isGroupClass && _inRestrictedWindow;
-            // mora 50%: tutti i tipi nella finestra ristretta
-            const _canCancelWithPenalty = _cancelMode === 'penalty-50' && _inRestrictedWindow;
+            // mora 50%: tutta la zona non-diretta (incluse ultime 2h), finché la lezione non è iniziata
+            const _canCancelWithPenalty = _cancelMode === 'penalty-50' && !_canCancelDirect && _msToLesson > 0;
             // locked = nessuna opzione applicabile ma la lezione non è ancora iniziata
             const _isLocked = !_canCancelDirect && !_canRequestCancel && !_canCancelWithPenalty && _msToLesson > 0;
 
