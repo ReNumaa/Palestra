@@ -3463,6 +3463,7 @@ canvas {
 .rtype-refund     { background: #cffafe; color: #0e7490; }
 .rtype-debt       { background: #fef9c3; color: #854d0e; }
 .rtype-debtpaid   { background: #d1fae5; color: #065f46; }
+.rtype-mora       { background: #fde68a; color: #92400e; }
 
 /* Status badges */
 .rstatus-badge {
