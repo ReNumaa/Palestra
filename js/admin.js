@@ -1110,6 +1110,18 @@ function deleteBooking(bookingId, bookingName) {
     if (index !== -1) {
         const booking = bookings[index];
 
+        // Bonus check
+        const hasBonus = BonusStorage.getBonus(booking.whatsapp, booking.email) > 0;
+        let useBonus = false;
+        if (hasBonus) {
+            useBonus = confirm(`🎟️ ${bookingName} ha 1 bonus annullamento disponibile.\n\nVuoi utilizzarlo per questo annullamento?`);
+        } else {
+            alert(`ℹ️ ${bookingName} non ha bonus annullamento disponibile.`);
+        }
+        if (useBonus) {
+            BonusStorage.useBonus(booking.whatsapp, booking.email, booking.name);
+        }
+
         // Refund credit only if actually paid and NOT waiting for cancellation fulfillment.
         // For cancellation_requested bookings, credit is added only by fulfillPendingCancellations
         // when another person actually books the slot.
