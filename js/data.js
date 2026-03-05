@@ -396,15 +396,23 @@ class BookingStorage {
                 }
             }
         }
-        // Rimborso 50% del prezzo (solo se era stata pagata)
-        if (wasPaid) {
-            const refund = Math.round((SLOT_PRICES[slotType] || 0) * 0.5 * 100) / 100;
-            if (refund > 0) {
+        // Mora 50%: comportamento in base allo stato di pagamento
+        const mora = Math.round((SLOT_PRICES[slotType] || 0) * 0.5 * 100) / 100;
+        if (mora > 0) {
+            if (wasPaid) {
+                // Era stata pagata: rimborsa solo il 50% (il restante 50% è la mora)
                 CreditStorage.addCredit(
                     booking.whatsapp, booking.email, booking.name,
-                    refund,
+                    mora,
                     `Rimborso parziale 50% — annullamento con mora ${booking.date} ${booking.time}`,
                     null, false, true
+                );
+            } else {
+                // Non era stata pagata: addebita il 50% come mora (il restante 50% è condonato)
+                ManualDebtStorage.addDebt(
+                    booking.whatsapp, booking.email, booking.name,
+                    mora,
+                    `Mora 50% annullamento tardivo ${booking.date} ${booking.time}`
                 );
             }
         }
