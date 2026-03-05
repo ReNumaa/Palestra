@@ -2558,6 +2558,22 @@ function getAllClients() {
         clientsMap[matchedKey].bookings.push(booking);
     });
 
+    // Include registered users even without bookings
+    UserStorage.getAll().forEach(user => {
+        const normPhone = normalizePhone(user.whatsapp);
+        let found = false;
+        for (const client of Object.values(clientsMap)) {
+            const phoneMatch = normPhone && normalizePhone(client.whatsapp) === normPhone;
+            const emailMatch = user.email && client.email &&
+                user.email.toLowerCase() === client.email.toLowerCase();
+            if (phoneMatch || emailMatch) { found = true; break; }
+        }
+        if (!found) {
+            const key = normPhone || user.email;
+            if (key) clientsMap[key] = { name: user.name, whatsapp: user.whatsapp || '', email: user.email || '', bookings: [] };
+        }
+    });
+
     Object.values(clientsMap).forEach(c => {
         c.bookings.sort((a, b) => b.date.localeCompare(a.date) || b.time.localeCompare(a.time));
     });

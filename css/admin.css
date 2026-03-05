@@ -894,17 +894,17 @@ canvas {
 
 .clients-search-bar input {
     width: 100%;
-    padding: 0.7rem 1rem;
-    border: 1px solid #e5e7eb;
+    padding: 0.75rem 1rem;
+    border: 2px solid #e0e0e0;
     border-radius: 8px;
-    font-size: 16px; /* Prevents zoom on iOS */
+    font-size: 1rem;
     outline: none;
-    transition: border-color 0.15s;
+    transition: border-color 0.2s;
     box-sizing: border-box;
 }
 
 .clients-search-bar input:focus {
-    border-color: var(--primary-cyan);
+    border-color: #ff6b6b;
 }
 
 .clients-cert-filter-btn {
