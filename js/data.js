@@ -1118,6 +1118,14 @@ class CancellationModeStorage {
     static set(mode) { localStorage.setItem(this.KEY, mode); }
 }
 
+// Cert editable — whether clients can modify their own medical certificate expiry date
+// Supabase migration: settings table, key = 'cert_scadenza_editable'
+class CertEditableStorage {
+    static KEY = 'gym_cert_scadenza_editable';
+    static get() { const v = localStorage.getItem(this.KEY); return v === null ? true : v === 'true'; }
+    static set(val) { localStorage.setItem(this.KEY, val ? 'true' : 'false'); }
+}
+
 // User storage — client lookup for schedule management (Slot prenotato picker)
 // Sources: registered accounts (gym_users) + unique clients from booking history (gym_bookings)
 // Supabase migration: replace localStorage reads in getAll() with:

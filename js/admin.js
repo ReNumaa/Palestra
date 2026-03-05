@@ -1593,10 +1593,25 @@ function renderSettingsTab() {
         radio.checked = radio.value === mode;
     });
     renderDebtThresholdUI();
+    renderCertEditableUI();
 }
 
 function saveCancellationMode(mode) {
     CancellationModeStorage.set(mode);
+}
+
+function renderCertEditableUI() {
+    const editable = CertEditableStorage.get();
+    const toggle = document.getElementById('certEditableToggle');
+    const text   = document.getElementById('certEditableText');
+    if (toggle) toggle.checked = editable;
+    if (text)   text.textContent = editable ? 'Modificabile dal cliente' : 'Non modificabile';
+}
+
+function saveCertEditable(val) {
+    CertEditableStorage.set(val);
+    const text = document.getElementById('certEditableText');
+    if (text) text.textContent = val ? 'Modificabile dal cliente' : 'Non modificabile';
 }
 
 function renderDebtThresholdUI() {
