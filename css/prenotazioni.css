@@ -492,12 +492,12 @@
 
     .preno-badge {
         white-space: normal;
-        text-align: right;
+        text-align: center;
     }
 
     .preno-cancel-btn {
         white-space: normal;
-        text-align: right;
+        text-align: center;
     }
 
     .preno-bonus-hint {
