@@ -1584,6 +1584,21 @@ let creditsListVisible = false;
 // Clients Tab State
 let openClientIndex = null;
 let clientsSearchQuery = '';
+let clientCertFilter = false;
+
+function clientHasCertIssue(client) {
+    const userRecord = getUserByEmail(client.email);
+    const certScad = userRecord?.certificatoMedicoScadenza || '';
+    if (!certScad) return true;
+    return certScad < new Date().toISOString().split('T')[0];
+}
+
+function toggleCertFilter() {
+    clientCertFilter = !clientCertFilter;
+    const btn = document.getElementById('certFilterBtn');
+    if (btn) btn.classList.toggle('active', clientCertFilter);
+    renderClientsTab();
+}
 
 // ── Settings Tab ──────────────────────────────────────────────────────────────
 
@@ -2569,12 +2584,13 @@ function filterClientTx(cardIndex, days, btn) {
 function renderClientsTab() {
     const allClients = getAllClients();
     const query = clientsSearchQuery.trim().toLowerCase();
-    const filtered = query
+    let filtered = query
         ? allClients.filter(c =>
             c.name.toLowerCase().includes(query) ||
             c.whatsapp.toLowerCase().includes(query) ||
             (c.email && c.email.toLowerCase().includes(query)))
         : allClients;
+    if (clientCertFilter) filtered = filtered.filter(clientHasCertIssue);
 
     const container = document.getElementById('clientsList');
     container.innerHTML = '';

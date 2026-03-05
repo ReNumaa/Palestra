@@ -12,7 +12,7 @@
     <link rel="icon" type="image/jpeg" href="images/logo-tb---nero.jpg">
     <link rel="stylesheet" href="css/style.css?v=6">
     <link rel="stylesheet" href="css/login.css?v=5">
-    <link rel="stylesheet" href="css/admin.css?v=9">
+    <link rel="stylesheet" href="css/admin.css?v=10">
 </head>
 <body>
     <nav class="navbar">
@@ -147,6 +147,9 @@
                         <input type="text" id="clientSearchInput"
                                placeholder="Cerca per nome, telefono o email..."
                                oninput="liveSearchClients()">
+                        <button class="clients-cert-filter-btn" id="certFilterBtn" onclick="toggleCertFilter()">
+                            🏥 Senza certificato
+                        </button>
                     </div>
                     <div class="clients-list" id="clientsList">
                         <!-- Populated by JavaScript -->
@@ -619,7 +622,7 @@
     <script src="js/auth.js?v=7"></script>
     <script src="js/push.js?v=1"></script>
     <script src="js/chart-mini.js?v=5"></script>
-    <script src="js/admin.js?v=15"></script>
+    <script src="js/admin.js?v=16"></script>
     <script>
         if ('serviceWorker' in navigator) {
             navigator.serviceWorker.register('/sw.js');

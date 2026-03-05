@@ -887,6 +887,9 @@ canvas {
 /* ===== Clients Tab ===== */
 .clients-search-bar {
     margin-bottom: 1.25rem;
+    display: flex;
+    flex-direction: column;
+    gap: 0.6rem;
 }
 
 .clients-search-bar input {
@@ -902,6 +905,29 @@ canvas {
 
 .clients-search-bar input:focus {
     border-color: var(--primary-cyan);
+}
+
+.clients-cert-filter-btn {
+    align-self: flex-start;
+    background: none;
+    border: 1.5px solid #e5e7eb;
+    color: #6b7280;
+    font-size: 0.82rem;
+    font-weight: 600;
+    padding: 0.35rem 0.85rem;
+    border-radius: 20px;
+    cursor: pointer;
+    transition: background 0.15s, border-color 0.15s, color 0.15s;
+}
+.clients-cert-filter-btn:hover {
+    background: #fef2f2;
+    border-color: #dc2626;
+    color: #dc2626;
+}
+.clients-cert-filter-btn.active {
+    background: #fef2f2;
+    border-color: #dc2626;
+    color: #dc2626;
 }
 
 .clients-list {
