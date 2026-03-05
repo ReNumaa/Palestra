@@ -760,6 +760,7 @@ function clearAllData() {
         localStorage.removeItem(BookingStorage.STATS_KEY);
         localStorage.removeItem(CreditStorage.CREDITS_KEY);
         localStorage.removeItem(ManualDebtStorage.DEBTS_KEY);
+        localStorage.removeItem(BonusStorage.BONUS_KEY);
         localStorage.removeItem('scheduleOverrides');
         localStorage.setItem('dataClearedByUser', 'true');
         alert('✅ Tutti i dati sono stati eliminati.');
