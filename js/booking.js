@@ -192,6 +192,19 @@ function handleBookingSubmit(e) {
         }
     }
 
+    // Check medical certificate restrictions
+    const _certUser = getUserByEmail(formData.email);
+    const _certScad = _certUser?.certificatoMedicoScadenza || '';
+    const _today    = new Date().toISOString().split('T')[0];
+    if (!_certScad && CertBookingStorage.getBlockIfNotSet()) {
+        showToast('Prenotazione bloccata: non hai inserito la data di scadenza del certificato medico. Contatta il trainer.', 'error');
+        return;
+    }
+    if (_certScad && _certScad < _today && CertBookingStorage.getBlockIfExpired()) {
+        showToast('Prenotazione bloccata: il tuo certificato medico è scaduto. Contatta il trainer per aggiornarlo.', 'error');
+        return;
+    }
+
     setLoading(submitBtn, true, 'Prenotazione in corso...');
 
     // Create booking
