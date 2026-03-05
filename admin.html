@@ -402,6 +402,7 @@
                                 <button class="rfilter-btn" data-etype="booking_refund"           onclick="toggleRegistroType(this)">🔄 Rimborso</button>
                                 <button class="rfilter-btn" data-etype="manual_debt"              onclick="toggleRegistroType(this)">📋 Debito Manuale</button>
                                 <button class="rfilter-btn" data-etype="manual_debt_paid"         onclick="toggleRegistroType(this)">💰 Debito Saldato</button>
+                                <button class="rfilter-btn" data-etype="cancellation_mora"        onclick="toggleRegistroType(this)">💸 Mora</button>
                             </div>
                         </div>
                         <div class="registro-filter-group registro-filter-group--sm">
@@ -626,11 +627,11 @@
     </script>
     <script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
     <script src="js/ui.js?v=1"></script>
-    <script src="js/data.js?v=10"></script>
+    <script src="js/data.js?v=11"></script>
     <script src="js/auth.js?v=7"></script>
     <script src="js/push.js?v=1"></script>
     <script src="js/chart-mini.js?v=5"></script>
-    <script src="js/admin.js?v=12"></script>
+    <script src="js/admin.js?v=13"></script>
     <script>
         if ('serviceWorker' in navigator) {
             navigator.serviceWorker.register('/sw.js');

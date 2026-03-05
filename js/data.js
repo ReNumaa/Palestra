@@ -412,7 +412,8 @@ class BookingStorage {
                 ManualDebtStorage.addDebt(
                     booking.whatsapp, booking.email, booking.name,
                     mora,
-                    `Mora 50% annullamento tardivo ${booking.date} ${booking.time}`
+                    `Mora 50% annullamento tardivo ${booking.date} ${booking.time}`,
+                    '', 'mora'
                 );
             }
         }
@@ -1002,7 +1003,8 @@ class ManualDebtStorage {
     }
 
     // Positive amount = add debt; negative = reduce/pay debt
-    static addDebt(whatsapp, email, name, amount, note = '', method = '') {
+    // entryType: optional tag (e.g. 'mora') stored on the history entry for Registro display
+    static addDebt(whatsapp, email, name, amount, note = '', method = '', entryType = '') {
         if (amount === 0) return;
         const all = this._getAll();
         let key = this._findKey(whatsapp, email);
@@ -1011,7 +1013,9 @@ class ManualDebtStorage {
         all[key].name = name;
         all[key].balance = Math.round((all[key].balance + amount) * 100) / 100;
         if (all[key].balance < 0) all[key].balance = 0;
-        all[key].history.push({ date: new Date().toISOString(), amount, note, method });
+        const entry = { date: new Date().toISOString(), amount, note, method };
+        if (entryType) entry.entryType = entryType;
+        all[key].history.push(entry);
         this._save(all);
     }
 

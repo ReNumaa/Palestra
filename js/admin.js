@@ -3243,7 +3243,7 @@ function buildRegistroEntries() {
                 slotType:      null,
                 slotLabel:     '',
                 notes:         h.note || '',
-                eventType:     isDebt ? 'manual_debt' : 'manual_debt_paid',
+                eventType:     isDebt ? (h.entryType === 'mora' ? 'cancellation_mora' : 'manual_debt') : 'manual_debt_paid',
                 timestamp:     ts,
                 amount:        Math.abs(h.amount || 0),
                 paymentMethod: isDebt ? null : (h.method || null),
@@ -3398,6 +3398,7 @@ function renderRegistroTable() {
         booking_refund:           { icon: '🔄', cls: 'rtype-refund',     label: 'Rimborso' },
         manual_debt:              { icon: '📋', cls: 'rtype-debt',       label: 'Debito Manuale' },
         manual_debt_paid:         { icon: '💰', cls: 'rtype-debtpaid',   label: 'Debito Saldato' },
+        cancellation_mora:        { icon: '💸', cls: 'rtype-mora',       label: 'Mora' },
     };
     const METHOD_ICON  = { contanti: '💵', carta: '💳', iban: '🏦', credito: '🔄', 'lezione-gratuita': '🎁' };
     const METHOD_LABEL = { contanti: 'Contanti', carta: 'Carta', iban: 'IBAN', credito: 'Credito', 'lezione-gratuita': 'Gratuita' };
@@ -3554,6 +3555,7 @@ function exportRegistro() {
         booking_refund:           'Rimborso',
         manual_debt:              'Debito Manuale',
         manual_debt_paid:         'Debito Saldato',
+        cancellation_mora:        'Mora',
     };
     const METHOD_LABEL = {
         contanti: 'Contanti', carta: 'Carta', iban: 'IBAN',
