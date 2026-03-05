@@ -745,6 +745,7 @@ function resetDemoData() {
         localStorage.removeItem(BookingStorage.STATS_KEY);
         localStorage.removeItem(CreditStorage.CREDITS_KEY);
         localStorage.removeItem(ManualDebtStorage.DEBTS_KEY);
+        localStorage.removeItem(BonusStorage.BONUS_KEY);
         localStorage.removeItem('scheduleOverrides');
         localStorage.removeItem('dataClearedByUser');
         BookingStorage.initializeDemoData();
