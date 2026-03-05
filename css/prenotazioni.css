@@ -91,15 +91,12 @@
     border-left: 4px solid #f59e0b;
 }
 
-.preno-cert-update {
+.preno-cert-clickable {
     cursor: pointer;
-    text-decoration: underline;
-    opacity: 0.8;
-    font-weight: 700;
 }
 
-.preno-cert-update:hover {
-    opacity: 1;
+.preno-cert-clickable:hover {
+    opacity: 0.85;
 }
 
 /* ── Edit profile modal ───────────────────────────────────────── */
