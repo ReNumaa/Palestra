@@ -315,12 +315,6 @@
     background: #f3e8ff;
     border-color: #6b21a8;
 }
-.preno-bonus-hint {
-    font-size: 0.7rem;
-    color: #9ca3af;
-    margin-top: 0.25rem;
-    text-align: center;
-}
 .preno-cancel-penalty {
     color: #b45309;
     border-color: #fcd34d;
@@ -508,9 +502,4 @@
         padding-right: 0.3rem;
     }
 
-    .preno-bonus-hint {
-        flex-basis: 100%;
-        text-align: center;
-        margin-top: 0.5rem;
-    }
 }

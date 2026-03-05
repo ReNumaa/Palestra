@@ -356,7 +356,6 @@
             const _isLocked = !_canCancelDirect && !_canRequestCancel && !_canCancelWithPenalty && _msToLesson > 0;
 
             let cancelBtn = '';
-            let cancelHint = '';
             if (showCancel && b.status !== 'cancelled' && !_lessonPast) {
                 if (b.status === 'cancellation_requested') {
                     cancelBtn = `<div class="preno-cancel-pending">⏳ Annullamento in attesa</div>`;
@@ -371,22 +370,17 @@
                     const _userP = getCurrentUser();
                     const _bonusP = _userP ? BonusStorage.getBonus(_userP.whatsapp, _userP.email) : 0;
                     if (_bonusP > 0) {
-                        const _lockReason = _msToLesson <= TWO_HOURS_MS ? 'meno di 2 ore' : 'slot prenotato entro 3 giorni';
-                        cancelBtn  = `<button class="preno-cancel-btn preno-cancel-bonus" onclick="cancelWithBonus('${b.id}')">🎟️ Usa bonus e annulla</button>`;
-                        cancelHint = `<div class="preno-bonus-hint">Non annullabile (${_lockReason}) — hai 1 bonus mensile disponibile</div>`;
+                        cancelBtn = `<button class="preno-cancel-btn preno-cancel-bonus" onclick="cancelWithBonus('${b.id}')">🎟️ Usa bonus e annulla</button>`;
                     } else {
                         const _price = SLOT_PRICES[b.slotType] || 0;
                         const _refund = Math.round(_price * 0.5 * 100) / 100;
-                        cancelBtn  = `<button class="preno-cancel-btn preno-cancel-penalty" onclick="cancelWithPenalty('${b.id}')">💸 Annulla con mora (rimborso €${_refund})</button>`;
-                        cancelHint = `<div class="preno-bonus-hint">Rimborso del 50% del costo (€${_refund} su €${_price})</div>`;
+                        cancelBtn = `<button class="preno-cancel-btn preno-cancel-penalty" onclick="cancelWithPenalty('${b.id}')">💸 Annulla con mora (rimborso €${_refund})</button>`;
                     }
                 } else if (_isLocked) {
                     const _user = getCurrentUser();
                     const _bonus = _user ? BonusStorage.getBonus(_user.whatsapp, _user.email) : 0;
                     if (_bonus > 0) {
-                        const _lockReason = _msToLesson <= TWO_HOURS_MS ? 'meno di 2 ore' : 'slot prenotato entro 3 giorni';
-                        cancelBtn  = `<button class="preno-cancel-btn preno-cancel-bonus" onclick="cancelWithBonus('${b.id}')">🎟️ Usa bonus e annulla</button>`;
-                        cancelHint = `<div class="preno-bonus-hint">Non annullabile (${_lockReason}) — hai 1 bonus mensile disponibile</div>`;
+                        cancelBtn = `<button class="preno-cancel-btn preno-cancel-bonus" onclick="cancelWithBonus('${b.id}')">🎟️ Usa bonus e annulla</button>`;
                     } else {
                         const _lockReason = _msToLesson <= TWO_HOURS_MS ? 'meno di 2 ore' : 'slot prenotato entro 3 giorni';
                         cancelBtn = `<div class="preno-cancel-locked">🔒 Non annullabile (${_lockReason})</div>`;
@@ -405,7 +399,6 @@
                         ${payBadge}
                         ${cancelBtn}
                     </div>
-                    ${cancelHint}
                 </div>`;
         }
 
