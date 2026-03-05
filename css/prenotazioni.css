@@ -497,11 +497,15 @@
     .preno-badge {
         white-space: normal;
         text-align: center;
+        padding-left: 0.3rem;
+        padding-right: 0.3rem;
     }
 
     .preno-cancel-btn {
         white-space: normal;
         text-align: center;
+        padding-left: 0.3rem;
+        padding-right: 0.3rem;
     }
 
     .preno-bonus-hint {
