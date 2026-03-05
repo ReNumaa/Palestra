@@ -1580,6 +1580,7 @@ function renderSettingsTab() {
     document.querySelectorAll('input[name="cancellationMode"]').forEach(radio => {
         radio.checked = radio.value === mode;
     });
+    renderDebtThresholdUI();
 }
 
 function saveCancellationMode(mode) {
@@ -1598,10 +1599,14 @@ function saveDebtThreshold() {
     const input = document.getElementById('debtThresholdInput');
     const val = parseFloat(input.value) || 0;
     DebtThresholdStorage.set(val);
+    const msg = document.getElementById('debtThresholdSavedMsg');
+    if (msg) {
+        msg.style.display = 'block';
+        setTimeout(() => { msg.style.display = 'none'; }, 2000);
+    }
 }
 
 function renderPaymentsTab() {
-    renderDebtThresholdUI();
     const debtors = getDebtors();
     const totalUnpaid = debtors.reduce((sum, debtor) => sum + debtor.totalAmount, 0);
     // Net debts against credit balance: only show as creditor if credit > debt

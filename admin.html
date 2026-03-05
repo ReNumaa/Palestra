@@ -295,8 +295,10 @@
                         <div class="debt-threshold-setting" id="debtThresholdSetting">
                             <div class="debt-threshold-input-wrap">
                                 <span class="debt-euro-sign">€</span>
-                                <input type="number" id="debtThresholdInput" class="debt-threshold-input" min="0" step="1" placeholder="0" oninput="saveDebtThreshold()">
+                                <input type="number" id="debtThresholdInput" class="debt-threshold-input" min="0" step="1" placeholder="0">
+                                <button class="btn-action" onclick="saveDebtThreshold()" style="margin-left:8px; padding: 6px 14px;">✅ Salva</button>
                             </div>
+                            <span class="debt-threshold-saved-msg" id="debtThresholdSavedMsg" style="display:none; color:#16a34a; font-size:0.85rem; margin-top:6px;">Salvato</span>
                         </div>
                     </div>
                     <!-- End: soglia blocco -->
