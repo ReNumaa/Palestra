@@ -320,6 +320,37 @@
                     </div>
                     <!-- End: certificato medico -->
 
+                    <!-- Blocco prenotazioni cert -->
+                    <div class="settings-section">
+                        <h4 class="settings-section-title">🚫 Blocco prenotazioni per certificato medico</h4>
+                        <p class="settings-section-desc">Impedisci ai clienti di prenotare in base allo stato del loro certificato medico.</p>
+                        <div class="cert-block-toggles">
+                            <div class="settings-section--inline" style="margin-bottom:0; padding-bottom:0; border-bottom:none;">
+                                <div class="debt-threshold-text">
+                                    <strong class="settings-option-body-strong">Certificato scaduto</strong>
+                                    <span class="settings-section-desc" style="margin:0;">Blocca la prenotazione se il certificato medico risulta scaduto.</span>
+                                </div>
+                                <label class="settings-toggle-wrap">
+                                    <input type="checkbox" id="certBlockExpiredToggle" onchange="saveCertBlockExpired(this.checked)">
+                                    <span class="settings-toggle-track"><span class="settings-toggle-thumb"></span></span>
+                                    <span class="settings-toggle-text" id="certBlockExpiredText"></span>
+                                </label>
+                            </div>
+                            <div class="settings-section--inline" style="margin-bottom:0; padding-bottom:0; border-bottom:none; margin-top:1rem;">
+                                <div class="debt-threshold-text">
+                                    <strong class="settings-option-body-strong">Certificato non impostato</strong>
+                                    <span class="settings-section-desc" style="margin:0;">Blocca la prenotazione se il cliente non ha ancora inserito la data di scadenza.</span>
+                                </div>
+                                <label class="settings-toggle-wrap">
+                                    <input type="checkbox" id="certBlockNotSetToggle" onchange="saveCertBlockNotSet(this.checked)">
+                                    <span class="settings-toggle-track"><span class="settings-toggle-thumb"></span></span>
+                                    <span class="settings-toggle-text" id="certBlockNotSetText"></span>
+                                </label>
+                            </div>
+                        </div>
+                    </div>
+                    <!-- End: blocco prenotazioni cert -->
+
                     <!-- Azioni Rapide -->
                     <div class="settings-section">
                         <h4 class="settings-section-title">⚡ Azioni Rapide</h4>
@@ -618,11 +649,11 @@
     </script>
     <script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
     <script src="js/ui.js?v=1"></script>
-    <script src="js/data.js?v=12"></script>
+    <script src="js/data.js?v=13"></script>
     <script src="js/auth.js?v=7"></script>
     <script src="js/push.js?v=1"></script>
     <script src="js/chart-mini.js?v=5"></script>
-    <script src="js/admin.js?v=17"></script>
+    <script src="js/admin.js?v=18"></script>
     <script>
         if ('serviceWorker' in navigator) {
             navigator.serviceWorker.register('/sw.js');

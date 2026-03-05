@@ -1609,6 +1609,7 @@ function renderSettingsTab() {
     });
     renderDebtThresholdUI();
     renderCertEditableUI();
+    renderCertBlockUI();
 }
 
 function saveCancellationMode(mode) {
@@ -1627,6 +1628,29 @@ function saveCertEditable(val) {
     CertEditableStorage.set(val);
     const text = document.getElementById('certEditableText');
     if (text) text.textContent = val ? 'Modificabile dal cliente' : 'Non modificabile';
+}
+
+function renderCertBlockUI() {
+    const expiredToggle = document.getElementById('certBlockExpiredToggle');
+    const expiredText   = document.getElementById('certBlockExpiredText');
+    const notSetToggle  = document.getElementById('certBlockNotSetToggle');
+    const notSetText    = document.getElementById('certBlockNotSetText');
+    if (expiredToggle) expiredToggle.checked = CertBookingStorage.getBlockIfExpired();
+    if (expiredText)   expiredText.textContent = CertBookingStorage.getBlockIfExpired() ? 'Bloccato' : 'Non bloccato';
+    if (notSetToggle)  notSetToggle.checked = CertBookingStorage.getBlockIfNotSet();
+    if (notSetText)    notSetText.textContent = CertBookingStorage.getBlockIfNotSet() ? 'Bloccato' : 'Non bloccato';
+}
+
+function saveCertBlockExpired(val) {
+    CertBookingStorage.setBlockIfExpired(val);
+    const text = document.getElementById('certBlockExpiredText');
+    if (text) text.textContent = val ? 'Bloccato' : 'Non bloccato';
+}
+
+function saveCertBlockNotSet(val) {
+    CertBookingStorage.setBlockIfNotSet(val);
+    const text = document.getElementById('certBlockNotSetText');
+    if (text) text.textContent = val ? 'Bloccato' : 'Non bloccato';
 }
 
 function renderDebtThresholdUI() {
