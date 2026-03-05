@@ -168,7 +168,7 @@
     </div>
 
     <script src="js/ui.js?v=1"></script>
-    <script src="js/data.js?v=7"></script>
+    <script src="js/data.js?v=8"></script>
     <script src="js/auth.js?v=7"></script>
     <script src="js/push.js?v=1"></script>
     <script>
@@ -365,7 +365,7 @@
                     if (_bonus > 0) {
                         const _lockReason = _msToLesson <= TWO_HOURS_MS ? 'meno di 2 ore' : 'slot prenotato entro 3 giorni';
                         cancelBtn = `<button class="preno-cancel-btn preno-cancel-bonus" onclick="cancelWithBonus('${b.id}')">🎟️ Usa bonus e annulla</button>
-                                     <div class="preno-bonus-hint">Non annullabile (${_lockReason}) — hai 1 bonus disponibile</div>`;
+                                     <div class="preno-bonus-hint">Non annullabile (${_lockReason}) — hai 1 bonus mensile disponibile</div>`;
                     } else {
                         const _lockReason = _msToLesson <= TWO_HOURS_MS ? 'meno di 2 ore' : 'slot prenotato entro 3 giorni';
                         cancelBtn = `<div class="preno-cancel-locked">🔒 Non annullabile (${_lockReason})</div>`;
@@ -500,8 +500,8 @@
         function cancelWithBonus(id) {
             const booking = BookingStorage.getAllBookings().find(b => b.id === id);
             if (!booking) return;
-            const msg = 'Vuoi usare il tuo bonus giornaliero per annullare questa prenotazione?\n\n' +
-                '• Il bonus verrà consumato (disponibile di nuovo domani).\n' +
+            const msg = 'Vuoi usare il tuo bonus mensile per annullare questa prenotazione?\n\n' +
+                '• Il bonus verrà consumato (disponibile di nuovo il mese prossimo).\n' +
                 '• Il credito eventualmente pagato ti verrà rimborsato.';
             if (!confirm(msg)) return;
             BookingStorage.cancelWithBonus(id);

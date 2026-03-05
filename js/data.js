@@ -978,7 +978,7 @@ class ManualDebtStorage {
     }
 }
 
-// Bonus storage — one free cancellation bonus per client per day (non-cumulative)
+// Bonus storage — one free cancellation bonus per client per month (non-cumulative)
 class BonusStorage {
     static BONUS_KEY = 'gym_bonus';
 
@@ -990,9 +990,10 @@ class BonusStorage {
         localStorage.setItem(this.BONUS_KEY, JSON.stringify(data));
     }
 
-    static _todayStr() {
+    // Returns current month as "YYYY-MM" using JS Date (handles leap years, variable month lengths).
+    static _thisMonthStr() {
         const d = new Date();
-        return `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`;
+        return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}`;
     }
 
     static _matchContact(record, whatsapp, email) {
@@ -1011,17 +1012,17 @@ class BonusStorage {
         return null;
     }
 
-    // Returns current bonus (0 or 1). Auto-restores to 1 on day change (non-cumulative).
+    // Returns current bonus (0 or 1). Auto-restores to 1 on month change (non-cumulative).
     static getBonus(whatsapp, email) {
-        const all  = this._getAll();
-        const key  = this._findKey(whatsapp, email);
-        const today = this._todayStr();
+        const all       = this._getAll();
+        const key       = this._findKey(whatsapp, email);
+        const thisMonth = this._thisMonthStr();
         if (!key || !all[key]) return 1; // new user: bonus starts at 1
         const record = all[key];
-        // Daily reset: day changed AND bonus was 0 → restore to 1 (if already 1, keep 1)
-        if (record.lastResetDate !== today && record.bonus === 0) {
+        // Monthly reset: month changed AND bonus was 0 → restore to 1 (if already 1, keep 1)
+        if (record.lastResetMonth !== thisMonth && record.bonus === 0) {
             record.bonus = 1;
-            record.lastResetDate = today;
+            record.lastResetMonth = thisMonth;
             this._save(all);
         }
         return record.bonus ?? 1;
@@ -1029,13 +1030,13 @@ class BonusStorage {
 
     // Consume the bonus (1 → 0)
     static useBonus(whatsapp, email, name) {
-        const all   = this._getAll();
-        const today = this._todayStr();
+        const all       = this._getAll();
+        const thisMonth = this._thisMonthStr();
         let key = this._findKey(whatsapp, email);
         if (!key) key = `${normalizePhone(whatsapp) || ''}||${(email || '').toLowerCase()}`;
-        if (!all[key]) all[key] = { name, whatsapp, email, bonus: 1, lastResetDate: today };
+        if (!all[key]) all[key] = { name, whatsapp, email, bonus: 1, lastResetMonth: thisMonth };
         all[key].bonus = 0;
-        all[key].lastResetDate = today;
+        all[key].lastResetMonth = thisMonth;
         all[key].name = name;
         this._save(all);
     }
