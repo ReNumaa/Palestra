@@ -739,40 +739,6 @@ function exportData() {
     }
 }
 
-function sendReminders() {
-    const bookings = BookingStorage.getAllBookings();
-    const tomorrow = new Date();
-    tomorrow.setDate(tomorrow.getDate() + 1);
-    const tomorrowStr = BookingStorage.formatDate(tomorrow);
-
-    const tomorrowBookings = bookings.filter(b => b.date === tomorrowStr);
-
-    if (tomorrowBookings.length === 0) {
-        alert('Nessuna prenotazione per domani.');
-        return;
-    }
-
-    console.log('📱 Invio promemoria WhatsApp per:', tomorrowBookings);
-    alert(`${tomorrowBookings.length} promemoria WhatsApp programmati per essere inviati!`);
-}
-
-function viewRevenue() {
-    const stats = BookingStorage.getStats();
-    const bookings = BookingStorage.getAllBookings();
-
-    let message = '💰 DETTAGLIO FATTURATO\n\n';
-    message += `Fatturato totale: €${stats.totalRevenue || 0}\n`;
-    message += `Numero prenotazioni: ${bookings.length}\n\n`;
-    message += 'Per tipo:\n';
-
-    Object.entries(stats.typeDistribution || {}).forEach(([type, count]) => {
-        const revenue = count * SLOT_PRICES[type];
-        message += `- ${SLOT_NAMES[type]}: ${count} x €${SLOT_PRICES[type]} = €${revenue}\n`;
-    });
-
-    alert(message);
-}
-
 function resetDemoData() {
     if (confirm('⚠️ ATTENZIONE: Questo cancellerà tutti i dati esistenti e genererà nuovi dati demo da Gennaio 2026 ad oggi. Continuare?')) {
         localStorage.removeItem(BookingStorage.BOOKINGS_KEY);
