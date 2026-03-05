@@ -287,18 +287,18 @@
                     </div>
 
                     <!-- Soglia blocco prenotazioni -->
-                    <div class="settings-section">
-                        <h4 class="settings-section-title">🚫 Soglia blocco prenotazioni</h4>
-                        <p class="settings-section-desc">
-                            Chi ha debiti passati superiori a questa soglia non può prenotare (0 = nessun blocco).
-                        </p>
-                        <div class="debt-threshold-setting" id="debtThresholdSetting">
+                    <div class="settings-section settings-section--inline">
+                        <div class="debt-threshold-text">
+                            <h4 class="settings-section-title">🚫 Soglia blocco prenotazioni</h4>
+                            <p class="settings-section-desc">Chi ha debiti passati superiori a questa soglia non può prenotare (0 = nessun blocco).</p>
+                        </div>
+                        <div class="debt-threshold-controls" id="debtThresholdSetting">
                             <div class="debt-threshold-input-wrap">
                                 <span class="debt-euro-sign">€</span>
                                 <input type="number" id="debtThresholdInput" class="debt-threshold-input" min="0" step="1" placeholder="0">
                             </div>
-                            <button class="btn-action debt-threshold-save-btn" onclick="saveDebtThreshold()">✅ Salva</button>
-                            <span class="debt-threshold-saved-msg" id="debtThresholdSavedMsg" style="display:none; color:#16a34a; font-size:0.85rem;">Salvato</span>
+                            <button class="debt-threshold-save-btn" onclick="saveDebtThreshold()">✅ Salva</button>
+                            <span id="debtThresholdSavedMsg" style="display:none; color:#16a34a; font-size:0.85rem;">Salvato</span>
                         </div>
                     </div>
                     <!-- End: soglia blocco -->
