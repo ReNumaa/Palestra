@@ -3586,9 +3586,9 @@ canvas {
 }
 
 /* Settings Tab */
-.settings-card { padding: 1rem; }
-.settings-section { margin-bottom: 1.5rem; }
-.settings-section:last-child { margin-bottom: 0; }
+.settings-card { padding: 1.5rem; }
+.settings-section { margin-bottom: 2.5rem; padding-bottom: 2rem; border-bottom: 1px solid #e5e7eb; }
+.settings-section:last-child { margin-bottom: 0; padding-bottom: 0; border-bottom: none; }
 .settings-section-title {
     font-size: 0.95rem;
     font-weight: 700;
