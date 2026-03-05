@@ -474,13 +474,25 @@
     }
 
     .preno-card {
+        flex-wrap: wrap;
         align-items: flex-start;
+    }
+
+    .preno-card-left {
+        flex: 1;
+        min-width: 0;
     }
 
     .preno-card-right {
         flex-direction: column;
         align-items: flex-end;
         width: auto;
+        max-width: 130px;
+    }
+
+    .preno-badge {
+        white-space: normal;
+        text-align: right;
     }
 
     .preno-cancel-btn {
@@ -489,6 +501,8 @@
     }
 
     .preno-bonus-hint {
-        text-align: right;
+        flex-basis: 100%;
+        text-align: center;
+        margin-top: 0.5rem;
     }
 }
