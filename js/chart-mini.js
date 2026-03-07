@@ -154,13 +154,13 @@ class SimpleChart {
                 const py = pad.top + chartH - solidH - projH;
                 ctx.save();
                 ctx.globalAlpha = 0.28;
-                ctx.fillStyle = colors[0];
+                ctx.fillStyle = '#e63946';
                 ctx.beginPath();
                 if (ctx.roundRect) ctx.roundRect(px, py, barW, projH, [3, 3, 0, 0]);
                 else ctx.rect(px, py, barW, projH);
                 ctx.fill();
                 ctx.globalAlpha = 1;
-                ctx.strokeStyle = colors[0];
+                ctx.strokeStyle = '#e63946';
                 ctx.lineWidth = 1.5;
                 ctx.setLineDash([3, 2]);
                 ctx.beginPath();
