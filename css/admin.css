@@ -3795,6 +3795,8 @@ canvas {
 
 .stat-detail-kpi--future    .stat-detail-kpi-value { color: #0284c7; }
 .stat-detail-kpi--projected .stat-detail-kpi-value { color: #16a34a; }
+.stat-detail-kpi--warn      { background: #fff7ed; border-color: #fed7aa; }
+.stat-detail-kpi--warn      .stat-detail-kpi-value { color: #ea580c; }
 
 .stat-detail-kpi-label {
     font-size: 0.68rem;
