@@ -3072,11 +3072,23 @@ function saveBookingRowEdit(bookingId, clientIndex) {
 
     const _editPayML = { contanti: 'Contanti', carta: 'Carta', iban: 'IBAN' };
 
+    // Helper: offset refunded credit against any manual debt
+    const _applyRefundToDebt = () => {
+        const dBal = ManualDebtStorage.getBalance(booking.whatsapp, booking.email);
+        if (dBal <= 0) return;
+        const cBal = CreditStorage.getBalance(booking.whatsapp, booking.email);
+        if (cBal <= 0) return;
+        const toOff = Math.round(Math.min(dBal, cBal) * 100) / 100;
+        ManualDebtStorage.addDebt(booking.whatsapp, booking.email, booking.name, -toOff, 'Compensato con credito');
+        CreditStorage.addCredit(booking.whatsapp, booking.email, booking.name, -toOff, 'Applicato a debito manuale');
+    };
+
     // Credit adjustments
     if (oldPaid && oldMethod === 'credito' && !newPaid) {
         // Was paid with credit → unpaid: refund
         CreditStorage.addCredit(booking.whatsapp, booking.email, booking.name, price,
             `Rimborso modifica pagamento ${booking.date} ${booking.time}`);
+        _applyRefundToDebt();
     } else if (!oldPaid && newPaid && newMethod === 'credito') {
         // Unpaid → paid with credit: deduct
         const bal = CreditStorage.getBalance(booking.whatsapp, booking.email);
@@ -3087,6 +3099,7 @@ function saveBookingRowEdit(bookingId, clientIndex) {
         // Credit → other method: refund credit; record payment entry only if not free lesson
         CreditStorage.addCredit(booking.whatsapp, booking.email, booking.name, price,
             `Cambio metodo da credito — lezione ${booking.date} ${booking.time}`);
+        _applyRefundToDebt();
         if (newMethod !== 'lezione-gratuita') {
             CreditStorage.addCredit(booking.whatsapp, booking.email, booking.name, 0,
                 `${_editPayML[newMethod] || newMethod} ricevuto`,
