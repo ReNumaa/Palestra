@@ -3892,15 +3892,13 @@ function renderFatturatoDetail(panel) {
     }).filter(t => t.pastCount + t.futureCount > 0);
 
     const typeTotal = typeStats.reduce((s, t) => s + t.pastRev + t.futureRev, 0);
-    const typeBarData = {
-        labels:      typeStats.map(t => t.label),
-        values:      typeStats.map(t => t.pastRev + t.futureRev),
-        highlight:   typeStats.map(() => false),
-        valueLabels: typeStats.map(t => {
+    const typePieData = {
+        labels: typeStats.map(t => {
             const rev = t.pastRev + t.futureRev;
             const pct = typeTotal > 0 ? Math.round((rev / typeTotal) * 100) : 0;
-            return [`€${rev}`, `${pct}%`];
+            return `${t.label} €${rev} (${pct}%)`;
         }),
+        values: typeStats.map(t => t.pastRev + t.futureRev),
     };
 
     // ── Render ────────────────────────────────────────────────────────────────
@@ -3973,7 +3971,7 @@ function renderFatturatoDetail(panel) {
         if (fcCanvas) new SimpleChart(fcCanvas).drawForecastChart({ actual: fActual, forecast: fForecast, labels: fLabels, todayIndex: todayGroupIdx });
 
         const typeCanvas = document.getElementById('detailTypeChart');
-        if (typeCanvas && typeStats.length > 0) new SimpleChart(typeCanvas).drawBarChart(typeBarData);
+        if (typeCanvas && typeStats.length > 0) new SimpleChart(typeCanvas).drawPieChart(typePieData, { colors: ['#3b82f6', '#f59e0b', '#22c55e'] });
     });
 }
 
