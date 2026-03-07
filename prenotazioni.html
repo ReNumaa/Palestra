@@ -325,7 +325,7 @@
             if (b.status === 'cancelled') {
                 payBadge = `<span class="preno-badge preno-badge-cancelled">✕ Annullata</span>`;
             } else if (b.paid) {
-                const methodLabels = { credito: '💳 Pagata con Credito', contanti: '💵 Pagata con Contanti', carta: '💳 Pagata con Carta', iban: '🏦 Pagata con IBAN', 'lezione-gratuita': '🎁 Lezione Gratuita' };
+                const methodLabels = { credito: '💳 Pagata con Credito', contanti: '💵 Pagata con Contanti', carta: '💳 Pagata con Carta', iban: '🏦 Pagata con Bonifico', 'lezione-gratuita': '🎁 Lezione Gratuita' };
                 const method = methodLabels[b.paymentMethod] || '✓ Pagata';
                 payBadge = `<span class="preno-badge preno-badge-paid">${method}</span>`;
             } else if ((b.creditApplied || 0) > 0) {
@@ -420,7 +420,7 @@
                 return true;
             }
 
-            const methodMap = { contanti: '💵 Contanti', carta: '💳 Carta', iban: '🏦 IBAN', credito: '💳 Credito', 'lezione-gratuita': '🎁 Gratuita' };
+            const methodMap = { contanti: '💵 Contanti', carta: '💳 Carta', iban: '🏦 Bonifico', credito: '💳 Credito', 'lezione-gratuita': '🎁 Gratuita' };
 
             // 1. Tutte le prenotazioni pagate — prezzo pieno, singole (le cancellate non compaiono)
             BookingStorage.getAllBookings()

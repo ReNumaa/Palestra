@@ -574,7 +574,7 @@ function exportData() {
         'cancellation_requested': 'Annullamento richiesto'
     };
     const METHOD_LABEL = {
-        contanti: 'Contanti', carta: 'Carta', iban: 'IBAN', credito: 'Credito', 'lezione-gratuita': 'Gratuita'
+        contanti: 'Contanti', carta: 'Carta', iban: 'Bonifico', credito: 'Credito', 'lezione-gratuita': 'Gratuita'
     };
     const DAYS = ['Domenica','Lunedì','Martedì','Mercoledì','Giovedì','Venerdì','Sabato'];
 
@@ -1917,7 +1917,7 @@ function createDebtorCard(debtor, cardId) {
                 <div class="debtor-pay-methods">
                     <button class="debt-method-btn active" data-method="contanti" onclick="selectDebtorPayMethod(this)">💵 Contanti</button>
                     <button class="debt-method-btn" data-method="carta" onclick="selectDebtorPayMethod(this)">💳 Carta</button>
-                    <button class="debt-method-btn" data-method="iban" onclick="selectDebtorPayMethod(this)">🏦 IBAN</button>
+                    <button class="debt-method-btn" data-method="iban" onclick="selectDebtorPayMethod(this)">🏦 Bonifico</button>
                 </div>
                 <button class="btn-pay-all" onclick="payAllDebtsInline('${safeW}', '${safeE}', '${safeN}', this)">✓ Incassa tutto</button>
             </div>
@@ -1943,7 +1943,7 @@ function payAllDebtsInline(whatsapp, email, name, btn) {
     const footer = btn.closest('.debtor-pay-footer');
     const activeMethodBtn = footer.querySelector('.debt-method-btn.active');
     const method = activeMethodBtn ? activeMethodBtn.dataset.method : 'contanti';
-    const methodLabels = { contanti: '💵 Contanti', carta: '💳 Carta', iban: '🏦 IBAN' };
+    const methodLabels = { contanti: '💵 Contanti', carta: '💳 Carta', iban: '🏦 Bonifico' };
 
     const normW = normalizePhone(whatsapp);
     const bookings = BookingStorage.getAllBookings();
@@ -1982,7 +1982,7 @@ function payAllDebtsInline(whatsapp, email, name, btn) {
     }
     const cashCollected = Math.round((totalPaid - creditToUse) * 100) / 100;
     if (cashCollected > 0) {
-        const methodLabel = { contanti: 'Contanti', carta: 'Carta', iban: 'IBAN' }[method] || method;
+        const methodLabel = { contanti: 'Contanti', carta: 'Carta', iban: 'Bonifico' }[method] || method;
         CreditStorage.addCredit(whatsapp, email, name, 0,
             `${methodLabel} ricevuto`, cashCollected);
     }
@@ -2538,7 +2538,7 @@ function paySelectedDebts() {
 
     // Record payment received + handle overpayment
     if (!isFreeLesson && amountPaid > 0 && currentDebtContact) {
-        const methodLabel = { contanti: 'Contanti', carta: 'Carta', iban: 'IBAN' }[paymentMethod] || paymentMethod;
+        const methodLabel = { contanti: 'Contanti', carta: 'Carta', iban: 'Bonifico' }[paymentMethod] || paymentMethod;
         if (creditDelta > 0) {
             // Overpayment: add positive credit entry (shows +€amountPaid in transactions)
             CreditStorage.addCredit(
@@ -2714,7 +2714,7 @@ function createClientCard(client, index) {
     if (totalUnpaid  > 0) statsHTML += `<span class="cstat unpaid">€${totalUnpaid} da pagare</span>`;
     if (netBalance  !== 0) statsHTML += `<span class="cstat ${netBalance > 0 ? 'credit' : 'unpaid'}">💳 ${netBalance > 0 ? '+' : ''}€${netBalance}</span>`;
 
-    const methodLabel = m => ({ contanti: '💵 Contanti', carta: '💳 Carta', iban: '🏦 IBAN', credito: '✨ Credito', 'lezione-gratuita': '🎁 Gratuita' }[m] || '—');
+    const methodLabel = m => ({ contanti: '💵 Contanti', carta: '💳 Carta', iban: '🏦 Bonifico', credito: '✨ Credito', 'lezione-gratuita': '🎁 Gratuita' }[m] || '—');
     const fmtPaidAt = iso => {
         if (!iso) return '<span style="color:#ccc">—</span>';
         const d = new Date(iso);
@@ -2758,7 +2758,7 @@ function createClientCard(client, index) {
     const matchCli = (w, e) =>
         (normCPhone && normalizePhone(w) === normCPhone) ||
         (client.email && e && e.toLowerCase() === client.email.toLowerCase());
-    const txMethodMap = { contanti: '💵 Contanti', carta: '💳 Carta', iban: '🏦 IBAN', credito: '💳 Credito', 'lezione-gratuita': '🎁 Gratuita' };
+    const txMethodMap = { contanti: '💵 Contanti', carta: '💳 Carta', iban: '🏦 Bonifico', credito: '💳 Credito', 'lezione-gratuita': '🎁 Gratuita' };
     const txEntries = [];
 
     // 1. Paid bookings
@@ -3010,7 +3010,7 @@ function startEditBookingRow(bookingId, clientIndex) {
     const methods = [
         { v: 'contanti',         l: '💵 Contanti'  },
         { v: 'carta',            l: '💳 Carta'     },
-        { v: 'iban',             l: '🏦 IBAN'      },
+        { v: 'iban',             l: '🏦 Bonifico'      },
         { v: 'credito',          l: '✨ Credito'   },
         { v: 'lezione-gratuita', l: '🎁 Gratuita'  }
     ];
@@ -3070,7 +3070,7 @@ function saveBookingRowEdit(bookingId, clientIndex) {
     const oldMethod = booking.paymentMethod || '';
     const price     = SLOT_PRICES[booking.slotType];
 
-    const _editPayML = { contanti: 'Contanti', carta: 'Carta', iban: 'IBAN' };
+    const _editPayML = { contanti: 'Contanti', carta: 'Carta', iban: 'Bonifico' };
 
     // Helper: offset refunded credit against any manual debt
     const _applyRefundToDebt = () => {
@@ -3491,7 +3491,7 @@ function renderRegistroTable() {
         cancellation_mora:        { icon: '💸', cls: 'rtype-mora',       label: 'Mora' },
     };
     const METHOD_ICON  = { contanti: '💵', carta: '💳', iban: '🏦', credito: '🔄', 'lezione-gratuita': '🎁' };
-    const METHOD_LABEL = { contanti: 'Contanti', carta: 'Carta', iban: 'IBAN', credito: 'Credito', 'lezione-gratuita': 'Gratuita' };
+    const METHOD_LABEL = { contanti: 'Contanti', carta: 'Carta', iban: 'Bonifico', credito: 'Credito', 'lezione-gratuita': 'Gratuita' };
 
     const statusHTML = (e) => {
         if (e.bookingStatus === 'cancelled')              return `<span class="rstatus-badge rstatus-cancelled">Annullato</span>`;
@@ -3641,7 +3641,7 @@ function exportRegistro() {
         cancellation_mora:        'Mora',
     };
     const METHOD_LABEL = {
-        contanti: 'Contanti', carta: 'Carta', iban: 'IBAN',
+        contanti: 'Contanti', carta: 'Carta', iban: 'Bonifico',
         credito: 'Credito', 'lezione-gratuita': 'Gratuita',
     };
     const statusLabel = e => {

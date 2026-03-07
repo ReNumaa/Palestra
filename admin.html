@@ -442,7 +442,7 @@
                                 <option value="all">Tutti</option>
                                 <option value="contanti">💵 Contanti</option>
                                 <option value="carta">💳 Carta</option>
-                                <option value="iban">🏦 IBAN</option>
+                                <option value="iban">🏦 Bonifico</option>
                                 <option value="credito">🔄 Credito</option>
                                 <option value="lezione-gratuita">🎁 Gratuita</option>
                             </select>
@@ -526,7 +526,7 @@
                 <div class="debt-method-btns">
                     <button class="debt-method-btn active" data-method="contanti" onclick="selectPaymentMethod(this)">💵 Contanti</button>
                     <button class="debt-method-btn" data-method="carta" onclick="selectPaymentMethod(this)">💳 Carta</button>
-                    <button class="debt-method-btn" data-method="iban" onclick="selectPaymentMethod(this)">🏦 IBAN</button>
+                    <button class="debt-method-btn" data-method="iban" onclick="selectPaymentMethod(this)">🏦 Bonifico</button>
                     <button class="debt-method-btn method-free-lesson" data-method="lezione-gratuita" onclick="selectPaymentMethod(this)">🎁 Gratuita</button>
                 </div>
             </div>
@@ -593,7 +593,7 @@
                 <div class="debt-method-btns">
                     <button class="debt-method-btn active" data-method="contanti" onclick="selectManualMethod(this)">💵 Contanti</button>
                     <button class="debt-method-btn" data-method="carta" onclick="selectManualMethod(this)">💳 Carta</button>
-                    <button class="debt-method-btn" data-method="iban" onclick="selectManualMethod(this)">🏦 IBAN</button>
+                    <button class="debt-method-btn" data-method="iban" onclick="selectManualMethod(this)">🏦 Bonifico</button>
                     <button class="debt-method-btn method-free-lesson" data-method="lezione-gratuita" onclick="selectManualMethod(this)">🎁 Lezione Gratuita</button>
                 </div>
             </div>
@@ -653,7 +653,7 @@
     <script src="js/auth.js?v=7"></script>
     <script src="js/push.js?v=1"></script>
     <script src="js/chart-mini.js?v=5"></script>
-    <script src="js/admin.js?v=21"></script>
+    <script src="js/admin.js?v=22"></script>
     <script>
         if ('serviceWorker' in navigator) {
             navigator.serviceWorker.register('/sw.js');
