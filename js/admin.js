@@ -379,6 +379,7 @@ function calculateTotalWeeklySlots() {
 
 function drawBookingsChart(filteredBookings) {
     const canvas = document.getElementById('bookingsChart');
+    if (!canvas) return;
     const chart = new SimpleChart(canvas);
 
     const { from, to } = getFilterDateRange(currentFilter);
@@ -445,6 +446,7 @@ function countGroupClassSlots(from, to) {
 
 function drawTypeChart(filteredBookings) {
     const canvas = document.getElementById('typeChart');
+    if (!canvas) return;
     const chart = new SimpleChart(canvas);
 
     const distribution = {};
@@ -505,6 +507,7 @@ function updateBookingsTable(bookings) {
 }
 
 function updatePopularTimes(bookings) {
+    if (!document.getElementById('popularTimes')) return;
     const timeCounts = {};
 
     bookings.forEach(booking => {
