@@ -3337,8 +3337,8 @@ function buildRegistroEntries() {
                 timestamp:     ts,
                 amount:        Math.abs(h.amount || 0),
                 paymentMethod: isDebt ? null : (h.method || null),
-                bookingStatus: isDebt ? 'debt' : 'paid',
-                bookingPaid:   isDebt ? null : true,
+                bookingStatus: isDebt ? (record.balance === 0 ? 'paid' : 'debt') : 'paid',
+                bookingPaid:   isDebt ? (record.balance === 0 ? true : null) : true,
             });
         }
     }
