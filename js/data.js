@@ -515,7 +515,8 @@ class BookingStorage {
             }
         });
         total += ManualDebtStorage.getBalance(whatsapp, email);
-        return Math.round(total * 100) / 100;
+        total -= CreditStorage.getBalance(whatsapp, email);
+        return Math.round(Math.max(0, total) * 100) / 100;
     }
 
     static updateStats(booking) {
