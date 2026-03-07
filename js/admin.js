@@ -751,7 +751,7 @@ function exportData() {
 }
 
 function resetDemoData() {
-    if (confirm('⚠️ ATTENZIONE: Questo cancellerà tutti i dati esistenti e genererà nuovi dati demo da Gennaio 2026 ad oggi. Continuare?')) {
+    if (confirm('⚠️ ATTENZIONE: Questo cancellerà tutti i dati esistenti e genererà nuovi dati demo da Gennaio al 15 Marzo. Continuare?')) {
         localStorage.removeItem(BookingStorage.BOOKINGS_KEY);
         localStorage.removeItem(BookingStorage.STATS_KEY);
         localStorage.removeItem(CreditStorage.CREDITS_KEY);
