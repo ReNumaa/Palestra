@@ -299,7 +299,8 @@ function loadDashboardData() {
         const panel = document.getElementById('statsDetailPanel');
         if (panel && panel.style.display !== 'none') {
             switch (_currentStatDetail) {
-                case 'fatturato': renderFatturatoDetail(panel); break;
+                case 'fatturato':    renderFatturatoDetail(panel);    break;
+                case 'prenotazioni': renderPrenotazioniDetail(panel); break;
             }
         }
     }
@@ -3741,7 +3742,8 @@ function toggleStatDetail(type) {
     panel.style.display = 'block';
 
     switch (type) {
-        case 'fatturato': renderFatturatoDetail(panel); break;
+        case 'fatturato':     renderFatturatoDetail(panel);     break;
+        case 'prenotazioni':  renderPrenotazioniDetail(panel);  break;
         default:
             panel.innerHTML = `<div class="stat-detail-header"><h3>Dettaglio ${type}</h3></div><p style="color:#9ca3af;text-align:center;padding:1.5rem 0">Prossimamente</p>`;
     }
@@ -3968,6 +3970,207 @@ function renderFatturatoDetail(panel) {
 
         const typeCanvas = document.getElementById('detailTypeChart');
         if (typeCanvas && typeStats.length > 0) new SimpleChart(typeCanvas).drawPieChart(typePieData, { colors: ['#3b82f6', '#f59e0b', '#22c55e'] });
+    });
+}
+
+function renderPrenotazioniDetail(panel) {
+    const allBookings = BookingStorage.getAllBookings();
+    const { from, to } = getFilterDateRange(currentFilter);
+    const now   = new Date();
+    const today = new Date(now); today.setHours(0, 0, 0, 0);
+
+    const periodBookings = allBookings.filter(b => {
+        if (b.status === 'cancelled') return false;
+        const d = new Date(b.date + 'T00:00:00');
+        return d >= from && d <= to;
+    });
+    const pastBookings   = periodBookings.filter(b => new Date(b.date + 'T00:00:00') < today);
+    const futureBookings = periodBookings
+        .filter(b => new Date(b.date + 'T00:00:00') >= today)
+        .sort((a, b) => a.date.localeCompare(b.date) || a.time.localeCompare(b.time));
+
+    const cancelledInPeriod = allBookings.filter(b => {
+        if (b.status !== 'cancelled') return false;
+        const d = new Date(b.date + 'T00:00:00');
+        return d >= from && d <= to;
+    });
+
+    // ── KPIs ─────────────────────────────────────────────────────────────────
+    const totalDays  = Math.max(1, Math.round((to - from) / 86400000) + 1);
+    const weeklyAvg  = (periodBookings.length / totalDays * 7).toFixed(1);
+    const cancelRate = cancelledInPeriod.length > 0
+        ? Math.round(cancelledInPeriod.length / (periodBookings.length + cancelledInPeriod.length) * 100)
+        : 0;
+
+    // ── Trend mensile (ultimi 12 mesi) ────────────────────────────────────────
+    const MONTH_NAMES = ['Gen','Feb','Mar','Apr','Mag','Giu','Lug','Ago','Set','Ott','Nov','Dic'];
+    const trendLabels = [], trendValues = [], trendHighlight = [];
+    for (let i = 11; i >= 0; i--) {
+        const d     = new Date(now.getFullYear(), now.getMonth() - i, 1);
+        const mFrom = new Date(d.getFullYear(), d.getMonth(), 1);
+        const mTo   = new Date(d.getFullYear(), d.getMonth() + 1, 0, 23, 59, 59, 999);
+        trendLabels.push(MONTH_NAMES[d.getMonth()]);
+        trendValues.push(allBookings.filter(b => {
+            if (b.status === 'cancelled') return false;
+            const bd = new Date(b.date + 'T00:00:00');
+            return bd >= mFrom && bd <= mTo;
+        }).length);
+        trendHighlight.push(i === 0);
+    }
+
+    // ── Per tipo ──────────────────────────────────────────────────────────────
+    const typeConfig = [
+        { key: 'personal-training', label: 'Autonomia' },
+        { key: 'small-group',       label: 'Lez. Gruppo' },
+        { key: 'group-class',       label: 'Slot prenotato' },
+    ];
+    const typeLabels = [], typeValues = [];
+    typeConfig.forEach(({ key, label }) => {
+        const c = periodBookings.filter(b => b.slotType === key).length;
+        if (c > 0) { typeLabels.push(label); typeValues.push(c); }
+    });
+
+    // ── Per giorno della settimana ────────────────────────────────────────────
+    const dayCounts = [0,0,0,0,0,0,0];
+    pastBookings.forEach(b => { dayCounts[new Date(b.date + 'T00:00:00').getDay()]++; });
+    const DAY_ORDER = [1,2,3,4,5,6,0];
+    const DAY_NAMES = ['Dom','Lun','Mar','Mer','Gio','Ven','Sab'];
+    const dayLabels = DAY_ORDER.map(d => DAY_NAMES[d]);
+    const dayValues = DAY_ORDER.map(d => dayCounts[d]);
+
+    // ── Per fascia oraria ─────────────────────────────────────────────────────
+    const timeMap = {};
+    pastBookings.forEach(b => {
+        const t = b.time ? b.time.split(' - ')[0] : '?';
+        timeMap[t] = (timeMap[t] || 0) + 1;
+    });
+    const timeSorted = Object.entries(timeMap).sort((a, b) => a[0].localeCompare(b[0]));
+    const timeLabels = timeSorted.map(([t]) => t);
+    const timeValues = timeSorted.map(([, c]) => c);
+
+    // ── Top 5 clienti ─────────────────────────────────────────────────────────
+    const clientMap = {};
+    periodBookings.forEach(b => {
+        const key = b.email || b.whatsapp;
+        if (!clientMap[key]) clientMap[key] = { name: b.name, count: 0 };
+        clientMap[key].count++;
+    });
+    const topClients = Object.values(clientMap).sort((a, b) => b.count - a.count).slice(0, 5);
+
+    // ── Fascia oraria più popolare ────────────────────────────────────────────
+    const peakTime  = timeSorted.length ? timeSorted.reduce((a, b) => b[1] > a[1] ? b : a)[0] : '—';
+    const peakDay   = dayValues.reduce((mi, v, i, a) => v > a[mi] ? i : mi, 0);
+
+    // ── Render ────────────────────────────────────────────────────────────────
+    panel.innerHTML = `
+        <div class="stat-detail-header">
+            <h3>📅 Prenotazioni — Dettaglio</h3>
+            <span class="stat-detail-period">${getFilterLabel(currentFilter)}</span>
+        </div>
+        <div class="stat-detail-kpis">
+            <div class="stat-detail-kpi">
+                <div class="stat-detail-kpi-value">${periodBookings.length}</div>
+                <div class="stat-detail-kpi-label">Totale periodo</div>
+            </div>
+            <div class="stat-detail-kpi stat-detail-kpi--future">
+                <div class="stat-detail-kpi-value">${futureBookings.length}</div>
+                <div class="stat-detail-kpi-label">Future</div>
+            </div>
+            <div class="stat-detail-kpi">
+                <div class="stat-detail-kpi-value">${weeklyAvg}</div>
+                <div class="stat-detail-kpi-label">Media sett.</div>
+            </div>
+            <div class="stat-detail-kpi ${cancelRate > 5 ? 'stat-detail-kpi--warn' : ''}">
+                <div class="stat-detail-kpi-value">${cancelRate}%</div>
+                <div class="stat-detail-kpi-label">Cancellazioni</div>
+            </div>
+        </div>
+
+        <div class="stat-detail-charts">
+            <div class="stat-detail-chart-block">
+                <h4>Trend mensile (ultimi 12 mesi)</h4>
+                <canvas id="detailTrendChart" style="width:100%;display:block;"></canvas>
+            </div>
+            <div class="stat-detail-chart-block">
+                <h4>Per tipo di lezione</h4>
+                <canvas id="detailTypeBookChart" style="width:100%;display:block;"></canvas>
+            </div>
+        </div>
+
+        <div class="stat-detail-charts">
+            <div class="stat-detail-chart-block">
+                <h4>Per giorno della settimana</h4>
+                <canvas id="detailDayChart" style="width:100%;display:block;"></canvas>
+            </div>
+            <div class="stat-detail-chart-block">
+                <h4>Per fascia oraria</h4>
+                <canvas id="detailTimeChart" style="width:100%;display:block;"></canvas>
+            </div>
+        </div>
+
+        <div class="stat-detail-charts">
+            <div class="stat-detail-breakdown">
+                <h4>Prossime prenotazioni (${futureBookings.length})</h4>
+                <div class="sdb-rows">
+                    ${futureBookings.length === 0
+                        ? '<div class="sdb-row"><span class="sdb-label" style="color:#9ca3af">Nessuna nel periodo selezionato</span></div>'
+                        : futureBookings.slice(0, 12).map(b => `
+                            <div class="sdb-row">
+                                <span class="sdb-label">${b.date.split('-').reverse().join('/')} ${b.time.split(' - ')[0]}</span>
+                                <span class="sdb-value" style="font-size:0.82rem;font-weight:500">${b.name}</span>
+                            </div>`).join('') +
+                          (futureBookings.length > 12 ? `<div class="sdb-row" style="color:#9ca3af;font-size:0.8rem;justify-content:center">+${futureBookings.length - 12} altre</div>` : '')
+                    }
+                </div>
+            </div>
+            <div class="stat-detail-breakdown">
+                <h4>Top clienti nel periodo</h4>
+                <div class="sdb-rows">
+                    ${topClients.length === 0
+                        ? '<div class="sdb-row"><span class="sdb-label" style="color:#9ca3af">Nessun dato</span></div>'
+                        : topClients.map((c, i) => `
+                            <div class="sdb-row">
+                                <span class="sdb-label">${i + 1}. ${c.name}</span>
+                                <span class="sdb-value">${c.count} lezioni</span>
+                            </div>`).join('')
+                    }
+                    ${topClients.length > 0 ? `
+                    <div class="sdb-row" style="margin-top:0.5rem;padding-top:0.5rem;border-top:1px solid #e5e7eb">
+                        <span class="sdb-label" style="color:#6b7280">Orario più popolare</span>
+                        <span class="sdb-value">${peakTime}</span>
+                    </div>
+                    <div class="sdb-row">
+                        <span class="sdb-label" style="color:#6b7280">Giorno più popolare</span>
+                        <span class="sdb-value">${dayLabels[peakDay]}</span>
+                    </div>` : ''}
+                </div>
+            </div>
+        </div>
+    `;
+
+    requestAnimationFrame(() => {
+        const trendCanvas = document.getElementById('detailTrendChart');
+        if (trendCanvas) new SimpleChart(trendCanvas).drawBarChart(
+            { labels: trendLabels, values: trendValues, highlight: trendHighlight },
+            { colors: ['#8b5cf6'] }
+        );
+        const typeBookCanvas = document.getElementById('detailTypeBookChart');
+        if (typeBookCanvas && typeLabels.length > 0)
+            new SimpleChart(typeBookCanvas).drawPieChart(
+                { labels: typeLabels, values: typeValues },
+                { colors: ['#3b82f6', '#f59e0b', '#22c55e'] }
+            );
+        const dayCanvas = document.getElementById('detailDayChart');
+        if (dayCanvas) new SimpleChart(dayCanvas).drawBarChart(
+            { labels: dayLabels, values: dayValues },
+            { colors: ['#06b6d4'] }
+        );
+        const timeCanvas = document.getElementById('detailTimeChart');
+        if (timeCanvas && timeLabels.length > 0)
+            new SimpleChart(timeCanvas).drawBarChart(
+                { labels: timeLabels, values: timeValues },
+                { colors: ['#f97316'] }
+            );
     });
 }
 
