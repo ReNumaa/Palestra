@@ -3891,10 +3891,16 @@ function renderFatturatoDetail(panel) {
         };
     }).filter(t => t.pastCount + t.futureCount > 0);
 
+    const typeTotal = typeStats.reduce((s, t) => s + t.pastRev + t.futureRev, 0);
     const typeBarData = {
-        labels:    typeStats.map(t => t.label),
-        values:    typeStats.map(t => [t.pastRev, t.futureRev]),
-        highlight: typeStats.map(() => false),
+        labels:      typeStats.map(t => t.label),
+        values:      typeStats.map(t => t.pastRev + t.futureRev),
+        highlight:   typeStats.map(() => false),
+        valueLabels: typeStats.map(t => {
+            const rev = t.pastRev + t.futureRev;
+            const pct = typeTotal > 0 ? Math.round((rev / typeTotal) * 100) : 0;
+            return [`€${rev}`, `${pct}%`];
+        }),
     };
 
     // ── Render ────────────────────────────────────────────────────────────────
@@ -3953,28 +3959,9 @@ function renderFatturatoDetail(panel) {
             </div>
         </div>
 
-        <div class="stat-detail-type-section">
-            <div class="stat-detail-chart-block" style="margin-bottom:0.85rem;">
-                <h4>Fatturato per tipo di lezione</h4>
-                <canvas id="detailTypeChart" style="width:100%;display:block;"></canvas>
-            </div>
-            <div class="stat-detail-breakdown">
-                <div class="sdb-rows">
-                    <div class="sdb-row sdb-row--header">
-                        <span class="sdb-label"></span>
-                        <span class="sdb-col">Passate</span>
-                        <span class="sdb-col">Future</span>
-                        <span class="sdb-col">Totale</span>
-                    </div>
-                    ${typeStats.map(t => `
-                    <div class="sdb-row">
-                        <span class="sdb-label">${t.label}</span>
-                        <span class="sdb-col">€${t.pastRev} <small>(${t.pastCount})</small></span>
-                        <span class="sdb-col sdb-future">€${t.futureRev} <small>(${t.futureCount})</small></span>
-                        <span class="sdb-col sdb-bold">€${t.pastRev + t.futureRev}</span>
-                    </div>`).join('')}
-                </div>
-            </div>
+        <div class="stat-detail-chart-block stat-detail-type-section">
+            <h4>Fatturato per tipo di lezione</h4>
+            <canvas id="detailTypeChart" style="width:100%;display:block;"></canvas>
         </div>
     `;
 
@@ -3986,7 +3973,7 @@ function renderFatturatoDetail(panel) {
         if (fcCanvas) new SimpleChart(fcCanvas).drawForecastChart({ actual: fActual, forecast: fForecast, labels: fLabels, todayIndex: todayGroupIdx });
 
         const typeCanvas = document.getElementById('detailTypeChart');
-        if (typeCanvas && typeStats.length > 0) new SimpleChart(typeCanvas).drawBarChart(typeBarData, { colors: ['#3b82f6', '#94a3b8'], legend: ['Passate', 'Future'] });
+        if (typeCanvas && typeStats.length > 0) new SimpleChart(typeCanvas).drawBarChart(typeBarData);
     });
 }
 
