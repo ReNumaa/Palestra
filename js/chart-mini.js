@@ -100,7 +100,10 @@ class SimpleChart {
             return;
         }
 
-        const maxVal = Math.max(...data.values.map(v => Array.isArray(v) ? Math.max(...v) : v), 1);
+        const maxVal = Math.max(...data.values.map((v, i) => {
+            const base = Array.isArray(v) ? Math.max(...v) : v;
+            return base + ((data.projected && data.projected[i]) || 0);
+        }), 1);
         const step = Math.ceil(maxVal / 5) || 1;
         const axisMax = step * 5;
 
@@ -142,6 +145,31 @@ class SimpleChart {
                     ctx.fillText(`€${v}`, x + barW / 2, y + 11);
                 }
             });
+
+            // Projected extension on top (single-series only)
+            if (data.projected && data.projected[i] > 0 && seriesCount === 1) {
+                const projH  = (data.projected[i] / axisMax) * chartH;
+                const solidH = (vals[0] / axisMax) * chartH;
+                const px = slotStart;
+                const py = pad.top + chartH - solidH - projH;
+                ctx.save();
+                ctx.globalAlpha = 0.28;
+                ctx.fillStyle = colors[0];
+                ctx.beginPath();
+                if (ctx.roundRect) ctx.roundRect(px, py, barW, projH, [3, 3, 0, 0]);
+                else ctx.rect(px, py, barW, projH);
+                ctx.fill();
+                ctx.globalAlpha = 1;
+                ctx.strokeStyle = colors[0];
+                ctx.lineWidth = 1.5;
+                ctx.setLineDash([3, 2]);
+                ctx.beginPath();
+                if (ctx.roundRect) ctx.roundRect(px, py, barW, projH, [3, 3, 0, 0]);
+                else ctx.rect(px, py, barW, projH);
+                ctx.stroke();
+                ctx.setLineDash([]);
+                ctx.restore();
+            }
 
             // X label
             ctx.fillStyle = data.highlight?.[i] ? '#e63946' : '#6b7280';

@@ -3785,17 +3785,32 @@ function renderFatturatoDetail(panel) {
 
     // ── 12-month bar chart ────────────────────────────────────────────────────
     const MONTH_NAMES = ['Gen','Feb','Mar','Apr','Mag','Giu','Lug','Ago','Set','Ott','Nov','Dic'];
-    const barLabels = [], barValues = [], barHighlight = [];
+    const barLabels = [], barValues = [], barHighlight = [], barProjected = [];
+
+    // Current-month projection for dashed extension
+    const cmFrom    = new Date(now.getFullYear(), now.getMonth(), 1);
+    const cmTo      = new Date(now.getFullYear(), now.getMonth() + 1, 0, 23, 59, 59, 999);
+    const cmActual  = allBookings.filter(b => { const d = new Date(b.date + 'T00:00:00'); return d >= cmFrom && d < today; }).reduce((s, b) => s + (SLOT_PRICES[b.slotType] || 0), 0);
+    const cmFuture  = allBookings.filter(b => { const d = new Date(b.date + 'T00:00:00'); return d >= today && d <= cmTo; }).reduce((s, b) => s + (SLOT_PRICES[b.slotType] || 0), 0);
+    const cmElapsed = Math.max(1, Math.round((Math.min(yesterday.getTime(), cmTo.getTime()) - cmFrom.getTime()) / 86400000) + 1);
+    const cmDays    = Math.round((cmTo.getTime() - cmFrom.getTime()) / 86400000) + 1;
+    const cmRate    = cmActual / cmElapsed;
+    const cmLinear  = Math.round(cmRate * Math.max(0, cmDays - cmElapsed));
+    const cmEstimate = cmActual + Math.max(cmFuture, cmLinear);
+
     for (let i = 11; i >= 0; i--) {
-        const d    = new Date(now.getFullYear(), now.getMonth() - i, 1);
+        const d     = new Date(now.getFullYear(), now.getMonth() - i, 1);
         const mFrom = new Date(d.getFullYear(), d.getMonth(), 1);
         const mTo   = new Date(d.getFullYear(), d.getMonth() + 1, 0, 23, 59, 59, 999);
-        const rev   = allBookings
-            .filter(b => { const bd = new Date(b.date + 'T00:00:00'); return bd >= mFrom && bd <= mTo; })
+        const isCurrent = i === 0;
+        // For current month: solid = past only; for past months: all occurred
+        const rev = allBookings
+            .filter(b => { const bd = new Date(b.date + 'T00:00:00'); return isCurrent ? bd >= mFrom && bd < today : bd >= mFrom && bd <= mTo; })
             .reduce((s, b) => s + (SLOT_PRICES[b.slotType] || 0), 0);
         barLabels.push(MONTH_NAMES[d.getMonth()]);
         barValues.push(rev);
-        barHighlight.push(i === 0);
+        barHighlight.push(isCurrent);
+        barProjected.push(isCurrent ? Math.max(0, cmEstimate - rev) : 0);
     }
 
     // ── Forecast chart: actual (past) + confirmed future as cumulative ────────
@@ -3965,7 +3980,7 @@ function renderFatturatoDetail(panel) {
 
     requestAnimationFrame(() => {
         const barCanvas = document.getElementById('detailBarChart');
-        if (barCanvas) new SimpleChart(barCanvas).drawBarChart({ labels: barLabels, values: barValues, highlight: barHighlight });
+        if (barCanvas) new SimpleChart(barCanvas).drawBarChart({ labels: barLabels, values: barValues, highlight: barHighlight, projected: barProjected });
 
         const fcCanvas = document.getElementById('detailForecastChart');
         if (fcCanvas) new SimpleChart(fcCanvas).drawForecastChart({ actual: fActual, forecast: fForecast, labels: fLabels, todayIndex: todayGroupIdx });
