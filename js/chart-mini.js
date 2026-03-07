@@ -224,7 +224,7 @@ class SimpleChart {
             ctx.beginPath(); ctx.moveTo(tx, pad.top); ctx.lineTo(tx, pad.top + chartH); ctx.stroke();
             ctx.setLineDash([]);
             ctx.fillStyle = '#e63946'; ctx.font = 'bold 9px sans-serif'; ctx.textAlign = 'center';
-            ctx.fillText('Oggi', tx, pad.top - 4);
+            ctx.fillText('Oggi', tx, pad.top + 12);
         }
 
         drawLine(data.actual, '#3b82f6', false);
