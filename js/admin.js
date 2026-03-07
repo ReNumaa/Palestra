@@ -4004,18 +4004,34 @@ function renderPrenotazioniDetail(panel) {
 
     // ── Trend mensile (ultimi 12 mesi) ────────────────────────────────────────
     const MONTH_NAMES = ['Gen','Feb','Mar','Apr','Mag','Giu','Lug','Ago','Set','Ott','Nov','Dic'];
-    const trendLabels = [], trendValues = [], trendHighlight = [];
+    const trendLabels = [], trendValues = [], trendHighlight = [], trendProjected = [];
+    const cmFrom = new Date(now.getFullYear(), now.getMonth(), 1);
+    const cmDaysTotal = new Date(now.getFullYear(), now.getMonth() + 1, 0).getDate();
+    const cmDaysElapsed = Math.max(today.getDate() - 1, 1);
     for (let i = 11; i >= 0; i--) {
         const d     = new Date(now.getFullYear(), now.getMonth() - i, 1);
         const mFrom = new Date(d.getFullYear(), d.getMonth(), 1);
         const mTo   = new Date(d.getFullYear(), d.getMonth() + 1, 0, 23, 59, 59, 999);
         trendLabels.push(MONTH_NAMES[d.getMonth()]);
-        trendValues.push(allBookings.filter(b => {
+        const isCurrent = i === 0;
+        const count = allBookings.filter(b => {
             if (b.status === 'cancelled') return false;
             const bd = new Date(b.date + 'T00:00:00');
-            return bd >= mFrom && bd <= mTo;
-        }).length);
-        trendHighlight.push(i === 0);
+            return bd >= mFrom && (isCurrent ? bd < today : bd <= mTo);
+        }).length;
+        trendValues.push(count);
+        trendHighlight.push(isCurrent);
+        if (isCurrent) {
+            const cmFuture = allBookings.filter(b => {
+                if (b.status === 'cancelled') return false;
+                const bd = new Date(b.date + 'T00:00:00');
+                return bd >= today && bd <= mTo;
+            }).length;
+            const cmLinear = Math.round(count * cmDaysTotal / cmDaysElapsed);
+            trendProjected.push(Math.max(cmFuture, cmLinear - count, 0));
+        } else {
+            trendProjected.push(0);
+        }
     }
 
     // ── Per tipo ──────────────────────────────────────────────────────────────
@@ -4151,8 +4167,8 @@ function renderPrenotazioniDetail(panel) {
     requestAnimationFrame(() => {
         const trendCanvas = document.getElementById('detailTrendChart');
         if (trendCanvas) new SimpleChart(trendCanvas).drawBarChart(
-            { labels: trendLabels, values: trendValues, highlight: trendHighlight },
-            { colors: ['#8b5cf6'] }
+            { labels: trendLabels, values: trendValues, highlight: trendHighlight, projected: trendProjected },
+            { colors: ['#8b5cf6'], prefix: '' }
         );
         const typeBookCanvas = document.getElementById('detailTypeBookChart');
         if (typeBookCanvas && typeLabels.length > 0)
@@ -4163,13 +4179,13 @@ function renderPrenotazioniDetail(panel) {
         const dayCanvas = document.getElementById('detailDayChart');
         if (dayCanvas) new SimpleChart(dayCanvas).drawBarChart(
             { labels: dayLabels, values: dayValues },
-            { colors: ['#06b6d4'] }
+            { colors: ['#06b6d4'], prefix: '' }
         );
         const timeCanvas = document.getElementById('detailTimeChart');
         if (timeCanvas && timeLabels.length > 0)
             new SimpleChart(timeCanvas).drawBarChart(
                 { labels: timeLabels, values: timeValues },
-                { colors: ['#f97316'] }
+                { colors: ['#f97316'], prefix: '' }
             );
     });
 }
