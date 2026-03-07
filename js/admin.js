@@ -3701,6 +3701,204 @@ function exportRegistro() {
 }
 
 // ══════════════════════════════════════════════════════════════════════════════
+// ── Statistics Detail Panel ──────────────────────────────────────────────────
+
+let _currentStatDetail = null;
+
+function toggleStatDetail(type) {
+    const panel = document.getElementById('statsDetailPanel');
+    const card  = document.getElementById('statcard-' + type);
+    if (!panel || !card) return;
+
+    if (_currentStatDetail === type) {
+        panel.style.display = 'none';
+        panel.innerHTML = '';
+        card.classList.remove('active');
+        _currentStatDetail = null;
+        return;
+    }
+
+    if (_currentStatDetail) {
+        const prev = document.getElementById('statcard-' + _currentStatDetail);
+        if (prev) prev.classList.remove('active');
+    }
+
+    card.classList.add('active');
+    _currentStatDetail = type;
+    panel.style.display = 'block';
+
+    switch (type) {
+        case 'fatturato': renderFatturatoDetail(panel); break;
+        default:
+            panel.innerHTML = `<div class="stat-detail-header"><h3>Dettaglio ${type}</h3></div><p style="color:#9ca3af;text-align:center;padding:1.5rem 0">Prossimamente</p>`;
+    }
+    panel.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+}
+
+function renderFatturatoDetail(panel) {
+    const allBookings = BookingStorage.getAllBookings()
+        .filter(b => b.status !== 'cancelled' && b.paymentMethod !== 'lezione-gratuita');
+    const { from, to } = getFilterDateRange(currentFilter);
+    const now   = new Date();
+    const today = new Date(now); today.setHours(0, 0, 0, 0);
+
+    // Bookings in current filter period
+    const periodBookings = allBookings.filter(b => {
+        const d = new Date(b.date + 'T00:00:00');
+        return d >= from && d <= to;
+    });
+
+    // Past bookings (before today) — per-competenza revenue
+    const pastBookings   = periodBookings.filter(b => new Date(b.date + 'T00:00:00') < today);
+    const pastRevenue    = pastBookings.reduce((s, b) => s + (SLOT_PRICES[b.slotType] || 0), 0);
+
+    // Future confirmed bookings in period
+    const futureBookings = periodBookings.filter(b => new Date(b.date + 'T00:00:00') >= today);
+    const futureRevenue  = futureBookings.reduce((s, b) => s + (SLOT_PRICES[b.slotType] || 0), 0);
+
+    // Linear projection for remaining days
+    const periodStart   = from.getTime();
+    const yesterday     = new Date(today); yesterday.setDate(yesterday.getDate() - 1);
+    const yesterdayCap  = Math.min(yesterday.getTime(), to.getTime());
+    const daysElapsed   = today <= from ? 1 : Math.max(1, Math.round((yesterdayCap - periodStart) / 86400000) + 1);
+    const totalDays     = Math.max(1, Math.round((to.getTime() - periodStart) / 86400000) + 1);
+    const daysRemaining = Math.max(0, totalDays - daysElapsed);
+    const dailyRate     = pastRevenue / daysElapsed;
+    const totalEstimate = pastRevenue + Math.round(dailyRate * daysRemaining);
+
+    // ── 12-month bar chart ────────────────────────────────────────────────────
+    const MONTH_NAMES = ['Gen','Feb','Mar','Apr','Mag','Giu','Lug','Ago','Set','Ott','Nov','Dic'];
+    const barLabels = [], barValues = [], barHighlight = [];
+    for (let i = 11; i >= 0; i--) {
+        const d    = new Date(now.getFullYear(), now.getMonth() - i, 1);
+        const mFrom = new Date(d.getFullYear(), d.getMonth(), 1);
+        const mTo   = new Date(d.getFullYear(), d.getMonth() + 1, 0, 23, 59, 59, 999);
+        const rev   = allBookings
+            .filter(b => { const bd = new Date(b.date + 'T00:00:00'); return bd >= mFrom && bd <= mTo; })
+            .reduce((s, b) => s + (SLOT_PRICES[b.slotType] || 0), 0);
+        barLabels.push(MONTH_NAMES[d.getMonth()]);
+        barValues.push(rev);
+        barHighlight.push(i === 0);
+    }
+
+    // ── Forecast chart ────────────────────────────────────────────────────────
+    const useWeekly  = totalDays > 60;
+    const groupDays  = useWeekly ? 7 : 1;
+    const groups     = Math.ceil(totalDays / groupDays);
+    const fActual = [], fForecast = [], fLabels = [];
+
+    const todayGroupIdx = (today >= from && today <= to)
+        ? Math.floor((today.getTime() - periodStart) / (86400000 * groupDays))
+        : null;
+
+    // Revenue map by date (past days in period only)
+    const revByDate = {};
+    allBookings.forEach(b => {
+        const d = new Date(b.date + 'T00:00:00');
+        if (d >= from && d < today) revByDate[b.date] = (revByDate[b.date] || 0) + (SLOT_PRICES[b.slotType] || 0);
+    });
+
+    let cumRev = 0;
+    for (let g = 0; g < groups; g++) {
+        const gStart = new Date(periodStart + g * groupDays * 86400000);
+        const gEnd   = new Date(periodStart + (g + 1) * groupDays * 86400000 - 1);
+        fLabels.push(`${gStart.getDate()}/${gStart.getMonth() + 1}`);
+
+        if (gEnd < today) {
+            // Fully past
+            let gRev = 0;
+            for (let dd = 0; dd < groupDays; dd++) {
+                const day = new Date(periodStart + (g * groupDays + dd) * 86400000);
+                gRev += revByDate[day.toISOString().split('T')[0]] || 0;
+            }
+            cumRev += gRev;
+            fActual.push(cumRev);
+            fForecast.push(null);
+        } else if (gStart >= today) {
+            // Fully future
+            fActual.push(null);
+            const daysFromYest = Math.round((gStart.getTime() - yesterday.getTime()) / 86400000);
+            fForecast.push(Math.round(pastRevenue + dailyRate * daysFromYest));
+        } else {
+            // Straddles today — partial actual, start forecast here
+            let gRev = 0;
+            for (let dd = 0; dd < groupDays; dd++) {
+                const day = new Date(periodStart + (g * groupDays + dd) * 86400000);
+                if (day < today) gRev += revByDate[day.toISOString().split('T')[0]] || 0;
+            }
+            cumRev += gRev;
+            fActual.push(cumRev);
+            fForecast.push(cumRev); // connect lines at this point
+        }
+    }
+
+    // ── Render ────────────────────────────────────────────────────────────────
+    panel.innerHTML = `
+        <div class="stat-detail-header">
+            <h3>💰 Fatturato — Dettaglio</h3>
+            <span class="stat-detail-period">${getFilterLabel(currentFilter)}</span>
+        </div>
+        <div class="stat-detail-kpis">
+            <div class="stat-detail-kpi">
+                <div class="stat-detail-kpi-value">€${pastRevenue}</div>
+                <div class="stat-detail-kpi-label">Incassato</div>
+            </div>
+            <div class="stat-detail-kpi stat-detail-kpi--future">
+                <div class="stat-detail-kpi-value">€${futureRevenue}</div>
+                <div class="stat-detail-kpi-label">Prenotato futuro</div>
+            </div>
+            <div class="stat-detail-kpi stat-detail-kpi--projected">
+                <div class="stat-detail-kpi-value">€${totalEstimate}</div>
+                <div class="stat-detail-kpi-label">Stima periodo</div>
+            </div>
+            <div class="stat-detail-kpi">
+                <div class="stat-detail-kpi-value">€${Math.round(dailyRate * 7)}</div>
+                <div class="stat-detail-kpi-label">Media settimanale</div>
+            </div>
+        </div>
+        <div class="stat-detail-charts">
+            <div class="stat-detail-chart-block">
+                <h4>Fatturato mensile (ultimi 12 mesi)</h4>
+                <canvas id="detailBarChart" style="width:100%;display:block;"></canvas>
+            </div>
+            <div class="stat-detail-chart-block">
+                <h4>Andamento e proiezione — ${getFilterLabel(currentFilter)}</h4>
+                <canvas id="detailForecastChart" style="width:100%;display:block;"></canvas>
+            </div>
+        </div>
+        <div class="stat-detail-breakdown">
+            <h4>Prenotazioni nel periodo</h4>
+            <div class="sdb-rows">
+                <div class="sdb-row">
+                    <span class="sdb-label">Lezioni passate (${pastBookings.length})</span>
+                    <span class="sdb-value">€${pastRevenue}</span>
+                </div>
+                <div class="sdb-row">
+                    <span class="sdb-label">Lezioni future confermate (${futureBookings.length})</span>
+                    <span class="sdb-value sdb-future">€${futureRevenue}</span>
+                </div>
+                <div class="sdb-row sdb-row--total">
+                    <span class="sdb-label">Totale confermato</span>
+                    <span class="sdb-value">€${pastRevenue + futureRevenue}</span>
+                </div>
+                <div class="sdb-row sdb-row--projected">
+                    <span class="sdb-label">Proiezione lineare al ${to.getDate()}/${to.getMonth() + 1}/${to.getFullYear()}</span>
+                    <span class="sdb-value">€${totalEstimate}</span>
+                </div>
+            </div>
+        </div>
+    `;
+
+    requestAnimationFrame(() => {
+        const barCanvas = document.getElementById('detailBarChart');
+        if (barCanvas) new SimpleChart(barCanvas).drawBarChart({ labels: barLabels, values: barValues, highlight: barHighlight });
+
+        const fcCanvas = document.getElementById('detailForecastChart');
+        if (fcCanvas) new SimpleChart(fcCanvas).drawForecastChart({ actual: fActual, forecast: fForecast, labels: fLabels, todayIndex: todayGroupIdx });
+    });
+}
+
+// ── End Statistics Detail Panel ───────────────────────────────────────────────
 
 if (document.readyState === 'loading') {
     document.addEventListener('DOMContentLoaded', initAdmin);
