@@ -223,8 +223,11 @@ function handleBookingSubmit(e) {
     BookingStorage.fulfillPendingCancellations(booking.date, booking.time);
 
     // Auto-apply credit (full or partial)
+    // Subtract manual debt from credit so only the net positive credit is used
     const price = SLOT_PRICES[savedBooking.slotType];
-    const creditBalance = CreditStorage.getBalance(savedBooking.whatsapp, savedBooking.email);
+    const rawCreditBalance = CreditStorage.getBalance(savedBooking.whatsapp, savedBooking.email);
+    const manualDebtBalance = ManualDebtStorage.getBalance(savedBooking.whatsapp, savedBooking.email);
+    const creditBalance = Math.max(0, Math.round((rawCreditBalance - manualDebtBalance) * 100) / 100);
     if (creditBalance >= price) {
         // Full payment with credit
         const freeBalance = CreditStorage.getFreeBalance(savedBooking.whatsapp, savedBooking.email);
