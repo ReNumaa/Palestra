@@ -140,9 +140,17 @@ class SimpleChart {
                 ctx.fill();
                 if (v > 0 && barH > 14) {
                     ctx.fillStyle = '#fff';
-                    ctx.font = 'bold 9px sans-serif';
                     ctx.textAlign = 'center';
-                    ctx.fillText(`€${v}`, x + barW / 2, y + 11);
+                    const lines = data.valueLabels?.[i] || [`€${v}`];
+                    if (lines.length > 1 && barH > 28) {
+                        ctx.font = 'bold 9px sans-serif';
+                        ctx.fillText(lines[0], x + barW / 2, y + 10);
+                        ctx.font = '8px sans-serif';
+                        ctx.fillText(lines[1], x + barW / 2, y + 20);
+                    } else {
+                        ctx.font = 'bold 9px sans-serif';
+                        ctx.fillText(lines[0], x + barW / 2, y + 11);
+                    }
                 }
             });
 
