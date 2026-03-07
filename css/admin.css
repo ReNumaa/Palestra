@@ -3872,6 +3872,32 @@ canvas {
 .sdb-value { font-weight: 600; color: #111; }
 .sdb-value.sdb-future { color: #0284c7; }
 
+/* Per-type table columns */
+.stat-detail-type-section { margin-top: 0.85rem; }
+
+.sdb-row--header {
+    font-size: 0.68rem;
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+    color: #9ca3af;
+    font-weight: 600;
+    background: none !important;
+}
+
+.sdb-col {
+    min-width: 80px;
+    text-align: right;
+    font-size: 0.87rem;
+    color: #374151;
+}
+
+.sdb-col small { color: #9ca3af; font-size: 0.78em; }
+.sdb-col.sdb-future { color: #0284c7; }
+.sdb-col.sdb-bold   { font-weight: 700; color: #111; }
+
+.sdb-row:has(.sdb-col) .sdb-label { flex: 1; }
+.sdb-row:has(.sdb-col) { gap: 0.5rem; }
+
 /* Responsive detail panel */
 @media (max-width: 768px) {
     .stat-detail-kpis   { grid-template-columns: 1fr 1fr; }
