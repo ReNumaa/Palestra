@@ -663,26 +663,29 @@ class BookingStorage {
 
             const demoBookings = [];
 
-            // Fixed demo range: 1 Jan → 28 Feb 2026 (stable, never grows)
-            const start   = new Date(2026, 0, 1);
-            const demoEnd = new Date(2026, 1, 28, 23, 59, 59);
+            // Range: 1 Jan current year → 15 Mar current year
+            const now     = new Date();
+            const today   = new Date(now); today.setHours(0, 0, 0, 0);
+            const start   = new Date(now.getFullYear(), 0, 1);
+            const demoEnd = new Date(now.getFullYear(), 2, 15, 23, 59, 59);
 
             const current = new Date(start);
             while (current <= demoEnd) {
                 const dayIndex = current.getDay();
                 const dayName  = ['Domenica', 'Lunedì', 'Martedì', 'Mercoledì', 'Giovedì', 'Venerdì', 'Sabato'][dayIndex];
                 const scheduledSlots = DEFAULT_WEEKLY_SCHEDULE[dayName] || [];
-                const dateStr = this.formatDate(current);
+                const dateStr  = this.formatDate(current);
+                const isPast   = current < today;
 
                 scheduledSlots.forEach(slot => {
                     const capacity = SLOT_MAX_CAPACITY[slot.type];
                     if (capacity === 0) return;
 
-                    // Seed PRNG from date + slot → same browser always gets same data
                     const rand = this._makeSeededRand(dateStr + '|' + slot.time);
 
-                    // Fill 60-100% of capacity
-                    const fillCount = Math.max(1, Math.round(capacity * (0.6 + rand() * 0.4)));
+                    // Past: 60-100% fill; future: 40-75% fill
+                    const fillPct   = isPast ? (0.6 + rand() * 0.4) : (0.4 + rand() * 0.35);
+                    const fillCount = Math.max(1, Math.round(capacity * fillPct));
                     const shuffled  = this._shuffle([...Array(clients.length).keys()], rand);
                     const selected  = shuffled.slice(0, Math.min(fillCount, capacity));
 
@@ -692,22 +695,20 @@ class BookingStorage {
 
                     selected.forEach(idx => {
                         const client = clients[idx];
+                        let paid, paymentMethod, paidAt;
 
-                        // All demo slots are historical → treat as past
-                        const paid = rand() < 0.97;
-
-                        // Payment method: 60% contanti, 25% carta, 15% iban
-                        const methodRoll    = rand();
-                        const paymentMethod = paid
-                            ? (methodRoll < 0.60 ? 'contanti' : methodRoll < 0.85 ? 'carta' : 'iban')
-                            : undefined;
-
-                        // paidAt: deterministic delay 0-72 h after slot end, capped at demoEnd
-                        let paidAt;
-                        if (paid) {
-                            const paidDate = new Date(endDateTime.getTime() + rand() * 72 * 3600000);
-                            if (paidDate > demoEnd) paidDate.setTime(demoEnd.getTime());
-                            paidAt = paidDate.toISOString();
+                        if (isPast) {
+                            // <1% unpaid for past bookings
+                            paid = rand() < 0.995;
+                            if (paid) {
+                                const methodRoll = rand();
+                                paymentMethod = methodRoll < 0.60 ? 'contanti' : methodRoll < 0.85 ? 'carta' : 'iban';
+                                const paidDate = new Date(endDateTime.getTime() + rand() * 72 * 3600000);
+                                if (paidDate > now) paidDate.setTime(now.getTime());
+                                paidAt = paidDate.toISOString();
+                            }
+                        } else {
+                            paid = false;
                         }
 
                         const booking = {
@@ -731,36 +732,6 @@ class BookingStorage {
                 });
 
                 current.setDate(current.getDate() + 1);
-            }
-
-            // Future bookings: today → today + 30 days (unpaid, confirmed)
-            const futureStart = new Date(); futureStart.setHours(0, 0, 0, 0);
-            const futureEnd   = new Date(futureStart); futureEnd.setDate(futureEnd.getDate() + 30);
-            const futureDay   = new Date(futureStart);
-            while (futureDay <= futureEnd) {
-                const dayIndex  = futureDay.getDay();
-                const dayName   = ['Domenica','Lunedì','Martedì','Mercoledì','Giovedì','Venerdì','Sabato'][dayIndex];
-                const slots     = DEFAULT_WEEKLY_SCHEDULE[dayName] || [];
-                const dateStr   = this.formatDate(futureDay);
-
-                slots.forEach(slot => {
-                    const capacity = SLOT_MAX_CAPACITY[slot.type];
-                    if (capacity === 0) return;
-                    const rand     = this._makeSeededRand('fut|' + dateStr + '|' + slot.time);
-                    const fill     = Math.max(1, Math.round(capacity * (0.4 + rand() * 0.35)));
-                    const selected = this._shuffle([...Array(clients.length).keys()], rand).slice(0, Math.min(fill, capacity));
-                    selected.forEach(idx => {
-                        const client = clients[idx];
-                        demoBookings.push({
-                            id: `demo-fut-${dateStr}-${slot.time.replace(/[^0-9]/g,'')}-${idx}`,
-                            date: dateStr, time: slot.time, slotType: slot.type,
-                            name: client.name, email: client.email, whatsapp: client.whatsapp,
-                            notes: notes[Math.floor(rand() * notes.length)],
-                            paid: false, createdAt: futureStart.toISOString(), status: 'confirmed'
-                        });
-                    });
-                });
-                futureDay.setDate(futureDay.getDate() + 1);
             }
 
             // Save all demo bookings in one shot (no random IDs, no Date.now())
