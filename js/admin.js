@@ -1,6 +1,12 @@
 // Admin dashboard functionality
 
-const ADMIN_PASSWORD = 'admin123'; // In production, use proper authentication
+const ADMIN_SALT = 'tb-admin-2026';
+const ADMIN_HASH = '036f86f46401f7c2c915c266c56db12210c784961d783c8efa32532fa7fb4fe5';
+async function _checkAdminPassword(password) {
+    const buf = await crypto.subtle.digest('SHA-256',
+        new TextEncoder().encode(ADMIN_SALT + password));
+    return [...new Uint8Array(buf)].map(b => b.toString(16).padStart(2, '0')).join('') === ADMIN_HASH;
+}
 
 // ── Privacy toggle ──────────────────────────────────────────────────────────
 const SENSITIVE_IDS = ['totalUnpaid','totalDebtors','totalCreditors','totalCreditAmount','monthlyRevenue','revenueChange'];
@@ -184,11 +190,11 @@ function initAdmin() {
 
 function setupLogin() {
     const loginForm = document.getElementById('loginForm');
-    loginForm.addEventListener('submit', (e) => {
+    loginForm.addEventListener('submit', async (e) => {
         e.preventDefault();
         const password = document.getElementById('adminPassword').value;
 
-        if (password === ADMIN_PASSWORD) {
+        if (await _checkAdminPassword(password)) {
             sessionStorage.setItem('adminAuth', 'true');
             localStorage.setItem('adminAuthenticated', 'true');
             showDashboard();

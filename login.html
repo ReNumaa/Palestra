@@ -296,11 +296,19 @@
             form.style.display = form.style.display === 'none' ? 'block' : 'none';
         }
 
-        document.getElementById('adminLoginForm').addEventListener('submit', e => {
+        const _ADMIN_SALT = 'tb-admin-2026';
+        const _ADMIN_HASH = '036f86f46401f7c2c915c266c56db12210c784961d783c8efa32532fa7fb4fe5';
+        async function _checkAdminPass(password) {
+            const buf = await crypto.subtle.digest('SHA-256',
+                new TextEncoder().encode(_ADMIN_SALT + password));
+            return [...new Uint8Array(buf)].map(b => b.toString(16).padStart(2, '0')).join('') === _ADMIN_HASH;
+        }
+
+        document.getElementById('adminLoginForm').addEventListener('submit', async e => {
             e.preventDefault();
             const pass = document.getElementById('adminPass').value;
             const btn  = e.target.querySelector('button[type="submit"]');
-            if (pass === 'admin123') {
+            if (await _checkAdminPass(pass)) {
                 setLoading(btn, true, 'Accesso...');
                 localStorage.setItem('adminAuthenticated', 'true');
                 window.location.href = 'admin.html';
