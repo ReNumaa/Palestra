@@ -301,6 +301,7 @@ function loadDashboardData() {
             switch (_currentStatDetail) {
                 case 'fatturato':    renderFatturatoDetail(panel);    break;
                 case 'prenotazioni': renderPrenotazioniDetail(panel); break;
+                case 'clienti':      renderClientiDetail(panel);      break;
             }
         }
     }
@@ -3744,6 +3745,7 @@ function toggleStatDetail(type) {
     switch (type) {
         case 'fatturato':     renderFatturatoDetail(panel);     break;
         case 'prenotazioni':  renderPrenotazioniDetail(panel);  break;
+        case 'clienti':       renderClientiDetail(panel);       break;
         default:
             panel.innerHTML = `<div class="stat-detail-header"><h3>Dettaglio ${type}</h3></div><p style="color:#9ca3af;text-align:center;padding:1.5rem 0">Prossimamente</p>`;
     }
@@ -4064,16 +4066,7 @@ function renderPrenotazioniDetail(panel) {
     const timeLabels = timeSorted.map(([t]) => t);
     const timeValues = timeSorted.map(([, c]) => c);
 
-    // ── Top 5 clienti ─────────────────────────────────────────────────────────
-    const clientMap = {};
-    periodBookings.forEach(b => {
-        const key = b.email || b.whatsapp;
-        if (!clientMap[key]) clientMap[key] = { name: b.name, count: 0 };
-        clientMap[key].count++;
-    });
-    const topClients = Object.values(clientMap).sort((a, b) => b.count - a.count).slice(0, 5);
-
-    // ── Fascia oraria più popolare ────────────────────────────────────────────
+    // ── Fascia oraria / giorno più popolare ──────────────────────────────────
     const peakTime  = timeSorted.length ? timeSorted.reduce((a, b) => b[1] > a[1] ? b : a)[0] : '—';
     const peakDay   = dayValues.reduce((mi, v, i, a) => v > a[mi] ? i : mi, 0);
 
@@ -4124,41 +4117,15 @@ function renderPrenotazioniDetail(panel) {
             </div>
         </div>
 
-        <div class="stat-detail-charts">
-            <div class="stat-detail-breakdown">
-                <h4>Prossime prenotazioni (${futureBookings.length})</h4>
-                <div class="sdb-rows">
-                    ${futureBookings.length === 0
-                        ? '<div class="sdb-row"><span class="sdb-label" style="color:#9ca3af">Nessuna nel periodo selezionato</span></div>'
-                        : futureBookings.slice(0, 12).map(b => `
-                            <div class="sdb-row">
-                                <span class="sdb-label">${b.date.split('-').reverse().join('/')} ${b.time.split(' - ')[0]}</span>
-                                <span class="sdb-value" style="font-size:0.82rem;font-weight:500">${b.name}</span>
-                            </div>`).join('') +
-                          (futureBookings.length > 12 ? `<div class="sdb-row" style="color:#9ca3af;font-size:0.8rem;justify-content:center">+${futureBookings.length - 12} altre</div>` : '')
-                    }
+        <div class="stat-detail-breakdown" style="margin-bottom:0.25rem">
+            <div class="sdb-rows">
+                <div class="sdb-row">
+                    <span class="sdb-label" style="color:#6b7280">Fascia oraria più popolare</span>
+                    <span class="sdb-value sdb-bold">${peakTime}</span>
                 </div>
-            </div>
-            <div class="stat-detail-breakdown">
-                <h4>Top clienti nel periodo</h4>
-                <div class="sdb-rows">
-                    ${topClients.length === 0
-                        ? '<div class="sdb-row"><span class="sdb-label" style="color:#9ca3af">Nessun dato</span></div>'
-                        : topClients.map((c, i) => `
-                            <div class="sdb-row">
-                                <span class="sdb-label">${i + 1}. ${c.name}</span>
-                                <span class="sdb-value">${c.count} lezioni</span>
-                            </div>`).join('')
-                    }
-                    ${topClients.length > 0 ? `
-                    <div class="sdb-row" style="margin-top:0.5rem;padding-top:0.5rem;border-top:1px solid #e5e7eb">
-                        <span class="sdb-label" style="color:#6b7280">Orario più popolare</span>
-                        <span class="sdb-value">${peakTime}</span>
-                    </div>
-                    <div class="sdb-row">
-                        <span class="sdb-label" style="color:#6b7280">Giorno più popolare</span>
-                        <span class="sdb-value">${dayLabels[peakDay]}</span>
-                    </div>` : ''}
+                <div class="sdb-row">
+                    <span class="sdb-label" style="color:#6b7280">Giorno più popolare</span>
+                    <span class="sdb-value sdb-bold">${dayLabels[peakDay]}</span>
                 </div>
             </div>
         </div>
@@ -4188,6 +4155,106 @@ function renderPrenotazioniDetail(panel) {
                 { colors: ['#f97316'], prefix: '' }
             );
     });
+}
+
+function renderClientiDetail(panel) {
+    const allBookings = BookingStorage.getAllBookings();
+    const { from, to } = getFilterDateRange(currentFilter);
+    const periodFrom = from || new Date(0);
+    const periodTo   = to   || new Date(9e15);
+    const now  = new Date();
+    const today = new Date(now); today.setHours(0, 0, 0, 0);
+
+    // Build client map (all bookings in period, incluse cancellate)
+    const clientMap = {};
+    allBookings.forEach(b => {
+        const bd = new Date(b.date + 'T00:00:00');
+        if (bd < periodFrom || bd > periodTo) return;
+        const key = b.email || b.whatsapp || b.name;
+        if (!clientMap[key]) clientMap[key] = { name: b.name, total: 0, cancelled: 0, future: 0 };
+        if (b.status === 'cancelled') {
+            clientMap[key].cancelled++;
+        } else {
+            clientMap[key].total++;
+            if (bd >= today) clientMap[key].future++;
+        }
+    });
+
+    const clients = Object.values(clientMap);
+    const activeClients = clients.filter(c => c.total > 0);
+    const totalUnique = clients.length;
+    const totalBookings = activeClients.reduce((s, c) => s + c.total, 0);
+    const avgBookings = activeClients.length ? (totalBookings / activeClients.length).toFixed(1) : '0';
+    const withCancellations = clients.filter(c => c.cancelled > 0).length;
+    const cancelClientsRate = totalUnique ? Math.round(withCancellations / totalUnique * 100) : 0;
+
+    const topActive    = [...activeClients].sort((a, b) => b.total - a.total).slice(0, 5);
+    const leastActive  = [...activeClients].sort((a, b) => a.total - b.total).slice(0, 5);
+    const topCancellers = clients.filter(c => c.cancelled > 0).sort((a, b) => b.cancelled - a.cancelled).slice(0, 5);
+    const mostLoyal    = [...activeClients].filter(c => c.cancelled === 0).sort((a, b) => b.total - a.total).slice(0, 5);
+
+    const _emptyRow = '<div class="sdb-row"><span class="sdb-label" style="color:#9ca3af">Nessun dato</span></div>';
+    const _clientRows = (list, valueFn) => list.length === 0 ? _emptyRow :
+        list.map((c, i) => `
+            <div class="sdb-row">
+                <span class="sdb-label">${i + 1}. ${c.name}</span>
+                <span class="sdb-value">${valueFn(c)}</span>
+            </div>`).join('');
+
+    panel.innerHTML = `
+        <div class="stat-detail-header">
+            <h3>👥 Clienti — Dettaglio</h3>
+            <span class="stat-detail-period">${getFilterLabel(currentFilter)}</span>
+        </div>
+        <div class="stat-detail-kpis">
+            <div class="stat-detail-kpi">
+                <div class="stat-detail-kpi-value">${totalUnique}</div>
+                <div class="stat-detail-kpi-label">Clienti unici</div>
+            </div>
+            <div class="stat-detail-kpi stat-detail-kpi--future">
+                <div class="stat-detail-kpi-value">${activeClients.length}</div>
+                <div class="stat-detail-kpi-label">Con prenotazioni</div>
+            </div>
+            <div class="stat-detail-kpi">
+                <div class="stat-detail-kpi-value">${avgBookings}</div>
+                <div class="stat-detail-kpi-label">Media lezioni/cliente</div>
+            </div>
+            <div class="stat-detail-kpi ${cancelClientsRate > 20 ? 'stat-detail-kpi--warn' : ''}">
+                <div class="stat-detail-kpi-value">${cancelClientsRate}%</div>
+                <div class="stat-detail-kpi-label">Con cancellazioni</div>
+            </div>
+        </div>
+
+        <div class="stat-detail-charts">
+            <div class="stat-detail-breakdown">
+                <h4>🏆 Più attivi nel periodo</h4>
+                <div class="sdb-rows">
+                    ${_clientRows(topActive, c => `${c.total} lezioni`)}
+                </div>
+            </div>
+            <div class="stat-detail-breakdown">
+                <h4>💤 Meno attivi nel periodo</h4>
+                <div class="sdb-rows">
+                    ${_clientRows(leastActive, c => `${c.total} lezioni`)}
+                </div>
+            </div>
+        </div>
+
+        <div class="stat-detail-charts">
+            <div class="stat-detail-breakdown">
+                <h4>❌ Top annullatori</h4>
+                <div class="sdb-rows">
+                    ${_clientRows(topCancellers, c => `${c.cancelled} cancellaz.`)}
+                </div>
+            </div>
+            <div class="stat-detail-breakdown">
+                <h4>⭐ Più fedeli (0 cancellazioni)</h4>
+                <div class="sdb-rows">
+                    ${_clientRows(mostLoyal, c => `${c.total} lezioni`)}
+                </div>
+            </div>
+        </div>
+    `;
 }
 
 // ── End Statistics Detail Panel ───────────────────────────────────────────────
