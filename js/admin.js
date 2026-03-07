@@ -3444,7 +3444,7 @@ function _updateRegistroSummary(filtered) {
         .filter(e =>
             (e.eventType === 'booking_paid'  && e.paymentMethod !== 'lezione-gratuita' && e.paymentMethod !== 'credito')
             || (e.eventType === 'credit_added'    && !e.freeLesson)
-            || (e.eventType === 'manual_debt_paid')
+            || (e.eventType === 'manual_debt_paid' && e.paymentMethod)
         )
         .reduce((s, e) => s + (e.amount || 0), 0);
     const totalBookings = filtered.filter(e => e.eventType === 'booking_created').length;
