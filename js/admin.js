@@ -3893,11 +3893,7 @@ function renderFatturatoDetail(panel) {
 
     const typeTotal = typeStats.reduce((s, t) => s + t.pastRev + t.futureRev, 0);
     const typePieData = {
-        labels: typeStats.map(t => {
-            const rev = t.pastRev + t.futureRev;
-            const pct = typeTotal > 0 ? Math.round((rev / typeTotal) * 100) : 0;
-            return `${t.label} €${rev} (${pct}%)`;
-        }),
+        labels: typeStats.map(t => `${t.label} €${t.pastRev + t.futureRev}`),
         values: typeStats.map(t => t.pastRev + t.futureRev),
     };
 
