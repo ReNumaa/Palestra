@@ -3756,15 +3756,19 @@ function renderFatturatoDetail(panel) {
     const futureBookings = periodBookings.filter(b => new Date(b.date + 'T00:00:00') >= today);
     const futureRevenue  = futureBookings.reduce((s, b) => s + (SLOT_PRICES[b.slotType] || 0), 0);
 
-    // Linear projection for remaining days
-    const periodStart   = from.getTime();
-    const yesterday     = new Date(today); yesterday.setDate(yesterday.getDate() - 1);
-    const yesterdayCap  = Math.min(yesterday.getTime(), to.getTime());
-    const daysElapsed   = today <= from ? 1 : Math.max(1, Math.round((yesterdayCap - periodStart) / 86400000) + 1);
-    const totalDays     = Math.max(1, Math.round((to.getTime() - periodStart) / 86400000) + 1);
-    const daysRemaining = Math.max(0, totalDays - daysElapsed);
-    const dailyRate     = pastRevenue / daysElapsed;
-    const totalEstimate = pastRevenue + Math.round(dailyRate * daysRemaining);
+    // Linear projection for remaining days (based on past daily rate)
+    const periodStart    = from.getTime();
+    const yesterday      = new Date(today); yesterday.setDate(yesterday.getDate() - 1);
+    const yesterdayCap   = Math.min(yesterday.getTime(), to.getTime());
+    const daysElapsed    = today <= from ? 1 : Math.max(1, Math.round((yesterdayCap - periodStart) / 86400000) + 1);
+    const totalDays      = Math.max(1, Math.round((to.getTime() - periodStart) / 86400000) + 1);
+    const daysRemaining  = Math.max(0, totalDays - daysElapsed);
+    const dailyRate      = pastRevenue / daysElapsed;
+    const linearExtra    = Math.round(dailyRate * daysRemaining);
+    // Best estimate: use whichever is higher — confirmed future or linear projection
+    const totalEstimate  = pastRevenue + Math.max(futureRevenue, linearExtra);
+    // Weekly average based on all confirmed data in the period
+    const weeklyAvg      = Math.round((pastRevenue + futureRevenue) / totalDays * 7);
 
     // ── 12-month bar chart ────────────────────────────────────────────────────
     const MONTH_NAMES = ['Gen','Feb','Mar','Apr','Mag','Giu','Lug','Ago','Set','Ott','Nov','Dic'];
@@ -3781,7 +3785,7 @@ function renderFatturatoDetail(panel) {
         barHighlight.push(i === 0);
     }
 
-    // ── Forecast chart ────────────────────────────────────────────────────────
+    // ── Forecast chart: actual (past) + confirmed future as cumulative ────────
     const useWeekly  = totalDays > 60;
     const groupDays  = useWeekly ? 7 : 1;
     const groups     = Math.ceil(totalDays / groupDays);
@@ -3791,21 +3795,23 @@ function renderFatturatoDetail(panel) {
         ? Math.floor((today.getTime() - periodStart) / (86400000 * groupDays))
         : null;
 
-    // Revenue map by date (past days in period only)
+    // Revenue maps by date
     const revByDate = {};
+    const futureRevByDate = {};
     allBookings.forEach(b => {
         const d = new Date(b.date + 'T00:00:00');
-        if (d >= from && d < today) revByDate[b.date] = (revByDate[b.date] || 0) + (SLOT_PRICES[b.slotType] || 0);
+        if (d >= from && d < today)  revByDate[b.date]       = (revByDate[b.date] || 0)       + (SLOT_PRICES[b.slotType] || 0);
+        if (d >= today && d >= from && d <= to) futureRevByDate[b.date] = (futureRevByDate[b.date] || 0) + (SLOT_PRICES[b.slotType] || 0);
     });
 
-    let cumRev = 0;
+    let cumRev = 0, cumFuture = 0;
     for (let g = 0; g < groups; g++) {
         const gStart = new Date(periodStart + g * groupDays * 86400000);
         const gEnd   = new Date(periodStart + (g + 1) * groupDays * 86400000 - 1);
         fLabels.push(`${gStart.getDate()}/${gStart.getMonth() + 1}`);
 
         if (gEnd < today) {
-            // Fully past
+            // Fully past — actual only
             let gRev = 0;
             for (let dd = 0; dd < groupDays; dd++) {
                 const day = new Date(periodStart + (g * groupDays + dd) * 86400000);
@@ -3815,20 +3821,27 @@ function renderFatturatoDetail(panel) {
             fActual.push(cumRev);
             fForecast.push(null);
         } else if (gStart >= today) {
-            // Fully future
-            fActual.push(null);
-            const daysFromYest = Math.round((gStart.getTime() - yesterday.getTime()) / 86400000);
-            fForecast.push(Math.round(pastRevenue + dailyRate * daysFromYest));
-        } else {
-            // Straddles today — partial actual, start forecast here
-            let gRev = 0;
+            // Fully future — confirmed bookings cumulative
+            let gFutureRev = 0;
             for (let dd = 0; dd < groupDays; dd++) {
                 const day = new Date(periodStart + (g * groupDays + dd) * 86400000);
-                if (day < today) gRev += revByDate[day.toISOString().split('T')[0]] || 0;
+                gFutureRev += futureRevByDate[day.toISOString().split('T')[0]] || 0;
             }
-            cumRev += gRev;
+            cumFuture += gFutureRev;
+            fActual.push(null);
+            fForecast.push(pastRevenue + cumFuture);
+        } else {
+            // Straddles today — partial actual + start of forecast (connect both lines)
+            let gRev = 0, gFutureRev = 0;
+            for (let dd = 0; dd < groupDays; dd++) {
+                const day = new Date(periodStart + (g * groupDays + dd) * 86400000);
+                if (day < today) gRev       += revByDate[day.toISOString().split('T')[0]] || 0;
+                else             gFutureRev += futureRevByDate[day.toISOString().split('T')[0]] || 0;
+            }
+            cumRev    += gRev;
+            cumFuture += gFutureRev;
             fActual.push(cumRev);
-            fForecast.push(cumRev); // connect lines at this point
+            fForecast.push(cumRev + cumFuture);
         }
     }
 
@@ -3852,7 +3865,7 @@ function renderFatturatoDetail(panel) {
                 <div class="stat-detail-kpi-label">Stima periodo</div>
             </div>
             <div class="stat-detail-kpi">
-                <div class="stat-detail-kpi-value">€${Math.round(dailyRate * 7)}</div>
+                <div class="stat-detail-kpi-value">€${weeklyAvg}</div>
                 <div class="stat-detail-kpi-label">Media settimanale</div>
             </div>
         </div>
@@ -3882,7 +3895,7 @@ function renderFatturatoDetail(panel) {
                     <span class="sdb-value">€${pastRevenue + futureRevenue}</span>
                 </div>
                 <div class="sdb-row sdb-row--projected">
-                    <span class="sdb-label">Proiezione lineare al ${to.getDate()}/${to.getMonth() + 1}/${to.getFullYear()}</span>
+                    <span class="sdb-label">Stima al ${to.getDate()}/${to.getMonth() + 1}/${to.getFullYear()} (confermato + proiezione)</span>
                     <span class="sdb-value">€${totalEstimate}</span>
                 </div>
             </div>
