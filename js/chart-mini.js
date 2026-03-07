@@ -81,6 +81,180 @@ class SimpleChart {
         }
     }
 
+    drawBarChart(data, options = {}) {
+        const ctx = this.ctx;
+        const cw = this.canvas.width / 2;
+        const ch = this.canvas.height / 2;
+        ctx.clearRect(0, 0, this.canvas.width, this.canvas.height);
+
+        const pad = { top: 24, right: 16, bottom: 44, left: 52 };
+        const chartW = cw - pad.left - pad.right;
+        const chartH = ch - pad.top - pad.bottom;
+        const n = data.values.length;
+
+        if (n === 0) {
+            ctx.fillStyle = '#9ca3af';
+            ctx.font = '13px sans-serif';
+            ctx.textAlign = 'center';
+            ctx.fillText('Nessun dato', cw / 2, ch / 2);
+            return;
+        }
+
+        const maxVal = Math.max(...data.values.map(v => Array.isArray(v) ? Math.max(...v) : v), 1);
+        const step = Math.ceil(maxVal / 5) || 1;
+        const axisMax = step * 5;
+
+        // Grid + Y labels
+        ctx.strokeStyle = '#e5e7eb';
+        ctx.lineWidth = 1;
+        ctx.fillStyle = '#9ca3af';
+        ctx.font = '10px sans-serif';
+        ctx.textAlign = 'right';
+        for (let i = 0; i <= 5; i++) {
+            const y = pad.top + chartH - (chartH * i / 5);
+            ctx.beginPath(); ctx.moveTo(pad.left, y); ctx.lineTo(pad.left + chartW, y); ctx.stroke();
+            ctx.fillText(`€${Math.round(axisMax * i / 5)}`, pad.left - 5, y + 4);
+        }
+
+        const slotW = chartW / n;
+        const seriesCount = Array.isArray(data.values[0]) ? data.values[0].length : 1;
+        const barW = Math.min(slotW * 0.7 / seriesCount, 40);
+        const colors = options.colors || ['#3b82f6', '#94a3b8'];
+
+        data.values.forEach((val, i) => {
+            const vals = Array.isArray(val) ? val : [val];
+            const totalBarsW = barW * seriesCount + (seriesCount - 1) * 3;
+            const slotStart = pad.left + i * slotW + (slotW - totalBarsW) / 2;
+
+            vals.forEach((v, s) => {
+                const barH = (v / axisMax) * chartH;
+                const x = slotStart + s * (barW + 3);
+                const y = pad.top + chartH - barH;
+                ctx.fillStyle = colors[s % colors.length];
+                ctx.beginPath();
+                if (ctx.roundRect) ctx.roundRect(x, y, barW, barH, [3, 3, 0, 0]);
+                else ctx.rect(x, y, barW, barH);
+                ctx.fill();
+                if (v > 0 && barH > 14) {
+                    ctx.fillStyle = '#fff';
+                    ctx.font = 'bold 9px sans-serif';
+                    ctx.textAlign = 'center';
+                    ctx.fillText(`€${v}`, x + barW / 2, y + 11);
+                }
+            });
+
+            // X label
+            ctx.fillStyle = data.highlight?.[i] ? '#e63946' : '#6b7280';
+            ctx.font = data.highlight?.[i] ? 'bold 10px sans-serif' : '10px sans-serif';
+            ctx.textAlign = 'center';
+            const labelX = pad.left + i * slotW + slotW / 2;
+            ctx.fillText(data.labels[i], labelX, ch - pad.bottom / 3 + 4);
+        });
+
+        // Legend
+        if (options.legend) {
+            let lx = pad.left;
+            options.legend.forEach((l, i) => {
+                ctx.fillStyle = colors[i % colors.length];
+                ctx.fillRect(lx, pad.top - 16, 10, 10);
+                ctx.fillStyle = '#6b7280';
+                ctx.font = '10px sans-serif';
+                ctx.textAlign = 'left';
+                ctx.fillText(l, lx + 14, pad.top - 7);
+                lx += ctx.measureText(l).width + 30;
+            });
+        }
+    }
+
+    drawForecastChart(data, options = {}) {
+        // data: { actual: [...], forecast: [...], labels: [...], todayIndex: N }
+        const ctx = this.ctx;
+        const cw = this.canvas.width / 2;
+        const ch = this.canvas.height / 2;
+        ctx.clearRect(0, 0, this.canvas.width, this.canvas.height);
+
+        const pad = { top: 24, right: 16, bottom: 40, left: 52 };
+        const chartW = cw - pad.left - pad.right;
+        const chartH = ch - pad.top - pad.bottom;
+        const n = data.labels.length;
+        if (n === 0) return;
+
+        const allVals = [...(data.actual || []), ...(data.forecast || [])];
+        const maxVal = Math.max(...allVals, 1);
+        const step = Math.ceil(maxVal / 5) || 1;
+        const axisMax = step * 5;
+
+        // Grid + Y labels
+        ctx.strokeStyle = '#e5e7eb'; ctx.lineWidth = 1;
+        ctx.fillStyle = '#9ca3af'; ctx.font = '10px sans-serif'; ctx.textAlign = 'right';
+        for (let i = 0; i <= 5; i++) {
+            const y = pad.top + chartH - (chartH * i / 5);
+            ctx.beginPath(); ctx.moveTo(pad.left, y); ctx.lineTo(pad.left + chartW, y); ctx.stroke();
+            ctx.fillText(`€${Math.round(axisMax * i / 5)}`, pad.left - 5, y + 4);
+        }
+
+        const stepX = chartW / (n - 1 || 1);
+        const pt = (vals, i) => ({ x: pad.left + i * stepX, y: pad.top + chartH - (vals[i] / axisMax) * chartH });
+
+        const drawLine = (vals, color, dashed = false) => {
+            if (!vals || vals.length === 0) return;
+            ctx.strokeStyle = color; ctx.lineWidth = 2.5;
+            ctx.setLineDash(dashed ? [6, 4] : []);
+            ctx.beginPath();
+            vals.forEach((v, i) => {
+                if (v === null || v === undefined) return;
+                const p = pt(vals, i);
+                i === 0 || vals[i - 1] == null ? ctx.moveTo(p.x, p.y) : ctx.lineTo(p.x, p.y);
+            });
+            ctx.stroke();
+            ctx.setLineDash([]);
+            ctx.fillStyle = color;
+            vals.forEach((v, i) => {
+                if (v == null) return;
+                const p = pt(vals, i);
+                ctx.beginPath(); ctx.arc(p.x, p.y, 3.5, 0, Math.PI * 2); ctx.fill();
+            });
+        };
+
+        // Today line
+        if (data.todayIndex != null) {
+            const tx = pad.left + data.todayIndex * stepX;
+            ctx.strokeStyle = '#e63946'; ctx.lineWidth = 1.5;
+            ctx.setLineDash([4, 3]);
+            ctx.beginPath(); ctx.moveTo(tx, pad.top); ctx.lineTo(tx, pad.top + chartH); ctx.stroke();
+            ctx.setLineDash([]);
+            ctx.fillStyle = '#e63946'; ctx.font = 'bold 9px sans-serif'; ctx.textAlign = 'center';
+            ctx.fillText('Oggi', tx, pad.top - 4);
+        }
+
+        drawLine(data.actual, '#3b82f6', false);
+        drawLine(data.forecast, '#94a3b8', true);
+
+        // X labels (thin out if too many)
+        const skip = Math.ceil(n / 8);
+        ctx.fillStyle = '#6b7280'; ctx.font = '10px sans-serif'; ctx.textAlign = 'center';
+        data.labels.forEach((l, i) => {
+            if (i % skip !== 0 && i !== n - 1) return;
+            ctx.fillText(l, pad.left + i * stepX, ch - 6);
+        });
+
+        // Legend
+        const legendItems = [
+            { color: '#3b82f6', label: 'Effettivo' },
+            { color: '#94a3b8', label: 'Proiezione', dashed: true }
+        ];
+        let lx = pad.left;
+        legendItems.forEach(item => {
+            if (item.dashed) { ctx.setLineDash([5, 3]); }
+            ctx.strokeStyle = item.color; ctx.lineWidth = 2;
+            ctx.beginPath(); ctx.moveTo(lx, pad.top - 10); ctx.lineTo(lx + 16, pad.top - 10); ctx.stroke();
+            ctx.setLineDash([]);
+            ctx.fillStyle = '#6b7280'; ctx.font = '10px sans-serif'; ctx.textAlign = 'left';
+            ctx.fillText(item.label, lx + 20, pad.top - 6);
+            lx += 70;
+        });
+    }
+
     drawPieChart(data, options = {}) {
         const centerX = this.canvas.width / 4;
         const centerY = this.canvas.height / 4;

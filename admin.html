@@ -12,7 +12,7 @@
     <link rel="icon" type="image/jpeg" href="images/logo-tb---nero.jpg">
     <link rel="stylesheet" href="css/style.css?v=6">
     <link rel="stylesheet" href="css/login.css?v=5">
-    <link rel="stylesheet" href="css/admin.css?v=11">
+    <link rel="stylesheet" href="css/admin.css?v=12">
 </head>
 <body>
     <nav class="navbar">
@@ -186,31 +186,38 @@
                 </div>
 
                 <div class="stats-grid">
-                    <div class="stat-card">
+                    <div class="stat-card stat-card--clickable" id="statcard-fatturato" onclick="toggleStatDetail('fatturato')">
+                        <div class="stat-card-click-hint">Dettagli ▼</div>
                         <div class="stat-icon">💰</div>
                         <h3>Fatturato</h3>
                         <p class="stat-value" id="monthlyRevenue">€0</p>
                         <span class="stat-change positive" id="revenueChange">+0%</span>
                     </div>
-                    <div class="stat-card">
+                    <div class="stat-card stat-card--clickable" id="statcard-prenotazioni" onclick="toggleStatDetail('prenotazioni')">
+                        <div class="stat-card-click-hint">Dettagli ▼</div>
                         <div class="stat-icon">📅</div>
                         <h3>Prenotazioni Totali</h3>
                         <p class="stat-value" id="totalBookings">0</p>
                         <span class="stat-change" id="bookingsChange">+0%</span>
                     </div>
-                    <div class="stat-card">
+                    <div class="stat-card stat-card--clickable" id="statcard-clienti" onclick="toggleStatDetail('clienti')">
+                        <div class="stat-card-click-hint">Dettagli ▼</div>
                         <div class="stat-icon">👥</div>
                         <h3>Clienti Attivi</h3>
                         <p class="stat-value" id="activeClients">0</p>
                         <span class="stat-change" id="clientsChange">+0%</span>
                     </div>
-                    <div class="stat-card">
+                    <div class="stat-card stat-card--clickable" id="statcard-occupancy" onclick="toggleStatDetail('occupancy')">
+                        <div class="stat-card-click-hint">Dettagli ▼</div>
                         <div class="stat-icon">📊</div>
                         <h3>Tasso Occupazione</h3>
                         <p class="stat-value" id="occupancyRate">0%</p>
                         <span class="stat-change" id="occupancyChange">+0%</span>
                     </div>
                 </div>
+
+                <!-- Pannello dettaglio statistiche (aperto al click su una card) -->
+                <div id="statsDetailPanel" class="stats-detail-panel" style="display:none;"></div>
 
                 <!-- Grafici (aperto di default) -->
                 <div class="m-section open">
@@ -653,7 +660,7 @@
     <script src="js/auth.js?v=7"></script>
     <script src="js/push.js?v=1"></script>
     <script src="js/chart-mini.js?v=5"></script>
-    <script src="js/admin.js?v=24"></script>
+    <script src="js/admin.js?v=25"></script>
     <script>
         if ('serviceWorker' in navigator) {
             navigator.serviceWorker.register('/sw.js');
