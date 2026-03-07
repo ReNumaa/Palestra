@@ -293,6 +293,16 @@ function loadDashboardData() {
     drawTypeChart(filteredBookings);
     updateBookingsTable(filteredBookings);
     updatePopularTimes(filteredBookings);
+
+    // Aggiorna il pannello dettaglio se è aperto
+    if (_currentStatDetail) {
+        const panel = document.getElementById('statsDetailPanel');
+        if (panel && panel.style.display !== 'none') {
+            switch (_currentStatDetail) {
+                case 'fatturato': renderFatturatoDetail(panel); break;
+            }
+        }
+    }
 }
 
 function updateStatsCards(filteredBookings, allBookings) {
