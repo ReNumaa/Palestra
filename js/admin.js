@@ -2295,6 +2295,16 @@ function saveManualEntry() {
             note || (isFreeLesson ? 'Lezione gratuita' : 'Credito manuale'),
             null, isFreeLesson, false, null, method);
         CreditStorage.applyToUnpaidBookings(whatsapp, email, name);
+        // If there's a manual debt, use available credit to offset it at the source
+        const debtBalance = ManualDebtStorage.getBalance(whatsapp, email);
+        if (debtBalance > 0) {
+            const creditAfter = CreditStorage.getBalance(whatsapp, email);
+            if (creditAfter > 0) {
+                const toOffset = Math.round(Math.min(debtBalance, creditAfter) * 100) / 100;
+                ManualDebtStorage.addDebt(whatsapp, email, name, -toOffset, 'Compensato con credito');
+                CreditStorage.addCredit(whatsapp, email, name, -toOffset, 'Applicato a debito manuale');
+            }
+        }
     }
 
     const savedType = _manualEntryType;
