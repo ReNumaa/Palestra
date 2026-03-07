@@ -313,13 +313,18 @@ function updateStatsCards(filteredBookings, allBookings) {
         const d = new Date(b.date + 'T00:00:00');
         return d >= prevRange.from && d <= prevRange.to && b.paymentMethod !== 'lezione-gratuita';
     }) : [];
+    const prevAllBookings = prevRange ? allBookings.filter(b => {
+        if (b.status === 'cancelled') return false;
+        const d = new Date(b.date + 'T00:00:00');
+        return d >= prevRange.from && d <= prevRange.to;
+    }) : [];
     const prevRev = prevRevBookings.reduce((t, b) => t + (SLOT_PRICES[b.slotType] || 0), 0);
     calcChange(revenue, prevRev, document.getElementById('revenueChange'));
     sensitiveSet('revenueChange', document.getElementById('revenueChange').textContent);
 
     // Total bookings
     document.getElementById('totalBookings').textContent = filteredBookings.length;
-    calcChange(filteredBookings.length, prevRevBookings.length, document.getElementById('bookingsChange'));
+    calcChange(filteredBookings.length, prevAllBookings.length, document.getElementById('bookingsChange'));
 
     // Active clients
     const uniqueClients = new Set(filteredBookings.map(b => b.email)).size;
@@ -469,9 +474,9 @@ function updateBookingsTable(bookings) {
         row.innerHTML = `
             <td>${dateDisplay}</td>
             <td>${booking.time}</td>
-            <td>${booking.name}</td>
+            <td>${_escHtml(booking.name)}</td>
             <td>${SLOT_NAMES[booking.slotType]}</td>
-            <td>${booking.whatsapp}</td>
+            <td>${_escHtml(booking.whatsapp)}</td>
             <td><span class="status-badge ${booking.status}">${
                 booking.status === 'confirmed'              ? 'Confermata'            :
                 booking.status === 'cancellation_requested' ? 'Richiesta annullamento' :
@@ -959,9 +964,9 @@ function _buildParticipantCard(booking) {
         <div class="admin-participant-card${isCancelPending ? ' cancel-pending' : ''}">
             <button class="btn-delete-booking" onclick="deleteBooking('${booking.id}','${nm}')">✕</button>
             <div class="participant-card-content">
-                <div class="participant-name">${booking.name}</div>
-                <div class="participant-contact">📱 ${booking.whatsapp}</div>
-                ${booking.notes ? `<div class="participant-notes">📝 ${booking.notes}</div>` : ''}
+                <div class="participant-name">${_escHtml(booking.name)}</div>
+                <div class="participant-contact">📱 ${_escHtml(booking.whatsapp)}</div>
+                ${booking.notes ? `<div class="participant-notes">📝 ${_escHtml(booking.notes)}</div>` : ''}
                 ${cancelPendingBadge}${certBadge}
                 ${hasDebts ? `<div class="debt-warning" onclick="openDebtPopup('${wa}','${em}','${nm}')">⚠️ Da pagare: €${unpaidAmount}</div>` : ''}
                 ${!isCancelPending ? `<div class="payment-status ${isPaid ? 'paid' : 'unpaid'}"${!isPaid ? ` onclick="openDebtPopup('${wa}','${em}','${nm}')"` : ''}>${isPaid ? '✓ Pagato' : '⊕ Segna pagato'}</div>` : ''}
@@ -1354,8 +1359,8 @@ function renderAllTimeSlots() {
             const client = existingSlot?.client;
             const selectedClientHtml = client
                 ? `<div class="slot-client-selected">
-                       <span class="slot-client-name">${client.name}</span>
-                       <span class="slot-client-sub">${client.whatsapp || client.email}</span>
+                       <span class="slot-client-name">${_escHtml(client.name)}</span>
+                       <span class="slot-client-sub">${_escHtml(client.whatsapp || client.email)}</span>
                        <button class="btn-clear-client" onclick="clearSlotClient('${timeSlot}')" title="Rimuovi cliente">✕</button>
                    </div>`
                 : `<div class="slot-client-warning">⚠️ Cliente obbligatorio — cerca e seleziona un iscritto</div>`;
@@ -1752,7 +1757,7 @@ function createCreditCard(credit, index) {
         const color = entry.amount >= 0 ? '#22c55e' : '#ef4444';
         historyHTML += `
             <div class="debtor-booking-item">
-                <div class="debtor-booking-details">📅 ${dateStr} — ${entry.note || 'Movimento credito'}</div>
+                <div class="debtor-booking-details">📅 ${dateStr} — ${_escHtml(entry.note || 'Movimento credito')}</div>
                 <div class="debtor-booking-price" style="color:${color}">${sign}€${Math.abs(entry.amount)}</div>
             </div>`;
     });
@@ -1761,10 +1766,10 @@ function createCreditCard(credit, index) {
     card.innerHTML = `
         <div class="debtor-card-header" onclick="toggleDebtorCard('credit-card-${index}')">
             <div class="debtor-info">
-                <div class="debtor-name">${credit.name}</div>
+                <div class="debtor-name">${_escHtml(credit.name)}</div>
                 <div class="debtor-contact">
-                    <span>📱 ${credit.whatsapp}</span>
-                    <span>✉️ ${credit.email}</span>
+                    <span>📱 ${_escHtml(credit.whatsapp)}</span>
+                    <span>✉️ ${_escHtml(credit.email)}</span>
                 </div>
             </div>
             <div class="debtor-amount credit-amount">Credito: €${credit.balance}</div>
@@ -1876,7 +1881,7 @@ function createDebtorCard(debtor, cardId) {
                 const dateStr = `${d.getDate()}/${d.getMonth()+1}/${d.getFullYear()}`;
                 bookingsHTML += `
                     <div class="debtor-booking-item debtor-booking-manual">
-                        <div class="debtor-booking-details">✏️ ${dateStr} &nbsp;·&nbsp; ${entry.note || 'Debito manuale'}</div>
+                        <div class="debtor-booking-details">✏️ ${dateStr} &nbsp;·&nbsp; ${_escHtml(entry.note || 'Debito manuale')}</div>
                         <div class="debtor-booking-price">€${entry.amount}</div>
                     </div>`;
             }
@@ -1890,10 +1895,10 @@ function createDebtorCard(debtor, cardId) {
     card.innerHTML = `
         <div class="debtor-card-header" onclick="toggleDebtorCard('debtor-card-${cardId}')">
             <div class="debtor-info">
-                <div class="debtor-name">${debtor.name}</div>
+                <div class="debtor-name">${_escHtml(debtor.name)}</div>
                 <div class="debtor-contact">
-                    <span>📱 ${debtor.whatsapp}</span>
-                    <span>✉️ ${debtor.email}</span>
+                    <span>📱 ${_escHtml(debtor.whatsapp)}</span>
+                    <span>✉️ ${_escHtml(debtor.email)}</span>
                 </div>
             </div>
             <div class="debtor-amount">€${debtor.totalAmount}</div>
@@ -2810,7 +2815,7 @@ function createClientCard(client, index) {
                     return `<div class="credit-history-row" data-ts="${e.date.getTime()}">
                         <span class="credit-history-date">${fmtDTx(e.date)}</span>
                         <span class="credit-history-icon">${e.icon}</span>
-                        <span class="credit-history-note">${cleanLabel}${e.sub ? ` <small style="opacity:0.7">${e.sub}</small>` : ''}</span>
+                        <span class="credit-history-note">${_escHtml(cleanLabel)}${e.sub ? ` <small style="opacity:0.7">${_escHtml(e.sub)}</small>` : ''}</span>
                         <span class="credit-history-amount ${cls}">${sign}€${Math.abs(e.amount).toFixed(2)}</span>
                     </div>`;
                 }).join('')}
@@ -2825,10 +2830,10 @@ function createClientCard(client, index) {
     card.innerHTML = `
         <div class="client-card-header" onclick="toggleClientCard('client-card-${index}', ${index})">
             <div class="client-info-block">
-                <div class="client-name">${client.name}</div>
+                <div class="client-name">${_escHtml(client.name)}</div>
                 <div class="client-contacts">
-                    <span>📱 ${client.whatsapp}</span>
-                    ${client.email ? `<span>✉️ ${client.email}</span>` : ''}
+                    <span>📱 ${_escHtml(client.whatsapp)}</span>
+                    ${client.email ? `<span>✉️ ${_escHtml(client.email)}</span>` : ''}
                     ${certDisplay}
                 </div>
             </div>
@@ -2843,9 +2848,9 @@ function createClientCard(client, index) {
                 </div>
                 <div class="client-edit-mode" style="display:none;">
                     <div class="client-edit-fields">
-                        <label>Nome<input type="text"  id="cedit-name-${index}"  value="${client.name}"></label>
-                        <label>WhatsApp<input type="tel"   id="cedit-phone-${index}" value="${client.whatsapp}"></label>
-                        <label>Email<input type="email" id="cedit-email-${index}" value="${client.email || ''}"></label>
+                        <label>Nome<input type="text"  id="cedit-name-${index}"  value="${_escHtml(client.name)}"></label>
+                        <label>WhatsApp<input type="tel"   id="cedit-phone-${index}" value="${_escHtml(client.whatsapp)}"></label>
+                        <label>Email<input type="email" id="cedit-email-${index}" value="${_escHtml(client.email || '')}"></label>
                         <label>Cert. Medico<input type="date" id="cedit-cert-${index}" value="${certScad}"></label>
                     </div>
                     <div class="client-edit-actions">
@@ -3501,14 +3506,7 @@ function renderRegistroTable() {
     }).join('');
 }
 
-// Tiny HTML escaper per prevenire XSS nei dati utente visualizzati
-function _escHtml(str) {
-    return String(str)
-        .replace(/&/g, '&amp;')
-        .replace(/</g, '&lt;')
-        .replace(/>/g, '&gt;')
-        .replace(/"/g, '&quot;');
-}
+// _escHtml è definita in ui.js (caricato prima di admin.js su tutte le pagine)
 
 // ── Ordinamento colonne ────────────────────────────────────────────────────
 function toggleRegistroSort(field) {

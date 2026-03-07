@@ -92,3 +92,13 @@ function hideInlineError(elementId) {
     el.style.display = 'none';
     el.textContent = '';
 }
+
+// ─── HTML ESCAPING ─────────────────────────────────────────────────────────────
+// Usare sempre su dati utente interpolati in innerHTML per prevenire XSS.
+function _escHtml(str) {
+    return String(str ?? '')
+        .replace(/&/g, '&amp;')
+        .replace(/</g, '&lt;')
+        .replace(/>/g, '&gt;')
+        .replace(/"/g, '&quot;');
+}

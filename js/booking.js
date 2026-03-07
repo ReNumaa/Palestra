@@ -354,7 +354,7 @@ function showConfirmation(booking) {
         : '';
     confirmationDiv.innerHTML = `
         <h3>✓ ${SLOT_NAMES[booking.slotType]} Confermata!</h3>
-        <p><strong>${booking.name}</strong></p>
+        <p><strong>${_escHtml(booking.name)}</strong></p>
         <p>📅 ${booking.dateDisplay} &nbsp;·&nbsp; 🕐 ${booking.time}</p>
         ${creditNotice}
         <div class="cal-buttons">
