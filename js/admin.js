@@ -4202,6 +4202,19 @@ function renderClientiDetail(panel) {
     const withCancellations = clients.filter(c => c.cancelled > 0).length;
     const cancelClientsRate = totalUnique ? Math.round(withCancellations / totalUnique * 100) : 0;
 
+    // Nuovi clienti: prima prenotazione in assoluto cade nel periodo
+    const firstBookingByKey = {};
+    allBookings.forEach(b => {
+        if (b.status === 'cancelled') return;
+        const key = b.email || b.whatsapp || b.name;
+        const bd  = new Date(b.date + 'T00:00:00');
+        if (!firstBookingByKey[key] || bd < firstBookingByKey[key].date)
+            firstBookingByKey[key] = { date: bd, name: b.name };
+    });
+    const newClients = Object.values(firstBookingByKey)
+        .filter(c => c.date >= periodFrom && c.date <= periodTo)
+        .sort((a, b) => a.date - b.date);
+
     const topActive    = [...activeClients].sort((a, b) => b.total - a.total).slice(0, 5);
     const leastActive  = [...activeClients].sort((a, b) => a.total - b.total).slice(0, 5);
     const topCancellers = clients.filter(c => c.cancelled > 0).sort((a, b) => b.cancelled - a.cancelled).slice(0, 5);
@@ -4225,9 +4238,9 @@ function renderClientiDetail(panel) {
                 <div class="stat-detail-kpi-value">${totalUnique}</div>
                 <div class="stat-detail-kpi-label">Clienti unici</div>
             </div>
-            <div class="stat-detail-kpi stat-detail-kpi--future">
-                <div class="stat-detail-kpi-value">${activeClients.length}</div>
-                <div class="stat-detail-kpi-label">Con prenotazioni</div>
+            <div class="stat-detail-kpi stat-detail-kpi--projected">
+                <div class="stat-detail-kpi-value">${newClients.length}</div>
+                <div class="stat-detail-kpi-label">Nuovi clienti</div>
             </div>
             <div class="stat-detail-kpi">
                 <div class="stat-detail-kpi-value">${avgBookings}</div>
@@ -4250,6 +4263,22 @@ function renderClientiDetail(panel) {
                 <h4>💤 Meno attivi nel periodo</h4>
                 <div class="sdb-rows">
                     ${_clientRows(leastActive, c => `${c.total} lezioni`)}
+                </div>
+            </div>
+        </div>
+
+        <div class="stat-detail-charts">
+            <div class="stat-detail-breakdown" style="grid-column:1/-1">
+                <h4>🆕 Nuovi clienti nel periodo (${newClients.length})</h4>
+                <div class="sdb-rows">
+                    ${newClients.length === 0
+                        ? '<div class="sdb-row"><span class="sdb-label" style="color:#9ca3af">Nessun nuovo cliente nel periodo</span></div>'
+                        : newClients.map((c, i) => `
+                            <div class="sdb-row">
+                                <span class="sdb-label">${i + 1}. ${c.name}</span>
+                                <span class="sdb-value" style="color:#9ca3af;font-size:0.8rem">${c.date.getDate()}/${c.date.getMonth()+1}/${c.date.getFullYear()}</span>
+                            </div>`).join('')
+                    }
                 </div>
             </div>
         </div>
