@@ -78,6 +78,8 @@
 
             <!-- Warning certificato medico -->
             <div id="prenoCertWarning"></div>
+            <!-- Warning assicurazione -->
+            <div id="prenoAssicWarning"></div>
 
             <!-- Tabs -->
             <div class="preno-tabs">
@@ -168,8 +170,8 @@
     </div>
 
     <script src="js/ui.js?v=2"></script>
-    <script src="js/data.js?v=13"></script>
-    <script src="js/auth.js?v=7"></script>
+    <script src="js/data.js?v=17"></script>
+    <script src="js/auth.js?v=8"></script>
     <script src="js/push.js?v=1"></script>
     <script>
         // ── Guard ─────────────────────────────────────────────────────────
@@ -208,6 +210,7 @@
             renderCreditBalance();
             renderBonusBalance();
             renderCertWarning();
+            renderAssicWarning();
             _startPolling();
         }
 
@@ -583,6 +586,34 @@
             }
         }
 
+        // ── Assicurazione warning (display-only) ──────────────────────────
+        function renderAssicWarning() {
+            const user = getCurrentUser();
+            const el   = document.getElementById('prenoAssicWarning');
+            if (!user || !el) return;
+
+            const stored = getUserByEmail(user.email);
+            const scad   = stored?.assicurazioneScadenza;
+            if (!scad) {
+                el.innerHTML = `<div class="preno-cert-warning preno-cert-expired">📋 Assicurazione non impostata — contatta il trainer</div>`;
+                return;
+            }
+
+            const today    = new Date(); today.setHours(0,0,0,0);
+            const scadDt   = new Date(scad + 'T00:00:00');
+            const diffDays = Math.ceil((scadDt - today) / (1000 * 60 * 60 * 24));
+            const [y, m, d] = scad.split('-');
+            const dateLabel = `${d}/${m}/${y}`;
+
+            if (diffDays <= 0) {
+                el.innerHTML = `<div class="preno-cert-warning preno-cert-expired">📋 Assicurazione scaduta il ${dateLabel} — contatta il trainer</div>`;
+            } else if (diffDays <= 30) {
+                el.innerHTML = `<div class="preno-cert-warning preno-cert-expiring">⏳ Mancano ${diffDays} giorn${diffDays === 1 ? 'o' : 'i'} alla scadenza dell'assicurazione</div>`;
+            } else {
+                el.innerHTML = '';
+            }
+        }
+
         // ── Edit profile modal ────────────────────────────────────────────
         function openEditProfileModal() {
             const user = getCurrentUser();
@@ -646,6 +677,7 @@
             document.getElementById('prenoAvatar').textContent = updated.name.charAt(0).toUpperCase();
             updateNavAuth();
             renderCertWarning();
+            renderAssicWarning();
             setLoading(btn, false);
             closeEditProfileModal();
             showToast('Profilo aggiornato.', 'success');

@@ -205,6 +205,17 @@ function handleBookingSubmit(e) {
         return;
     }
 
+    // Check assicurazione restrictions
+    const _assicScad = _certUser?.assicurazioneScadenza || '';
+    if (!_assicScad && AssicBookingStorage.getBlockIfNotSet()) {
+        showToast('Prenotazione bloccata: non hai inserito la data di scadenza dell\'assicurazione. Contatta il trainer.', 'error');
+        return;
+    }
+    if (_assicScad && _assicScad < _today && AssicBookingStorage.getBlockIfExpired()) {
+        showToast('Prenotazione bloccata: la tua assicurazione è scaduta. Contatta il trainer per aggiornarla.', 'error');
+        return;
+    }
+
     setLoading(submitBtn, true, 'Prenotazione in corso...');
 
     // Create booking

@@ -60,6 +60,19 @@ function updateUserProfile(currentEmail, updates, newPassword) {
         }
     }
 
+    // Assicurazione: aggiorna scadenza e mantieni storico completo
+    if (updates.assicurazioneScadenza !== undefined) {
+        const newScad = updates.assicurazioneScadenza || null;
+        if (newScad !== (user.assicurazioneScadenza || null)) {
+            user.assicurazioneScadenza = newScad;
+            if (!user.assicurazioneHistory) user.assicurazioneHistory = [];
+            user.assicurazioneHistory.push({
+                scadenza: newScad,
+                aggiornatoIl: new Date().toISOString()
+            });
+        }
+    }
+
     if (newPassword) user.passwordHash = _hashPassword(newPassword);
 
     _saveUsers(users);

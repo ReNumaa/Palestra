@@ -570,7 +570,8 @@ const BACKUP_KEYS = [
     'gym_manual_debts', 'gym_bonus', 'weeklyScheduleTemplate',
     'scheduleOverrides', 'scheduleVersion', 'gym_debt_threshold',
     'gym_cancellation_mode', 'gym_cert_scadenza_editable',
-    'gym_cert_block_expired', 'gym_cert_block_not_set', 'dataClearedByUser'
+    'gym_cert_block_expired', 'gym_cert_block_not_set',
+    'gym_assic_block_expired', 'gym_assic_block_not_set', 'dataClearedByUser'
 ];
 
 function exportBackup() {
@@ -1037,16 +1038,33 @@ function _buildParticipantCard(booking) {
     const _allU = _getAllUsers();
     const _uIdx = _findUserIdx(_allU, booking.email, booking.whatsapp);
     const userRecord = _uIdx !== -1 ? _allU[_uIdx] : null;
-    const certScad = userRecord?.certificatoMedicoScadenza;
+    const certScad  = userRecord?.certificatoMedicoScadenza;
+    const assicScad = userRecord?.assicurazioneScadenza;
     const emE = (booking.email || '').replace(/'/g, "\\'");
     const waE = (booking.whatsapp || '').replace(/'/g, "\\'");
     const nmE2 = booking.name.replace(/'/g, "\\'");
+    const _todayStr   = new Date().toISOString().split('T')[0];
+    const _today30    = new Date(); _today30.setDate(_today30.getDate() + 30);
+    const _today30Str = _today30.toISOString().split('T')[0];
     let certBadge = '';
     if (!certScad) {
         certBadge = `<div class="cert-expired-badge cert-expired-badge--clickable" onclick="openCertModal(this,'${emE}','${waE}','${nmE2}')">🏥 Imposta scadenza Cert. Med</div>`;
-    } else if (certScad < new Date().toISOString().split('T')[0]) {
+    } else if (certScad < _todayStr) {
         const [cy, cm, cd] = certScad.split('-');
         certBadge = `<div class="cert-expired-badge cert-expired-badge--clickable" onclick="openCertModal(this,'${emE}','${waE}','${nmE2}')">🏥 Cert. scaduto il ${cd}/${cm}/${cy}</div>`;
+    } else if (certScad <= _today30Str) {
+        const [cy, cm, cd] = certScad.split('-');
+        certBadge = `<div class="cert-expired-badge cert-expired-badge--clickable" style="background:#fffbeb;border-color:#fde68a;color:#92400e;border-left:3px solid #f59e0b" onclick="openCertModal(this,'${emE}','${waE}','${nmE2}')">⏳ Cert. Med scade il ${cd}/${cm}/${cy}</div>`;
+    }
+    let assicBadge = '';
+    if (!assicScad) {
+        assicBadge = `<div class="cert-expired-badge cert-expired-badge--clickable" style="background:#fef3c7;border-color:#fde68a;color:#92400e;border-left:3px solid #f59e0b" onclick="openAssicModal(this,'${emE}','${waE}','${nmE2}')">📋 Imposta scadenza Assicurazione</div>`;
+    } else if (assicScad < _todayStr) {
+        const [ay, am, ad] = assicScad.split('-');
+        assicBadge = `<div class="cert-expired-badge cert-expired-badge--clickable" onclick="openAssicModal(this,'${emE}','${waE}','${nmE2}')">📋 Assic. scaduta il ${ad}/${am}/${ay}</div>`;
+    } else if (assicScad <= _today30Str) {
+        const [ay, am, ad] = assicScad.split('-');
+        assicBadge = `<div class="cert-expired-badge cert-expired-badge--clickable" style="background:#fffbeb;border-color:#fde68a;color:#92400e;border-left:3px solid #f59e0b" onclick="openAssicModal(this,'${emE}','${waE}','${nmE2}')">⏳ Assic. scade il ${ad}/${am}/${ay}</div>`;
     }
     const wa  = booking.whatsapp.replace(/'/g, "\\'");
     const em  = booking.email.replace(/'/g, "\\'");
@@ -1058,7 +1076,7 @@ function _buildParticipantCard(booking) {
                 <div class="participant-name">${_escHtml(booking.name)}</div>
                 <div class="participant-contact">📱 ${_escHtml(booking.whatsapp)}</div>
                 ${booking.notes ? `<div class="participant-notes">📝 ${_escHtml(booking.notes)}</div>` : ''}
-                ${cancelPendingBadge}${certBadge}
+                ${cancelPendingBadge}${certBadge}${assicBadge}
                 ${hasDebts ? `<div class="debt-warning" onclick="openDebtPopup('${wa}','${em}','${nm}')">⚠️ Da pagare: €${unpaidAmount}</div>` : ''}
                 ${!isCancelPending ? (isPaid
                     ? `<div class="payment-status paid">✓ Pagato</div>`
@@ -1708,6 +1726,7 @@ function renderSettingsTab() {
     renderDebtThresholdUI();
     renderCertEditableUI();
     renderCertBlockUI();
+    renderAssicBlockUI();
 }
 
 function saveCancellationMode(mode) {
@@ -1748,6 +1767,29 @@ function saveCertBlockExpired(val) {
 function saveCertBlockNotSet(val) {
     CertBookingStorage.setBlockIfNotSet(val);
     const text = document.getElementById('certBlockNotSetText');
+    if (text) text.textContent = val ? 'Bloccato' : 'Non bloccato';
+}
+
+function renderAssicBlockUI() {
+    const expiredToggle = document.getElementById('assicBlockExpiredToggle');
+    const expiredText   = document.getElementById('assicBlockExpiredText');
+    const notSetToggle  = document.getElementById('assicBlockNotSetToggle');
+    const notSetText    = document.getElementById('assicBlockNotSetText');
+    if (expiredToggle) expiredToggle.checked = AssicBookingStorage.getBlockIfExpired();
+    if (expiredText)   expiredText.textContent = AssicBookingStorage.getBlockIfExpired() ? 'Bloccato' : 'Non bloccato';
+    if (notSetToggle)  notSetToggle.checked = AssicBookingStorage.getBlockIfNotSet();
+    if (notSetText)    notSetText.textContent = AssicBookingStorage.getBlockIfNotSet() ? 'Bloccato' : 'Non bloccato';
+}
+
+function saveAssicBlockExpired(val) {
+    AssicBookingStorage.setBlockIfExpired(val);
+    const text = document.getElementById('assicBlockExpiredText');
+    if (text) text.textContent = val ? 'Bloccato' : 'Non bloccato';
+}
+
+function saveAssicBlockNotSet(val) {
+    AssicBookingStorage.setBlockIfNotSet(val);
+    const text = document.getElementById('assicBlockNotSetText');
     if (text) text.textContent = val ? 'Bloccato' : 'Non bloccato';
 }
 
@@ -2782,19 +2824,22 @@ function createClientCard(client, index) {
     const manualDebt  = ManualDebtStorage.getBalance(client.whatsapp, client.email) || 0;
     const netBalance  = Math.round((credit - manualDebt) * 100) / 100;
 
-    // Certificato medico dal profilo utente
-    const userRecord = getUserByEmail(client.email);
-    const certScad   = userRecord?.certificatoMedicoScadenza || '';
-    const certDisplay = (() => {
-        if (!certScad) return `<span class="cedit-cert-badge cedit-cert-expired">🏥 Imposta scadenza certificato medico</span>`;
+    // Certificato medico e Assicurazione dal profilo utente
+    const userRecord  = getUserByEmail(client.email);
+    const certScad    = userRecord?.certificatoMedicoScadenza || '';
+    const assicScad2  = userRecord?.assicurazioneScadenza || '';
+    const _mkBadge = (scad, missingLabel, expiredPrefix, expiringPrefix, okPrefix) => {
+        if (!scad) return `<span class="cedit-cert-badge cedit-cert-expired">${missingLabel}</span>`;
         const today = new Date().toISOString().split('T')[0];
-        const [cy, cm, cd] = certScad.split('-');
-        const label = `${cd}/${cm}/${cy}`;
-        if (certScad < today) return `<span class="cedit-cert-badge cedit-cert-expired">🏥 Cert. scaduto il ${label}</span>`;
-        const daysLeft = Math.ceil((new Date(certScad + 'T00:00:00') - new Date()) / 86400000);
-        if (daysLeft <= 30) return `<span class="cedit-cert-badge cedit-cert-expiring">⏳ Cert. scade il ${label}</span>`;
-        return `<span class="cedit-cert-badge cedit-cert-ok">✅ Cert. valido fino al ${label}</span>`;
-    })();
+        const [y, m, d] = scad.split('-');
+        const label = `${d}/${m}/${y}`;
+        if (scad < today) return `<span class="cedit-cert-badge cedit-cert-expired">${expiredPrefix} ${label}</span>`;
+        const daysLeft = Math.ceil((new Date(scad + 'T00:00:00') - new Date()) / 86400000);
+        if (daysLeft <= 30) return `<span class="cedit-cert-badge cedit-cert-expiring">${expiringPrefix} ${label}</span>`;
+        return `<span class="cedit-cert-badge cedit-cert-ok">${okPrefix} ${label}</span>`;
+    };
+    const certDisplay  = _mkBadge(certScad,  '🏥 Imposta scadenza certificato medico', '🏥 Cert. scaduto il', '⏳ Cert. scade il', '✅ Cert. valido fino al');
+    const assicDisplay = _mkBadge(assicScad2, '📋 Imposta scadenza assicurazione',      '📋 Assic. scaduta il', '⏳ Assic. scade il', '📋 Assic. valida fino al');
 
     const totalAllPaid = Math.round((totalPaid + credit) * 100) / 100;
     let statsHTML = `<span class="cstat">${totalBookings} prenotazioni</span>`;
@@ -2941,7 +2986,7 @@ function createClientCard(client, index) {
                 <div class="client-contacts">
                     <span>📱 ${_escHtml(client.whatsapp)}</span>
                     ${client.email ? `<span>✉️ ${_escHtml(client.email)}</span>` : ''}
-                    ${certDisplay}
+                    ${certDisplay}${assicDisplay}
                 </div>
             </div>
             <div class="client-stats-block">${statsHTML}</div>
@@ -2959,6 +3004,7 @@ function createClientCard(client, index) {
                         <label>WhatsApp<input type="tel"   id="cedit-phone-${index}" value="${_escHtml(client.whatsapp)}"></label>
                         <label>Email<input type="email" id="cedit-email-${index}" value="${_escHtml(client.email || '')}"></label>
                         <label>Cert. Medico<input type="date" id="cedit-cert-${index}" value="${certScad}"></label>
+                        <label>Assicurazione<input type="date" id="cedit-assic-${index}" value="${assicScad2}"></label>
                     </div>
                     <div class="client-edit-actions">
                         <button class="btn-save-edit"   onclick="saveClientEdit(${index}, '${wEsc}', '${emEsc}')">✓ Salva</button>
@@ -3000,6 +3046,7 @@ function saveClientEdit(index, oldWhatsapp, oldEmail) {
     const newWhatsapp = document.getElementById(`cedit-phone-${index}`).value.trim();
     const newEmail    = document.getElementById(`cedit-email-${index}`).value.trim();
     const newCert     = document.getElementById(`cedit-cert-${index}`).value;
+    const newAssic    = document.getElementById(`cedit-assic-${index}`).value;
     if (!newName || !newWhatsapp) { alert('Nome e WhatsApp sono obbligatori.'); return; }
 
     const normOld      = normalizePhone(oldWhatsapp);
@@ -3047,8 +3094,8 @@ function saveClientEdit(index, oldWhatsapp, oldEmail) {
         return phoneMatch || emailMatch;
     });
 
-    if (userIdx === -1 && newCert) {
-        // Cliente non registrato: crea profilo minimo per salvare il certificato
+    if (userIdx === -1 && (newCert || newAssic)) {
+        // Cliente non registrato: crea profilo minimo per salvare il certificato o l'assicurazione
         users.push({ name: newName, email: newEmail, whatsapp: normNewPhone, createdAt: new Date().toISOString() });
         userIdx = users.length - 1;
     }
@@ -3065,6 +3112,17 @@ function saveClientEdit(index, oldWhatsapp, oldEmail) {
             if (!users[userIdx].certificatoMedicoHistory) users[userIdx].certificatoMedicoHistory = [];
             users[userIdx].certificatoMedicoHistory.push({
                 scadenza: newCert || null,
+                aggiornatoIl: new Date().toISOString()
+            });
+        }
+
+        // Assicurazione: aggiorna solo se cambiato, mantieni storico
+        const oldAssic = users[userIdx].assicurazioneScadenza || '';
+        if (newAssic !== oldAssic) {
+            users[userIdx].assicurazioneScadenza = newAssic || null;
+            if (!users[userIdx].assicurazioneHistory) users[userIdx].assicurazioneHistory = [];
+            users[userIdx].assicurazioneHistory.push({
+                scadenza: newAssic || null,
                 aggiornatoIl: new Date().toISOString()
             });
         }
@@ -4457,6 +4515,93 @@ function saveCertDate() {
     }
 
     closeCertModal();
+}
+
+let _assicModalEmail    = null;
+let _assicModalWhatsapp = null;
+let _assicModalName2    = null;
+let _assicModalBadgeEl  = null;
+
+function openAssicModal(badgeEl, email, whatsapp, name) {
+    _assicModalEmail    = email;
+    _assicModalWhatsapp = whatsapp;
+    _assicModalName2    = name;
+    _assicModalBadgeEl  = badgeEl;
+
+    const users = _getAllUsers();
+    const idx   = _findUserIdx(users, email, whatsapp);
+    const existing = idx !== -1 ? (users[idx].assicurazioneScadenza || '') : '';
+
+    document.getElementById('assicModalName').textContent = name;
+    document.getElementById('assicModalDate').value = existing;
+    document.getElementById('assicModalOverlay').style.display = 'block';
+    document.getElementById('assicModal').style.display = 'flex';
+    setTimeout(() => document.getElementById('assicModalDate').focus(), 50);
+}
+
+function closeAssicModal() {
+    document.getElementById('assicModalOverlay').style.display = 'none';
+    document.getElementById('assicModal').style.display = 'none';
+    _assicModalEmail = _assicModalWhatsapp = _assicModalName2 = _assicModalBadgeEl = null;
+}
+
+function saveAssicDate() {
+    const val = document.getElementById('assicModalDate').value;
+    const users = _getAllUsers();
+    let idx = _findUserIdx(users, _assicModalEmail, _assicModalWhatsapp);
+
+    if (idx === -1) {
+        users.push({
+            name: _assicModalName2 || '',
+            email: _assicModalEmail || null,
+            whatsapp: _assicModalWhatsapp || null,
+            createdAt: new Date().toISOString(),
+            assicurazioneScadenza: val || null,
+            assicurazioneHistory: [{ scadenza: val || null, aggiornatoIl: new Date().toISOString() }]
+        });
+    } else {
+        const oldAssic = users[idx].assicurazioneScadenza || '';
+        if (val !== oldAssic) {
+            users[idx].assicurazioneScadenza = val || null;
+            if (!users[idx].assicurazioneHistory) users[idx].assicurazioneHistory = [];
+            users[idx].assicurazioneHistory.push({ scadenza: val || null, aggiornatoIl: new Date().toISOString() });
+        }
+    }
+    _saveUsers(users);
+
+    // Aggiorna sessione se è il cliente loggato
+    const session = getCurrentUser();
+    if (session && (
+        (_assicModalEmail    && session.email?.toLowerCase()    === _assicModalEmail.toLowerCase()) ||
+        (_assicModalWhatsapp && normalizePhone(session.whatsapp) === normalizePhone(_assicModalWhatsapp))
+    )) {
+        loginUser({ ...session, assicurazioneScadenza: val || null });
+    }
+
+    // Aggiorna il badge in-place
+    if (_assicModalBadgeEl) {
+        const today = new Date().toISOString().split('T')[0];
+        const t30 = new Date(); t30.setDate(t30.getDate() + 30);
+        const today30 = t30.toISOString().split('T')[0];
+        if (!val) {
+            _assicModalBadgeEl.textContent = '📋 Imposta scadenza Assicurazione';
+            _assicModalBadgeEl.style.cssText = 'background:#fef3c7;border-color:#fde68a;color:#92400e;border-left:3px solid #f59e0b';
+        } else if (val < today) {
+            const [y, m, d] = val.split('-');
+            _assicModalBadgeEl.textContent = `📋 Assic. scaduta il ${d}/${m}/${y}`;
+            _assicModalBadgeEl.removeAttribute('style');
+        } else if (val <= today30) {
+            const [y, m, d] = val.split('-');
+            _assicModalBadgeEl.textContent = `⏳ Assic. scade il ${d}/${m}/${y}`;
+            _assicModalBadgeEl.style.cssText = 'background:#fffbeb;border-color:#fde68a;color:#92400e;border-left:3px solid #f59e0b';
+        } else {
+            const [y, m, d] = val.split('-');
+            _assicModalBadgeEl.textContent = `📋 Assic. valida fino al ${d}/${m}/${y}`;
+            _assicModalBadgeEl.style.cssText = 'background:#f0fdf4;border-color:#bbf7d0;color:#166534;border-left:3px solid #16a34a';
+        }
+    }
+
+    closeAssicModal();
 }
 
 function renderOccupancyDetail(panel) {

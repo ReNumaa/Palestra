@@ -321,6 +321,37 @@
                     </div>
                     <!-- End: blocco prenotazioni cert -->
 
+                    <!-- Blocco prenotazioni assicurazione -->
+                    <div class="settings-section">
+                        <h4 class="settings-section-title">🚫 Blocco prenotazioni per assicurazione</h4>
+                        <p class="settings-section-desc">Impedisci ai clienti di prenotare in base allo stato della loro assicurazione.</p>
+                        <div class="cert-block-toggles">
+                            <div class="settings-section--inline" style="margin-bottom:0; padding-bottom:0; border-bottom:none;">
+                                <div class="debt-threshold-text">
+                                    <strong class="settings-option-body-strong">Assicurazione scaduta</strong>
+                                    <span class="settings-section-desc" style="margin:0;">Blocca la prenotazione se l'assicurazione risulta scaduta.</span>
+                                </div>
+                                <label class="settings-toggle-wrap">
+                                    <input type="checkbox" id="assicBlockExpiredToggle" onchange="saveAssicBlockExpired(this.checked)">
+                                    <span class="settings-toggle-track"><span class="settings-toggle-thumb"></span></span>
+                                    <span class="settings-toggle-text" id="assicBlockExpiredText"></span>
+                                </label>
+                            </div>
+                            <div class="settings-section--inline" style="margin-bottom:0; padding-bottom:0; border-bottom:none; margin-top:1rem;">
+                                <div class="debt-threshold-text">
+                                    <strong class="settings-option-body-strong">Assicurazione non impostata</strong>
+                                    <span class="settings-section-desc" style="margin:0;">Blocca la prenotazione se il cliente non ha ancora inserito la data di scadenza.</span>
+                                </div>
+                                <label class="settings-toggle-wrap">
+                                    <input type="checkbox" id="assicBlockNotSetToggle" onchange="saveAssicBlockNotSet(this.checked)">
+                                    <span class="settings-toggle-track"><span class="settings-toggle-thumb"></span></span>
+                                    <span class="settings-toggle-text" id="assicBlockNotSetText"></span>
+                                </label>
+                            </div>
+                        </div>
+                    </div>
+                    <!-- End: blocco prenotazioni assicurazione -->
+
                     <!-- Backup & Ripristino -->
                     <div class="settings-section">
                         <h4 class="settings-section-title">💾 Backup & Ripristino</h4>
@@ -512,6 +543,28 @@
         </div>
     </div>
 
+    <!-- Assicurazione Modal -->
+    <div id="assicModalOverlay" class="debt-popup-overlay" onclick="closeAssicModal()" style="display:none"></div>
+    <div id="assicModal" class="cert-modal" style="display:none">
+        <div class="debt-popup-header">
+            <div>
+                <h3>📋 Assicurazione</h3>
+                <p id="assicModalName" style="margin:0;font-size:0.9rem;color:#6b7280"></p>
+            </div>
+            <button class="debt-popup-close" onclick="closeAssicModal()">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
+            </button>
+        </div>
+        <div class="cert-modal-body">
+            <label class="debt-field-label">Data di scadenza</label>
+            <input type="date" id="assicModalDate" class="cert-modal-date-input">
+            <div class="cert-modal-actions">
+                <button class="cert-modal-btn cert-modal-btn--cancel" onclick="closeAssicModal()">Annulla</button>
+                <button class="cert-modal-btn cert-modal-btn--save" onclick="saveAssicDate()">Salva</button>
+            </div>
+        </div>
+    </div>
+
     <!-- Debt Payment Popup -->
     <div id="debtPopupOverlay" class="debt-popup-overlay" onclick="closeDebtPopup()"></div>
     <div id="debtPopupModal" class="debt-popup-modal">
@@ -654,11 +707,11 @@
     </script>
     <script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
     <script src="js/ui.js?v=2"></script>
-    <script src="js/data.js?v=16"></script>
-    <script src="js/auth.js?v=7"></script>
+    <script src="js/data.js?v=17"></script>
+    <script src="js/auth.js?v=8"></script>
     <script src="js/push.js?v=1"></script>
     <script src="js/chart-mini.js?v=12"></script>
-    <script src="js/admin.js?v=49"></script>
+    <script src="js/admin.js?v=50"></script>
     <script>
         if ('serviceWorker' in navigator) {
             navigator.serviceWorker.register('/sw.js');

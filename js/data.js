@@ -1139,6 +1139,17 @@ class CertBookingStorage {
     static setBlockIfNotSet(val)  { localStorage.setItem(this.KEY_NOT_SET,  val ? 'true' : 'false'); }
 }
 
+// Assicurazione booking restrictions — block bookings when assicurazione is expired or not set
+// Supabase migration: settings table, keys = 'assic_block_expired' / 'assic_block_not_set'
+class AssicBookingStorage {
+    static KEY_EXPIRED  = 'gym_assic_block_expired';
+    static KEY_NOT_SET  = 'gym_assic_block_not_set';
+    static getBlockIfExpired() { return localStorage.getItem(this.KEY_EXPIRED) === 'true'; }
+    static getBlockIfNotSet()  { return localStorage.getItem(this.KEY_NOT_SET)  === 'true'; }
+    static setBlockIfExpired(val) { localStorage.setItem(this.KEY_EXPIRED, val ? 'true' : 'false'); }
+    static setBlockIfNotSet(val)  { localStorage.setItem(this.KEY_NOT_SET,  val ? 'true' : 'false'); }
+}
+
 // User storage — client lookup for schedule management (Slot prenotato picker)
 // Sources: registered accounts (gym_users) + unique clients from booking history (gym_bookings)
 // Supabase migration: replace localStorage reads in getAll() with:
