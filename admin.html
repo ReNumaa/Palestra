@@ -720,6 +720,7 @@
             await initAuth();
             await BookingStorage.syncFromSupabase();
             if (typeof loadDashboardData === 'function') loadDashboardData();
+            if (typeof renderAdminCalendar === 'function') renderAdminCalendar();
         })();
         if ('serviceWorker' in navigator) {
             navigator.serviceWorker.register('/sw.js');
