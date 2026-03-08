@@ -597,21 +597,21 @@
         }
 
         // ── Edit profile modal ────────────────────────────────────────────
-        function openEditProfileModal() {
+        async function openEditProfileModal() {
             const user = getCurrentUser();
             if (!user) return;
-            const stored = getUserByEmail(user.email);
-            document.getElementById('editName').value            = user.name || '';
-            document.getElementById('editEmail').value           = user.email || '';
-            document.getElementById('editWhatsapp').value        = user.whatsapp || '';
+            document.getElementById('editName').value     = user.name || '';
+            document.getElementById('editEmail').value    = user.email || '';
+            document.getElementById('editWhatsapp').value = user.whatsapp || '';
             const certField = document.getElementById('editCertScadenza');
-            certField.value    = stored?.certificatoMedicoScadenza || '';
+            certField.value    = user.medical_cert_expiry || '';
             certField.disabled = !CertEditableStorage.get();
-            document.getElementById('editAssicScadenza').value = stored?.assicurazioneScadenza || '';
+            document.getElementById('editAssicScadenza').value = user.insurance_expiry || '';
             document.getElementById('editPassword').value        = '';
             document.getElementById('editPasswordConfirm').value = '';
-            document.getElementById('editPasswordSection').style.display =
-                (user.provider === 'google') ? 'none' : 'block';
+            const { data: { session } } = await supabaseClient.auth.getSession();
+            const isOAuth = session?.user?.app_metadata?.provider !== 'email';
+            document.getElementById('editPasswordSection').style.display = isOAuth ? 'none' : 'block';
             document.getElementById('editProfileError').style.display = 'none';
             document.getElementById('editProfileModal').style.display = 'flex';
         }
@@ -620,7 +620,7 @@
             document.getElementById('editProfileModal').style.display = 'none';
         }
 
-        document.getElementById('editProfileForm').addEventListener('submit', function(e) {
+        document.getElementById('editProfileForm').addEventListener('submit', async function(e) {
             e.preventDefault();
             const user = getCurrentUser();
             if (!user) return;
@@ -642,7 +642,7 @@
             if (pass && pass !== passConf) return showErr('Le password non coincidono.');
 
             setLoading(btn, true, 'Salvataggio...');
-            const result = updateUserProfile(user.email, {
+            const result = await updateUserProfile(user.email, {
                 name,
                 email,
                 whatsapp: whatsapp ? normalizePhone(whatsapp) : '',
