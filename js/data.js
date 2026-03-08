@@ -207,7 +207,7 @@ class BookingStorage {
                 credit_applied: booking.creditApplied || 0,
                 created_at: booking.createdAt
             }).then(({ error }) => {
-                if (error) console.error('[Supabase] saveBooking error:', error);
+                if (error) console.error('[Supabase] saveBooking error:', error.code, error.message, error.details, error.hint);
             });
         }
 
