@@ -116,7 +116,7 @@ class SimpleChart {
         for (let i = 0; i <= 5; i++) {
             const y = pad.top + chartH - (chartH * i / 5);
             ctx.beginPath(); ctx.moveTo(pad.left, y); ctx.lineTo(pad.left + chartW, y); ctx.stroke();
-            ctx.fillText(`${options.prefix ?? '€'}${Math.round(axisMax * i / 5)}`, pad.left - 5, y + 4);
+            ctx.fillText(`${options.prefix ?? '€'}${Math.round(axisMax * i / 5)}${options.suffix ?? ''}`, pad.left - 5, y + 4);
         }
 
         const slotW = chartW / n;
@@ -141,7 +141,7 @@ class SimpleChart {
                 if (v > 0 && barH > 14) {
                     ctx.fillStyle = '#fff';
                     ctx.textAlign = 'center';
-                    const lines = data.valueLabels?.[i] || [`${options.prefix ?? '€'}${v}`];
+                    const lines = data.valueLabels?.[i] || [`${options.prefix ?? '€'}${v}${options.suffix ?? ''}`];
                     if (lines.length > 1 && barH > 28) {
                         ctx.font = 'bold 9px sans-serif';
                         ctx.fillText(lines[0], x + barW / 2, y + 10);

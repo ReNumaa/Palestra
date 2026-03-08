@@ -302,6 +302,7 @@ function loadDashboardData() {
                 case 'fatturato':    renderFatturatoDetail(panel);    break;
                 case 'prenotazioni': renderPrenotazioniDetail(panel); break;
                 case 'clienti':      renderClientiDetail(panel);      break;
+                case 'occupancy':    renderOccupancyDetail(panel);    break;
             }
         }
     }
@@ -353,36 +354,20 @@ function updateStatsCards(filteredBookings, allBookings) {
 
     // Occupancy rate over the filter period
     const { from, to } = getFilterDateRange(currentFilter);
-    let totalSlots = 0, ptSlots = 0, sgSlots = 0;
+    let totalSlots = 0;
     const cur = new Date(from); cur.setHours(0, 0, 0, 0);
     const end = new Date(to); end.setHours(23, 59, 59, 999);
     const dayNames = ['Domenica','Lunedì','Martedì','Mercoledì','Giovedì','Venerdì','Sabato'];
     while (cur <= end) {
         const slots = WEEKLY_SCHEDULE_TEMPLATE[dayNames[cur.getDay()]] || [];
-        slots.forEach(s => {
-            const cap = SLOT_MAX_CAPACITY[s.type] || 0;
-            totalSlots += cap;
-            if (s.type === 'personal-training') ptSlots += cap;
-            else if (s.type === 'small-group')  sgSlots += cap;
-        });
+        slots.forEach(s => { totalSlots += SLOT_MAX_CAPACITY[s.type] || 0; });
         cur.setDate(cur.getDate() + 1);
     }
-    const ptBookings = filteredBookings.filter(b => b.slotType === 'personal-training').length;
-    const sgBookings = filteredBookings.filter(b => b.slotType === 'small-group').length;
     const occupancyRate = totalSlots > 0 ? Math.round((filteredBookings.length / totalSlots) * 100) : 0;
-    const ptRate = ptSlots > 0 ? Math.round(ptBookings / ptSlots * 100) : null;
-    const sgRate = sgSlots > 0 ? Math.round(sgBookings / sgSlots * 100) : null;
     document.getElementById('occupancyRate').textContent = `${occupancyRate}%`;
     const occEl = document.getElementById('occupancyChange');
     occEl.textContent = filterLabel;
     occEl.className = occupancyRate > 50 ? 'stat-change positive' : 'stat-change';
-    const bkEl = document.getElementById('occBreakdown');
-    if (bkEl) {
-        const parts = [];
-        if (ptRate !== null) parts.push(`Autonomia ${ptRate}%`);
-        if (sgRate !== null) parts.push(`Gruppo ${sgRate}%`);
-        bkEl.textContent = parts.join(' · ');
-    }
 }
 
 function calculateTotalWeeklySlots() {
@@ -3774,6 +3759,7 @@ function toggleStatDetail(type) {
         case 'fatturato':     renderFatturatoDetail(panel);     break;
         case 'prenotazioni':  renderPrenotazioniDetail(panel);  break;
         case 'clienti':       renderClientiDetail(panel);       break;
+        case 'occupancy':     renderOccupancyDetail(panel);     break;
         default:
             panel.innerHTML = `<div class="stat-detail-header"><h3>Dettaglio ${type}</h3></div><p style="color:#9ca3af;text-align:center;padding:1.5rem 0">Prossimamente</p>`;
     }
@@ -4379,6 +4365,129 @@ function saveCertDate() {
     }
 
     closeCertModal();
+}
+
+function renderOccupancyDetail(panel) {
+    const allBookings = BookingStorage.getAllBookings().filter(b => b.status !== 'cancelled');
+    const { from, to } = getFilterDateRange(currentFilter);
+    const now   = new Date();
+    const today = new Date(now); today.setHours(0, 0, 0, 0);
+    const MONTHS = ['Gen','Feb','Mar','Apr','Mag','Giu','Lug','Ago','Set','Ott','Nov','Dic'];
+    const DAY_NAMES = ['Domenica','Lunedì','Martedì','Mercoledì','Giovedì','Venerdì','Sabato'];
+
+    // ── Calcola capacità e prenotazioni per tipo per ogni mese (ultimi 12) ────
+    const trendLabels = [], ptTrend = [], sgTrend = [];
+    for (let i = 11; i >= 0; i--) {
+        const mFrom = new Date(now.getFullYear(), now.getMonth() - i, 1);
+        const mTo   = new Date(now.getFullYear(), now.getMonth() - i + 1, 0, 23, 59, 59, 999);
+        trendLabels.push(MONTHS[mFrom.getMonth()]);
+        let ptCap = 0, sgCap = 0;
+        const c = new Date(mFrom);
+        while (c <= mTo) {
+            (WEEKLY_SCHEDULE_TEMPLATE[DAY_NAMES[c.getDay()]] || []).forEach(s => {
+                if (s.type === 'personal-training') ptCap += SLOT_MAX_CAPACITY['personal-training'] || 0;
+                else if (s.type === 'small-group')  sgCap += SLOT_MAX_CAPACITY['small-group'] || 0;
+            });
+            c.setDate(c.getDate() + 1);
+        }
+        const ptB = allBookings.filter(b => { const d = new Date(b.date+'T00:00:00'); return b.slotType==='personal-training' && d>=mFrom && d<=mTo; }).length;
+        const sgB = allBookings.filter(b => { const d = new Date(b.date+'T00:00:00'); return b.slotType==='small-group'        && d>=mFrom && d<=mTo; }).length;
+        ptTrend.push(ptCap > 0 ? Math.round(ptB / ptCap * 100) : 0);
+        sgTrend.push(sgCap > 0 ? Math.round(sgB / sgCap * 100) : 0);
+    }
+
+    // ── Calcola capacità e prenotazioni per tipo nel periodo filtro ──────────
+    let ptSlots = 0, sgSlots = 0;
+    const c2 = new Date(from); c2.setHours(0,0,0,0);
+    const e2 = new Date(to);   e2.setHours(23,59,59,999);
+    while (c2 <= e2) {
+        (WEEKLY_SCHEDULE_TEMPLATE[DAY_NAMES[c2.getDay()]] || []).forEach(s => {
+            if (s.type === 'personal-training') ptSlots += SLOT_MAX_CAPACITY['personal-training'] || 0;
+            else if (s.type === 'small-group')  sgSlots += SLOT_MAX_CAPACITY['small-group'] || 0;
+        });
+        c2.setDate(c2.getDate() + 1);
+    }
+    const periodBookings = allBookings.filter(b => { const d = new Date(b.date+'T00:00:00'); return d >= from && d <= to; });
+    const ptB = periodBookings.filter(b => b.slotType === 'personal-training').length;
+    const sgB = periodBookings.filter(b => b.slotType === 'small-group').length;
+    const ptRate = ptSlots > 0 ? Math.round(ptB / ptSlots * 100) : 0;
+    const sgRate = sgSlots > 0 ? Math.round(sgB / sgSlots * 100) : 0;
+    const totSlots = ptSlots + sgSlots;
+    const totRate  = totSlots > 0 ? Math.round((ptB + sgB) / totSlots * 100) : 0;
+
+    // ── Occupancy per giorno della settimana ─────────────────────────────────
+    const DOW_ORDER = [1,2,3,4,5,6,0];
+    const DOW_NAMES = ['Dom','Lun','Mar','Mer','Gio','Ven','Sab'];
+    const dowLabels = DOW_ORDER.map(d => DOW_NAMES[d]);
+    // capacità per giorno (numero di posti disponibili per quel giorno della settimana × settimane nel periodo)
+    const weeksInPeriod = Math.max(1, Math.round((e2 - c2) / (7 * 24 * 60 * 60 * 1000)));
+    const dowRates = DOW_ORDER.map(dow => {
+        const daySlots = (WEEKLY_SCHEDULE_TEMPLATE[['Domenica','Lunedì','Martedì','Mercoledì','Giovedì','Venerdì','Sabato'][dow]] || []);
+        const cap = daySlots.reduce((s, sl) => s + (SLOT_MAX_CAPACITY[sl.type] || 0), 0) * weeksInPeriod;
+        const bk  = periodBookings.filter(b => new Date(b.date+'T00:00:00').getDay() === dow).length;
+        return cap > 0 ? Math.round(bk / cap * 100) : 0;
+    });
+
+    panel.innerHTML = `
+        <div class="stat-detail-header">
+            <h3>📊 Occupazione — Dettaglio</h3>
+            <span class="stat-detail-period">${getFilterLabel(currentFilter)}</span>
+        </div>
+        <div class="stat-detail-kpis">
+            <div class="stat-detail-kpi">
+                <div class="stat-detail-kpi-value">${totRate}%</div>
+                <div class="stat-detail-kpi-label">Totale</div>
+            </div>
+            <div class="stat-detail-kpi stat-detail-kpi--future">
+                <div class="stat-detail-kpi-value">${ptRate}%</div>
+                <div class="stat-detail-kpi-label">Autonomia</div>
+            </div>
+            <div class="stat-detail-kpi stat-detail-kpi--projected">
+                <div class="stat-detail-kpi-value">${sgRate}%</div>
+                <div class="stat-detail-kpi-label">Lez. Gruppo</div>
+            </div>
+            <div class="stat-detail-kpi">
+                <div class="stat-detail-kpi-value">${ptB + sgB}</div>
+                <div class="stat-detail-kpi-label">Prenotazioni</div>
+            </div>
+        </div>
+
+        <div class="stat-detail-charts">
+            <div class="stat-detail-chart-block">
+                <h4>Autonomia — ultimi 12 mesi</h4>
+                <canvas id="occPtChart" style="width:100%;display:block;"></canvas>
+            </div>
+            <div class="stat-detail-chart-block">
+                <h4>Lezioni di Gruppo — ultimi 12 mesi</h4>
+                <canvas id="occSgChart" style="width:100%;display:block;"></canvas>
+            </div>
+        </div>
+
+        <div class="stat-detail-charts">
+            <div class="stat-detail-chart-block" style="grid-column:1/-1">
+                <h4>Occupazione per giorno della settimana</h4>
+                <canvas id="occDowChart" style="width:100%;display:block;"></canvas>
+            </div>
+        </div>
+    `;
+
+    requestAnimationFrame(() => {
+        const ptCanvas = document.getElementById('occPtChart');
+        if (ptCanvas) new SimpleChart(ptCanvas).drawBarChart(
+            { labels: trendLabels, values: ptTrend, highlight: trendLabels.map((_, i) => i === 11) },
+            { colors: ['#3b82f6'], prefix: '', suffix: '%' }
+        );
+        const sgCanvas = document.getElementById('occSgChart');
+        if (sgCanvas) new SimpleChart(sgCanvas).drawBarChart(
+            { labels: trendLabels, values: sgTrend, highlight: trendLabels.map((_, i) => i === 11) },
+            { colors: ['#22c55e'], prefix: '', suffix: '%' }
+        );
+        const dowCanvas = document.getElementById('occDowChart');
+        if (dowCanvas) new SimpleChart(dowCanvas).drawBarChart(
+            { labels: dowLabels, values: dowRates },
+            { colors: ['#f59e0b'], prefix: '', suffix: '%' }
+        );
+    });
 }
 
 // ── End Statistics Detail Panel ───────────────────────────────────────────────
