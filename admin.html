@@ -321,6 +321,19 @@
                     </div>
                     <!-- End: blocco prenotazioni cert -->
 
+                    <!-- Backup & Ripristino -->
+                    <div class="settings-section">
+                        <h4 class="settings-section-title">💾 Backup & Ripristino</h4>
+                        <p class="settings-section-desc">Esporta tutti i dati in un file di backup JSON oppure ripristina un backup precedente. Il ripristino sovrascrive tutti i dati attuali.</p>
+                        <div style="display:flex;gap:0.75rem;flex-wrap:wrap;margin-top:0.75rem">
+                            <button class="btn-action" onclick="exportBackup()" style="background:#2563eb">📤 Esporta backup</button>
+                            <button class="btn-action" onclick="document.getElementById('importBackupFile').click()" style="background:#059669">📥 Importa backup</button>
+                        </div>
+                        <input type="file" id="importBackupFile" accept=".json" style="display:none" onchange="importBackup(this)">
+                        <div id="backupStatus" style="margin-top:0.6rem;font-size:0.85rem;color:#6b7280"></div>
+                    </div>
+                    <!-- End: backup -->
+
                     <!-- Azioni Rapide -->
                     <div class="settings-section">
                         <h4 class="settings-section-title">⚡ Azioni Rapide</h4>
@@ -645,7 +658,7 @@
     <script src="js/auth.js?v=7"></script>
     <script src="js/push.js?v=1"></script>
     <script src="js/chart-mini.js?v=12"></script>
-    <script src="js/admin.js?v=47"></script>
+    <script src="js/admin.js?v=48"></script>
     <script>
         if ('serviceWorker' in navigator) {
             navigator.serviceWorker.register('/sw.js');

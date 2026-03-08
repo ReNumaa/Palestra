@@ -565,6 +565,68 @@ function updatePopularTimes(bookings) {
 }
 
 // Action buttons
+const BACKUP_KEYS = [
+    'gym_bookings', 'gym_stats', 'gym_users', 'gym_credits',
+    'gym_manual_debts', 'gym_bonus', 'weeklyScheduleTemplate',
+    'scheduleOverrides', 'scheduleVersion', 'gym_debt_threshold',
+    'gym_cancellation_mode', 'gym_cert_scadenza_editable', 'dataClearedByUser'
+];
+
+function exportBackup() {
+    const backup = {
+        version: 1,
+        exportedAt: new Date().toISOString(),
+        data: {}
+    };
+    BACKUP_KEYS.forEach(key => {
+        const val = localStorage.getItem(key);
+        if (val !== null) backup.data[key] = val;
+    });
+    const blob = new Blob([JSON.stringify(backup, null, 2)], { type: 'application/json' });
+    const a = document.createElement('a');
+    a.href = URL.createObjectURL(blob);
+    a.download = `gym-backup-${new Date().toISOString().split('T')[0]}.json`;
+    a.click();
+    URL.revokeObjectURL(a.href);
+    const s = document.getElementById('backupStatus');
+    if (s) s.textContent = `✅ Backup esportato il ${new Date().toLocaleString('it-IT')}`;
+}
+
+function importBackup(input) {
+    const file = input.files[0];
+    if (!file) return;
+    const reader = new FileReader();
+    reader.onload = e => {
+        try {
+            const backup = JSON.parse(e.target.result);
+            if (!backup?.data || typeof backup.data !== 'object') throw new Error('Formato non valido');
+            const keyCount = Object.keys(backup.data).length;
+            const exportDate = backup.exportedAt
+                ? new Date(backup.exportedAt).toLocaleString('it-IT')
+                : 'data sconosciuta';
+            if (!confirm(`Ripristinare il backup del ${exportDate}?\n\nConterrà ${keyCount} sezioni di dati.\n\n⚠️ ATTENZIONE: tutti i dati attuali verranno sovrascritti.`)) {
+                input.value = '';
+                return;
+            }
+            BACKUP_KEYS.forEach(key => {
+                if (backup.data[key] !== undefined) {
+                    localStorage.setItem(key, backup.data[key]);
+                }
+            });
+            const s = document.getElementById('backupStatus');
+            if (s) s.textContent = '✅ Backup ripristinato. Ricarico...';
+            setTimeout(() => location.reload(), 800);
+        } catch (err) {
+            alert('Errore durante l\'importazione: ' + err.message);
+            const s = document.getElementById('backupStatus');
+            if (s) s.textContent = '❌ Importazione fallita: ' + err.message;
+        } finally {
+            input.value = '';
+        }
+    };
+    reader.readAsText(file);
+}
+
 function exportData() {
     const date = new Date().toISOString().split('T')[0];
 
