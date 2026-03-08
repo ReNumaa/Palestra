@@ -2288,6 +2288,12 @@ canvas {
     font-weight: 600;
 }
 
+.cert-expired-badge--clickable {
+    cursor: pointer;
+    transition: opacity 0.15s;
+}
+.cert-expired-badge--clickable:hover { opacity: 0.75; }
+
 /* ===== Debt Payment Popup ===== */
 .debt-popup-overlay {
     position: fixed;

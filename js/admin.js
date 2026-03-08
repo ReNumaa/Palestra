@@ -971,12 +971,13 @@ function _buildParticipantCard(booking) {
         ? `<div class="admin-cancel-pending-badge">⏳ Annullamento richiesto</div>` : '';
     const userRecord = getUserByEmail(booking.email);
     const certScad = userRecord?.certificatoMedicoScadenza;
+    const emE = booking.email.replace(/'/g, "\\'");
     let certBadge = '';
     if (!certScad) {
-        certBadge = `<div class="cert-expired-badge">🏥 Imposta scadenza certificato medico</div>`;
+        certBadge = `<div class="cert-expired-badge cert-expired-badge--clickable" onclick="setCertDateInline(this,'${emE}')">🏥 Imposta scadenza Cert. Med</div>`;
     } else if (certScad < new Date().toISOString().split('T')[0]) {
         const [cy, cm, cd] = certScad.split('-');
-        certBadge = `<div class="cert-expired-badge">🏥 Cert. scaduto il ${cd}/${cm}/${cy}</div>`;
+        certBadge = `<div class="cert-expired-badge cert-expired-badge--clickable" onclick="setCertDateInline(this,'${emE}')">🏥 Cert. scaduto il ${cd}/${cm}/${cy}</div>`;
     }
     const wa  = booking.whatsapp.replace(/'/g, "\\'");
     const em  = booking.email.replace(/'/g, "\\'");
@@ -990,7 +991,9 @@ function _buildParticipantCard(booking) {
                 ${booking.notes ? `<div class="participant-notes">📝 ${_escHtml(booking.notes)}</div>` : ''}
                 ${cancelPendingBadge}${certBadge}
                 ${hasDebts ? `<div class="debt-warning" onclick="openDebtPopup('${wa}','${em}','${nm}')">⚠️ Da pagare: €${unpaidAmount}</div>` : ''}
-                ${!isCancelPending ? `<div class="payment-status ${isPaid ? 'paid' : 'unpaid'}"${!isPaid ? ` onclick="openDebtPopup('${wa}','${em}','${nm}')"` : ''}>${isPaid ? '✓ Pagato' : '⊕ Segna pagato'}</div>` : ''}
+                ${!isCancelPending ? (isPaid
+                    ? `<div class="payment-status paid">✓ Pagato</div>`
+                    : (!hasDebts ? `<div class="payment-status unpaid" onclick="openDebtPopup('${wa}','${em}','${nm}')">⊕ Segna pagato</div>` : '')) : ''}
             </div>
         </div>`;
 }
@@ -4256,6 +4259,44 @@ function renderClientiDetail(panel) {
             </div>
         </div>
     `;
+}
+
+function setCertDateInline(badgeEl, email) {
+    const current = getUserByEmail(email)?.certificatoMedicoScadenza || '';
+    const input = document.createElement('input');
+    input.type = 'date';
+    input.value = current;
+    input.style.cssText = 'font-size:0.8rem;border:1px solid #fca5a5;border-radius:4px;padding:2px 6px;background:#fff;color:#111;width:135px;cursor:pointer';
+    badgeEl.innerHTML = '🏥 ';
+    badgeEl.appendChild(input);
+    input.focus();
+    input.showPicker?.();
+
+    const save = () => {
+        const val = input.value;
+        const users = _getAllUsers();
+        const idx = users.findIndex(u => u.email?.toLowerCase() === email.toLowerCase());
+        if (idx !== -1) {
+            users[idx].certificatoMedicoScadenza = val || null;
+            _saveUsers(users);
+        }
+        const today = new Date().toISOString().split('T')[0];
+        if (!val) {
+            badgeEl.innerHTML = '🏥 Imposta scadenza Cert. Med';
+        } else if (val < today) {
+            const [y, m, d] = val.split('-');
+            badgeEl.innerHTML = `🏥 Cert. scaduto il ${d}/${m}/${y}`;
+        } else {
+            const [y, m, d] = val.split('-');
+            badgeEl.innerHTML = `🏥 Cert. Med scade il ${d}/${m}/${y}`;
+            badgeEl.style.background = '#f0fdf4';
+            badgeEl.style.borderColor = '#bbf7d0';
+            badgeEl.style.color = '#166534';
+        }
+    };
+
+    input.addEventListener('change', save);
+    input.addEventListener('blur', save);
 }
 
 // ── End Statistics Detail Panel ───────────────────────────────────────────────
