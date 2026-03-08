@@ -181,12 +181,6 @@ class BookingStorage {
     // Only updates localStorage if Supabase returns at least 1 row (prevents accidental wipe).
     static async syncFromSupabase() {
         if (typeof supabaseClient === 'undefined') return;
-        // Skip sync if not authenticated — avoids overwriting localStorage with empty data
-        const { data: { session } } = await supabaseClient.auth.getSession();
-        if (!session) {
-            console.log('[Supabase] syncFromSupabase: nessuna sessione attiva, skip');
-            return;
-        }
         try {
             const { data, error } = await supabaseClient
                 .from('bookings')
