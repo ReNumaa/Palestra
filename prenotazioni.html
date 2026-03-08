@@ -174,7 +174,7 @@
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.min.js"></script>
     <script src="js/supabase-client.js?v=1"></script>
     <script src="js/ui.js?v=2"></script>
-    <script src="js/data.js?v=23"></script>
+    <script src="js/data.js?v=24"></script>
     <script src="js/auth.js?v=10"></script>
     <script src="js/push.js?v=1"></script>
     <script>
@@ -245,7 +245,10 @@
         async function _boot() {
             await initAuth();
             if (!getCurrentUser()) { window.location.href = 'login.html'; return; }
-            await BookingStorage.syncFromSupabase();
+            await Promise.all([
+                BookingStorage.syncFromSupabase(),
+                CreditStorage.syncFromSupabase(),
+            ]);
             if (document.readyState === 'loading') {
                 document.addEventListener('DOMContentLoaded', _initPrenoPage);
             } else {
@@ -259,7 +262,10 @@
             if (!e.persisted) return;
             await initAuth();
             if (!getCurrentUser()) { window.location.href = 'login.html'; return; }
-            await BookingStorage.syncFromSupabase();
+            await Promise.all([
+                BookingStorage.syncFromSupabase(),
+                CreditStorage.syncFromSupabase(),
+            ]);
             _initPrenoPage();
         });
 

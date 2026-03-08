@@ -907,6 +907,32 @@ class CreditStorage {
 
     static _save(data) {
         localStorage.setItem(this.CREDITS_KEY, JSON.stringify(data));
+        if (typeof supabaseClient !== 'undefined') {
+            supabaseClient.from('app_settings').upsert({
+                key: this.CREDITS_KEY,
+                value: data,
+                updated_at: new Date().toISOString()
+            }).then(({ error }) => {
+                if (error) console.error('[Supabase] CreditStorage._save error:', error.message);
+            });
+        }
+    }
+
+    static async syncFromSupabase() {
+        if (typeof supabaseClient === 'undefined') return;
+        try {
+            const { data, error } = await supabaseClient
+                .from('app_settings').select('value')
+                .eq('key', this.CREDITS_KEY).single();
+            if (error) {
+                if (error.code !== 'PGRST116') console.error('[Supabase] CreditStorage.sync error:', error.message);
+                return;
+            }
+            if (data?.value) {
+                localStorage.setItem(this.CREDITS_KEY, JSON.stringify(data.value));
+                console.log('[Supabase] CreditStorage.sync: dati caricati');
+            }
+        } catch (e) { console.error('[Supabase] CreditStorage.sync exception:', e); }
     }
 
     static _key(whatsapp, email) {
@@ -1084,6 +1110,32 @@ class ManualDebtStorage {
 
     static _save(data) {
         localStorage.setItem(this.DEBTS_KEY, JSON.stringify(data));
+        if (typeof supabaseClient !== 'undefined') {
+            supabaseClient.from('app_settings').upsert({
+                key: this.DEBTS_KEY,
+                value: data,
+                updated_at: new Date().toISOString()
+            }).then(({ error }) => {
+                if (error) console.error('[Supabase] ManualDebtStorage._save error:', error.message);
+            });
+        }
+    }
+
+    static async syncFromSupabase() {
+        if (typeof supabaseClient === 'undefined') return;
+        try {
+            const { data, error } = await supabaseClient
+                .from('app_settings').select('value')
+                .eq('key', this.DEBTS_KEY).single();
+            if (error) {
+                if (error.code !== 'PGRST116') console.error('[Supabase] ManualDebtStorage.sync error:', error.message);
+                return;
+            }
+            if (data?.value) {
+                localStorage.setItem(this.DEBTS_KEY, JSON.stringify(data.value));
+                console.log('[Supabase] ManualDebtStorage.sync: dati caricati');
+            }
+        } catch (e) { console.error('[Supabase] ManualDebtStorage.sync exception:', e); }
     }
 
     static _key(whatsapp, email) {
