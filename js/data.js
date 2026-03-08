@@ -852,27 +852,36 @@ class BookingStorage {
         }
     }
 
-    // Fetches schedule overrides from Supabase and updates localStorage cache.
-    static async syncScheduleFromSupabase() {
+    // Fetches ALL app_settings from Supabase in a single query and updates localStorage.
+    // Covers: scheduleOverrides, credits, debts, bonus, and all global settings.
+    static async syncAppSettingsFromSupabase() {
         if (typeof supabaseClient === 'undefined') return;
         try {
             const { data, error } = await supabaseClient
                 .from('app_settings')
-                .select('value')
-                .eq('key', 'scheduleOverrides')
-                .maybeSingle();
-            if (error) {
-                console.error('[Supabase] syncScheduleFromSupabase error:', error.message);
-                return;
-            }
-            if (data?.value) {
-                localStorage.setItem('scheduleOverrides', JSON.stringify(data.value));
-                console.log('[Supabase] syncScheduleFromSupabase: schedule caricato');
-            }
-        } catch (e) {
-            console.error('[Supabase] syncScheduleFromSupabase exception:', e);
-        }
+                .select('key, value');
+            if (error) { console.error('[Supabase] syncAppSettings error:', error.message); return; }
+            if (!data || data.length === 0) return;
+            const map = Object.fromEntries(data.map(r => [r.key, r.value]));
+            const _setJson = (k, v) => { if (v != null) localStorage.setItem(k, JSON.stringify(v)); };
+            const _setStr  = (k, v) => { if (v != null) localStorage.setItem(k, String(v)); };
+            _setJson('scheduleOverrides',                        map['scheduleOverrides']);
+            _setJson(CreditStorage.CREDITS_KEY,                  map[CreditStorage.CREDITS_KEY]);
+            _setJson(ManualDebtStorage.DEBTS_KEY,                map[ManualDebtStorage.DEBTS_KEY]);
+            _setJson(BonusStorage.BONUS_KEY,                     map[BonusStorage.BONUS_KEY]);
+            _setStr(DebtThresholdStorage.KEY,                    map[DebtThresholdStorage.KEY]);
+            _setStr(CancellationModeStorage.KEY,                 map[CancellationModeStorage.KEY]);
+            _setStr(CertEditableStorage.KEY,                     map[CertEditableStorage.KEY]);
+            _setStr(CertBookingStorage.KEY_EXPIRED,              map[CertBookingStorage.KEY_EXPIRED]);
+            _setStr(CertBookingStorage.KEY_NOT_SET,              map[CertBookingStorage.KEY_NOT_SET]);
+            _setStr(AssicBookingStorage.KEY_EXPIRED,             map[AssicBookingStorage.KEY_EXPIRED]);
+            _setStr(AssicBookingStorage.KEY_NOT_SET,             map[AssicBookingStorage.KEY_NOT_SET]);
+            console.log(`[Supabase] syncAppSettings: ${data.length} voci caricate`);
+        } catch (e) { console.error('[Supabase] syncAppSettings exception:', e); }
     }
+
+    // Kept for backward compat — use syncAppSettingsFromSupabase() on page load instead.
+    static async syncScheduleFromSupabase() { await this.syncAppSettingsFromSupabase(); }
 
     // Sostituisce l'intero array di prenotazioni (usato dopo modifiche bulk).
     // Sincronizza su Supabase solo i booking effettivamente cambiati (diff intelligente).
@@ -1241,6 +1250,13 @@ class BonusStorage {
 
     static _save(data) {
         localStorage.setItem(this.BONUS_KEY, JSON.stringify(data));
+        if (typeof supabaseClient !== 'undefined') {
+            supabaseClient.from('app_settings').upsert({
+                key: this.BONUS_KEY, value: data, updated_at: new Date().toISOString()
+            }).then(({ error }) => {
+                if (error) console.error('[Supabase] BonusStorage._save error:', error.message);
+            });
+        }
     }
 
     // Returns current month as "YYYY-MM" using JS Date (handles leap years, variable month lengths).
@@ -1295,51 +1311,59 @@ class BonusStorage {
     }
 }
 
+// Helper: dual-write a primitive setting to Supabase app_settings (fire-and-forget)
+function _upsertSetting(key, value) {
+    if (typeof supabaseClient === 'undefined') return;
+    supabaseClient.from('app_settings').upsert({
+        key, value, updated_at: new Date().toISOString()
+    }).then(({ error }) => {
+        if (error) console.error(`[Supabase] setting '${key}' save error:`, error.message);
+    });
+}
+
 // Debt threshold storage — global setting: max past unpaid debt allowed to make new bookings
 class DebtThresholdStorage {
     static KEY = 'gym_debt_threshold';
     static get() { return parseFloat(localStorage.getItem(this.KEY) || '0') || 0; }
-    static set(amount) { localStorage.setItem(this.KEY, String(parseFloat(amount) || 0)); }
+    static set(amount) {
+        const v = parseFloat(amount) || 0;
+        localStorage.setItem(this.KEY, String(v));
+        _upsertSetting(this.KEY, v);
+    }
 }
 
 // Cancellation mode — global setting: how the restricted cancellation window is handled
-// 'new-person': classic "richiedi annullamento" (conditional on someone else booking the slot)
-// 'penalty-50': client can cancel immediately with a 50% refund penalty
-// Supabase migration: settings table, key = 'cancellation_mode'
 class CancellationModeStorage {
     static KEY = 'gym_cancellation_mode';
     static get() { return localStorage.getItem(this.KEY) || 'new-person'; }
-    static set(mode) { localStorage.setItem(this.KEY, mode); }
+    static set(mode) { localStorage.setItem(this.KEY, mode); _upsertSetting(this.KEY, mode); }
 }
 
 // Cert editable — whether clients can modify their own medical certificate expiry date
-// Supabase migration: settings table, key = 'cert_scadenza_editable'
 class CertEditableStorage {
     static KEY = 'gym_cert_scadenza_editable';
     static get() { const v = localStorage.getItem(this.KEY); return v === null ? true : v === 'true'; }
-    static set(val) { localStorage.setItem(this.KEY, val ? 'true' : 'false'); }
+    static set(val) { localStorage.setItem(this.KEY, val ? 'true' : 'false'); _upsertSetting(this.KEY, val ? 'true' : 'false'); }
 }
 
 // Cert booking restrictions — block bookings when cert is expired or not set
-// Supabase migration: settings table, keys = 'cert_block_expired' / 'cert_block_not_set'
 class CertBookingStorage {
     static KEY_EXPIRED  = 'gym_cert_block_expired';
     static KEY_NOT_SET  = 'gym_cert_block_not_set';
     static getBlockIfExpired() { return localStorage.getItem(this.KEY_EXPIRED) === 'true'; }
     static getBlockIfNotSet()  { return localStorage.getItem(this.KEY_NOT_SET)  === 'true'; }
-    static setBlockIfExpired(val) { localStorage.setItem(this.KEY_EXPIRED, val ? 'true' : 'false'); }
-    static setBlockIfNotSet(val)  { localStorage.setItem(this.KEY_NOT_SET,  val ? 'true' : 'false'); }
+    static setBlockIfExpired(val) { localStorage.setItem(this.KEY_EXPIRED, val ? 'true' : 'false'); _upsertSetting(this.KEY_EXPIRED, val ? 'true' : 'false'); }
+    static setBlockIfNotSet(val)  { localStorage.setItem(this.KEY_NOT_SET,  val ? 'true' : 'false'); _upsertSetting(this.KEY_NOT_SET,  val ? 'true' : 'false'); }
 }
 
 // Assicurazione booking restrictions — block bookings when assicurazione is expired or not set
-// Supabase migration: settings table, keys = 'assic_block_expired' / 'assic_block_not_set'
 class AssicBookingStorage {
     static KEY_EXPIRED  = 'gym_assic_block_expired';
     static KEY_NOT_SET  = 'gym_assic_block_not_set';
     static getBlockIfExpired() { return localStorage.getItem(this.KEY_EXPIRED) === 'true'; }
     static getBlockIfNotSet()  { return localStorage.getItem(this.KEY_NOT_SET)  === 'true'; }
-    static setBlockIfExpired(val) { localStorage.setItem(this.KEY_EXPIRED, val ? 'true' : 'false'); }
-    static setBlockIfNotSet(val)  { localStorage.setItem(this.KEY_NOT_SET,  val ? 'true' : 'false'); }
+    static setBlockIfExpired(val) { localStorage.setItem(this.KEY_EXPIRED, val ? 'true' : 'false'); _upsertSetting(this.KEY_EXPIRED, val ? 'true' : 'false'); }
+    static setBlockIfNotSet(val)  { localStorage.setItem(this.KEY_NOT_SET,  val ? 'true' : 'false'); _upsertSetting(this.KEY_NOT_SET,  val ? 'true' : 'false'); }
 }
 
 // User storage — client lookup for schedule management (Slot prenotato picker)
