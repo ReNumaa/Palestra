@@ -874,9 +874,42 @@ class BookingStorage {
         }
     }
 
-    // Sostituisce l'intero array di prenotazioni (usato dopo modifiche bulk)
+    // Sostituisce l'intero array di prenotazioni (usato dopo modifiche bulk).
+    // Sincronizza su Supabase solo i booking effettivamente cambiati (diff intelligente).
     static replaceAllBookings(bookings) {
+        const prev = this.getAllBookings();
         localStorage.setItem(this.BOOKINGS_KEY, JSON.stringify(bookings));
+
+        if (typeof supabaseClient === 'undefined') return;
+        const prevMap = Object.fromEntries(prev.map(b => [b.id, b]));
+        const changed = bookings.filter(b => {
+            const p = prevMap[b.id];
+            if (!p) return false; // nuovi booking gestiti da saveBooking
+            return p.status !== b.status
+                || p.paid !== b.paid
+                || p.paymentMethod !== b.paymentMethod
+                || p.paidAt !== b.paidAt
+                || p.creditApplied !== b.creditApplied
+                || p.cancellationRequestedAt !== b.cancellationRequestedAt
+                || p.cancelledAt !== b.cancelledAt;
+        });
+        changed.forEach(b => {
+            supabaseClient.from('bookings').update({
+                status: b.status,
+                paid: b.paid || false,
+                payment_method: b.paymentMethod || null,
+                paid_at: b.paidAt || null,
+                credit_applied: b.creditApplied || 0,
+                cancellation_requested_at: b.cancellationRequestedAt || null,
+                cancelled_at: b.cancelledAt || null,
+                cancelled_payment_method: b.cancelledPaymentMethod || null,
+                cancelled_paid_at: b.cancelledPaidAt || null,
+                cancelled_with_bonus: b.cancelledWithBonus || false,
+                cancelled_with_penalty: b.cancelledWithPenalty || false,
+            }).eq('local_id', b.id).then(({ error }) => {
+                if (error) console.error('[Supabase] booking update error:', error.message);
+            });
+        });
     }
 
     // Marca come cancellata una prenotazione per ID (preserva lo storico)
