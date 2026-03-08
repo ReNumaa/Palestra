@@ -78,8 +78,6 @@
 
             <!-- Warning certificato medico -->
             <div id="prenoCertWarning"></div>
-            <!-- Warning assicurazione -->
-            <div id="prenoAssicWarning"></div>
 
             <!-- Tabs -->
             <div class="preno-tabs">
@@ -153,6 +151,10 @@
                     <label for="editCertScadenza">Scadenza certificato medico</label>
                     <input type="date" id="editCertScadenza">
                 </div>
+                <div class="form-group">
+                    <label>Scadenza assicurazione <span class="edit-profile-label-note">(gestita dal trainer)</span></label>
+                    <input type="date" id="editAssicScadenza" disabled>
+                </div>
                 <div id="editPasswordSection">
                     <div class="form-group">
                         <label for="editPassword">Nuova password <span class="edit-profile-label-note">(lascia vuoto per non cambiare)</span></label>
@@ -210,7 +212,6 @@
             renderCreditBalance();
             renderBonusBalance();
             renderCertWarning();
-            renderAssicWarning();
             _startPolling();
         }
 
@@ -586,34 +587,6 @@
             }
         }
 
-        // ── Assicurazione warning (display-only) ──────────────────────────
-        function renderAssicWarning() {
-            const user = getCurrentUser();
-            const el   = document.getElementById('prenoAssicWarning');
-            if (!user || !el) return;
-
-            const stored = getUserByEmail(user.email);
-            const scad   = stored?.assicurazioneScadenza;
-            if (!scad) {
-                el.innerHTML = `<div class="preno-cert-warning preno-cert-expired">📋 Assicurazione non impostata — contatta il trainer</div>`;
-                return;
-            }
-
-            const today    = new Date(); today.setHours(0,0,0,0);
-            const scadDt   = new Date(scad + 'T00:00:00');
-            const diffDays = Math.ceil((scadDt - today) / (1000 * 60 * 60 * 24));
-            const [y, m, d] = scad.split('-');
-            const dateLabel = `${d}/${m}/${y}`;
-
-            if (diffDays <= 0) {
-                el.innerHTML = `<div class="preno-cert-warning preno-cert-expired">📋 Assicurazione scaduta il ${dateLabel} — contatta il trainer</div>`;
-            } else if (diffDays <= 30) {
-                el.innerHTML = `<div class="preno-cert-warning preno-cert-expiring">⏳ Mancano ${diffDays} giorn${diffDays === 1 ? 'o' : 'i'} alla scadenza dell'assicurazione</div>`;
-            } else {
-                el.innerHTML = '';
-            }
-        }
-
         // ── Edit profile modal ────────────────────────────────────────────
         function openEditProfileModal() {
             const user = getCurrentUser();
@@ -625,6 +598,7 @@
             const certField = document.getElementById('editCertScadenza');
             certField.value    = stored?.certificatoMedicoScadenza || '';
             certField.disabled = !CertEditableStorage.get();
+            document.getElementById('editAssicScadenza').value = stored?.assicurazioneScadenza || '';
             document.getElementById('editPassword').value        = '';
             document.getElementById('editPasswordConfirm').value = '';
             document.getElementById('editPasswordSection').style.display =
@@ -677,7 +651,6 @@
             document.getElementById('prenoAvatar').textContent = updated.name.charAt(0).toUpperCase();
             updateNavAuth();
             renderCertWarning();
-            renderAssicWarning();
             setLoading(btn, false);
             closeEditProfileModal();
             showToast('Profilo aggiornato.', 'success');
