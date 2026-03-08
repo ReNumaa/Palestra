@@ -473,6 +473,7 @@ function drawTypeChart(filteredBookings) {
 
 function updateBookingsTable(bookings) {
     const tbody = document.getElementById('bookingsTableBody');
+    if (!tbody) return;
     tbody.innerHTML = '';
 
     // Sort by booking date (most recent first)
