@@ -169,7 +169,7 @@
     <script src="js/supabase-client.js?v=1"></script>
     <script src="js/ui.js?v=2"></script>
     <script src="js/data.js?v=13"></script>
-    <script src="js/auth.js?v=9"></script>
+    <script src="js/auth.js?v=10"></script>
     <script src="js/push.js?v=1"></script>
     <script>
         // Prevent iOS Safari auto-zoom on input focus.
@@ -277,13 +277,20 @@
             }
 
             setLoading(btn, true, 'Registrazione in corso...');
-            const result = await registerUser(name, email, whatsapp, password);
-            if (result.ok) {
-                window.location.href = 'index.html';
-            } else {
+            try {
+                const result = await registerUser(name, email, whatsapp, password);
+                if (result.ok) {
+                    window.location.href = 'index.html';
+                } else {
+                    setLoading(btn, false);
+                    errEl.textContent = result.error;
+                    errEl.style.display = 'block';
+                }
+            } catch (err) {
                 setLoading(btn, false);
-                errEl.textContent = result.error;
+                errEl.textContent = 'Errore durante la registrazione. Riprova.';
                 errEl.style.display = 'block';
+                console.error('registerUser exception:', err);
             }
         });
 

@@ -84,21 +84,10 @@ async function registerUser(name, email, whatsapp, password) {
         options: { data: { full_name: name, whatsapp } }
     });
     if (error) return { ok: false, error: _authError(error) };
+    if (!data.user?.id) return { ok: false, error: 'Errore durante la registrazione.' };
 
-    const userId = data.user?.id;
-    if (!userId) return { ok: false, error: 'Errore durante la registrazione.' };
-
-    // Il trigger crea il profilo in modo asincrono: aspettiamo un momento
-    // poi carichiamo. Se non trovato subito, lo inseriamo come fallback.
-    await new Promise(r => setTimeout(r, 500));
-    await _loadProfile(userId);
-
-    if (!window._currentUser) {
-        // Fallback: il trigger non ha ancora girato, inseriamo manualmente
-        await supabaseClient.from('profiles').upsert({ id: userId, name, email, whatsapp });
-        await _loadProfile(userId);
-    }
-
+    // Il trigger handle_new_user crea il profilo lato server in modo sincrono.
+    // onAuthStateChange (SIGNED_IN) caricherà il profilo non appena la sessione è pronta.
     return { ok: true };
 }
 
