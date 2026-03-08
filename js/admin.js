@@ -969,16 +969,19 @@ function _buildParticipantCard(booking) {
     const hasDebts = unpaidAmount > 0;
     const cancelPendingBadge = isCancelPending
         ? `<div class="admin-cancel-pending-badge">⏳ Annullamento richiesto</div>` : '';
-    const userRecord = getUserByEmail(booking.email);
+    const _allU = _getAllUsers();
+    const _uIdx = _findUserIdx(_allU, booking.email, booking.whatsapp);
+    const userRecord = _uIdx !== -1 ? _allU[_uIdx] : null;
     const certScad = userRecord?.certificatoMedicoScadenza;
-    const emE = booking.email.replace(/'/g, "\\'");
-    let certBadge = '';
+    const emE = (booking.email || '').replace(/'/g, "\\'");
+    const waE = (booking.whatsapp || '').replace(/'/g, "\\'");
     const nmE2 = booking.name.replace(/'/g, "\\'");
+    let certBadge = '';
     if (!certScad) {
-        certBadge = `<div class="cert-expired-badge cert-expired-badge--clickable" onclick="openCertModal(this,'${emE}','${nmE2}')">🏥 Imposta scadenza Cert. Med</div>`;
+        certBadge = `<div class="cert-expired-badge cert-expired-badge--clickable" onclick="openCertModal(this,'${emE}','${waE}','${nmE2}')">🏥 Imposta scadenza Cert. Med</div>`;
     } else if (certScad < new Date().toISOString().split('T')[0]) {
         const [cy, cm, cd] = certScad.split('-');
-        certBadge = `<div class="cert-expired-badge cert-expired-badge--clickable" onclick="openCertModal(this,'${emE}','${nmE2}')">🏥 Cert. scaduto il ${cd}/${cm}/${cy}</div>`;
+        certBadge = `<div class="cert-expired-badge cert-expired-badge--clickable" onclick="openCertModal(this,'${emE}','${waE}','${nmE2}')">🏥 Cert. scaduto il ${cd}/${cm}/${cy}</div>`;
     }
     const wa  = booking.whatsapp.replace(/'/g, "\\'");
     const em  = booking.email.replace(/'/g, "\\'");
@@ -4262,14 +4265,37 @@ function renderClientiDetail(panel) {
     `;
 }
 
-let _certModalEmail = null;
-let _certModalBadgeEl = null;
+let _certModalEmail    = null;
+let _certModalWhatsapp = null;
+let _certModalName2    = null;
+let _certModalBadgeEl  = null;
 
-function openCertModal(badgeEl, email, name) {
-    _certModalEmail  = email;
-    _certModalBadgeEl = badgeEl;
-    document.getElementById('certModalName').textContent  = name;
-    document.getElementById('certModalDate').value = getUserByEmail(email)?.certificatoMedicoScadenza || '';
+function _findUserIdx(users, email, whatsapp) {
+    // Cerca prima per email, poi per telefono normalizzato
+    if (email) {
+        const i = users.findIndex(u => u.email?.toLowerCase() === email.toLowerCase());
+        if (i !== -1) return i;
+    }
+    if (whatsapp) {
+        const normWa = normalizePhone(whatsapp);
+        const i = users.findIndex(u => normalizePhone(u.whatsapp || '') === normWa);
+        if (i !== -1) return i;
+    }
+    return -1;
+}
+
+function openCertModal(badgeEl, email, whatsapp, name) {
+    _certModalEmail    = email;
+    _certModalWhatsapp = whatsapp;
+    _certModalName2    = name;
+    _certModalBadgeEl  = badgeEl;
+
+    const users = _getAllUsers();
+    const idx   = _findUserIdx(users, email, whatsapp);
+    const existing = idx !== -1 ? (users[idx].certificatoMedicoScadenza || '') : '';
+
+    document.getElementById('certModalName').textContent = name;
+    document.getElementById('certModalDate').value = existing;
     document.getElementById('certModalOverlay').style.display = 'block';
     document.getElementById('certModal').style.display = 'flex';
     setTimeout(() => document.getElementById('certModalDate').focus(), 50);
@@ -4278,31 +4304,41 @@ function openCertModal(badgeEl, email, name) {
 function closeCertModal() {
     document.getElementById('certModalOverlay').style.display = 'none';
     document.getElementById('certModal').style.display = 'none';
-    _certModalEmail = null;
-    _certModalBadgeEl = null;
+    _certModalEmail = _certModalWhatsapp = _certModalName2 = _certModalBadgeEl = null;
 }
 
 function saveCertDate() {
-    if (!_certModalEmail) return;
     const val = document.getElementById('certModalDate').value;
-
-    // Salva con storico
     const users = _getAllUsers();
-    const idx = users.findIndex(u => u.email?.toLowerCase() === _certModalEmail.toLowerCase());
-    if (idx !== -1) {
+    let idx = _findUserIdx(users, _certModalEmail, _certModalWhatsapp);
+
+    if (idx === -1) {
+        // Crea utente minimo se non esiste
+        users.push({
+            name: _certModalName2 || '',
+            email: _certModalEmail || null,
+            whatsapp: _certModalWhatsapp || null,
+            createdAt: new Date().toISOString(),
+            certificatoMedicoScadenza: val || null,
+            certificatoMedicoHistory: [{ scadenza: val || null, aggiornatoIl: new Date().toISOString() }]
+        });
+    } else {
         const oldCert = users[idx].certificatoMedicoScadenza || '';
         if (val !== oldCert) {
             users[idx].certificatoMedicoScadenza = val || null;
             if (!users[idx].certificatoMedicoHistory) users[idx].certificatoMedicoHistory = [];
             users[idx].certificatoMedicoHistory.push({ scadenza: val || null, aggiornatoIl: new Date().toISOString() });
         }
-        _saveUsers(users);
+    }
+    _saveUsers(users);
 
-        // Aggiorna sessione se è il cliente loggato
-        const session = getCurrentUser();
-        if (session?.email?.toLowerCase() === _certModalEmail.toLowerCase()) {
-            loginUser({ ...session, certificatoMedicoScadenza: val || null });
-        }
+    // Aggiorna sessione se è il cliente loggato
+    const session = getCurrentUser();
+    if (session && (
+        (_certModalEmail    && session.email?.toLowerCase()    === _certModalEmail.toLowerCase()) ||
+        (_certModalWhatsapp && normalizePhone(session.whatsapp) === normalizePhone(_certModalWhatsapp))
+    )) {
+        loginUser({ ...session, certificatoMedicoScadenza: val || null });
     }
 
     // Aggiorna il badge in-place
