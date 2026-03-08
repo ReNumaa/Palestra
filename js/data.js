@@ -178,8 +178,15 @@ class BookingStorage {
 
     // Fetches all bookings from Supabase and updates the localStorage cache.
     // Call this on page init (after auth) to keep the cache in sync.
+    // Only updates localStorage if Supabase returns at least 1 row (prevents accidental wipe).
     static async syncFromSupabase() {
         if (typeof supabaseClient === 'undefined') return;
+        // Skip sync if not authenticated — avoids overwriting localStorage with empty data
+        const { data: { session } } = await supabaseClient.auth.getSession();
+        if (!session) {
+            console.log('[Supabase] syncFromSupabase: nessuna sessione attiva, skip');
+            return;
+        }
         try {
             const { data, error } = await supabaseClient
                 .from('bookings')
@@ -187,6 +194,10 @@ class BookingStorage {
                 .order('created_at', { ascending: false });
             if (error) {
                 console.error('[Supabase] syncFromSupabase error:', error.message);
+                return;
+            }
+            if (data.length === 0) {
+                console.log('[Supabase] syncFromSupabase: 0 righe ricevute, localStorage invariato');
                 return;
             }
             const mapped = data.map(row => ({
