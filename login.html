@@ -386,8 +386,8 @@
         // ── Init: redirect se già loggato, oppure gestisci OAuth return ──
         initAuth().then(async session => {
             const isOAuth = await handleOAuthReturn();
-            if (!isOAuth && session) {
-                // Già loggato e non è un OAuth callback: vai all'homepage
+            if (!isOAuth && session && getCurrentUser()) {
+                // Già loggato con profilo completo: vai all'homepage
                 window.location.href = 'index.html';
             }
         });

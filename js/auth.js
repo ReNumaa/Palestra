@@ -75,31 +75,30 @@ function getCurrentUser() {
 }
 
 // ── Register ──────────────────────────────────────────────────────────────────
-// Crea account Supabase + profilo nella tabella profiles.
+// Il profilo viene creato automaticamente dal trigger handle_new_user su auth.users.
+// Passiamo nome e whatsapp come user_metadata così il trigger li riceve.
 async function registerUser(name, email, whatsapp, password) {
-    // 1. Crea account Supabase Auth
-    const { data, error } = await supabaseClient.auth.signUp({ email, password });
+    const { data, error } = await supabaseClient.auth.signUp({
+        email,
+        password,
+        options: { data: { full_name: name, whatsapp } }
+    });
     if (error) return { ok: false, error: _authError(error) };
 
     const userId = data.user?.id;
     if (!userId) return { ok: false, error: 'Errore durante la registrazione.' };
 
-    // 2. Crea profilo nella tabella profiles
-    const { error: profileError } = await supabaseClient
-        .from('profiles')
-        .insert({ id: userId, name, email, whatsapp });
+    // Il trigger crea il profilo in modo asincrono: aspettiamo un momento
+    // poi carichiamo. Se non trovato subito, lo inseriamo come fallback.
+    await new Promise(r => setTimeout(r, 500));
+    await _loadProfile(userId);
 
-    if (profileError) {
-        // Se il profilo esiste già (race condition), proviamo upsert
-        if (profileError.code === '23505') {
-            await supabaseClient.from('profiles').upsert({ id: userId, name, email, whatsapp });
-        } else {
-            return { ok: false, error: profileError.message };
-        }
+    if (!window._currentUser) {
+        // Fallback: il trigger non ha ancora girato, inseriamo manualmente
+        await supabaseClient.from('profiles').upsert({ id: userId, name, email, whatsapp });
+        await _loadProfile(userId);
     }
 
-    // 3. Carica profilo in memoria
-    await _loadProfile(userId);
     return { ok: true };
 }
 
