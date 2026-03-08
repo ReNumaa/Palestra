@@ -176,6 +176,50 @@ class BookingStorage {
         return data ? JSON.parse(data) : [];
     }
 
+    // Fetches all bookings from Supabase and updates the localStorage cache.
+    // Call this on page init (after auth) to keep the cache in sync.
+    static async syncFromSupabase() {
+        if (typeof supabaseClient === 'undefined') return;
+        try {
+            const { data, error } = await supabaseClient
+                .from('bookings')
+                .select('*')
+                .order('created_at', { ascending: false });
+            if (error) {
+                console.error('[Supabase] syncFromSupabase error:', error.message);
+                return;
+            }
+            const mapped = data.map(row => ({
+                id: row.local_id || row.id,
+                userId: row.user_id,
+                date: row.date,
+                time: row.time,
+                slotType: row.slot_type,
+                dateDisplay: row.date_display || '',
+                name: row.name,
+                email: row.email,
+                whatsapp: row.whatsapp,
+                notes: row.notes || '',
+                status: row.status,
+                paid: row.paid || false,
+                paymentMethod: row.payment_method || null,
+                paidAt: row.paid_at || null,
+                creditApplied: row.credit_applied || 0,
+                createdAt: row.created_at,
+                cancellationRequestedAt: row.cancellation_requested_at || null,
+                cancelledAt: row.cancelled_at || null,
+                cancelledPaymentMethod: row.cancelled_payment_method || null,
+                cancelledPaidAt: row.cancelled_paid_at || null,
+                cancelledWithBonus: row.cancelled_with_bonus || false,
+                cancelledWithPenalty: row.cancelled_with_penalty || false,
+            }));
+            localStorage.setItem(this.BOOKINGS_KEY, JSON.stringify(mapped));
+            console.log(`[Supabase] syncFromSupabase: ${mapped.length} booking/i caricati`);
+        } catch (e) {
+            console.error('[Supabase] syncFromSupabase exception:', e);
+        }
+    }
+
     static saveBooking(booking) {
         const bookings = this.getAllBookings();
         // Generate truly unique ID using timestamp + random number
