@@ -190,7 +190,7 @@ class BookingStorage {
         if (typeof supabaseClient !== 'undefined') {
             const user = typeof getCurrentUser === 'function' ? getCurrentUser() : null;
             supabaseClient.from('bookings').insert({
-                id: booking.id,
+                local_id: booking.id,
                 user_id: user?.id || null,
                 date: booking.date,
                 time: booking.time,
