@@ -185,6 +185,32 @@ class BookingStorage {
         bookings.push(booking);
         localStorage.setItem(this.BOOKINGS_KEY, JSON.stringify(bookings));
         this.updateStats(booking);
+
+        // Dual-write to Supabase (fire-and-forget — localStorage remains source of truth)
+        if (typeof supabaseClient !== 'undefined') {
+            const user = typeof getCurrentUser === 'function' ? getCurrentUser() : null;
+            supabaseClient.from('bookings').insert({
+                id: booking.id,
+                user_id: user?.id || null,
+                date: booking.date,
+                time: booking.time,
+                slot_type: booking.slotType,
+                date_display: booking.dateDisplay || '',
+                name: booking.name,
+                email: booking.email,
+                whatsapp: booking.whatsapp,
+                notes: booking.notes || '',
+                status: booking.status,
+                paid: booking.paid || false,
+                payment_method: booking.paymentMethod || null,
+                paid_at: booking.paidAt || null,
+                credit_applied: booking.creditApplied || 0,
+                created_at: booking.createdAt
+            }).then(({ error }) => {
+                if (error) console.error('[Supabase] saveBooking error:', error);
+            });
+        }
+
         return booking;
     }
 
