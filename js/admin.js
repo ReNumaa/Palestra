@@ -662,7 +662,7 @@ function exportData() {
     // ── Fonti dati ─────────────────────────────────────────────────
     const allBookings  = BookingStorage.getAllBookings()
                             .sort((a, b) => b.date.localeCompare(a.date));
-    const allUsers     = _getAllUsers();
+    const allUsers     = UserStorage.getAll();
     const allCredits   = CreditStorage._getAll();
     const allDebts     = ManualDebtStorage._getAll();
     const allOverrides = BookingStorage.getScheduleOverrides() || {};
@@ -1035,7 +1035,7 @@ function _buildParticipantCard(booking) {
     const hasDebts = unpaidAmount > 0;
     const cancelPendingBadge = isCancelPending
         ? `<div class="admin-cancel-pending-badge">⏳ Annullamento richiesto</div>` : '';
-    const _allU = _getAllUsers();
+    const _allU = UserStorage.getAll();
     const _uIdx = _findUserIdx(_allU, booking.email, booking.whatsapp);
     const userRecord = _uIdx !== -1 ? _allU[_uIdx] : null;
     const certScad  = userRecord?.certificatoMedicoScadenza;
@@ -3086,7 +3086,7 @@ function saveClientEdit(index, oldWhatsapp, oldEmail) {
     }
 
     // ── 4. gym_users (profilo registrato) ─────────────────────────
-    const users  = _getAllUsers();
+    const users  = UserStorage.getAll();
     const oldEmailLow = (oldEmail || '').toLowerCase();
     let userIdx = users.findIndex(u => {
         const phoneMatch = normOld && normalizePhone(u.whatsapp) === normOld;
@@ -4446,7 +4446,7 @@ function openCertModal(badgeEl, email, whatsapp, name) {
     _certModalName2    = name;
     _certModalBadgeEl  = badgeEl;
 
-    const users = _getAllUsers();
+    const users = UserStorage.getAll();
     const idx   = _findUserIdx(users, email, whatsapp);
     const existing = idx !== -1 ? (users[idx].certificatoMedicoScadenza || '') : '';
 
@@ -4465,7 +4465,7 @@ function closeCertModal() {
 
 function saveCertDate() {
     const val = document.getElementById('certModalDate').value;
-    const users = _getAllUsers();
+    const users = UserStorage.getAll();
     let idx = _findUserIdx(users, _certModalEmail, _certModalWhatsapp);
 
     if (idx === -1) {
@@ -4528,7 +4528,7 @@ function openAssicModal(badgeEl, email, whatsapp, name) {
     _assicModalName2    = name;
     _assicModalBadgeEl  = badgeEl;
 
-    const users = _getAllUsers();
+    const users = UserStorage.getAll();
     const idx   = _findUserIdx(users, email, whatsapp);
     const existing = idx !== -1 ? (users[idx].assicurazioneScadenza || '') : '';
 
@@ -4547,7 +4547,7 @@ function closeAssicModal() {
 
 function saveAssicDate() {
     const val = document.getElementById('assicModalDate').value;
-    const users = _getAllUsers();
+    const users = UserStorage.getAll();
     let idx = _findUserIdx(users, _assicModalEmail, _assicModalWhatsapp);
 
     if (idx === -1) {
