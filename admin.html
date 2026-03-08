@@ -12,7 +12,7 @@
     <link rel="icon" type="image/jpeg" href="images/logo-tb---nero.jpg">
     <link rel="stylesheet" href="css/style.css?v=6">
     <link rel="stylesheet" href="css/login.css?v=5">
-    <link rel="stylesheet" href="css/admin.css?v=16">
+    <link rel="stylesheet" href="css/admin.css?v=17">
 </head>
 <body>
     <nav class="navbar">
@@ -477,6 +477,28 @@
         </div>
     </div>
 
+    <!-- Cert Modal -->
+    <div id="certModalOverlay" class="debt-popup-overlay" onclick="closeCertModal()" style="display:none"></div>
+    <div id="certModal" class="cert-modal" style="display:none">
+        <div class="debt-popup-header">
+            <div>
+                <h3>🏥 Certificato Medico</h3>
+                <p id="certModalName" style="margin:0;font-size:0.9rem;color:#6b7280"></p>
+            </div>
+            <button class="debt-popup-close" onclick="closeCertModal()">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
+            </button>
+        </div>
+        <div class="cert-modal-body">
+            <label class="debt-field-label">Data di scadenza</label>
+            <input type="date" id="certModalDate" class="cert-modal-date-input">
+            <div class="cert-modal-actions">
+                <button class="cert-modal-btn cert-modal-btn--cancel" onclick="closeCertModal()">Annulla</button>
+                <button class="cert-modal-btn cert-modal-btn--save" onclick="saveCertDate()">Salva</button>
+            </div>
+        </div>
+    </div>
+
     <!-- Debt Payment Popup -->
     <div id="debtPopupOverlay" class="debt-popup-overlay" onclick="closeDebtPopup()"></div>
     <div id="debtPopupModal" class="debt-popup-modal">
@@ -623,7 +645,7 @@
     <script src="js/auth.js?v=7"></script>
     <script src="js/push.js?v=1"></script>
     <script src="js/chart-mini.js?v=11"></script>
-    <script src="js/admin.js?v=39"></script>
+    <script src="js/admin.js?v=40"></script>
     <script>
         if ('serviceWorker' in navigator) {
             navigator.serviceWorker.register('/sw.js');

@@ -973,11 +973,12 @@ function _buildParticipantCard(booking) {
     const certScad = userRecord?.certificatoMedicoScadenza;
     const emE = booking.email.replace(/'/g, "\\'");
     let certBadge = '';
+    const nmE2 = booking.name.replace(/'/g, "\\'");
     if (!certScad) {
-        certBadge = `<div class="cert-expired-badge cert-expired-badge--clickable" onclick="setCertDateInline(this,'${emE}')">🏥 Imposta scadenza Cert. Med</div>`;
+        certBadge = `<div class="cert-expired-badge cert-expired-badge--clickable" onclick="openCertModal(this,'${emE}','${nmE2}')">🏥 Imposta scadenza Cert. Med</div>`;
     } else if (certScad < new Date().toISOString().split('T')[0]) {
         const [cy, cm, cd] = certScad.split('-');
-        certBadge = `<div class="cert-expired-badge cert-expired-badge--clickable" onclick="setCertDateInline(this,'${emE}')">🏥 Cert. scaduto il ${cd}/${cm}/${cy}</div>`;
+        certBadge = `<div class="cert-expired-badge cert-expired-badge--clickable" onclick="openCertModal(this,'${emE}','${nmE2}')">🏥 Cert. scaduto il ${cd}/${cm}/${cy}</div>`;
     }
     const wa  = booking.whatsapp.replace(/'/g, "\\'");
     const em  = booking.email.replace(/'/g, "\\'");
@@ -4261,42 +4262,67 @@ function renderClientiDetail(panel) {
     `;
 }
 
-function setCertDateInline(badgeEl, email) {
-    const current = getUserByEmail(email)?.certificatoMedicoScadenza || '';
-    const input = document.createElement('input');
-    input.type = 'date';
-    input.value = current;
-    input.style.cssText = 'font-size:0.8rem;border:1px solid #fca5a5;border-radius:4px;padding:2px 6px;background:#fff;color:#111;width:135px;cursor:pointer';
-    badgeEl.innerHTML = '🏥 ';
-    badgeEl.appendChild(input);
-    input.focus();
-    input.showPicker?.();
+let _certModalEmail = null;
+let _certModalBadgeEl = null;
 
-    const save = () => {
-        const val = input.value;
-        const users = _getAllUsers();
-        const idx = users.findIndex(u => u.email?.toLowerCase() === email.toLowerCase());
-        if (idx !== -1) {
+function openCertModal(badgeEl, email, name) {
+    _certModalEmail  = email;
+    _certModalBadgeEl = badgeEl;
+    document.getElementById('certModalName').textContent  = name;
+    document.getElementById('certModalDate').value = getUserByEmail(email)?.certificatoMedicoScadenza || '';
+    document.getElementById('certModalOverlay').style.display = 'block';
+    document.getElementById('certModal').style.display = 'flex';
+    setTimeout(() => document.getElementById('certModalDate').focus(), 50);
+}
+
+function closeCertModal() {
+    document.getElementById('certModalOverlay').style.display = 'none';
+    document.getElementById('certModal').style.display = 'none';
+    _certModalEmail = null;
+    _certModalBadgeEl = null;
+}
+
+function saveCertDate() {
+    if (!_certModalEmail) return;
+    const val = document.getElementById('certModalDate').value;
+
+    // Salva con storico
+    const users = _getAllUsers();
+    const idx = users.findIndex(u => u.email?.toLowerCase() === _certModalEmail.toLowerCase());
+    if (idx !== -1) {
+        const oldCert = users[idx].certificatoMedicoScadenza || '';
+        if (val !== oldCert) {
             users[idx].certificatoMedicoScadenza = val || null;
-            _saveUsers(users);
+            if (!users[idx].certificatoMedicoHistory) users[idx].certificatoMedicoHistory = [];
+            users[idx].certificatoMedicoHistory.push({ scadenza: val || null, aggiornatoIl: new Date().toISOString() });
         }
+        _saveUsers(users);
+
+        // Aggiorna sessione se è il cliente loggato
+        const session = getCurrentUser();
+        if (session?.email?.toLowerCase() === _certModalEmail.toLowerCase()) {
+            loginUser({ ...session, certificatoMedicoScadenza: val || null });
+        }
+    }
+
+    // Aggiorna il badge in-place
+    if (_certModalBadgeEl) {
         const today = new Date().toISOString().split('T')[0];
         if (!val) {
-            badgeEl.innerHTML = '🏥 Imposta scadenza Cert. Med';
+            _certModalBadgeEl.textContent = '🏥 Imposta scadenza Cert. Med';
+            _certModalBadgeEl.removeAttribute('style');
         } else if (val < today) {
             const [y, m, d] = val.split('-');
-            badgeEl.innerHTML = `🏥 Cert. scaduto il ${d}/${m}/${y}`;
+            _certModalBadgeEl.textContent = `🏥 Cert. scaduto il ${d}/${m}/${y}`;
+            _certModalBadgeEl.removeAttribute('style');
         } else {
             const [y, m, d] = val.split('-');
-            badgeEl.innerHTML = `🏥 Cert. Med scade il ${d}/${m}/${y}`;
-            badgeEl.style.background = '#f0fdf4';
-            badgeEl.style.borderColor = '#bbf7d0';
-            badgeEl.style.color = '#166534';
+            _certModalBadgeEl.textContent = `🏥 Cert. Med valido fino al ${d}/${m}/${y}`;
+            _certModalBadgeEl.style.cssText = 'background:#f0fdf4;border-color:#bbf7d0;color:#166534;border-left:3px solid #16a34a';
         }
-    };
+    }
 
-    input.addEventListener('change', save);
-    input.addEventListener('blur', save);
+    closeCertModal();
 }
 
 // ── End Statistics Detail Panel ───────────────────────────────────────────────
