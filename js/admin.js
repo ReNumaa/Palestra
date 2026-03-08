@@ -4419,13 +4419,20 @@ function renderOccupancyDetail(panel) {
     const DOW_ORDER = [1,2,3,4,5,6,0];
     const DOW_NAMES = ['Dom','Lun','Mar','Mer','Gio','Ven','Sab'];
     const dowLabels = DOW_ORDER.map(d => DOW_NAMES[d]);
-    // capacità per giorno (numero di posti disponibili per quel giorno della settimana × settimane nel periodo)
-    const weeksInPeriod = Math.max(1, Math.round((e2 - c2) / (7 * 24 * 60 * 60 * 1000)));
+    // Conta occorrenze reali di ogni giorno della settimana nel periodo
+    const dowOccurrences = [0,0,0,0,0,0,0];
+    const tmp = new Date(from); tmp.setHours(0,0,0,0);
+    while (tmp <= e2) { dowOccurrences[tmp.getDay()]++; tmp.setDate(tmp.getDate()+1); }
+    const CAP_TYPES = Object.keys(SLOT_MAX_CAPACITY).filter(t => SLOT_MAX_CAPACITY[t] > 0);
     const dowRates = DOW_ORDER.map(dow => {
-        const daySlots = (WEEKLY_SCHEDULE_TEMPLATE[['Domenica','Lunedì','Martedì','Mercoledì','Giovedì','Venerdì','Sabato'][dow]] || []);
-        const cap = daySlots.reduce((s, sl) => s + (SLOT_MAX_CAPACITY[sl.type] || 0), 0) * weeksInPeriod;
-        const bk  = periodBookings.filter(b => new Date(b.date+'T00:00:00').getDay() === dow).length;
-        return cap > 0 ? Math.round(bk / cap * 100) : 0;
+        const dayName  = ['Domenica','Lunedì','Martedì','Mercoledì','Giovedì','Venerdì','Sabato'][dow];
+        const daySlots = WEEKLY_SCHEDULE_TEMPLATE[dayName] || [];
+        const capPerDay = daySlots.reduce((s, sl) => s + (SLOT_MAX_CAPACITY[sl.type] || 0), 0);
+        const cap = capPerDay * dowOccurrences[dow];
+        const bk  = periodBookings.filter(b =>
+            new Date(b.date+'T00:00:00').getDay() === dow && CAP_TYPES.includes(b.slotType)
+        ).length;
+        return cap > 0 ? Math.min(100, Math.round(bk / cap * 100)) : 0;
     });
 
     panel.innerHTML = `
