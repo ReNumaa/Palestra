@@ -846,18 +846,30 @@ function resetDemoData() {
     }
 }
 
-function clearAllData() {
-    if (confirm('⚠️ ATTENZIONE: Questo eliminerà definitivamente tutte le prenotazioni e i dati. NON verranno generati nuovi dati demo. Continuare?')) {
-        localStorage.removeItem(BookingStorage.BOOKINGS_KEY);
-        localStorage.removeItem(BookingStorage.STATS_KEY);
-        localStorage.removeItem(CreditStorage.CREDITS_KEY);
-        localStorage.removeItem(ManualDebtStorage.DEBTS_KEY);
-        localStorage.removeItem(BonusStorage.BONUS_KEY);
-        localStorage.removeItem('scheduleOverrides');
-        localStorage.setItem('dataClearedByUser', 'true');
-        alert('✅ Tutti i dati sono stati eliminati.');
-        location.reload();
+async function clearAllData() {
+    if (!confirm('⚠️ ATTENZIONE: Questo eliminerà definitivamente tutte le prenotazioni e i dati sia localmente che su Supabase. NON verranno generati nuovi dati demo. Continuare?')) return;
+
+    // 1. Cancella localStorage
+    localStorage.removeItem(BookingStorage.BOOKINGS_KEY);
+    localStorage.removeItem(BookingStorage.STATS_KEY);
+    localStorage.removeItem(CreditStorage.CREDITS_KEY);
+    localStorage.removeItem(ManualDebtStorage.DEBTS_KEY);
+    localStorage.removeItem(BonusStorage.BONUS_KEY);
+    localStorage.removeItem('scheduleOverrides');
+    localStorage.setItem('dataClearedByUser', 'true');
+
+    // 2. Cancella Supabase
+    if (typeof supabaseClient !== 'undefined') {
+        await Promise.all([
+            supabaseClient.from('bookings').delete().neq('id', '00000000-0000-0000-0000-000000000000'),
+            supabaseClient.from('app_settings').delete().in('key', [
+                'gym_credits', 'gym_manual_debts', 'gym_bonus', 'scheduleOverrides'
+            ]),
+        ]).catch(e => console.error('[Supabase] clearAllData error:', e));
     }
+
+    alert('✅ Tutti i dati sono stati eliminati (localStorage + Supabase).');
+    location.reload();
 }
 
 function pruneOldData() {
