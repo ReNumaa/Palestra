@@ -860,10 +860,9 @@ class BookingStorage {
                 .from('app_settings')
                 .select('value')
                 .eq('key', 'scheduleOverrides')
-                .single();
+                .maybeSingle();
             if (error) {
-                if (error.code !== 'PGRST116') // PGRST116 = nessuna riga trovata
-                    console.error('[Supabase] syncScheduleFromSupabase error:', error.message);
+                console.error('[Supabase] syncScheduleFromSupabase error:', error.message);
                 return;
             }
             if (data?.value) {
@@ -923,9 +922,9 @@ class CreditStorage {
         try {
             const { data, error } = await supabaseClient
                 .from('app_settings').select('value')
-                .eq('key', this.CREDITS_KEY).single();
+                .eq('key', this.CREDITS_KEY).maybeSingle();
             if (error) {
-                if (error.code !== 'PGRST116') console.error('[Supabase] CreditStorage.sync error:', error.message);
+                console.error('[Supabase] CreditStorage.sync error:', error.message);
                 return;
             }
             if (data?.value) {
@@ -1126,9 +1125,9 @@ class ManualDebtStorage {
         try {
             const { data, error } = await supabaseClient
                 .from('app_settings').select('value')
-                .eq('key', this.DEBTS_KEY).single();
+                .eq('key', this.DEBTS_KEY).maybeSingle();
             if (error) {
-                if (error.code !== 'PGRST116') console.error('[Supabase] ManualDebtStorage.sync error:', error.message);
+                console.error('[Supabase] ManualDebtStorage.sync error:', error.message);
                 return;
             }
             if (data?.value) {
