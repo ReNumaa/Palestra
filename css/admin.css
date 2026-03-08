@@ -2401,6 +2401,11 @@ canvas {
     border-bottom: none;
 }
 
+.debt-popup-item--past {
+    background: #fff1f2;
+    border-radius: 6px;
+}
+
 .debt-item-label:hover {
     background: #f9f9f9;
     margin: 0 -0.5rem;

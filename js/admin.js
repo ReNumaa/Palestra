@@ -2424,6 +2424,7 @@ function renderDebtPopupList(unpaid, debtInfo = null) {
             const fullPrice   = SLOT_PRICES[booking.slotType];
             const creditApplied = booking.creditApplied || 0;
             const price = fullPrice - creditApplied;
+            if (bookingHasPassed(booking)) el.classList.add('debt-popup-item--past');
             el.innerHTML = `
                 <label class="debt-item-label">
                     <input type="checkbox" class="debt-item-check" data-id="${booking.id}" data-price="${price}" onchange="updateDebtTotal()">
