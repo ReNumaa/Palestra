@@ -840,6 +840,39 @@ class BookingStorage {
 
     static saveScheduleOverrides(overrides) {
         localStorage.setItem('scheduleOverrides', JSON.stringify(overrides));
+        // Dual-write to Supabase (fire-and-forget)
+        if (typeof supabaseClient !== 'undefined') {
+            supabaseClient.from('app_settings').upsert({
+                key: 'scheduleOverrides',
+                value: overrides,
+                updated_at: new Date().toISOString()
+            }).then(({ error }) => {
+                if (error) console.error('[Supabase] saveScheduleOverrides error:', error.message);
+            });
+        }
+    }
+
+    // Fetches schedule overrides from Supabase and updates localStorage cache.
+    static async syncScheduleFromSupabase() {
+        if (typeof supabaseClient === 'undefined') return;
+        try {
+            const { data, error } = await supabaseClient
+                .from('app_settings')
+                .select('value')
+                .eq('key', 'scheduleOverrides')
+                .single();
+            if (error) {
+                if (error.code !== 'PGRST116') // PGRST116 = nessuna riga trovata
+                    console.error('[Supabase] syncScheduleFromSupabase error:', error.message);
+                return;
+            }
+            if (data?.value) {
+                localStorage.setItem('scheduleOverrides', JSON.stringify(data.value));
+                console.log('[Supabase] syncScheduleFromSupabase: schedule caricato');
+            }
+        } catch (e) {
+            console.error('[Supabase] syncScheduleFromSupabase exception:', e);
+        }
     }
 
     // Sostituisce l'intero array di prenotazioni (usato dopo modifiche bulk)

@@ -203,7 +203,7 @@
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.min.js"></script>
     <script src="js/supabase-client.js?v=1"></script>
     <script src="js/ui.js?v=2"></script>
-    <script src="js/data.js?v=22"></script>
+    <script src="js/data.js?v=23"></script>
     <script src="js/calendar.js?v=4"></script>
     <script src="js/booking.js?v=9"></script>
     <script src="js/auth.js?v=10"></script>
@@ -212,7 +212,10 @@
         // Avvia la sessione Supabase, sincronizza i booking, poi re-renderizza il calendario
         (async function () {
             await initAuth();
-            await BookingStorage.syncFromSupabase();
+            await Promise.all([
+                BookingStorage.syncFromSupabase(),
+                BookingStorage.syncScheduleFromSupabase(),
+            ]);
             if (typeof renderCalendar === 'function') renderCalendar();
             if (typeof renderMobileCalendar === 'function') renderMobileCalendar();
         })();
