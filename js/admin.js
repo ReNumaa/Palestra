@@ -353,20 +353,36 @@ function updateStatsCards(filteredBookings, allBookings) {
 
     // Occupancy rate over the filter period
     const { from, to } = getFilterDateRange(currentFilter);
-    let totalSlots = 0;
+    let totalSlots = 0, ptSlots = 0, sgSlots = 0;
     const cur = new Date(from); cur.setHours(0, 0, 0, 0);
     const end = new Date(to); end.setHours(23, 59, 59, 999);
     const dayNames = ['Domenica','Lunedì','Martedì','Mercoledì','Giovedì','Venerdì','Sabato'];
     while (cur <= end) {
         const slots = WEEKLY_SCHEDULE_TEMPLATE[dayNames[cur.getDay()]] || [];
-        slots.forEach(s => totalSlots += SLOT_MAX_CAPACITY[s.type] || 0);
+        slots.forEach(s => {
+            const cap = SLOT_MAX_CAPACITY[s.type] || 0;
+            totalSlots += cap;
+            if (s.type === 'personal-training') ptSlots += cap;
+            else if (s.type === 'small-group')  sgSlots += cap;
+        });
         cur.setDate(cur.getDate() + 1);
     }
+    const ptBookings = filteredBookings.filter(b => b.slotType === 'personal-training').length;
+    const sgBookings = filteredBookings.filter(b => b.slotType === 'small-group').length;
     const occupancyRate = totalSlots > 0 ? Math.round((filteredBookings.length / totalSlots) * 100) : 0;
+    const ptRate = ptSlots > 0 ? Math.round(ptBookings / ptSlots * 100) : null;
+    const sgRate = sgSlots > 0 ? Math.round(sgBookings / sgSlots * 100) : null;
     document.getElementById('occupancyRate').textContent = `${occupancyRate}%`;
     const occEl = document.getElementById('occupancyChange');
     occEl.textContent = filterLabel;
     occEl.className = occupancyRate > 50 ? 'stat-change positive' : 'stat-change';
+    const bkEl = document.getElementById('occBreakdown');
+    if (bkEl) {
+        const parts = [];
+        if (ptRate !== null) parts.push(`Autonomia ${ptRate}%`);
+        if (sgRate !== null) parts.push(`Gruppo ${sgRate}%`);
+        bkEl.textContent = parts.join(' · ');
+    }
 }
 
 function calculateTotalWeeklySlots() {
