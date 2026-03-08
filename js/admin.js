@@ -569,7 +569,8 @@ const BACKUP_KEYS = [
     'gym_bookings', 'gym_stats', 'gym_users', 'gym_credits',
     'gym_manual_debts', 'gym_bonus', 'weeklyScheduleTemplate',
     'scheduleOverrides', 'scheduleVersion', 'gym_debt_threshold',
-    'gym_cancellation_mode', 'gym_cert_scadenza_editable', 'dataClearedByUser'
+    'gym_cancellation_mode', 'gym_cert_scadenza_editable',
+    'gym_cert_block_expired', 'gym_cert_block_not_set', 'dataClearedByUser'
 ];
 
 function exportBackup() {
