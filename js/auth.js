@@ -185,7 +185,7 @@ function getUserBookings() {
     const user = getCurrentUser();
     if (!user) return { upcoming: [], past: [] };
 
-    const allBookings = JSON.parse(localStorage.getItem('gym_bookings') || '[]');
+    const allBookings = BookingStorage.getAllBookings();
     const now   = new Date();
     const today = now.toISOString().split('T')[0];
 
