@@ -175,7 +175,7 @@
     <script src="js/supabase-client.js?v=1"></script>
     <script src="js/ui.js?v=2"></script>
     <script src="js/data.js?v=27"></script>
-    <script src="js/auth.js?v=11"></script>
+    <script src="js/auth.js?v=12"></script>
     <script src="js/push.js?v=1"></script>
     <script>
         // ── Guard async: aspetta la sessione Supabase prima di controllare ─
@@ -579,8 +579,7 @@
             const el   = document.getElementById('prenoCertWarning');
             if (!user || !el) return;
 
-            const stored = getUserByEmail(user.email);
-            const scad   = stored?.certificatoMedicoScadenza;
+            const scad = user.medical_cert_expiry || null;
             const certEditable = CertEditableStorage.get();
             const clickFn = certEditable ? 'openEditProfileModal()' : "showToast('Porta a Thomas il certificato medico', 'error')";
             if (!scad) {

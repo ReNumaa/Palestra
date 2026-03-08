@@ -1047,9 +1047,7 @@ function _buildParticipantCard(booking) {
     const hasDebts = unpaidAmount > 0;
     const cancelPendingBadge = isCancelPending
         ? `<div class="admin-cancel-pending-badge">⏳ Annullamento richiesto</div>` : '';
-    const _allU = UserStorage.getAll();
-    const _uIdx = _findUserIdx(_allU, booking.email, booking.whatsapp);
-    const userRecord = _uIdx !== -1 ? _allU[_uIdx] : null;
+    const userRecord = _getUserRecord(booking.email, booking.whatsapp);
     const certScad  = userRecord?.certificatoMedicoScadenza;
     const assicScad = userRecord?.assicurazioneScadenza;
     const emE = (booking.email || '').replace(/'/g, "\\'");
@@ -1715,7 +1713,7 @@ let clientsSearchQuery = '';
 let clientCertFilter = false;
 
 function clientHasCertIssue(client) {
-    const userRecord = getUserByEmail(client.email);
+    const userRecord = _getUserRecord(client.email, client.whatsapp);
     const certScad = userRecord?.certificatoMedicoScadenza || '';
     if (!certScad) return true;
     return certScad < new Date().toISOString().split('T')[0];
@@ -2837,7 +2835,7 @@ function createClientCard(client, index) {
     const netBalance  = Math.round((credit - manualDebt) * 100) / 100;
 
     // Certificato medico e Assicurazione dal profilo utente
-    const userRecord  = getUserByEmail(client.email);
+    const userRecord  = _getUserRecord(client.email, client.whatsapp);
     const certScad    = userRecord?.certificatoMedicoScadenza || '';
     const assicScad2  = userRecord?.assicurazioneScadenza || '';
     const _mkBadge = (scad, missingLabel, expiredPrefix, expiringPrefix, okPrefix) => {
@@ -3098,7 +3096,7 @@ function saveClientEdit(index, oldWhatsapp, oldEmail) {
     }
 
     // ── 4. gym_users (profilo registrato) ─────────────────────────
-    const users  = UserStorage.getAll();
+    const users  = _getUsersFull();
     const oldEmailLow = (oldEmail || '').toLowerCase();
     let userIdx = users.findIndex(u => {
         const phoneMatch = normOld && normalizePhone(u.whatsapp) === normOld;
@@ -4438,6 +4436,19 @@ let _certModalWhatsapp = null;
 let _certModalName2    = null;
 let _certModalBadgeEl  = null;
 
+// ── Raw gym_users helpers (con tutti i campi, inclusi cert) ──────────────────
+function _getUsersFull() {
+    try { return JSON.parse(localStorage.getItem('gym_users') || '[]'); } catch { return []; }
+}
+function _saveUsers(users) {
+    localStorage.setItem('gym_users', JSON.stringify(users));
+}
+function _getUserRecord(email, whatsapp) {
+    const users = _getUsersFull();
+    const idx = _findUserIdx(users, email, whatsapp);
+    return idx !== -1 ? users[idx] : null;
+}
+
 function _findUserIdx(users, email, whatsapp) {
     // Cerca prima per email, poi per telefono normalizzato
     if (email) {
@@ -4458,7 +4469,7 @@ function openCertModal(badgeEl, email, whatsapp, name) {
     _certModalName2    = name;
     _certModalBadgeEl  = badgeEl;
 
-    const users = UserStorage.getAll();
+    const users = _getUsersFull();
     const idx   = _findUserIdx(users, email, whatsapp);
     const existing = idx !== -1 ? (users[idx].certificatoMedicoScadenza || '') : '';
 
@@ -4477,7 +4488,7 @@ function closeCertModal() {
 
 function saveCertDate() {
     const val = document.getElementById('certModalDate').value;
-    const users = UserStorage.getAll();
+    const users = _getUsersFull();
     let idx = _findUserIdx(users, _certModalEmail, _certModalWhatsapp);
 
     if (idx === -1) {
@@ -4540,7 +4551,7 @@ function openAssicModal(badgeEl, email, whatsapp, name) {
     _assicModalName2    = name;
     _assicModalBadgeEl  = badgeEl;
 
-    const users = UserStorage.getAll();
+    const users = _getUsersFull();
     const idx   = _findUserIdx(users, email, whatsapp);
     const existing = idx !== -1 ? (users[idx].assicurazioneScadenza || '') : '';
 
@@ -4559,7 +4570,7 @@ function closeAssicModal() {
 
 function saveAssicDate() {
     const val = document.getElementById('assicModalDate').value;
-    const users = UserStorage.getAll();
+    const users = _getUsersFull();
     let idx = _findUserIdx(users, _assicModalEmail, _assicModalWhatsapp);
 
     if (idx === -1) {

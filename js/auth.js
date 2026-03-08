@@ -166,6 +166,27 @@ async function updateUserProfile(currentEmail, updates, newPassword) {
 
     // Ricarica profilo in memoria
     await _loadProfile(user.id);
+
+    // Sincronizza cert/assic in gym_users localStorage (letto da admin.js)
+    if (profileUpdate.medical_cert_expiry !== undefined || profileUpdate.insurance_expiry !== undefined) {
+        try {
+            const gymUsers = JSON.parse(localStorage.getItem('gym_users') || '[]');
+            const email = (updates.email || user.email || '').toLowerCase();
+            let idx = gymUsers.findIndex(u => u.email?.toLowerCase() === email);
+            if (idx === -1 && user.whatsapp) {
+                const normWa = user.whatsapp;
+                idx = gymUsers.findIndex(u => u.whatsapp === normWa);
+            }
+            if (idx !== -1) {
+                if (profileUpdate.medical_cert_expiry !== undefined)
+                    gymUsers[idx].certificatoMedicoScadenza = profileUpdate.medical_cert_expiry;
+                if (profileUpdate.insurance_expiry !== undefined)
+                    gymUsers[idx].assicurazioneScadenza = profileUpdate.insurance_expiry;
+                localStorage.setItem('gym_users', JSON.stringify(gymUsers));
+            }
+        } catch {}
+    }
+
     return { ok: true };
 }
 
