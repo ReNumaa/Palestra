@@ -2708,6 +2708,7 @@ function createClientCard(client, index) {
     card.className = 'client-card';
     card.id = `client-card-${index}`;
 
+    const cutoff30 = Date.now() - 30 * 24 * 60 * 60 * 1000;
     const activeBookings = client.bookings.filter(b => b.status !== 'cancelled');
     const totalBookings = activeBookings.length;
     const totalPaid   = activeBookings.filter(b => b.paid && b.paymentMethod !== 'lezione-gratuita').reduce((s, b) => s + (SLOT_PRICES[b.slotType] || 0), 0);
@@ -2763,7 +2764,8 @@ function createClientCard(client, index) {
                 : isPartialCredit
                     ? `<span class="payment-status" style="background:#ede9fe;color:#5b21b6">💳 Parziale (€${(SLOT_PRICES[b.slotType] || 0) - b.creditApplied} da pagare)</span>`
                     : `<span class="payment-status ${b.paid ? 'paid' : 'unpaid'}">${b.paid ? '✓ Pagato' : 'Non pagato'}</span>`;
-        return `<tr id="brow-${b.id}" class="${rowClass}" data-ts="${new Date(b.date + 'T12:00:00').getTime()}">
+        const bTs = new Date(b.date + 'T12:00:00').getTime();
+        return `<tr id="brow-${b.id}" class="${rowClass}" data-ts="${bTs}"${bTs < cutoff30 ? ' style="display:none"' : ''}>
             <td>${dateStr}</td>
             <td>${b.time}</td>
             <td>${SLOT_NAMES[b.slotType]}</td>
@@ -2835,9 +2837,9 @@ function createClientCard(client, index) {
 
     const filterBarHTML = `<div class="tx-filter-bar">
         <button class="tx-filter-btn" onclick="filterClientTx(${index}, 7, this)">Settimana</button>
-        <button class="tx-filter-btn" onclick="filterClientTx(${index}, 30, this)">Mese</button>
+        <button class="tx-filter-btn active" onclick="filterClientTx(${index}, 30, this)">Mese</button>
         <button class="tx-filter-btn" onclick="filterClientTx(${index}, 180, this)">6 mesi</button>
-        <button class="tx-filter-btn active" onclick="filterClientTx(${index}, 365, this)">1 anno</button>
+        <button class="tx-filter-btn" onclick="filterClientTx(${index}, 365, this)">1 anno</button>
     </div>`;
 
     let creditHTML = '';
@@ -2852,7 +2854,8 @@ function createClientCard(client, index) {
                     const cleanLabel = (e.label || '')
                         .replace(/^[💵💳🏦✨🎁]\s*/, '')
                         .replace(/\s+ricevuto$/i, '');
-                    return `<div class="credit-history-row" data-ts="${e.date.getTime()}">
+                    const eTs = e.date.getTime();
+                    return `<div class="credit-history-row" data-ts="${eTs}"${eTs < cutoff30 ? ' style="display:none"' : ''}>
                         <span class="credit-history-date">${fmtDTx(e.date)}</span>
                         <span class="credit-history-icon">${e.icon}</span>
                         <span class="credit-history-note">${_escHtml(cleanLabel)}${e.sub ? ` <small style="opacity:0.7">${_escHtml(e.sub)}</small>` : ''}</span>
