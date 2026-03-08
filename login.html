@@ -81,6 +81,12 @@
             <div id="panelRegistrati" style="display:none;">
                 <p class="login-subtitle">Crea il tuo account per prenotare le lezioni</p>
 
+                <div id="registerSuccess" style="display:none; text-align:center; padding: 1.5rem 0;">
+                    <div style="font-size:2.5rem; margin-bottom:0.75rem;">📧</div>
+                    <p style="font-weight:600; margin-bottom:0.5rem;">Controlla la tua email!</p>
+                    <p style="color:#555; font-size:0.95rem;">Ti abbiamo inviato un link di conferma. Clicca il link per attivare il tuo account e accedere.</p>
+                </div>
+
                 <form id="registerForm" class="auth-form">
                     <div class="form-group">
                         <label for="regName">Nome Completo *</label>
@@ -280,7 +286,8 @@
             try {
                 const result = await registerUser(name, email, whatsapp, password);
                 if (result.ok) {
-                    window.location.href = 'index.html';
+                    document.getElementById('registerForm').style.display = 'none';
+                    document.getElementById('registerSuccess').style.display = 'block';
                 } else {
                     setLoading(btn, false);
                     errEl.textContent = result.error;
