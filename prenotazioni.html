@@ -171,14 +171,14 @@
         </div>
     </div>
 
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.min.js"></script>
+    <script src="js/supabase-client.js?v=1"></script>
     <script src="js/ui.js?v=2"></script>
     <script src="js/data.js?v=17"></script>
-    <script src="js/auth.js?v=8"></script>
+    <script src="js/auth.js?v=9"></script>
     <script src="js/push.js?v=1"></script>
     <script>
-        // ── Guard ─────────────────────────────────────────────────────────
-        const _user = getCurrentUser();
-        if (!_user) window.location.href = 'login.html';
+        // ── Guard async: aspetta la sessione Supabase prima di controllare ─
 
         // ── Date formatter ───────────────────────────────────────────────
         function formatBookingDate(dateStr) {
@@ -241,16 +241,25 @@
             if (document.hidden) _stopPolling(); else _startPolling();
         });
 
-        // Avvio: se DOMContentLoaded non è ancora scattato, aspettalo; altrimenti esegui subito.
-        // Il secondo caso copre bfcache (back/forward navigation) e navigazioni rapide.
-        if (document.readyState === 'loading') {
-            document.addEventListener('DOMContentLoaded', _initPrenoPage);
-        } else {
-            _initPrenoPage();
+        // Avvio: aspetta la sessione Supabase, poi controlla il guard e inizializza
+        async function _boot() {
+            await initAuth();
+            if (!getCurrentUser()) { window.location.href = 'login.html'; return; }
+            if (document.readyState === 'loading') {
+                document.addEventListener('DOMContentLoaded', _initPrenoPage);
+            } else {
+                _initPrenoPage();
+            }
         }
+        _boot();
         // bfcache: quando la pagina viene ripristinata dalla memoria (es. tasto Indietro)
         // DOMContentLoaded non scatta più — usiamo pageshow con e.persisted
-        window.addEventListener('pageshow', (e) => { if (e.persisted) _initPrenoPage(); });
+        window.addEventListener('pageshow', async (e) => {
+            if (!e.persisted) return;
+            await initAuth();
+            if (!getCurrentUser()) { window.location.href = 'login.html'; return; }
+            _initPrenoPage();
+        });
 
         // ── Bonus balance ─────────────────────────────────────────────────
         function renderBonusBalance() {

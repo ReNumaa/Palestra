@@ -1,42 +1,35 @@
--- TB Training — Schema iniziale
--- Tabelle: bookings, schedule_overrides, credits, credit_history
+-- TB Training — Schema iniziale (idempotente)
 
--- ─── BOOKINGS ────────────────────────────────────────────────────────────────
-create table bookings (
+create table if not exists bookings (
     id              uuid primary key default gen_random_uuid(),
     created_at      timestamptz not null default now(),
     date            date not null,
-    time            text not null,           -- es. '08:00 - 09:20'
-    slot_type       text not null,           -- 'personal-training' | 'small-group' | 'group-class'
+    time            text not null,
+    slot_type       text not null,
     name            text not null,
     email           text not null,
     whatsapp        text,
     notes           text,
     status          text not null default 'confirmed',
     paid            boolean not null default false,
-    payment_method  text,                    -- 'contanti' | 'carta' | 'iban' | 'credito'
+    payment_method  text,
     paid_at         timestamptz
 );
 
--- Indici utili per le query più comuni
-create index bookings_date_idx      on bookings (date);
-create index bookings_email_idx     on bookings (email);
-create index bookings_date_time_idx on bookings (date, time);
+create index if not exists bookings_date_idx      on bookings (date);
+create index if not exists bookings_email_idx     on bookings (email);
+create index if not exists bookings_date_time_idx on bookings (date, time);
 
--- ─── SCHEDULE OVERRIDES ──────────────────────────────────────────────────────
--- Una riga per ogni slot di ogni giorno modificato rispetto al template settimanale
-create table schedule_overrides (
+create table if not exists schedule_overrides (
     id          uuid primary key default gen_random_uuid(),
     created_at  timestamptz not null default now(),
     date        date not null,
-    time        text not null,       -- es. '08:00 - 09:20'
-    slot_type   text,                -- null = slot disabilitato per quel giorno
+    time        text not null,
+    slot_type   text,
     unique (date, time)
 );
 
--- ─── CREDITS ─────────────────────────────────────────────────────────────────
--- Saldo crediti per cliente (whatsapp + email come chiave logica)
-create table credits (
+create table if not exists credits (
     id          uuid primary key default gen_random_uuid(),
     created_at  timestamptz not null default now(),
     name        text not null,
@@ -46,37 +39,28 @@ create table credits (
     unique (email)
 );
 
--- ─── CREDIT HISTORY ──────────────────────────────────────────────────────────
--- Storico movimenti credito per ogni cliente
-create table credit_history (
+create table if not exists credit_history (
     id          uuid primary key default gen_random_uuid(),
     created_at  timestamptz not null default now(),
     credit_id   uuid not null references credits(id) on delete cascade,
-    amount      numeric(10,2) not null,   -- positivo = ricarica, negativo = utilizzo
+    amount      numeric(10,2) not null,
     note        text
 );
 
--- ─── ROW LEVEL SECURITY ──────────────────────────────────────────────────────
--- Abilita RLS su tutte le tabelle (per ora tutto bloccato, poi configuriamo le policy)
-alter table bookings          enable row level security;
+-- ─── RLS ─────────────────────────────────────────────────────────────────────
+alter table bookings           enable row level security;
 alter table schedule_overrides enable row level security;
 alter table credits            enable row level security;
 alter table credit_history     enable row level security;
 
--- Policy pubblica: chiunque può LEGGERE schedule_overrides (serve al calendario pubblico)
+drop policy if exists "schedule_overrides_public_read" on schedule_overrides;
 create policy "schedule_overrides_public_read"
-    on schedule_overrides for select
-    using (true);
+    on schedule_overrides for select using (true);
 
--- Policy pubblica: chiunque può LEGGERE bookings (serve per contare posti disponibili)
--- Nota: in produzione limitare i campi esposti tramite view o RLS più granulare
+drop policy if exists "bookings_public_read" on bookings;
 create policy "bookings_public_read"
-    on bookings for select
-    using (true);
+    on bookings for select using (true);
 
--- Policy pubblica: chiunque può INSERIRE una prenotazione (form pubblico)
+drop policy if exists "bookings_public_insert" on bookings;
 create policy "bookings_public_insert"
-    on bookings for insert
-    with check (true);
-
--- Tutte le altre operazioni (UPDATE, DELETE, lettura crediti) richiederanno auth admin
+    on bookings for insert with check (true);

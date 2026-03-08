@@ -1,146 +1,232 @@
-// Auth - simulated session via localStorage
+// Auth — Supabase Auth
+// Sostituisce il vecchio sistema localStorage.
+// Mantiene le stesse firme di funzione per compatibilità con il resto dell'app.
 
-// ── Phone normalization ───────────────────────────────────────────────────
-// Returns E.164 format (+39XXXXXXXXXX) for future WhatsApp API compatibility.
-// Strips spaces/dashes, handles 0039 / 39 / 0 prefixes, defaults to +39.
+// Utente corrente in memoria — popolato da initAuth() all'avvio di ogni pagina
+window._currentUser = null;
+
+// ── Phone normalization ───────────────────────────────────────────────────────
+// Returns E.164 format (+39XXXXXXXXXX) for WhatsApp API compatibility.
 function normalizePhone(raw) {
     if (!raw) return '';
     let n = raw.replace(/[\s\-().]/g, '');
-    if      (n.startsWith('0039'))                 n = '+39' + n.slice(4);
-    else if (n.startsWith('39') && n[0] !== '+')   n = '+' + n;
-    else if (n.startsWith('0'))                    n = '+39' + n.slice(1);
-    else if (!n.startsWith('+'))                   n = '+39' + n;
+    if      (n.startsWith('0039'))               n = '+39' + n.slice(4);
+    else if (n.startsWith('39') && n[0] !== '+') n = '+' + n;
+    else if (n.startsWith('0'))                  n = '+39' + n.slice(1);
+    else if (!n.startsWith('+'))                 n = '+39' + n;
     return n;
 }
 
-// ── User storage helpers ──────────────────────────────────────────────────
-const USERS_KEY = 'gym_users';
-
-function _getAllUsers() {
-    try { return JSON.parse(localStorage.getItem(USERS_KEY) || '[]'); } catch { return []; }
+// ── Error message mapping ─────────────────────────────────────────────────────
+function _authError(error) {
+    const msg = error?.message || '';
+    if (msg.includes('already registered') || msg.includes('already been registered'))
+        return 'Email già registrata.';
+    if (msg.includes('Invalid login credentials') || msg.includes('invalid_credentials'))
+        return 'Email o password errata.';
+    if (msg.includes('Email not confirmed'))
+        return 'Controlla la tua email per confermare la registrazione.';
+    if (msg.includes('Password should be at least'))
+        return 'La password deve essere di almeno 6 caratteri.';
+    if (msg.includes('User not found'))
+        return 'Email non trovata.';
+    return msg || 'Errore sconosciuto. Riprova.';
 }
 
-function _saveUsers(users) {
-    localStorage.setItem(USERS_KEY, JSON.stringify(users));
+// ── Load profile from Supabase ────────────────────────────────────────────────
+async function _loadProfile(userId) {
+    const { data: profile, error } = await supabaseClient
+        .from('profiles')
+        .select('id, name, email, whatsapp, medical_cert_expiry, medical_cert_history, insurance_expiry, insurance_history, created_at')
+        .eq('id', userId)
+        .single();
+
+    window._currentUser = (profile && !error) ? profile : null;
 }
 
-function getUserByEmail(email) {
-    return _getAllUsers().find(u => u.email?.toLowerCase() === email.toLowerCase()) || null;
-}
-
-// Update user profile — returns { ok: true } or { ok: false, error: string }
-function updateUserProfile(currentEmail, updates, newPassword) {
-    const users = _getAllUsers();
-    const idx = users.findIndex(u => u.email.toLowerCase() === currentEmail.toLowerCase());
-    if (idx === -1) return { ok: false, error: 'Utente non trovato.' };
-
-    const user     = users[idx];
-    const newEmail = (updates.email || currentEmail).toLowerCase();
-
-    // Controlla unicità email
-    if (newEmail !== currentEmail.toLowerCase()) {
-        const taken = users.some((u, i) => i !== idx && u.email.toLowerCase() === newEmail);
-        if (taken) return { ok: false, error: 'Email già in uso da un altro account.' };
+// ── Init: recupera la sessione e carica il profilo ────────────────────────────
+// Chiamata su ogni pagina prima di qualsiasi operazione auth.
+// Ritorna la sessione Supabase (o null).
+async function initAuth() {
+    const { data: { session } } = await supabaseClient.auth.getSession();
+    if (session) {
+        await _loadProfile(session.user.id);
+    } else {
+        window._currentUser = null;
     }
 
-    if (updates.name     !== undefined) user.name     = updates.name;
-    if (updates.email    !== undefined) user.email    = newEmail;
-    if (updates.whatsapp !== undefined) user.whatsapp = updates.whatsapp;
+    // Reagisce a login/logout in altre tab o dopo OAuth redirect
+    supabaseClient.auth.onAuthStateChange(async (event, session) => {
+        if (event === 'SIGNED_IN' || event === 'TOKEN_REFRESHED') {
+            if (session) await _loadProfile(session.user.id);
+        } else if (event === 'SIGNED_OUT') {
+            window._currentUser = null;
+        }
+        updateNavAuth();
+    });
 
-    // Certificato medico: aggiorna scadenza e mantieni storico completo
+    updateNavAuth();
+    return session;
+}
+
+// ── Session accessors (sync — usa il valore cached da initAuth) ───────────────
+function getCurrentUser() {
+    return window._currentUser;
+}
+
+// ── Register ──────────────────────────────────────────────────────────────────
+// Crea account Supabase + profilo nella tabella profiles.
+async function registerUser(name, email, whatsapp, password) {
+    // 1. Crea account Supabase Auth
+    const { data, error } = await supabaseClient.auth.signUp({ email, password });
+    if (error) return { ok: false, error: _authError(error) };
+
+    const userId = data.user?.id;
+    if (!userId) return { ok: false, error: 'Errore durante la registrazione.' };
+
+    // 2. Crea profilo nella tabella profiles
+    const { error: profileError } = await supabaseClient
+        .from('profiles')
+        .insert({ id: userId, name, email, whatsapp });
+
+    if (profileError) {
+        // Se il profilo esiste già (race condition), proviamo upsert
+        if (profileError.code === '23505') {
+            await supabaseClient.from('profiles').upsert({ id: userId, name, email, whatsapp });
+        } else {
+            return { ok: false, error: profileError.message };
+        }
+    }
+
+    // 3. Carica profilo in memoria
+    await _loadProfile(userId);
+    return { ok: true };
+}
+
+// ── Login con email + password ────────────────────────────────────────────────
+async function loginWithPassword(email, password) {
+    const { data, error } = await supabaseClient.auth.signInWithPassword({ email, password });
+    if (error) return { ok: false, error: _authError(error) };
+    await _loadProfile(data.user.id);
+    return { ok: true };
+}
+
+// ── Logout ────────────────────────────────────────────────────────────────────
+async function logoutUser() {
+    await supabaseClient.auth.signOut();
+    window._currentUser = null;
+    // Pulisce anche l'eventuale sessione admin
+    localStorage.removeItem('adminAuthenticated');
+    sessionStorage.removeItem('adminAuth');
+}
+
+// ── Aggiorna profilo ──────────────────────────────────────────────────────────
+// updates: { name?, email?, whatsapp?, certificatoMedicoScadenza?, assicurazioneScadenza? }
+// newPassword: stringa opzionale
+async function updateUserProfile(currentEmail, updates, newPassword) {
+    const user = getCurrentUser();
+    if (!user) return { ok: false, error: 'Non autenticato.' };
+
+    const profileUpdate = {};
+
+    if (updates.name     !== undefined) profileUpdate.name     = updates.name;
+    if (updates.whatsapp !== undefined) profileUpdate.whatsapp = updates.whatsapp;
+    if (updates.email    !== undefined) profileUpdate.email    = updates.email.toLowerCase();
+
+    // Certificato medico: aggiorna scadenza e mantieni storico
     if (updates.certificatoMedicoScadenza !== undefined) {
         const newScad = updates.certificatoMedicoScadenza || null;
-        if (newScad !== (user.certificatoMedicoScadenza || null)) {
-            user.certificatoMedicoScadenza = newScad;
-            if (!user.certificatoMedicoHistory) user.certificatoMedicoHistory = [];
-            user.certificatoMedicoHistory.push({
-                scadenza: newScad,
-                aggiornatoIl: new Date().toISOString()
-            });
+        if (newScad !== (user.medical_cert_expiry || null)) {
+            profileUpdate.medical_cert_expiry = newScad;
+            const history = Array.isArray(user.medical_cert_history) ? [...user.medical_cert_history] : [];
+            history.push({ scadenza: newScad, aggiornatoIl: new Date().toISOString() });
+            profileUpdate.medical_cert_history = history;
         }
     }
 
-    // Assicurazione: aggiorna scadenza e mantieni storico completo
+    // Assicurazione: aggiorna scadenza e mantieni storico
     if (updates.assicurazioneScadenza !== undefined) {
         const newScad = updates.assicurazioneScadenza || null;
-        if (newScad !== (user.assicurazioneScadenza || null)) {
-            user.assicurazioneScadenza = newScad;
-            if (!user.assicurazioneHistory) user.assicurazioneHistory = [];
-            user.assicurazioneHistory.push({
-                scadenza: newScad,
-                aggiornatoIl: new Date().toISOString()
-            });
+        if (newScad !== (user.insurance_expiry || null)) {
+            profileUpdate.insurance_expiry = newScad;
+            const history = Array.isArray(user.insurance_history) ? [...user.insurance_history] : [];
+            history.push({ scadenza: newScad, aggiornatoIl: new Date().toISOString() });
+            profileUpdate.insurance_history = history;
         }
     }
 
-    if (newPassword) user.passwordHash = _hashPassword(newPassword);
-
-    _saveUsers(users);
-
-    // Se l'email è cambiata, aggiorna tutte le prenotazioni collegate
-    if (newEmail !== currentEmail.toLowerCase()) {
-        try {
-            const bookings = JSON.parse(localStorage.getItem('gym_bookings') || '[]');
-            bookings.forEach(b => {
-                if (b.email && b.email.toLowerCase() === currentEmail.toLowerCase()) b.email = newEmail;
-            });
-            localStorage.setItem('gym_bookings', JSON.stringify(bookings));
-        } catch {}
+    // Aggiorna profilo su Supabase
+    if (Object.keys(profileUpdate).length > 0) {
+        const { error } = await supabaseClient
+            .from('profiles')
+            .update(profileUpdate)
+            .eq('id', user.id);
+        if (error) return { ok: false, error: error.message };
     }
 
-    // Aggiorna la sessione corrente
-    const current = getCurrentUser();
-    if (current) {
-        loginUser({ ...current, name: user.name, email: user.email, whatsapp: user.whatsapp });
+    // Cambio email su Supabase Auth (richiede conferma via email)
+    if (updates.email && updates.email.toLowerCase() !== currentEmail.toLowerCase()) {
+        const { error } = await supabaseClient.auth.updateUser({ email: updates.email });
+        if (error) return { ok: false, error: error.message };
     }
 
+    // Cambio password su Supabase Auth
+    if (newPassword) {
+        const { error } = await supabaseClient.auth.updateUser({ password: newPassword });
+        if (error) return { ok: false, error: error.message };
+    }
+
+    // Ricarica profilo in memoria
+    await _loadProfile(user.id);
     return { ok: true };
 }
 
-// Synchronous password hash — works on all platforms without crypto.subtle
-function _hashPassword(password) {
-    const str = password + '|gym-tb|' + password.length;
-    let h = 5381;
-    for (let i = 0; i < str.length; i++) {
-        h = (Math.imul(h, 33) ^ str.charCodeAt(i)) >>> 0;
+// ── Lookup per email (usato nell'OAuth callback) ──────────────────────────────
+async function getUserByEmail(email) {
+    const { data } = await supabaseClient
+        .from('profiles')
+        .select('id, name, email, whatsapp')
+        .eq('email', email.toLowerCase())
+        .single();
+    return data || null;
+}
+
+// ── Le mie prenotazioni ───────────────────────────────────────────────────────
+// Legge ancora da localStorage finché non migriamo bookings (Fase 3).
+function getUserBookings() {
+    const user = getCurrentUser();
+    if (!user) return { upcoming: [], past: [] };
+
+    const allBookings = JSON.parse(localStorage.getItem('gym_bookings') || '[]');
+    const now   = new Date();
+    const today = now.toISOString().split('T')[0];
+
+    const myPhone = user.whatsapp ? normalizePhone(user.whatsapp) : '';
+    const mine = allBookings.filter(b => {
+        if (b.id && b.id.startsWith('demo-')) return false;
+        if (!user.email || !b.email) return false;
+        if (b.email.toLowerCase() !== user.email.toLowerCase()) return false;
+        if (myPhone && b.whatsapp && normalizePhone(b.whatsapp) !== myPhone) return false;
+        return true;
+    });
+
+    function isBookingPast(b) {
+        if (b.date < today) return true;
+        if (b.date > today) return false;
+        const endTimeStr = b.time ? b.time.split(' - ')[1]?.trim() : null;
+        if (!endTimeStr) return false;
+        const [h, m] = endTimeStr.split(':').map(Number);
+        const endDt = new Date(`${b.date}T${String(h).padStart(2,'0')}:${String(m).padStart(2,'0')}:00`);
+        return endDt <= now;
     }
-    return h.toString(16).padStart(8, '0');
+
+    return {
+        upcoming: mine.filter(b => !isBookingPast(b)).sort((a, b) => a.date.localeCompare(b.date) || a.time.localeCompare(b.time)),
+        past:     mine.filter(b =>  isBookingPast(b)).sort((a, b) => b.date.localeCompare(a.date) || b.time.localeCompare(a.time))
+    };
 }
 
-// Register a new user — returns { ok: true } or { ok: false, error: string }
-function registerUser(name, email, whatsapp, password) {
-    if (getUserByEmail(email)) return { ok: false, error: 'Email già registrata.' };
-    const passwordHash = _hashPassword(password);
-    const users = _getAllUsers();
-    users.push({ name, email, whatsapp, passwordHash, createdAt: new Date().toISOString() });
-    _saveUsers(users);
-    loginUser({ name, email, whatsapp });
-    return { ok: true };
-}
-
-// Login with email + password — returns { ok: true } or { ok: false, error: string }
-function loginWithPassword(email, password) {
-    const user = getUserByEmail(email);
-    if (!user) return { ok: false, error: 'Email non trovata.' };
-    const hash = _hashPassword(password);
-    if (hash !== user.passwordHash) return { ok: false, error: 'Password errata.' };
-    loginUser({ name: user.name, email: user.email, whatsapp: user.whatsapp });
-    return { ok: true };
-}
-
-// ── Session helpers ───────────────────────────────────────────────────────
-function getCurrentUser() {
-    try { return JSON.parse(localStorage.getItem('currentUser')); } catch { return null; }
-}
-
-function loginUser(user) {
-    localStorage.setItem('currentUser', JSON.stringify(user));
-}
-
-function logoutUser() {
-    localStorage.removeItem('currentUser');
-}
-
+// ── Navbar ────────────────────────────────────────────────────────────────────
 function updateNavAuth() {
     const user    = getCurrentUser();
     const isAdmin = localStorage.getItem('adminAuthenticated') === 'true';
@@ -153,7 +239,7 @@ function updateNavAuth() {
     if (user) {
         if (loginLink) loginLink.style.display = 'none';
         if (userMenu)  userMenu.style.display  = 'flex';
-        if (userName)  userName.textContent    = user.name.split(' ')[0];
+        if (userName)  userName.textContent    = (user.name || user.email).split(' ')[0];
         _injectNavLinkFirst('prenotazioni.html', 'Le mie prenotazioni', 'nav-prenotazioni-link');
         _injectSidebarLogout();
     } else if (isAdmin) {
@@ -201,62 +287,25 @@ function _injectSidebarLogout() {
     const btn = document.createElement('button');
     btn.className = 'nav-sidebar-logout';
     btn.textContent = 'Esci';
-    btn.addEventListener('click', () => {
-        logoutUser();
-        localStorage.removeItem('adminAuthenticated');
-        sessionStorage.removeItem('adminAuth');
+    btn.addEventListener('click', async () => {
+        await logoutUser();
         window.location.href = '/';
     });
     li.appendChild(btn);
     sidebar.append(li);
 }
 
-function _injectPrenotazioniLink() {
-    _injectNavLinkFirst('prenotazioni.html', 'Le mie prenotazioni', 'nav-prenotazioni-link');
+// ── Hamburger sidebar ─────────────────────────────────────────────────────────
+function toggleNavMenu() {
+    const sidebar = document.getElementById('navSidebar');
+    const overlay = document.getElementById('navSidebarOverlay');
+    if (!sidebar) return;
+    const isOpen = sidebar.classList.toggle('open');
+    if (overlay) overlay.classList.toggle('open', isOpen);
+    document.body.classList.toggle('nav-open', isOpen);
 }
 
-function _removePrenotazioniLink() {
-    _removeDynamicNavLinks();
-}
-
-function getUserBookings() {
-    const user = getCurrentUser();
-    if (!user) return { upcoming: [], past: [] };
-
-    const allBookings = JSON.parse(localStorage.getItem('gym_bookings') || '[]');
-    const now   = new Date();
-    const today = now.toISOString().split('T')[0];
-
-    const myPhone = user.whatsapp ? normalizePhone(user.whatsapp) : '';
-    const mine = allBookings.filter(b => {
-        if (b.id && b.id.startsWith('demo-')) return false;
-        // Email is required — must always match
-        if (!user.email || !b.email) return false;
-        if (b.email.toLowerCase() !== user.email.toLowerCase()) return false;
-        // When both user and booking have a phone, it must also match
-        // (prevents two accounts with the same email but different phones from sharing data)
-        if (myPhone && b.whatsapp && normalizePhone(b.whatsapp) !== myPhone) return false;
-        return true;
-    });
-
-    function isBookingPast(b) {
-        if (b.date < today) return true;
-        if (b.date > today) return false;
-        // Stesso giorno: controlla l'orario di fine
-        const endTimeStr = b.time ? b.time.split(' - ')[1]?.trim() : null;
-        if (!endTimeStr) return false;
-        const [h, m] = endTimeStr.split(':').map(Number);
-        const endDt = new Date(`${b.date}T${String(h).padStart(2,'0')}:${String(m).padStart(2,'0')}:00`);
-        return endDt <= now;
-    }
-
-    return {
-        upcoming: mine.filter(b => !isBookingPast(b)).sort((a, b) => a.date.localeCompare(b.date) || a.time.localeCompare(b.time)),
-        past:     mine.filter(b =>  isBookingPast(b)).sort((a, b) => b.date.localeCompare(a.date) || b.time.localeCompare(a.time))
-    };
-}
-
-// ── Profile modal (kept for backward compat on pages that still have it) ──
+// ── Profile modal ─────────────────────────────────────────────────────────────
 function openProfileModal() {
     const user = getCurrentUser();
     if (!user) return;
@@ -296,34 +345,19 @@ function renderProfileTab(tab) {
     `).join('');
 }
 
-// ── Hamburger sidebar toggle ──────────────────────────────────────────────
-function toggleNavMenu() {
-    const sidebar = document.getElementById('navSidebar');
-    const overlay = document.getElementById('navSidebarOverlay');
-    if (!sidebar) return;
-    const isOpen = sidebar.classList.toggle('open');
-    if (overlay) overlay.classList.toggle('open', isOpen);
-    document.body.classList.toggle('nav-open', isOpen);
-}
-
-// ── Init on DOM ready ─────────────────────────────────────────────────────
+// ── Init on DOM ready ─────────────────────────────────────────────────────────
 document.addEventListener('DOMContentLoaded', () => {
-    updateNavAuth();
-
     const hamburger = document.getElementById('navHamburger');
     if (hamburger) hamburger.addEventListener('click', toggleNavMenu);
 
     const logoutBtn = document.getElementById('navLogoutBtn');
     if (logoutBtn) {
-        logoutBtn.addEventListener('click', () => {
-            logoutUser();
-            localStorage.removeItem('adminAuthenticated');
-            sessionStorage.removeItem('adminAuth');
+        logoutBtn.addEventListener('click', async () => {
+            await logoutUser();
             window.location.href = '/';
         });
     }
 
-    // Username click → Le mie prenotazioni (user) or admin page (admin)
     const profileBtn = document.getElementById('navUserName');
     if (profileBtn) {
         profileBtn.style.cursor = 'pointer';

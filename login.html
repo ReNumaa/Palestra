@@ -169,7 +169,7 @@
     <script src="js/supabase-client.js?v=1"></script>
     <script src="js/ui.js?v=2"></script>
     <script src="js/data.js?v=13"></script>
-    <script src="js/auth.js?v=7"></script>
+    <script src="js/auth.js?v=9"></script>
     <script src="js/push.js?v=1"></script>
     <script>
         // Prevent iOS Safari auto-zoom on input focus.
@@ -196,9 +196,6 @@
         }());
     </script>
     <script>
-        // Redirect if already logged in
-        if (getCurrentUser()) window.location.href = 'index.html';
-
         // ── Password visibility toggle ────────────────────────────────────
         function togglePwd(inputId, btn) {
             const input = document.getElementById(inputId);
@@ -216,7 +213,7 @@
         }
 
         // ── Manual login ──────────────────────────────────────────────────
-        document.getElementById('manualLoginForm').addEventListener('submit', e => {
+        document.getElementById('manualLoginForm').addEventListener('submit', async e => {
             e.preventDefault();
             const email    = document.getElementById('loginEmail').value.trim();
             const password = document.getElementById('loginPassword').value;
@@ -231,7 +228,7 @@
             }
 
             setLoading(btn, true, 'Accesso in corso...');
-            const result = loginWithPassword(email, password);
+            const result = await loginWithPassword(email, password);
             if (result.ok) {
                 window.location.href = 'index.html';
             } else {
@@ -242,7 +239,7 @@
         });
 
         // ── Registration ──────────────────────────────────────────────────
-        document.getElementById('registerForm').addEventListener('submit', e => {
+        document.getElementById('registerForm').addEventListener('submit', async e => {
             e.preventDefault();
             const name     = document.getElementById('regName').value.trim();
             const email    = document.getElementById('regEmail').value.trim();
@@ -280,7 +277,7 @@
             }
 
             setLoading(btn, true, 'Registrazione in corso...');
-            const result = registerUser(name, email, whatsapp, password);
+            const result = await registerUser(name, email, whatsapp, password);
             if (result.ok) {
                 window.location.href = 'index.html';
             } else {
@@ -317,33 +314,36 @@
             }
         });
 
-        // ── OAuth callback: handle redirect back from Google/Facebook ────
-        (function handleOAuthReturn() {
-            const hasCode   = new URLSearchParams(window.location.search).has('code');
-            const hasToken  = window.location.hash.includes('access_token');
-            if (!hasCode && !hasToken) return;
+        // ── OAuth callback: handle redirect back from Google ──────────────
+        async function handleOAuthReturn() {
+            const hasCode  = new URLSearchParams(window.location.search).has('code');
+            const hasToken = window.location.hash.includes('access_token');
+            if (!hasCode && !hasToken) return false;
 
-            supabaseClient.auth.getSession().then(({ data: { session } }) => {
-                if (!session) return;
-                const meta = session.user.user_metadata || {};
-                const name  = meta.full_name || meta.name || session.user.email.split('@')[0];
-                const email = session.user.email;
-                const provider = session.user.app_metadata?.provider || 'oauth';
+            const { data: { session } } = await supabaseClient.auth.getSession();
+            if (!session) return false;
 
-                // Check if user already has WhatsApp stored
-                const existing = getUserByEmail(email);
-                if (existing && existing.whatsapp) {
-                    loginUser({ name: existing.name || name, email, whatsapp: existing.whatsapp, provider });
-                    window.location.replace('index.html');
-                } else {
-                    // Ask for WhatsApp before proceeding
-                    window._pendingOAuthUser = { name, email, provider };
-                    document.getElementById('completeProfileModal').style.display = 'flex';
-                }
-            });
-        })();
+            const meta     = session.user.user_metadata || {};
+            const name     = meta.full_name || meta.name || session.user.email.split('@')[0];
+            const email    = session.user.email;
+            const userId   = session.user.id;
 
-        function confirmCompleteProfile() {
+            // Controlla se il profilo esiste già su Supabase
+            const existing = await getUserByEmail(email);
+            if (existing && existing.whatsapp) {
+                // Profilo completo: vai direttamente
+                await _loadProfile(userId);
+                window.location.replace('index.html');
+                return true;
+            }
+
+            // Prima volta con Google: chiedi il WhatsApp
+            window._pendingOAuthUser = { name, email, userId };
+            document.getElementById('completeProfileModal').style.display = 'flex';
+            return true;
+        }
+
+        async function confirmCompleteProfile() {
             const raw   = document.getElementById('oauthWhatsapp').value.trim();
             const errEl = document.getElementById('oauthWhatsappError');
             const btn   = document.querySelector('#completeProfileModal .btn-primary');
@@ -357,19 +357,20 @@
             }
 
             setLoading(btn, true, 'Salvataggio...');
-            const { name, email, provider } = window._pendingOAuthUser;
+            const { name, email, userId } = window._pendingOAuthUser;
 
-            // Save/update user in local users list (whatsapp in E.164 for WhatsApp API)
-            const users = _getAllUsers();
-            const idx = users.findIndex(u => u.email.toLowerCase() === email.toLowerCase());
-            if (idx >= 0) {
-                users[idx].whatsapp = whatsapp;
-            } else {
-                users.push({ name, email, whatsapp, provider, createdAt: new Date().toISOString() });
+            // Upsert profilo su Supabase
+            const { error } = await supabaseClient
+                .from('profiles')
+                .upsert({ id: userId, name, email, whatsapp });
+
+            if (error) {
+                setLoading(btn, false);
+                errEl.textContent = 'Errore durante il salvataggio. Riprova.';
+                errEl.style.display = 'block';
+                return;
             }
-            _saveUsers(users);
 
-            loginUser({ name, email, whatsapp, provider });
             window.location.replace('index.html');
         }
 
@@ -381,6 +382,15 @@
             });
             if (error) alert('Errore durante il login con Google: ' + error.message);
         }
+
+        // ── Init: redirect se già loggato, oppure gestisci OAuth return ──
+        initAuth().then(async session => {
+            const isOAuth = await handleOAuthReturn();
+            if (!isOAuth && session) {
+                // Già loggato e non è un OAuth callback: vai all'homepage
+                window.location.href = 'index.html';
+            }
+        });
     </script>
     <script>
         if ('serviceWorker' in navigator) {
