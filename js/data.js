@@ -262,7 +262,7 @@ class BookingStorage {
         }
     }
 
-    static saveBooking(booking) {
+    static saveBooking(booking, onSupabaseResult) {
         const bookings = this.getAllBookings();
         // Generate truly unique ID using timestamp + random number
         booking.id = `${Date.now()}-${Math.random().toString(36).substr(2, 9)}`;
@@ -277,7 +277,7 @@ class BookingStorage {
             const user = typeof getCurrentUser === 'function' ? getCurrentUser() : null;
             const maxCap = BookingStorage.getEffectiveCapacity(booking.date, booking.time, booking.slotType);
             const _sbInsert = () => {
-                if (!user?.id) return;
+                if (!user?.id) { if (onSupabaseResult) onSupabaseResult(false); return; }
                 supabaseClient.from('bookings').insert({
                     local_id:     booking.id,
                     user_id:      user.id,
@@ -292,8 +292,8 @@ class BookingStorage {
                     created_at:   booking.createdAt,
                     date_display: booking.dateDisplay || ''
                 }).then(({ error: e2 }) => {
-                    if (e2) console.error('[Supabase] fallback insert error:', e2.message);
-                    else console.log('[Supabase] fallback insert OK');
+                    if (e2) { console.error('[Supabase] fallback insert error:', e2.message); if (onSupabaseResult) onSupabaseResult(false); }
+                    else { console.log('[Supabase] fallback insert OK'); if (onSupabaseResult) onSupabaseResult(true); }
                 });
             };
             supabaseClient.rpc('book_slot_atomic', {
@@ -318,8 +318,10 @@ class BookingStorage {
                     _sbInsert();
                 } else if (!data.success) {
                     console.warn('[Supabase] book_slot_atomic rifiutato:', data.error);
+                    if (onSupabaseResult) onSupabaseResult(false);
                 } else {
                     console.log('[Supabase] book_slot_atomic OK — id:', booking.id);
+                    if (onSupabaseResult) onSupabaseResult(true);
                 }
             });
         }

@@ -227,8 +227,10 @@ function handleBookingSubmit(e) {
         dateDisplay: selectedSlot.dateDisplay
     };
 
-    // Save booking
-    const savedBooking = BookingStorage.saveBooking(booking);
+    // Save booking (callback avvisa se Supabase fallisce)
+    const savedBooking = BookingStorage.saveBooking(booking, (ok) => {
+        if (!ok) showToast('⚠️ Prenotazione salvata localmente, ma non è stata sincronizzata con il server. Ricarica la pagina tra qualche minuto per verificare.', 'error');
+    });
 
     // Se c'era una richiesta di annullamento per questo slot, è ora soddisfatta
     BookingStorage.fulfillPendingCancellations(booking.date, booking.time);
