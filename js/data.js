@@ -946,31 +946,27 @@ class BookingStorage {
                 || p.cancellationRequestedAt !== b.cancellationRequestedAt
                 || p.cancelledAt !== b.cancelledAt;
         });
-        changed.forEach(b => {
-            const fields = {
-                status: b.status,
-                paid: b.paid || false,
-                payment_method: b.paymentMethod || null,
-                paid_at: b.paidAt || null,
-                credit_applied: b.creditApplied || 0,
-                cancellation_requested_at: b.cancellationRequestedAt || null,
-                cancelled_at: b.cancelledAt || null,
-                cancelled_payment_method: b.cancelledPaymentMethod || null,
-                cancelled_paid_at: b.cancelledPaidAt || null,
-                cancelled_with_bonus: b.cancelledWithBonus || false,
-                cancelled_with_penalty: b.cancelledWithPenalty || false,
-            };
-            // Prefer matching by Supabase UUID (_sbId); fallback to local_id for legacy rows
-            console.log('[Supabase] booking update attempt — id:', b.id, '_sbId:', b._sbId, 'status:', b.status);
-            const q = b._sbId
-                ? supabaseClient.from('bookings').update(fields).eq('id', b._sbId).select('id')
-                : supabaseClient.from('bookings').update(fields).eq('local_id', b.id).select('id');
-            q.then(({ data, error }) => {
-                if (error) console.error('[Supabase] booking update error:', error.message, error);
-                else if (!data || data.length === 0) console.warn('[Supabase] booking update: 0 righe aggiornate (RLS?) — _sbId:', b._sbId, 'id:', b.id);
-                else console.log('[Supabase] booking update OK — riga aggiornata:', data[0].id);
+        for (const b of changed) {
+            if (!b._sbId) { console.warn('[Supabase] booking update skip — nessun _sbId per:', b.id); continue; }
+            // Usa RPC SECURITY DEFINER per bypassare RLS (admin può modificare booking altrui)
+            supabaseClient.rpc('admin_update_booking', {
+                p_booking_id:                b._sbId,
+                p_status:                    b.status,
+                p_paid:                      b.paid || false,
+                p_payment_method:            b.paymentMethod || null,
+                p_paid_at:                   b.paidAt || null,
+                p_credit_applied:            b.creditApplied || 0,
+                p_cancellation_requested_at: b.cancellationRequestedAt || null,
+                p_cancelled_at:              b.cancelledAt || null,
+                p_cancelled_payment_method:  b.cancelledPaymentMethod || null,
+                p_cancelled_paid_at:         b.cancelledPaidAt || null,
+                p_cancelled_with_bonus:      b.cancelledWithBonus || false,
+                p_cancelled_with_penalty:    b.cancelledWithPenalty || false,
+            }).then(({ error }) => {
+                if (error) console.error('[Supabase] admin_update_booking error:', error.message);
+                else console.log('[Supabase] admin_update_booking OK — id:', b._sbId, 'status:', b.status);
             });
-        });
+        }
     }
 
     // Marca come cancellata una prenotazione per ID (preserva lo storico)
