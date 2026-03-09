@@ -235,28 +235,27 @@ class BookingStorage {
         localStorage.setItem(this.BOOKINGS_KEY, JSON.stringify(bookings));
         this.updateStats(booking);
 
-        // Dual-write to Supabase (fire-and-forget — localStorage remains source of truth)
+        // Dual-write to Supabase via RPC atomica (previene double-booking in race condition)
         if (typeof supabaseClient !== 'undefined') {
             const user = typeof getCurrentUser === 'function' ? getCurrentUser() : null;
-            supabaseClient.from('bookings').insert({
-                local_id: booking.id,
-                user_id: user?.id || null,
-                date: booking.date,
-                time: booking.time,
-                slot_type: booking.slotType,
-                date_display: booking.dateDisplay || '',
-                name: booking.name,
-                email: booking.email,
-                whatsapp: booking.whatsapp,
-                notes: booking.notes || '',
-                status: booking.status,
-                paid: booking.paid || false,
-                payment_method: booking.paymentMethod || null,
-                paid_at: booking.paidAt || null,
-                credit_applied: booking.creditApplied || 0,
-                created_at: booking.createdAt
-            }).then(({ error }) => {
-                if (error) console.error('[Supabase] saveBooking error:', error.code, error.message, error.details, error.hint);
+            const maxCap = BookingStorage.getEffectiveCapacity(booking.date, booking.time, booking.slotType);
+            supabaseClient.rpc('book_slot_atomic', {
+                p_local_id:     booking.id,
+                p_user_id:      user?.id || null,
+                p_date:         booking.date,
+                p_time:         booking.time,
+                p_slot_type:    booking.slotType,
+                p_max_capacity: maxCap,
+                p_name:         booking.name,
+                p_email:        booking.email,
+                p_whatsapp:     booking.whatsapp,
+                p_notes:        booking.notes || '',
+                p_created_at:   booking.createdAt,
+                p_date_display: booking.dateDisplay || ''
+            }).then(({ data, error }) => {
+                if (error) console.error('[Supabase] book_slot_atomic error:', error.message);
+                else if (data && !data.success)
+                    console.warn('[Supabase] book_slot_atomic:', data.error, '— il booking sarà rimosso al prossimo sync');
             });
         }
 

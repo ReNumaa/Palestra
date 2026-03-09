@@ -15,8 +15,9 @@ drop policy if exists "bookings_update_own"    on bookings;
 create policy "bookings_public_read"
     on bookings for select using (true);
 
-create policy "bookings_public_insert"
-    on bookings for insert with check (true);
+-- bookings_public_insert rimossa: solo utenti autenticati possono prenotare.
+-- Le prenotazioni passano per book_slot_atomic (SECURITY DEFINER) che bypassa RLS.
+-- drop policy if exists "bookings_public_insert" on bookings;
 
 create policy "bookings_select_own"
     on bookings for select to authenticated using (user_id = auth.uid());

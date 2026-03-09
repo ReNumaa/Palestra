@@ -174,7 +174,7 @@
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.min.js"></script>
     <script src="js/supabase-client.js?v=1"></script>
     <script src="js/ui.js?v=2"></script>
-    <script src="js/data.js?v=28"></script>
+    <script src="js/data.js?v=29"></script>
     <script src="js/auth.js?v=12"></script>
     <script src="js/push.js?v=1"></script>
     <script>
@@ -213,8 +213,11 @@
             renderBonusBalance();
             renderCertWarning();
             _startPolling();
+            _setupRealtime();
         }
 
+        // Polling ridotto a 30s — serve solo per processPendingCancellations (check basato sul tempo).
+        // Le re-render live arrivano da Supabase Realtime (vedi _setupRealtime).
         function _startPolling() {
             if (_pollInterval) return;
             _pollInterval = setInterval(() => {
@@ -234,11 +237,29 @@
                 renderPrenoList();
                 renderCreditBalance();
                 renderBonusBalance();
-            }, 3000);
+            }, 30000);
         }
         function _stopPolling() { if (_pollInterval) { clearInterval(_pollInterval); _pollInterval = null; } }
         document.addEventListener('visibilitychange', () => {
-            if (document.hidden) _stopPolling(); else _startPolling();
+            if (document.hidden) _stopPolling(); else { _startPolling(); _setupRealtime(); }
+        });
+
+        // Supabase Realtime: aggiorna la lista prenotazioni in tempo reale
+        let _realtimeChannel = null;
+        function _setupRealtime() {
+            if (typeof supabaseClient === 'undefined' || _realtimeChannel) return;
+            _realtimeChannel = supabaseClient
+                .channel('bookings-rt-preno')
+                .on('postgres_changes', { event: '*', schema: 'public', table: 'bookings' }, async () => {
+                    await BookingStorage.syncFromSupabase();
+                    renderPrenoList();
+                    renderCreditBalance();
+                    renderBonusBalance();
+                })
+                .subscribe();
+        }
+        window.addEventListener('beforeunload', () => {
+            if (_realtimeChannel) supabaseClient.removeChannel(_realtimeChannel);
         });
 
         // Avvio: aspetta la sessione Supabase, poi controlla il guard e inizializza
