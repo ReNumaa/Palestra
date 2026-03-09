@@ -741,6 +741,7 @@
                         await BookingStorage.syncFromSupabase();
                         if (typeof loadDashboardData === 'function') loadDashboardData();
                         if (typeof renderAdminCalendar === 'function') renderAdminCalendar();
+                        if (typeof renderAdminDayView === 'function' && typeof selectedAdminDay !== 'undefined' && selectedAdminDay) renderAdminDayView(selectedAdminDay);
                     })
                     .subscribe();
 
