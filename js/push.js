@@ -152,8 +152,8 @@ if ('Notification' in window && Notification.permission === 'granted') {
     navigator.serviceWorker?.ready.then(() => registerPushSubscription());
 }
 
-// Mostra banner "Abilita notifiche" la prima volta che l'utente apre il calendario.
-// Chiamata da index.html dopo initAuth(). Richiede interazione utente.
+// Mostra banner "Abilita notifiche" ad ogni apertura finché non viene accettato o negato dal browser.
+// Chiamata da index.html dopo initAuth().
 async function promptPushPermission() {
     if (!('Notification' in window) || !('PushManager' in window)) return;
     if (Notification.permission === 'granted') {
@@ -161,7 +161,6 @@ async function promptPushPermission() {
         return;
     }
     if (Notification.permission === 'denied') return;
-    if (localStorage.getItem('push_prompt_dismissed')) return;
 
     const existing = document.getElementById('pushBanner');
     if (existing) return;
@@ -170,26 +169,20 @@ async function promptPushPermission() {
     banner.id = 'pushBanner';
     banner.style.cssText = 'position:fixed;bottom:20px;left:50%;transform:translateX(-50%);width:calc(100% - 32px);max-width:400px;background:#1a1a1a;color:#fff;border-radius:18px;padding:18px 18px 16px;z-index:9999;box-shadow:0 8px 32px rgba(0,0,0,0.4);font-family:inherit;box-sizing:border-box';
     banner.innerHTML = `
-        <div style="display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:14px">
-            <div style="display:flex;align-items:center;gap:12px">
-                <span style="font-size:26px;line-height:1">🔔</span>
-                <div>
-                    <div style="font-weight:700;font-size:15px;line-height:1.2">Abilita notifiche</div>
-                    <div style="font-size:12px;color:#aaa;margin-top:4px;line-height:1.5">Promemoria 1h prima della lezione<br>e avvisi quando si libera uno slot</div>
-                </div>
+        <div style="display:flex;align-items:center;gap:12px;margin-bottom:14px">
+            <span style="font-size:26px;line-height:1">🔔</span>
+            <div>
+                <div style="font-weight:700;font-size:15px;line-height:1.2">Abilita notifiche</div>
+                <div style="font-size:12px;color:#aaa;margin-top:4px;line-height:1.5">Promemoria 1h prima della lezione<br>e avvisi quando si libera uno slot</div>
             </div>
-            <button id="pushBannerClose" style="background:none;border:none;color:#666;cursor:pointer;font-size:20px;line-height:1;padding:0;margin-left:8px;flex-shrink:0">✕</button>
         </div>
         <button id="pushBannerYes" style="width:100%;background:#00AEEF;color:#fff;border:none;padding:12px;border-radius:10px;cursor:pointer;font-weight:700;font-size:14px;letter-spacing:0.01em">Abilita notifiche</button>
     `;
     document.body.appendChild(banner);
 
-    const dismiss = () => { localStorage.setItem('push_prompt_dismissed', '1'); banner.remove(); };
-    document.getElementById('pushBannerClose').addEventListener('click', dismiss);
     document.getElementById('pushBannerYes').addEventListener('click', async () => {
         banner.remove();
         const permission = await Notification.requestPermission();
         if (permission === 'granted') await registerPushSubscription();
-        else localStorage.setItem('push_prompt_dismissed', '1');
     });
 }
