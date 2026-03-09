@@ -1243,13 +1243,11 @@ function deleteBooking(bookingId, bookingName) {
     if (index !== -1) {
         const booking = bookings[index];
 
-        // Bonus check
+        // Bonus check (solo se disponibile)
         const hasBonus = BonusStorage.getBonus(booking.whatsapp, booking.email) > 0;
         let useBonus = false;
         if (hasBonus) {
             useBonus = confirm(`🎟️ ${bookingName} ha 1 bonus annullamento disponibile.\n\nVuoi utilizzarlo per questo annullamento?`);
-        } else {
-            alert(`ℹ️ ${bookingName} non ha bonus annullamento disponibile.`);
         }
         if (useBonus) {
             BonusStorage.useBonus(booking.whatsapp, booking.email, booking.name);
