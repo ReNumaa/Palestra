@@ -76,16 +76,15 @@ async function savePushSubscription(subscription) {
         userEmail = u?.email ?? null;
     }
 
-    // Salva su Supabase push_subscriptions
+    // Salva su Supabase via RPC (SECURITY DEFINER — bypassa RLS)
     if (typeof supabaseClient !== 'undefined' && userId) {
-        supabaseClient.from('push_subscriptions').upsert({
-            endpoint:   json.endpoint,
-            p256dh:     json.keys.p256dh,
-            auth:       json.keys.auth,
-            user_id:    userId,
-            user_email: userEmail,
-        }, { onConflict: 'endpoint' }).then(({ error }) => {
-            if (error) console.warn('[Push] Supabase save error:', error.message);
+        supabaseClient.rpc('save_push_subscription', {
+            p_endpoint:   json.endpoint,
+            p_p256dh:     json.keys.p256dh,
+            p_auth:       json.keys.auth,
+            p_user_email: userEmail,
+        }).then(({ error }) => {
+            if (error) console.warn('[Push] Supabase RPC error:', error.message);
             else       console.log('[Push] Subscription salvata su Supabase per', userEmail);
         });
     } else {
