@@ -3160,6 +3160,7 @@ function saveClientEdit(index, oldWhatsapp, oldEmail) {
 
     openClientIndex = null; // l'ordinamento per nome può cambiare l'indice della card
     renderClientsTab();
+    showToast('Contatto aggiornato.', 'success');
 }
 
 function startEditBookingRow(bookingId, clientIndex) {
@@ -4562,6 +4563,7 @@ function saveCertDate() {
     }
 
     closeCertModal();
+    showToast('Certificato medico aggiornato.', 'success');
 }
 
 let _assicModalEmail    = null;
@@ -4650,6 +4652,7 @@ function saveAssicDate() {
     }
 
     closeAssicModal();
+    showToast('Assicurazione aggiornata.', 'success');
 }
 
 function renderOccupancyDetail(panel) {
