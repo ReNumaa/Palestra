@@ -1176,8 +1176,9 @@ async function bookForClient(slotType) {
         dateDisplay,
     };
 
-    // Aggiungi slot extra e salva prenotazione con userId del cliente
-    BookingStorage.addExtraSpot(date, time, slotType);
+    // Aggiungi slot extra solo se lo slot è pieno (altrimenti usa posti già disponibili)
+    const remaining = BookingStorage.getRemainingSpots(date, time, slotType);
+    if (remaining <= 0) BookingStorage.addExtraSpot(date, time, slotType);
     BookingStorage.saveBookingForClient(booking, clientUserId, (ok) => {
         if (!ok) showToast('⚠️ Salvato localmente, sync Supabase non riuscita', 'error');
     });
