@@ -148,12 +148,14 @@
                         <input type="text" id="clientSearchInput"
                                placeholder="Cerca per nome, telefono o email..."
                                oninput="liveSearchClients()">
-                        <button class="clients-cert-filter-btn" id="certFilterBtn" onclick="toggleCertFilter()">
-                            🏥 Senza certificato
-                        </button>
-                        <button class="clients-cert-filter-btn" id="assicFilterBtn" onclick="toggleAssicFilter()">
-                            📋 Senza assicurazione
-                        </button>
+                        <div style="display:flex;flex-wrap:wrap;gap:0.5rem;">
+                            <button class="clients-cert-filter-btn" id="certFilterBtn" onclick="toggleCertFilter()">
+                                🏥 Senza certificato
+                            </button>
+                            <button class="clients-cert-filter-btn" id="assicFilterBtn" onclick="toggleAssicFilter()">
+                                📋 Senza assicurazione
+                            </button>
+                        </div>
                     </div>
                     <div class="clients-list" id="clientsList">
                         <!-- Populated by JavaScript -->
