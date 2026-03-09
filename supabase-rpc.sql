@@ -86,8 +86,8 @@ LANGUAGE plpgsql SECURITY DEFINER AS $$
 BEGIN
     RETURN QUERY
         SELECT p.id, p.name, p.email, p.whatsapp,
-               p.medical_cert_expiry, p.medical_cert_history,
-               p.insurance_expiry, p.insurance_history
+               p.medical_cert_expiry::TEXT, p.medical_cert_history,
+               p.insurance_expiry::TEXT, p.insurance_history
         FROM profiles p;
 END;
 $$;

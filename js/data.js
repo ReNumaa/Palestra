@@ -1505,6 +1505,7 @@ class UserStorage {
                 if (p.length >= 9) supabasePhones.add(p);
                 return {
                     ...existing,
+                    _fromSupabase: true,
                     name:     row.name     || existing.name     || '',
                     email:    row.email    || existing.email    || '',
                     whatsapp: row.whatsapp || existing.whatsapp || '',
@@ -1520,8 +1521,10 @@ class UserStorage {
                 };
             });
 
-            // Mantieni utenti solo locali (non registrati su Supabase, es. clienti offline)
+            // Mantieni solo utenti mai syncati da Supabase (clienti offline senza account)
+            // Gli utenti con _fromSupabase:true che non sono più in Supabase vengono rimossi
             const localOnly = local.filter(u => {
+                if (u._fromSupabase) return false; // era su Supabase, ora eliminato → rimuovi
                 const e = normEmail(u.email);
                 const p = normPhone(u.whatsapp);
                 return !(e && supabaseEmails.has(e)) && !(p.length >= 9 && supabasePhones.has(p));
