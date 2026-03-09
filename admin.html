@@ -743,6 +743,24 @@
                         if (typeof renderAdminCalendar === 'function') renderAdminCalendar();
                     })
                     .subscribe();
+
+                supabaseClient
+                    .channel('appsettings-rt-admin')
+                    .on('postgres_changes', { event: '*', schema: 'public', table: 'app_settings' }, async () => {
+                        await BookingStorage.syncAppSettingsFromSupabase();
+                        if (typeof loadDashboardData === 'function') loadDashboardData();
+                        if (typeof renderClientsTab === 'function') renderClientsTab();
+                        if (typeof renderPaymentsTab === 'function') renderPaymentsTab();
+                    })
+                    .subscribe();
+
+                supabaseClient
+                    .channel('profiles-rt-admin')
+                    .on('postgres_changes', { event: '*', schema: 'public', table: 'profiles' }, async () => {
+                        await UserStorage.syncUsersFromSupabase();
+                        if (typeof renderClientsTab === 'function') renderClientsTab();
+                    })
+                    .subscribe();
             }
         })();
         if ('serviceWorker' in navigator) {
