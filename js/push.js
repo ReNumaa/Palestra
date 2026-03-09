@@ -115,12 +115,13 @@ async function notifySlotAvailable(booking) {
         } catch {}
     }
     const dateDisplay = booking.dateDisplay || booking.date_display || booking.date || '';
+    const date = booking.date || '';
     const time = booking.time || '';
     try {
         await fetch(`${SUPABASE_URL}/functions/v1/notify-slot-available`, {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ date_display: dateDisplay, time, exclude_user_id: excludeUserId }),
+            body: JSON.stringify({ date_display: dateDisplay, date, time, exclude_user_id: excludeUserId }),
         });
     } catch (e) {
         console.warn('[Push] notifySlotAvailable error:', e);

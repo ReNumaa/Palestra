@@ -67,11 +67,16 @@ self.addEventListener('push', event => {
 // Notifiche: porta in primo piano la finestra app al click
 self.addEventListener('notificationclick', event => {
     event.notification.close();
+    const targetUrl = event.notification.data?.url || '/prenotazioni.html';
     event.waitUntil(
         self.clients.matchAll({ type: 'window', includeUncontrolled: true }).then(clients => {
             const appClient = clients.find(c => c.url.includes('thomasbresciani.com'));
-            if (appClient) return appClient.focus();
-            return self.clients.openWindow('/prenotazioni.html');
+            if (appClient) {
+                appClient.focus();
+                appClient.navigate(targetUrl);
+                return;
+            }
+            return self.clients.openWindow(targetUrl);
         })
     );
 });

@@ -216,6 +216,15 @@
                 BookingStorage.syncFromSupabase(),
                 BookingStorage.syncAppSettingsFromSupabase(),
             ]);
+            // Deep-link da notifica push: ?date=YYYY-MM-DD → naviga alla settimana giusta
+            const _deepDate = new URLSearchParams(location.search).get('date');
+            if (_deepDate && typeof currentWeekOffset !== 'undefined') {
+                const _today = new Date(); _today.setHours(0,0,0,0);
+                const _target = new Date(_deepDate + 'T00:00:00');
+                const _todayMon = new Date(_today); _todayMon.setDate(_today.getDate() - ((_today.getDay()+6)%7));
+                const _targetMon = new Date(_target); _targetMon.setDate(_target.getDate() - ((_target.getDay()+6)%7));
+                currentWeekOffset = Math.round((_targetMon - _todayMon) / (7*24*60*60*1000));
+            }
             if (typeof renderCalendar === 'function') renderCalendar();
             if (typeof renderMobileCalendar === 'function') renderMobileCalendar();
 

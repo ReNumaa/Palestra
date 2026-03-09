@@ -25,7 +25,7 @@ Deno.serve(async (req) => {
         return new Response(null, { status: 204, headers: corsHeaders });
     }
     try {
-        const { date_display, time, exclude_user_id } = await req.json();
+        const { date_display, time, exclude_user_id, date } = await req.json();
 
         if (!date_display || !time) {
             return new Response(JSON.stringify({ ok: false, error: "date_display e time sono obbligatori" }), {
@@ -47,7 +47,7 @@ Deno.serve(async (req) => {
             title: "Slot Disponibile!",
             body:  `${date_display} alle ${startTime} — prenota ora`,
             tag:   `slot-available-${date_display}-${startTime}`.replace(/\s/g, "-"),
-            url:   "/index.html",
+            url:   date ? `/index.html?date=${date}` : "/index.html",
         });
 
         let sent = 0;
