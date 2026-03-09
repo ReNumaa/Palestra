@@ -83,12 +83,13 @@ async function savePushSubscription(subscription) {
             p_p256dh:     json.keys.p256dh,
             p_auth:       json.keys.auth,
             p_user_email: userEmail,
+            p_user_id:    userId,
         }).then(({ error }) => {
-            if (error) console.warn('[Push] Supabase RPC error:', error.message);
-            else       console.log('[Push] Subscription salvata su Supabase per', userEmail);
+            if (error) console.warn('[Push] Supabase RPC error:', error.message, error);
+            else       console.log('[Push] Subscription salvata su Supabase per', userEmail, userId);
         });
     } else {
-        console.warn('[Push] Utente non autenticato — subscription non salvata su Supabase');
+        console.warn('[Push] Utente non autenticato — subscription non salvata su Supabase', { userId, userEmail, supabaseReady: typeof supabaseClient !== 'undefined' });
     }
 
     // Backup locale
