@@ -192,6 +192,7 @@ class BookingStorage {
             }
             const mapped = data.map(row => ({
                 id: row.local_id || row.id,
+                _sbId: row.id,
                 userId: row.user_id,
                 date: row.date,
                 time: row.time,
@@ -946,7 +947,7 @@ class BookingStorage {
                 || p.cancelledAt !== b.cancelledAt;
         });
         changed.forEach(b => {
-            supabaseClient.from('bookings').update({
+            const fields = {
                 status: b.status,
                 paid: b.paid || false,
                 payment_method: b.paymentMethod || null,
@@ -958,7 +959,12 @@ class BookingStorage {
                 cancelled_paid_at: b.cancelledPaidAt || null,
                 cancelled_with_bonus: b.cancelledWithBonus || false,
                 cancelled_with_penalty: b.cancelledWithPenalty || false,
-            }).eq('local_id', b.id).then(({ error }) => {
+            };
+            // Prefer matching by Supabase UUID (_sbId); fallback to local_id for legacy rows
+            const q = b._sbId
+                ? supabaseClient.from('bookings').update(fields).eq('id', b._sbId)
+                : supabaseClient.from('bookings').update(fields).eq('local_id', b.id);
+            q.then(({ error }) => {
                 if (error) console.error('[Supabase] booking update error:', error.message);
             });
         });
