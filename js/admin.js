@@ -1190,7 +1190,7 @@ async function bookForClient(slotType) {
 
 function removeExtraSpotFromSlot(date, time, extraType) {
     if (!BookingStorage.removeExtraSpot(date, time, extraType)) {
-        showToast('Impossibile rimuovere: il posto è già prenotato.', 'error');
+        showToast('Prima cancella la prenotazione in corso, poi potrai rimuovere lo slot extra.', 'error');
         return;
     }
     if (window._currentAdminDate) renderAdminDayView(window._currentAdminDate);
