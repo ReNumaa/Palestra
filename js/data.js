@@ -285,8 +285,13 @@ class BookingStorage {
                 if (error) {
                     console.error('[Supabase] book_slot_atomic error:', error.message, '— fallback a INSERT diretto');
                     _sbInsert();
-                } else if (data && !data.success) {
-                    console.warn('[Supabase] book_slot_atomic:', data.error);
+                } else if (!data) {
+                    console.error('[Supabase] book_slot_atomic: risposta null — fallback a INSERT diretto');
+                    _sbInsert();
+                } else if (!data.success) {
+                    console.warn('[Supabase] book_slot_atomic rifiutato:', data.error);
+                } else {
+                    console.log('[Supabase] book_slot_atomic OK — id:', booking.id);
                 }
             });
         }
