@@ -14,14 +14,23 @@ webpush.setVapidDetails("mailto:palestra@thomasbresciani.com", VAPID_PUBLIC_KEY,
 
 const supabase = createClient(SUPABASE_URL, SUPABASE_KEY);
 
+const corsHeaders = {
+    "Access-Control-Allow-Origin": "*",
+    "Access-Control-Allow-Headers": "Content-Type",
+    "Access-Control-Allow-Methods": "POST, OPTIONS",
+};
+
 Deno.serve(async (req) => {
+    if (req.method === "OPTIONS") {
+        return new Response(null, { status: 204, headers: corsHeaders });
+    }
     try {
         const { date_display, time, exclude_user_id } = await req.json();
 
         if (!date_display || !time) {
             return new Response(JSON.stringify({ ok: false, error: "date_display e time sono obbligatori" }), {
                 status: 400,
-                headers: { "Content-Type": "application/json" },
+                headers: { ...corsHeaders, "Content-Type": "application/json" },
             });
         }
 
@@ -59,13 +68,13 @@ Deno.serve(async (req) => {
 
         console.log(`[notify-slot-available] ${sent} notifiche inviate per ${date_display} ${startTime}`);
         return new Response(JSON.stringify({ ok: true, sent }), {
-            headers: { "Content-Type": "application/json" },
+            headers: { ...corsHeaders, "Content-Type": "application/json" },
         });
     } catch (e: any) {
         console.error("[notify-slot-available] Errore:", e);
         return new Response(JSON.stringify({ ok: false, error: e.message }), {
             status: 500,
-            headers: { "Content-Type": "application/json" },
+            headers: { ...corsHeaders, "Content-Type": "application/json" },
         });
     }
 });
