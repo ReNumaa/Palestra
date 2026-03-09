@@ -222,10 +222,14 @@ class BookingStorage {
             const local = this.getAllBookings();
             const PENDING_WINDOW = 30 * 60 * 1000; // 30 minuti
             const now = Date.now();
+            const dataLastCleared = localStorage.getItem('dataLastCleared') || '0';
             const pending = local.filter(b => {
                 if (supabaseIds.has(b.id) || b.status === 'cancelled') return false;
                 const age = now - new Date(b.createdAt).getTime();
-                return age < PENDING_WINDOW;
+                if (age >= PENDING_WINDOW) return false;
+                // Non reinserire booking creati prima dell'ultimo clearAllData
+                if (b.createdAt <= dataLastCleared) return false;
+                return true;
             });
             const merged = [...mapped, ...pending];
             localStorage.setItem(this.BOOKINGS_KEY, JSON.stringify(merged));
@@ -936,6 +940,20 @@ class BookingStorage {
             if (error) { console.error('[Supabase] syncAppSettings error:', error.message); return; }
             if (!data || data.length === 0) return;
             const map = Object.fromEntries(data.map(r => [r.key, r.value]));
+
+            // Propaga clearAllData: se data_cleared_at è più recente dell'ultimo clear locale,
+            // svuota i booking locali e imposta il flag per bloccare il retry di syncFromSupabase.
+            const remoteClearedAt = map['data_cleared_at']?.ts || null;
+            if (remoteClearedAt) {
+                const localClearedAt = localStorage.getItem('dataLastCleared') || '0';
+                if (remoteClearedAt > localClearedAt) {
+                    localStorage.removeItem(BookingStorage.BOOKINGS_KEY);
+                    localStorage.setItem('dataLastCleared', remoteClearedAt);
+                    localStorage.setItem('dataClearedByUser', 'true');
+                    console.log('[Supabase] clearAllData ricevuto da remoto — booking locali svuotati');
+                }
+            }
+
             const _setJson = (k, v) => { if (v != null) localStorage.setItem(k, JSON.stringify(v)); };
             const _setStr  = (k, v) => { if (v != null) localStorage.setItem(k, String(v)); };
             _setJson('scheduleOverrides',                        map['scheduleOverrides']);
