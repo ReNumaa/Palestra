@@ -220,7 +220,7 @@ class BookingStorage {
             // ma NON impedisce che clearAllData propaghi lo svuotamento su tutti i dispositivi.
             const supabaseIds = new Set(mapped.map(m => m.id));
             const local = this.getAllBookings();
-            const PENDING_WINDOW = 5 * 60 * 1000; // 5 minuti
+            const PENDING_WINDOW = 30 * 60 * 1000; // 30 minuti
             const now = Date.now();
             const pending = local.filter(b => {
                 if (supabaseIds.has(b.id) || b.status === 'cancelled') return false;
@@ -230,6 +230,33 @@ class BookingStorage {
             const merged = [...mapped, ...pending];
             localStorage.setItem(this.BOOKINGS_KEY, JSON.stringify(merged));
             console.log(`[Supabase] syncFromSupabase: ${mapped.length} da Supabase, ${pending.length} pending locali`);
+
+            // Retry: reinserisci su Supabase i booking pending (RPC fallita in precedenza)
+            if (pending.length > 0) {
+                const user = typeof getCurrentUser === 'function' ? getCurrentUser() : null;
+                for (const b of pending) {
+                    console.warn('[Supabase] retry insert booking pending:', b.id);
+                    supabaseClient.from('bookings').insert({
+                        local_id:     b.id,
+                        user_id:      user?.id || b.userId || null,
+                        date:         b.date,
+                        time:         b.time,
+                        slot_type:    b.slotType,
+                        name:         b.name,
+                        email:        b.email,
+                        whatsapp:     b.whatsapp,
+                        notes:        b.notes || '',
+                        status:       b.status || 'confirmed',
+                        created_at:   b.createdAt,
+                        date_display: b.dateDisplay || '',
+                    }).then(({ error }) => {
+                        if (error && error.code !== '23505') // ignora duplicati
+                            console.error('[Supabase] retry insert error:', error.message);
+                        else if (!error)
+                            console.log('[Supabase] retry insert OK:', b.id);
+                    });
+                }
+            }
         } catch (e) {
             console.error('[Supabase] syncFromSupabase exception:', e);
         }
