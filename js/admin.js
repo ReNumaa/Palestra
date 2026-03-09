@@ -1041,6 +1041,127 @@ function addExtraSpotToSlot(date, time, extraType) {
     if (window._currentAdminDate) renderAdminDayView(window._currentAdminDate);
 }
 
+// ── Admin: prenota per un cliente specifico ────────────────────────────────
+
+function openClientBookingPicker(date, time, pickerId) {
+    const picker = document.getElementById(pickerId);
+    if (!picker) return;
+
+    const clients = UserStorage.getAll();
+
+    picker.innerHTML = `
+        <div style="width:100%;padding:8px 0 4px;display:flex;flex-direction:column;gap:8px">
+            <div style="display:flex;gap:8px;align-items:center">
+                <input id="clientSearchInput" type="text" placeholder="Cerca cliente…"
+                    autocomplete="off"
+                    style="flex:1;padding:7px 10px;border:1px solid #ddd;border-radius:8px;font-size:13px"
+                    oninput="_filterClientList(this.value,'${date}','${time}')">
+                <button onclick="toggleExtraPicker('${date}','${time}')"
+                    style="background:none;border:none;color:#999;cursor:pointer;font-size:18px;padding:0 4px">✕</button>
+            </div>
+            <div id="clientSearchResults" style="display:flex;flex-direction:column;gap:4px;max-height:180px;overflow-y:auto"></div>
+            <div id="clientBookingConfirm" style="display:none"></div>
+        </div>
+    `;
+
+    // Mostra tutti i clienti inizialmente
+    _filterClientList('', date, time);
+}
+
+function _filterClientList(query, date, time) {
+    const resultsEl = document.getElementById('clientSearchResults');
+    if (!resultsEl) return;
+    const q = query.toLowerCase().trim();
+    const clients = UserStorage.getAll().filter(c =>
+        !q || c.name.toLowerCase().includes(q) || (c.email || '').toLowerCase().includes(q)
+    );
+    if (!clients.length) {
+        resultsEl.innerHTML = `<div style="font-size:12px;color:#999;padding:4px 8px">Nessun cliente trovato</div>`;
+        return;
+    }
+    resultsEl.innerHTML = clients.slice(0, 10).map(c => `
+        <div class="client-search-row" style="display:flex;justify-content:space-between;align-items:center;padding:6px 10px;border:1px solid #eee;border-radius:8px;cursor:pointer;background:#fff;font-size:13px"
+             onclick="_selectClientForBooking(${JSON.stringify(JSON.stringify(c))},'${date}','${time}')">
+            <div>
+                <div style="font-weight:600">${_escHtml(c.name)}</div>
+                <div style="font-size:11px;color:#888">${_escHtml(c.email || c.whatsapp || '')}</div>
+            </div>
+            <span style="font-size:11px;color:#aaa">›</span>
+        </div>
+    `).join('');
+}
+
+function _selectClientForBooking(clientJson, date, time) {
+    const client = JSON.parse(clientJson);
+    const confirmEl = document.getElementById('clientBookingConfirm');
+    const resultsEl = document.getElementById('clientSearchResults');
+    if (!confirmEl || !resultsEl) return;
+    resultsEl.style.display = 'none';
+    confirmEl.style.display = 'block';
+    confirmEl.innerHTML = `
+        <div style="font-size:13px;margin-bottom:6px">
+            <strong>${_escHtml(client.name)}</strong>
+            <span style="color:#888;font-size:11px"> · ${_escHtml(client.email || client.whatsapp || '')}</span>
+        </div>
+        <div style="display:flex;gap:8px;flex-wrap:wrap">
+            <button class="extra-picker-btn personal-training"
+                onclick='bookForClient("${date}","${time}","personal-training",${JSON.stringify(JSON.stringify(client))})'>
+                Autonomia
+            </button>
+            <button class="extra-picker-btn small-group"
+                onclick='bookForClient("${date}","${time}","small-group",${JSON.stringify(JSON.stringify(client))})'>
+                Lezione di Gruppo
+            </button>
+            <button onclick="document.getElementById('clientSearchResults').style.display='flex';document.getElementById('clientBookingConfirm').style.display='none';document.getElementById('clientSearchInput').value='';_filterClientList('','${date}','${time}')"
+                style="background:none;border:1px solid #ddd;border-radius:8px;padding:6px 10px;cursor:pointer;font-size:12px;color:#666">
+                ← Indietro
+            </button>
+        </div>
+    `;
+}
+
+async function bookForClient(date, time, slotType, clientJson) {
+    const client = JSON.parse(clientJson);
+
+    // Cerca user_id del cliente in Supabase (per reminders push)
+    let clientUserId = null;
+    if (typeof supabaseClient !== 'undefined' && client.email) {
+        try {
+            const { data: prof } = await supabaseClient
+                .from('profiles').select('id').eq('email', client.email).maybeSingle();
+            clientUserId = prof?.id || null;
+        } catch {}
+    }
+
+    // Calcola dateDisplay
+    const [y, m, d] = date.split('-').map(Number);
+    const dt = new Date(y, m - 1, d);
+    const days = ['Domenica','Lunedì','Martedì','Mercoledì','Giovedì','Venerdì','Sabato'];
+    const months = ['gennaio','febbraio','marzo','aprile','maggio','giugno','luglio','agosto','settembre','ottobre','novembre','dicembre'];
+    const dateDisplay = `${days[dt.getDay()]} ${d} ${months[m - 1]}`;
+
+    const booking = {
+        name:        client.name,
+        email:       client.email || '',
+        whatsapp:    client.whatsapp || '',
+        notes:       '',
+        date,
+        time,
+        slotType,
+        dateDisplay,
+    };
+
+    // Aggiungi slot extra e salva prenotazione con userId del cliente
+    BookingStorage.addExtraSpot(date, time, slotType);
+    BookingStorage.saveBookingForClient(booking, clientUserId, (ok) => {
+        if (!ok) showToast('⚠️ Salvato localmente, sync Supabase non riuscita', 'error');
+    });
+    BookingStorage.fulfillPendingCancellations(date, time);
+
+    showToast(`Prenotazione aggiunta per ${client.name}`, 'success');
+    if (window._currentAdminDate) renderAdminDayView(window._currentAdminDate);
+}
+
 function removeExtraSpotFromSlot(date, time, extraType) {
     if (!BookingStorage.removeExtraSpot(date, time, extraType)) {
         showToast('Impossibile rimuovere: il posto è già prenotato.', 'error');
@@ -1186,6 +1307,7 @@ function createAdminSlotCard(dateInfo, scheduledSlot) {
             <span class="extra-picker-label">Aggiungi 1 posto:</span>
             <button class="extra-picker-btn personal-training" onclick="addExtraSpotToSlot('${dE}','${tE}','personal-training')">Autonomia</button>
             <button class="extra-picker-btn small-group" onclick="addExtraSpotToSlot('${dE}','${tE}','small-group')">Lezione di Gruppo</button>
+            <button class="extra-picker-btn" style="background:#6c5ce7;color:#fff" onclick="openClientBookingPicker('${dE}','${tE}','${pickerId}')">Persona</button>
         </div>`;
 
     // ── Extras bar ──────────────────────────────────────────────────────────

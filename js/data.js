@@ -333,6 +333,42 @@ class BookingStorage {
         return booking;
     }
 
+    // Versione admin di saveBooking: usa clientUserId per il record Supabase
+    // in modo che il promemoria push arrivi al cliente, non all'admin.
+    static saveBookingForClient(booking, clientUserId, onSupabaseResult) {
+        const bookings = this.getAllBookings();
+        booking.id = `${Date.now()}-${Math.random().toString(36).substr(2, 9)}`;
+        booking.createdAt = new Date().toISOString();
+        booking.status = 'confirmed';
+        bookings.push(booking);
+        localStorage.setItem(this.BOOKINGS_KEY, JSON.stringify(bookings));
+        this.updateStats(booking);
+
+        if (typeof supabaseClient !== 'undefined') {
+            const maxCap = BookingStorage.getEffectiveCapacity(booking.date, booking.time, booking.slotType);
+            supabaseClient.rpc('book_slot_atomic', {
+                p_local_id:     booking.id,
+                p_user_id:      clientUserId || null,
+                p_date:         booking.date,
+                p_time:         booking.time,
+                p_slot_type:    booking.slotType,
+                p_max_capacity: maxCap,
+                p_name:         booking.name,
+                p_email:        booking.email,
+                p_whatsapp:     booking.whatsapp,
+                p_notes:        booking.notes || '',
+                p_created_at:   booking.createdAt,
+                p_date_display: booking.dateDisplay || ''
+            }).then(({ data, error }) => {
+                if (error) console.error('[Supabase] adminBook error:', error.message);
+                else if (data?.success) console.log('[Supabase] adminBook OK:', booking.id);
+                else console.warn('[Supabase] adminBook rifiutato:', data?.error);
+                if (onSupabaseResult) onSupabaseResult(!error && data?.success);
+            });
+        }
+        return booking;
+    }
+
     static getBookingsForSlot(date, time) {
         const bookings = this.getAllBookings();
         return bookings.filter(b => b.date === date && b.time === time && b.status !== 'cancelled');
