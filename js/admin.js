@@ -856,6 +856,7 @@ async function clearAllData() {
     localStorage.removeItem(ManualDebtStorage.DEBTS_KEY);
     localStorage.removeItem(BonusStorage.BONUS_KEY);
     localStorage.removeItem('scheduleOverrides');
+    localStorage.removeItem(UserStorage.USERS_KEY);
     localStorage.setItem('dataClearedByUser', 'true');
 
     // 2. Cancella Supabase
