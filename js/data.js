@@ -190,10 +190,6 @@ class BookingStorage {
                 console.error('[Supabase] syncFromSupabase error:', error.message);
                 return;
             }
-            if (data.length === 0) {
-                console.log('[Supabase] syncFromSupabase: 0 righe ricevute, localStorage invariato');
-                return;
-            }
             const mapped = data.map(row => ({
                 id: row.local_id || row.id,
                 userId: row.user_id,
@@ -218,13 +214,21 @@ class BookingStorage {
                 cancelledWithBonus: row.cancelled_with_bonus || false,
                 cancelledWithPenalty: row.cancelled_with_penalty || false,
             }));
-            // Merge: mantieni prenotazioni locali non ancora su Supabase (es. RPC fallita)
+            // Merge: mantieni solo booking locali MOLTO RECENTI (< 5 min) non ancora su Supabase
+            // Evita di perdere prenotazioni in caso di fallback INSERT lento,
+            // ma NON impedisce che clearAllData propaghi lo svuotamento su tutti i dispositivi.
             const supabaseIds = new Set(mapped.map(m => m.id));
             const local = this.getAllBookings();
-            const pending = local.filter(b => !supabaseIds.has(b.id) && b.status !== 'cancelled');
+            const PENDING_WINDOW = 5 * 60 * 1000; // 5 minuti
+            const now = Date.now();
+            const pending = local.filter(b => {
+                if (supabaseIds.has(b.id) || b.status === 'cancelled') return false;
+                const age = now - new Date(b.createdAt).getTime();
+                return age < PENDING_WINDOW;
+            });
             const merged = [...mapped, ...pending];
             localStorage.setItem(this.BOOKINGS_KEY, JSON.stringify(merged));
-            console.log(`[Supabase] syncFromSupabase: ${mapped.length} booking/i da Supabase, ${pending.length} pending locali`);
+            console.log(`[Supabase] syncFromSupabase: ${mapped.length} da Supabase, ${pending.length} pending locali`);
         } catch (e) {
             console.error('[Supabase] syncFromSupabase exception:', e);
         }
