@@ -78,3 +78,34 @@ async function savePushSubscription(subscription) {
 if ('Notification' in window && Notification.permission === 'granted') {
     navigator.serviceWorker?.ready.then(() => registerPushSubscription());
 }
+
+// Mostra banner "Abilita notifiche" se il permesso non è ancora stato dato.
+// Chiamata da prenotazioni.html dopo initAuth(), richiede interazione utente.
+async function promptPushPermission() {
+    if (!('Notification' in window) || !('PushManager' in window)) return; // browser non supporta
+    if (Notification.permission === 'granted') {
+        // Già concesso: assicurati che la subscription sia su Supabase
+        await registerPushSubscription();
+        return;
+    }
+    if (Notification.permission === 'denied') return; // utente ha negato
+
+    // Mostra banner
+    const existing = document.getElementById('pushBanner');
+    if (existing) return;
+    const banner = document.createElement('div');
+    banner.id = 'pushBanner';
+    banner.style.cssText = 'position:fixed;bottom:16px;left:50%;transform:translateX(-50%);background:#1a1a1a;color:#fff;padding:14px 20px;border-radius:12px;display:flex;align-items:center;gap:12px;z-index:9999;box-shadow:0 4px 20px rgba(0,0,0,0.3);max-width:90vw;font-size:14px';
+    banner.innerHTML = `
+        <span>🔔 Ricevi promemoria 1h prima della lezione</span>
+        <button id="pushBannerYes" style="background:#fff;color:#1a1a1a;border:none;padding:8px 16px;border-radius:8px;cursor:pointer;font-weight:600;white-space:nowrap">Abilita</button>
+        <button id="pushBannerNo" style="background:transparent;color:#aaa;border:none;cursor:pointer;font-size:18px;padding:0 4px">✕</button>
+    `;
+    document.body.appendChild(banner);
+    document.getElementById('pushBannerYes').addEventListener('click', async () => {
+        banner.remove();
+        const permission = await Notification.requestPermission();
+        if (permission === 'granted') await registerPushSubscription();
+    });
+    document.getElementById('pushBannerNo').addEventListener('click', () => banner.remove());
+}

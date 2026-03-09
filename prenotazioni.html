@@ -176,7 +176,7 @@
     <script src="js/ui.js?v=2"></script>
     <script src="js/data.js?v=31"></script>
     <script src="js/auth.js?v=12"></script>
-    <script src="js/push.js?v=4"></script>
+    <script src="js/push.js?v=5"></script>
     <script>
         // ── Guard async: aspetta la sessione Supabase prima di controllare ─
 
@@ -275,6 +275,8 @@
             } else {
                 _initPrenoPage();
             }
+            // Chiedi permesso notifiche push (o ri-registra se già concesso)
+            if (typeof promptPushPermission === 'function') promptPushPermission();
         }
         _boot();
         // bfcache: quando la pagina viene ripristinata dalla memoria (es. tasto Indietro)
