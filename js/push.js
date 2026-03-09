@@ -102,6 +102,31 @@ async function savePushSubscription(subscription) {
     }));
 }
 
+// Notifica "slot disponibile" dopo una cancellazione — chiamata dal client
+async function notifySlotAvailable(booking) {
+    if (typeof SUPABASE_URL === 'undefined') return;
+    const user = typeof getCurrentUser === 'function' ? getCurrentUser() : null;
+    let excludeUserId = user?.id ?? null;
+    // Fallback: prova dalla sessione Supabase
+    if (!excludeUserId && typeof supabaseClient !== 'undefined') {
+        try {
+            const { data: { session } } = await supabaseClient.auth.getSession();
+            excludeUserId = session?.user?.id ?? null;
+        } catch {}
+    }
+    const dateDisplay = booking.dateDisplay || booking.date_display || booking.date || '';
+    const time = booking.time || '';
+    try {
+        await fetch(`${SUPABASE_URL}/functions/v1/notify-slot-available`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ date_display: dateDisplay, time, exclude_user_id: excludeUserId }),
+        });
+    } catch (e) {
+        console.warn('[Push] notifySlotAvailable error:', e);
+    }
+}
+
 // Se permesso già concesso, registra silenziosamente ad ogni apertura
 if ('Notification' in window && Notification.permission === 'granted') {
     navigator.serviceWorker?.ready.then(() => registerPushSubscription());

@@ -1284,6 +1284,9 @@ function deleteBooking(bookingId, bookingName) {
         bookings[index].creditApplied = 0;
         BookingStorage.replaceAllBookings(bookings);
 
+        // Notifica slot disponibile a tutti tranne il cliente cancellato
+        if (typeof notifySlotAvailable === 'function') notifySlotAvailable(booking);
+
         // Re-render the calendar view
         if (selectedAdminDay) {
             renderAdminDayView(selectedAdminDay);
