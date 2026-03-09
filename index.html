@@ -219,14 +219,25 @@
             if (typeof renderCalendar === 'function') renderCalendar();
             if (typeof renderMobileCalendar === 'function') renderMobileCalendar();
 
-            // Supabase Realtime: aggiorna calendario in tempo reale al cambio di booking
+            // Supabase Realtime: aggiorna calendario in tempo reale
             if (typeof supabaseClient !== 'undefined') {
+                const _rerender = () => {
+                    if (typeof renderCalendar === 'function') renderCalendar();
+                    if (typeof renderMobileCalendar === 'function') renderMobileCalendar();
+                };
                 supabaseClient
                     .channel('bookings-rt-calendar')
                     .on('postgres_changes', { event: '*', schema: 'public', table: 'bookings' }, async () => {
                         await BookingStorage.syncFromSupabase();
-                        if (typeof renderCalendar === 'function') renderCalendar();
-                        if (typeof renderMobileCalendar === 'function') renderMobileCalendar();
+                        _rerender();
+                    })
+                    .subscribe();
+                // Ascolta anche le modifiche a app_settings (es. clearAllData da altro browser)
+                supabaseClient
+                    .channel('appsettings-rt-calendar')
+                    .on('postgres_changes', { event: '*', schema: 'public', table: 'app_settings' }, async () => {
+                        await BookingStorage.syncAppSettingsFromSupabase();
+                        _rerender();
                     })
                     .subscribe();
             }

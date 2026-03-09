@@ -860,11 +860,17 @@ async function clearAllData() {
     localStorage.setItem('dataClearedByUser', 'true');
 
     // 2. Cancella Supabase
+    // Usiamo UPSERT con valori vuoti invece di DELETE: così gli altri browser
+    // ricevono il Realtime e sovrascrivono il loro localStorage con i valori vuoti.
     if (typeof supabaseClient !== 'undefined') {
+        const now = new Date().toISOString();
         await Promise.all([
             supabaseClient.from('bookings').delete().neq('id', '00000000-0000-0000-0000-000000000000'),
-            supabaseClient.from('app_settings').delete().in('key', [
-                'gym_credits', 'gym_manual_debts', 'gym_bonus', 'scheduleOverrides'
+            supabaseClient.from('app_settings').upsert([
+                { key: 'gym_credits',      value: {}, updated_at: now },
+                { key: 'gym_manual_debts', value: {}, updated_at: now },
+                { key: 'gym_bonus',        value: {}, updated_at: now },
+                { key: 'scheduleOverrides',value: {}, updated_at: now },
             ]),
         ]).catch(e => console.error('[Supabase] clearAllData error:', e));
     }
