@@ -329,29 +329,31 @@
         });
 
         // ── OAuth callback: handle redirect back from Google ──────────────
+        // NON usiamo più ?code= nell'URL: Supabase PKCE lo consuma automaticamente
+        // durante l'inizializzazione del client, prima che questo codice venga eseguito.
+        // Usiamo invece il provider della sessione per capire se è un login OAuth.
         async function handleOAuthReturn() {
-            const hasCode  = new URLSearchParams(window.location.search).has('code');
-            const hasToken = window.location.hash.includes('access_token');
-            if (!hasCode && !hasToken) return false;
-
             const { data: { session } } = await supabaseClient.auth.getSession();
             if (!session) return false;
 
-            const meta     = session.user.user_metadata || {};
-            const name     = meta.full_name || meta.name || session.user.email.split('@')[0];
-            const email    = session.user.email;
-            const userId   = session.user.id;
+            const provider = session.user.app_metadata?.provider;
+            if (!provider || provider === 'email') return false; // login email: non intercettare
 
-            // Controlla se il profilo esiste già su Supabase
-            const existing = await getUserByEmail(email);
-            if (existing && existing.whatsapp) {
+            // È un login OAuth (Google ecc.) — controlla se il profilo ha già il WhatsApp
+            // (initAuth() ha già chiamato _loadProfile, quindi getCurrentUser() è pronto)
+            const user   = getCurrentUser();
+            const meta   = session.user.user_metadata || {};
+            const name   = user?.name || meta.full_name || meta.name || session.user.email.split('@')[0];
+            const email  = session.user.email;
+            const userId = session.user.id;
+
+            if (user && user.whatsapp) {
                 // Profilo completo: vai direttamente
-                await _loadProfile(userId);
                 window.location.replace('index.html');
                 return true;
             }
 
-            // Prima volta con Google: chiedi il WhatsApp
+            // Manca il WhatsApp: mostra il modal
             window._pendingOAuthUser = { name, email, userId };
             document.getElementById('completeProfileModal').style.display = 'flex';
             return true;
