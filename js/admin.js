@@ -3363,6 +3363,14 @@ function deleteBookingFromClients(bookingId, bookingName) {
                 `Rimborso lezione ${b.date}`,
                 null, false, false, null, b.paymentMethod || '');
         }
+        // Elimina da Supabase prima di rimuovere da localStorage (per avere _sbId disponibile)
+        if (typeof supabaseClient !== 'undefined' && b._sbId) {
+            supabaseClient.rpc('admin_delete_booking', { p_booking_id: b._sbId })
+                .then(({ error }) => {
+                    if (error) console.error('[Supabase] admin_delete_booking error:', error.message);
+                    else console.log('[Supabase] admin_delete_booking OK — id:', b._sbId);
+                });
+        }
         bookings.splice(idx, 1);
         BookingStorage.replaceAllBookings(bookings);
     }
