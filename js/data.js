@@ -961,11 +961,13 @@ class BookingStorage {
                 cancelled_with_penalty: b.cancelledWithPenalty || false,
             };
             // Prefer matching by Supabase UUID (_sbId); fallback to local_id for legacy rows
+            console.log('[Supabase] booking update attempt — id:', b.id, '_sbId:', b._sbId, 'status:', b.status);
             const q = b._sbId
                 ? supabaseClient.from('bookings').update(fields).eq('id', b._sbId)
                 : supabaseClient.from('bookings').update(fields).eq('local_id', b.id);
-            q.then(({ error }) => {
-                if (error) console.error('[Supabase] booking update error:', error.message);
+            q.then(({ data, error, count }) => {
+                if (error) console.error('[Supabase] booking update error:', error.message, error);
+                else console.log('[Supabase] booking update OK — rows affected:', count, data);
             });
         });
     }
