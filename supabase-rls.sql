@@ -73,6 +73,7 @@ alter table push_subscriptions enable row level security;
 
 drop policy if exists "push_subscriptions_insert_own" on push_subscriptions;
 drop policy if exists "push_subscriptions_select_own" on push_subscriptions;
+drop policy if exists "push_subscriptions_update_own" on push_subscriptions;
 drop policy if exists "push_subscriptions_delete_own" on push_subscriptions;
 
 create policy "push_subscriptions_insert_own"
@@ -80,6 +81,10 @@ create policy "push_subscriptions_insert_own"
 
 create policy "push_subscriptions_select_own"
     on push_subscriptions for select to authenticated using (user_id = auth.uid());
+
+create policy "push_subscriptions_update_own"
+    on push_subscriptions for update to authenticated
+    using (user_id = auth.uid()) with check (user_id = auth.uid());
 
 create policy "push_subscriptions_delete_own"
     on push_subscriptions for delete to authenticated using (user_id = auth.uid());
