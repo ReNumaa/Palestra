@@ -44,6 +44,10 @@ body {
     padding: 0 20px;
 }
 
+/* Nasconde il blocco auth della navbar finché initAuth non risolve (evita flash "Accedi") */
+body:not(.auth-loaded) #navLoginLink,
+body:not(.auth-loaded) #navUserMenu { visibility: hidden; }
+
 /* Navbar */
 .navbar {
     background-color: var(--dark-bg);

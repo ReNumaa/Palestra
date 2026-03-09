@@ -237,6 +237,7 @@ function getUserBookings() {
 
 // ── Navbar ────────────────────────────────────────────────────────────────────
 function updateNavAuth() {
+    document.body.classList.add('auth-loaded');
     const user    = getCurrentUser();
     const isAdmin = localStorage.getItem('adminAuthenticated') === 'true';
     const loginLink = document.getElementById('navLoginLink');
