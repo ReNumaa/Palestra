@@ -207,7 +207,7 @@
     <script src="js/calendar.js?v=4"></script>
     <script src="js/booking.js?v=11"></script>
     <script src="js/auth.js?v=12"></script>
-    <script src="js/push.js?v=9"></script>
+    <script src="js/push.js?v=10"></script>
     <script>
         // Avvia la sessione Supabase, sincronizza i booking, poi re-renderizza il calendario
         (async function () {
@@ -227,6 +227,11 @@
             }
             if (typeof renderCalendar === 'function') renderCalendar();
             if (typeof renderMobileCalendar === 'function') renderMobileCalendar();
+
+            // Mostra banner notifiche push (solo se loggato e solo la prima volta)
+            if (typeof promptPushPermission === 'function' && getCurrentUser()) {
+                setTimeout(promptPushPermission, 1500);
+            }
 
             // Supabase Realtime: aggiorna calendario in tempo reale
             if (typeof supabaseClient !== 'undefined') {
