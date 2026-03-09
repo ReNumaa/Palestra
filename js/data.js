@@ -963,11 +963,12 @@ class BookingStorage {
             // Prefer matching by Supabase UUID (_sbId); fallback to local_id for legacy rows
             console.log('[Supabase] booking update attempt — id:', b.id, '_sbId:', b._sbId, 'status:', b.status);
             const q = b._sbId
-                ? supabaseClient.from('bookings').update(fields).eq('id', b._sbId)
-                : supabaseClient.from('bookings').update(fields).eq('local_id', b.id);
-            q.then(({ data, error, count }) => {
+                ? supabaseClient.from('bookings').update(fields).eq('id', b._sbId).select('id')
+                : supabaseClient.from('bookings').update(fields).eq('local_id', b.id).select('id');
+            q.then(({ data, error }) => {
                 if (error) console.error('[Supabase] booking update error:', error.message, error);
-                else console.log('[Supabase] booking update OK — rows affected:', count, data);
+                else if (!data || data.length === 0) console.warn('[Supabase] booking update: 0 righe aggiornate (RLS?) — _sbId:', b._sbId, 'id:', b.id);
+                else console.log('[Supabase] booking update OK — riga aggiornata:', data[0].id);
             });
         });
     }
