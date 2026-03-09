@@ -1,6 +1,6 @@
 // Edge Function: send-reminders
 // Inviata da cron ogni 5 minuti.
-// Trova le prenotazioni che iniziano fra ~1h e manda una push notification.
+// Invia due tipi di promemoria: 24h prima e 60 min prima della lezione.
 
 import { createClient } from "npm:@supabase/supabase-js@2";
 import webpush from "npm:web-push@3.6.7";
@@ -20,15 +20,15 @@ function parseStartMin(timeStr: string): number | null {
     return m ? parseInt(m[1]) * 60 + parseInt(m[2]) : null;
 }
 
-// Data e ora corrente in fuso Europe/Rome, spostata di +1 ora
-function targetItaly(): { date: string; totalMin: number } {
-    const oneHourLater = new Date(Date.now() + 40 * 60 * 1000);
+// Calcola data e ora in fuso Europe/Rome a partire da un offset in ms
+function targetItaly(offsetMs: number): { date: string; totalMin: number } {
+    const target = new Date(Date.now() + offsetMs);
     const fmt = new Intl.DateTimeFormat("en-CA", {
         timeZone: "Europe/Rome",
         year: "numeric", month: "2-digit", day: "2-digit",
         hour: "2-digit", minute: "2-digit", hour12: false,
     });
-    const parts = fmt.formatToParts(oneHourLater);
+    const parts = fmt.formatToParts(target);
     const pv = (t: string) => parts.find((p) => p.type === t)?.value ?? "";
     return {
         date:     `${pv("year")}-${pv("month")}-${pv("day")}`,
@@ -36,68 +36,95 @@ function targetItaly(): { date: string; totalMin: number } {
     };
 }
 
+async function sendPush(userId: string, payload: string) {
+    const { data: subs } = await supabase
+        .from("push_subscriptions")
+        .select("endpoint, p256dh, auth")
+        .eq("user_id", userId);
+
+    if (!subs?.length) return 0;
+
+    let sent = 0;
+    for (const sub of subs) {
+        try {
+            await webpush.sendNotification(
+                { endpoint: sub.endpoint, keys: { p256dh: sub.p256dh, auth: sub.auth } },
+                payload,
+            );
+            sent++;
+        } catch (e: any) {
+            console.error(`[Push] Errore ${sub.endpoint.slice(-30)}:`, e.message);
+            if (e.statusCode === 410 || e.statusCode === 404) {
+                await supabase.from("push_subscriptions").delete().eq("endpoint", sub.endpoint);
+            }
+        }
+    }
+    return sent;
+}
+
 Deno.serve(async (_req) => {
     try {
-        const { date: targetDate, totalMin: targetMin } = targetItaly();
-        const WINDOW = 12; // ±12 min — copre un'esecuzione del cron ogni 5 min con margine
+        const WINDOW = 12; // ±12 min
+        let totalSent = 0;
 
-        // Booking non ancora notificati per la data target
-        const { data: bookings, error } = await supabase
+        // ── Promemoria 24h ────────────────────────────────────────────────────
+        const { date: date24h, totalMin: min24h } = targetItaly(24 * 60 * 60 * 1000);
+        const { data: bookings24h, error: err24h } = await supabase
             .from("bookings")
-            .select("id, user_id, time, date_display")
-            .eq("reminder_1h_sent", false)
+            .select("id, user_id, time")
+            .eq("reminder_24h_sent", false)
             .in("status", ["confirmed", "cancellation_requested"])
-            .eq("date", targetDate);
+            .eq("date", date24h);
 
-        if (error) throw error;
+        if (err24h) throw err24h;
 
-        const toNotify = (bookings ?? []).filter((b) => {
+        for (const b of bookings24h ?? []) {
+            if (!b.user_id) continue;
             const start = parseStartMin(b.time);
-            return start !== null && Math.abs(start - targetMin) <= WINDOW;
-        });
+            if (start === null || Math.abs(start - min24h) > WINDOW) continue;
 
-        let sent = 0;
-        for (const booking of toNotify) {
-            if (!booking.user_id) continue;
-
-            // Trova le subscription push dell'utente
-            const { data: subs } = await supabase
-                .from("push_subscriptions")
-                .select("endpoint, p256dh, auth")
-                .eq("user_id", booking.user_id);
-
-            if (!subs?.length) continue;
-
-            const startTime = booking.time.split(" - ")[0]?.trim() ?? booking.time;
+            const startTime = b.time.split(" - ")[0]?.trim() ?? b.time;
             const payload = JSON.stringify({
                 title: "Thomas Bresciani Palestra",
-                body:  `Promemoria: lezione fra 40 minuti (${startTime})`,
-                tag:   `reminder-1h-${booking.id}`,
+                body:  `Promemoria: lezione domani alle ${startTime}`,
+                tag:   `reminder-24h-${b.id}`,
                 url:   "/prenotazioni.html",
             });
 
-            for (const sub of subs) {
-                try {
-                    await webpush.sendNotification(
-                        { endpoint: sub.endpoint, keys: { p256dh: sub.p256dh, auth: sub.auth } },
-                        payload,
-                    );
-                    sent++;
-                } catch (e: any) {
-                    console.error(`[Push] Errore ${sub.endpoint.slice(-30)}:`, e.message);
-                    // Subscription scaduta o non valida → rimuovi
-                    if (e.statusCode === 410 || e.statusCode === 404) {
-                        await supabase.from("push_subscriptions").delete().eq("endpoint", sub.endpoint);
-                    }
-                }
-            }
-
-            // Marca come notificato — non verrà ripreso nelle prossime esecuzioni
-            await supabase.from("bookings").update({ reminder_1h_sent: true }).eq("id", booking.id);
+            totalSent += await sendPush(b.user_id, payload);
+            await supabase.from("bookings").update({ reminder_24h_sent: true }).eq("id", b.id);
         }
 
-        console.log(`[send-reminders] ${sent} notifiche inviate per ${toNotify.length} prenotazioni`);
-        return new Response(JSON.stringify({ ok: true, sent, checked: toNotify.length }), {
+        // ── Promemoria 1h ─────────────────────────────────────────────────────
+        const { date: date1h, totalMin: min1h } = targetItaly(60 * 60 * 1000);
+        const { data: bookings1h, error: err1h } = await supabase
+            .from("bookings")
+            .select("id, user_id, time")
+            .eq("reminder_1h_sent", false)
+            .in("status", ["confirmed", "cancellation_requested"])
+            .eq("date", date1h);
+
+        if (err1h) throw err1h;
+
+        for (const b of bookings1h ?? []) {
+            if (!b.user_id) continue;
+            const start = parseStartMin(b.time);
+            if (start === null || Math.abs(start - min1h) > WINDOW) continue;
+
+            const startTime = b.time.split(" - ")[0]?.trim() ?? b.time;
+            const payload = JSON.stringify({
+                title: "Thomas Bresciani Palestra",
+                body:  `Promemoria: lezione fra 1 ora (${startTime})`,
+                tag:   `reminder-1h-${b.id}`,
+                url:   "/prenotazioni.html",
+            });
+
+            totalSent += await sendPush(b.user_id, payload);
+            await supabase.from("bookings").update({ reminder_1h_sent: true }).eq("id", b.id);
+        }
+
+        console.log(`[send-reminders] ${totalSent} notifiche inviate`);
+        return new Response(JSON.stringify({ ok: true, sent: totalSent }), {
             headers: { "Content-Type": "application/json" },
         });
     } catch (e: any) {
