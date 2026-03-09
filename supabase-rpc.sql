@@ -38,9 +38,10 @@ BEGIN
     PERFORM pg_advisory_xact_lock(hashtext(p_date || '|' || p_time || '|' || p_slot_type));
 
     -- Conta prenotazioni attive per questo slot
+    -- Nota: date è tipo DATE, p_date è TEXT → cast esplicito necessario
     SELECT COUNT(*) INTO v_count
     FROM bookings
-    WHERE date      = p_date
+    WHERE date      = p_date::DATE
       AND time      = p_time
       AND slot_type = p_slot_type
       AND status IN ('confirmed', 'cancellation_requested');
@@ -53,7 +54,7 @@ BEGIN
         local_id, user_id, date, time, slot_type,
         name, email, whatsapp, notes, status, created_at, date_display
     ) VALUES (
-        p_local_id, p_user_id, p_date, p_time, p_slot_type,
+        p_local_id, p_user_id, p_date::DATE, p_time, p_slot_type,
         p_name, p_email, p_whatsapp, p_notes, 'confirmed', p_created_at, p_date_display
     )
     RETURNING id INTO v_id;
