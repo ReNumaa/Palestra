@@ -36,19 +36,17 @@ ALTER TABLE bookings ADD COLUMN IF NOT EXISTS reminder_1h_sent BOOLEAN DEFAULT f
 --   Vai su: Dashboard → Database → Extensions → abilita pg_cron e pg_net
 --   Poi esegui il blocco qui sotto:
 
-/*
-SELECT cron.schedule(
-    'send-reminders-1h',
-    '*/5 * * * *',
-    $$
-    SELECT net.http_post(
-        url     := 'https://ppymuuyoveyyoswcimck.supabase.co/functions/v1/send-reminders',
-        headers := jsonb_build_object(
-            'Authorization', 'Bearer <SERVICE_ROLE_KEY>',
-            'Content-Type',  'application/json'
-        ),
-        body    := '{}'::jsonb
-    );
-    $$
-);
-*/
+-- SELECT cron.schedule(
+--     'send-reminders-1h',
+--     '*/5 * * * *',
+--     $$
+--     SELECT net.http_post(
+--         url     := 'https://ppymuuyoveyyoswcimck.supabase.co/functions/v1/send-reminders',
+--         headers := jsonb_build_object(
+--             'Authorization', 'Bearer <SERVICE_ROLE_KEY>',
+--             'Content-Type',  'application/json'
+--         ),
+--         body    := '{}'::jsonb
+--     );
+--     $$
+-- );
