@@ -435,7 +435,14 @@ class BookingStorage {
                 null, false, true
             );
         }
-        BonusStorage.useBonus(booking.whatsapp, booking.email, booking.name);
+        // Usa i dati del profilo corrente come identificatore authoritative per il bonus,
+        // in modo che getBonus(user.whatsapp, user.email) trovi sempre il record.
+        const _cu = typeof getCurrentUser === 'function' ? getCurrentUser() : null;
+        BonusStorage.useBonus(
+            _cu?.whatsapp || booking.whatsapp,
+            _cu?.email    || booking.email,
+            _cu?.name     || booking.name
+        );
         return true;
     }
 
@@ -1301,12 +1308,17 @@ class BonusStorage {
     static useBonus(whatsapp, email, name) {
         const all       = this._getAll();
         const thisMonth = this._thisMonthStr();
-        let key = this._findKey(whatsapp, email);
-        if (!key) key = `${normalizePhone(whatsapp) || ''}||${(email || '').toLowerCase()}`;
-        if (!all[key]) all[key] = { name, whatsapp, email, bonus: 1, lastResetMonth: thisMonth };
+        // Normalizza per garantire che getBonus() trovi sempre il record con gli stessi input
+        const normWa = normalizePhone(whatsapp) || '';
+        const normEm = (email || '').toLowerCase();
+        let key = this._findKey(normWa, normEm);
+        if (!key) key = `${normWa}||${normEm}`;
+        if (!all[key]) all[key] = { name, whatsapp: normWa, email: normEm, bonus: 1, lastResetMonth: thisMonth };
         all[key].bonus = 0;
         all[key].lastResetMonth = thisMonth;
-        all[key].name = name;
+        all[key].whatsapp = normWa;
+        all[key].email    = normEm;
+        all[key].name     = name || all[key].name;
         this._save(all);
     }
 }
