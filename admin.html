@@ -151,6 +151,9 @@
                         <button class="clients-cert-filter-btn" id="certFilterBtn" onclick="toggleCertFilter()">
                             🏥 Senza certificato
                         </button>
+                        <button class="clients-cert-filter-btn" id="assicFilterBtn" onclick="toggleAssicFilter()">
+                            📋 Senza assicurazione
+                        </button>
                     </div>
                     <div class="clients-list" id="clientsList">
                         <!-- Populated by JavaScript -->
@@ -714,7 +717,7 @@
     <script src="js/auth.js?v=12"></script>
     <script src="js/push.js?v=7"></script>
     <script src="js/chart-mini.js?v=12"></script>
-    <script src="js/admin.js?v=56"></script>
+    <script src="js/admin.js?v=57"></script>
     <script>
         // Avvia auth, sincronizza i booking da Supabase, poi aggiorna la dashboard
         (async function () {

@@ -1717,7 +1717,8 @@ let creditsListVisible = false;
 // Clients Tab State
 let openClientIndex = null;
 let clientsSearchQuery = '';
-let clientCertFilter = false;
+let clientCertFilter  = false;
+let clientAssicFilter = false;
 
 function clientHasCertIssue(client) {
     const userRecord = _getUserRecord(client.email, client.whatsapp);
@@ -1726,10 +1727,26 @@ function clientHasCertIssue(client) {
     return certScad < new Date().toISOString().split('T')[0];
 }
 
+function clientHasAssicIssue(client) {
+    const userRecord = _getUserRecord(client.email, client.whatsapp);
+    const assicScad = userRecord?.assicurazioneScadenza || '';
+    if (!assicScad) return true;
+    return assicScad < new Date().toISOString().split('T')[0];
+}
+
 function toggleCertFilter() {
     clientCertFilter = !clientCertFilter;
-    const btn = document.getElementById('certFilterBtn');
-    if (btn) btn.classList.toggle('active', clientCertFilter);
+    if (clientCertFilter) clientAssicFilter = false;
+    document.getElementById('certFilterBtn')?.classList.toggle('active', clientCertFilter);
+    document.getElementById('assicFilterBtn')?.classList.toggle('active', false);
+    renderClientsTab();
+}
+
+function toggleAssicFilter() {
+    clientAssicFilter = !clientAssicFilter;
+    if (clientAssicFilter) clientCertFilter = false;
+    document.getElementById('assicFilterBtn')?.classList.toggle('active', clientAssicFilter);
+    document.getElementById('certFilterBtn')?.classList.toggle('active', false);
     renderClientsTab();
 }
 
@@ -2806,7 +2823,8 @@ function renderClientsTab() {
             c.whatsapp.toLowerCase().includes(query) ||
             (c.email && c.email.toLowerCase().includes(query)))
         : allClients;
-    if (clientCertFilter) filtered = filtered.filter(clientHasCertIssue);
+    if (clientCertFilter)  filtered = filtered.filter(clientHasCertIssue);
+    if (clientAssicFilter) filtered = filtered.filter(clientHasAssicIssue);
 
     const container = document.getElementById('clientsList');
     container.innerHTML = '';
@@ -2863,6 +2881,8 @@ function createClientCard(client, index) {
         if (daysLeft <= 30) return `<span class="cedit-cert-badge cedit-cert-expiring">${expiringPrefix} ${label}</span>`;
         return `<span class="cedit-cert-badge cedit-cert-ok">${okPrefix} ${label}</span>`;
     };
+    const bonus = BonusStorage.getBonus(client.whatsapp, client.email);
+    const bonusDisplay = `<span class="cedit-cert-badge ${bonus > 0 ? 'cedit-cert-ok' : 'cedit-cert-expiring'}">🎟️ Bonus ${bonus}/1</span>`;
     const certDisplay  = _mkBadge(certScad,  '🏥 Imposta scadenza certificato medico', '🏥 Cert. scaduto il', '⏳ Cert. scade il', '✅ Cert. valido fino al');
     const assicDisplay = _mkBadge(assicScad2, '📋 Imposta scadenza assicurazione',      '📋 Assic. scaduta il', '⏳ Assic. scade il', '📋 Assic. valida fino al');
 
@@ -3011,7 +3031,7 @@ function createClientCard(client, index) {
                 <div class="client-contacts">
                     <span>📱 ${_escHtml(client.whatsapp)}</span>
                     ${client.email ? `<span>✉️ ${_escHtml(client.email)}</span>` : ''}
-                    ${certDisplay}${assicDisplay}
+                    ${certDisplay}${assicDisplay}${bonusDisplay}
                 </div>
             </div>
             <div class="client-stats-block">${statsHTML}</div>
