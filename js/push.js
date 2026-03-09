@@ -105,6 +105,25 @@ async function savePushSubscription(subscription) {
 // Notifica "slot disponibile" dopo una cancellazione — chiamata dal client
 async function notifySlotAvailable(booking) {
     if (typeof SUPABASE_URL === 'undefined') return;
+
+    // Notifica solo se lo slot era pieno prima della cancellazione.
+    // A questo punto la cancellazione è già avvenuta: se ora ci sono (capacity-1)
+    // prenotati confermati, significa che lo slot era pieno.
+    if (typeof BookingStorage !== 'undefined') {
+        const allBookings = BookingStorage.getAllBookings();
+        const confirmedInSlot = allBookings.filter(b =>
+            b.date === booking.date && b.time === booking.time && b.status === 'confirmed'
+        ).length;
+        const capacity = typeof BookingStorage.getEffectiveCapacity === 'function'
+            ? BookingStorage.getEffectiveCapacity(booking.date, booking.time, booking.slotType)
+            : 5;
+        const wasFullBeforeCancellation = confirmedInSlot === capacity - 1;
+        if (!wasFullBeforeCancellation) {
+            console.log('[Push] Slot non era pieno — notifica slot available saltata');
+            return;
+        }
+    }
+
     const user = typeof getCurrentUser === 'function' ? getCurrentUser() : null;
     let excludeUserId = user?.id ?? null;
     // Fallback: prova dalla sessione Supabase

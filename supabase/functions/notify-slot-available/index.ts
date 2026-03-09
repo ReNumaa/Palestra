@@ -34,10 +34,24 @@ Deno.serve(async (req) => {
             });
         }
 
-        // Tutte le subscription push tranne quella di chi ha annullato
+        // Recupera user_id di chi è già prenotato in questo slot (da non notificare)
+        const { data: slotBookings } = await supabase
+            .from("bookings")
+            .select("user_id")
+            .eq("date", date)
+            .eq("time", time)
+            .in("status", ["confirmed", "cancellation_requested"])
+            .not("user_id", "is", null);
+
+        const excludeIds = [...new Set(
+            [exclude_user_id, ...(slotBookings?.map((b: any) => b.user_id) ?? [])]
+            .filter(Boolean)
+        )];
+
+        // Tutte le subscription push tranne chi ha annullato e chi è già prenotato
         let query = supabase.from("push_subscriptions").select("endpoint, p256dh, auth, user_id");
-        if (exclude_user_id) {
-            query = query.neq("user_id", exclude_user_id);
+        if (excludeIds.length > 0) {
+            query = query.not("user_id", "in", `(${excludeIds.join(",")})`);
         }
         const { data: subs, error } = await query;
         if (error) throw error;
