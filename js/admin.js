@@ -1069,15 +1069,15 @@ function openClientBookingPicker(date, time, pickerId) {
     document.getElementById('clientSearchInput').addEventListener('input', function() {
         _filterClientList(this.value);
     });
-    _filterClientList('');
 }
 
 function _filterClientList(query) {
     const resultsEl = document.getElementById('clientSearchResults');
     if (!resultsEl) return;
     const q = query.toLowerCase().trim();
+    if (!q) { resultsEl.innerHTML = ''; return; }
     const clients = UserStorage.getAll().filter(c =>
-        !q || c.name.toLowerCase().includes(q) || (c.email || '').toLowerCase().includes(q)
+        c.name.toLowerCase().includes(q) || (c.email || '').toLowerCase().includes(q)
     );
     if (!clients.length) {
         resultsEl.innerHTML = `<div style="font-size:12px;color:#999;padding:4px 8px">Nessun cliente trovato</div>`;
