@@ -218,8 +218,13 @@ class BookingStorage {
                 cancelledWithBonus: row.cancelled_with_bonus || false,
                 cancelledWithPenalty: row.cancelled_with_penalty || false,
             }));
-            localStorage.setItem(this.BOOKINGS_KEY, JSON.stringify(mapped));
-            console.log(`[Supabase] syncFromSupabase: ${mapped.length} booking/i caricati`);
+            // Merge: mantieni prenotazioni locali non ancora su Supabase (es. RPC fallita)
+            const supabaseIds = new Set(mapped.map(m => m.id));
+            const local = this.getAllBookings();
+            const pending = local.filter(b => !supabaseIds.has(b.id) && b.status !== 'cancelled');
+            const merged = [...mapped, ...pending];
+            localStorage.setItem(this.BOOKINGS_KEY, JSON.stringify(merged));
+            console.log(`[Supabase] syncFromSupabase: ${mapped.length} booking/i da Supabase, ${pending.length} pending locali`);
         } catch (e) {
             console.error('[Supabase] syncFromSupabase exception:', e);
         }
@@ -239,6 +244,26 @@ class BookingStorage {
         if (typeof supabaseClient !== 'undefined') {
             const user = typeof getCurrentUser === 'function' ? getCurrentUser() : null;
             const maxCap = BookingStorage.getEffectiveCapacity(booking.date, booking.time, booking.slotType);
+            const _sbInsert = () => {
+                if (!user?.id) return;
+                supabaseClient.from('bookings').insert({
+                    local_id:     booking.id,
+                    user_id:      user.id,
+                    date:         booking.date,
+                    time:         booking.time,
+                    slot_type:    booking.slotType,
+                    name:         booking.name,
+                    email:        booking.email,
+                    whatsapp:     booking.whatsapp,
+                    notes:        booking.notes || '',
+                    status:       'confirmed',
+                    created_at:   booking.createdAt,
+                    date_display: booking.dateDisplay || ''
+                }).then(({ error: e2 }) => {
+                    if (e2) console.error('[Supabase] fallback insert error:', e2.message);
+                    else console.log('[Supabase] fallback insert OK');
+                });
+            };
             supabaseClient.rpc('book_slot_atomic', {
                 p_local_id:     booking.id,
                 p_user_id:      user?.id || null,
@@ -253,9 +278,12 @@ class BookingStorage {
                 p_created_at:   booking.createdAt,
                 p_date_display: booking.dateDisplay || ''
             }).then(({ data, error }) => {
-                if (error) console.error('[Supabase] book_slot_atomic error:', error.message);
-                else if (data && !data.success)
-                    console.warn('[Supabase] book_slot_atomic:', data.error, '— il booking sarà rimosso al prossimo sync');
+                if (error) {
+                    console.error('[Supabase] book_slot_atomic error:', error.message, '— fallback a INSERT diretto');
+                    _sbInsert();
+                } else if (data && !data.success) {
+                    console.warn('[Supabase] book_slot_atomic:', data.error);
+                }
             });
         }
 
