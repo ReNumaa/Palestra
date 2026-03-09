@@ -1463,6 +1463,77 @@ class UserStorage {
         return result.sort((a, b) => (a.name || '').localeCompare(b.name || ''));
     }
 
+    // Sincronizza gym_users localStorage dai profili Supabase.
+    // Chiama get_all_profiles() (SECURITY DEFINER) — accessibile anche senza sessione auth.
+    // Strategia di merge:
+    //   - Dati anagrafici (name/email/whatsapp) da Supabase sono autoritativi
+    //   - Dati cert/assicurazione locali hanno priorità (admin li aggiorna solo localmente)
+    //   - Utenti solo locali (non registrati) vengono preservati
+    static async syncUsersFromSupabase() {
+        if (typeof supabaseClient === 'undefined') return;
+        try {
+            const { data, error } = await supabaseClient.rpc('get_all_profiles');
+            if (error) {
+                console.error('[Supabase] syncUsersFromSupabase error:', error.message);
+                return;
+            }
+            if (!data?.length) return;
+
+            let local;
+            try { local = JSON.parse(localStorage.getItem(this.USERS_KEY) || '[]'); } catch { local = []; }
+
+            const normEmail = e => (e || '').toLowerCase().trim();
+            const normPhone = p => (p || '').replace(/\D/g, '').slice(-10);
+
+            // Indicizza utenti locali per email e telefono
+            const localByEmail = new Map(
+                local.filter(u => u.email).map(u => [normEmail(u.email), u])
+            );
+            const localByPhone = new Map(
+                local.filter(u => normPhone(u.whatsapp).length >= 9)
+                     .map(u => [normPhone(u.whatsapp), u])
+            );
+
+            const supabaseEmails = new Set();
+            const supabasePhones = new Set();
+
+            const merged = data.map(row => {
+                const e = normEmail(row.email);
+                const p = normPhone(row.whatsapp);
+                const existing = (e && localByEmail.get(e)) || (p.length >= 9 && localByPhone.get(p)) || {};
+                if (e) supabaseEmails.add(e);
+                if (p.length >= 9) supabasePhones.add(p);
+                return {
+                    ...existing,
+                    name:     row.name     || existing.name     || '',
+                    email:    row.email    || existing.email    || '',
+                    whatsapp: row.whatsapp || existing.whatsapp || '',
+                    // Cert/assicurazione: preferisce dati locali (admin li gestisce da admin.html)
+                    certificatoMedicoScadenza: existing.certificatoMedicoScadenza !== undefined
+                        ? existing.certificatoMedicoScadenza
+                        : (row.medical_cert_expiry ?? null),
+                    certificatoMedicoHistory: existing.certificatoMedicoHistory || row.medical_cert_history || [],
+                    assicurazioneScadenza: existing.assicurazioneScadenza !== undefined
+                        ? existing.assicurazioneScadenza
+                        : (row.insurance_expiry ?? null),
+                    assicurazioneHistory: existing.assicurazioneHistory || row.insurance_history || [],
+                };
+            });
+
+            // Mantieni utenti solo locali (non registrati su Supabase, es. clienti offline)
+            const localOnly = local.filter(u => {
+                const e = normEmail(u.email);
+                const p = normPhone(u.whatsapp);
+                return !(e && supabaseEmails.has(e)) && !(p.length >= 9 && supabasePhones.has(p));
+            });
+
+            localStorage.setItem(this.USERS_KEY, JSON.stringify([...merged, ...localOnly]));
+            console.log(`[Supabase] syncUsersFromSupabase: ${data.length} da Supabase, ${localOnly.length} solo locali`);
+        } catch (e) {
+            console.error('[Supabase] syncUsersFromSupabase exception:', e);
+        }
+    }
+
     // Search by name, email, or whatsapp (min 2 chars)
     static search(query) {
         if (!query || query.trim().length < 2) return [];

@@ -66,6 +66,34 @@ $$;
 -- Permessi: solo utenti autenticati possono prenotare
 GRANT EXECUTE ON FUNCTION book_slot_atomic TO authenticated;
 
+-- ─── get_all_profiles ────────────────────────────────────────
+-- Restituisce tutti i profili utente — usato da admin per syncUsersFromSupabase().
+-- SECURITY DEFINER: bypassa RLS (profiles ha select_own).
+-- Concesso a anon: admin.html usa password locale, non Supabase Auth.
+
+CREATE OR REPLACE FUNCTION get_all_profiles()
+RETURNS TABLE (
+    id                   UUID,
+    name                 TEXT,
+    email                TEXT,
+    whatsapp             TEXT,
+    medical_cert_expiry  TEXT,
+    medical_cert_history JSONB,
+    insurance_expiry     TEXT,
+    insurance_history    JSONB
+)
+LANGUAGE plpgsql SECURITY DEFINER AS $$
+BEGIN
+    RETURN QUERY
+        SELECT p.id, p.name, p.email, p.whatsapp,
+               p.medical_cert_expiry, p.medical_cert_history,
+               p.insurance_expiry, p.insurance_history
+        FROM profiles p;
+END;
+$$;
+
+GRANT EXECUTE ON FUNCTION get_all_profiles TO anon;
+
 -- ─── Nota: REPLICA IDENTITY per Realtime ─────────────────────
 -- Per ricevere dati completi su UPDATE/DELETE nei canali Realtime,
 -- abilitare REPLICA IDENTITY FULL sulla tabella bookings:
