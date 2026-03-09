@@ -1,6 +1,6 @@
 // Push notification subscription management
 // Chiave pubblica VAPID — la privata va nelle env vars di Supabase (secret VAPID_PRIVATE_KEY)
-const VAPID_PUBLIC_KEY = 'BE7xZi-LqD7QbdmMwZs9j1IsZ6bgmcDV_ShvVSajkYN3pXp5Q0dV4h3gG4M6eKKFBKG3iiqo6FtV5IwGXf2VO8c';
+const VAPID_PUBLIC_KEY = 'BMV_WwKcaQr4c5l-Yz7FJtTHQDqagPGMiNLAZmKi4vfGpapKEZxE4RyaYRU1kn9E230XyX1YURsVRMjkfOOgwpQ';
 
 function urlBase64ToUint8Array(base64String) {
     const padding = '='.repeat((4 - base64String.length % 4) % 4);
