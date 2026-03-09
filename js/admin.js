@@ -3138,6 +3138,13 @@ function saveClientEdit(index, oldWhatsapp, oldEmail) {
         }
         _saveUsers(users);
 
+        // ── Sincronizza cert/assic su Supabase profiles ───────────
+        const _supaFields = {};
+        if (newCert !== oldCert) _supaFields.medical_cert_expiry = newCert || null;
+        if (newAssic !== oldAssic) _supaFields.insurance_expiry = newAssic || null;
+        if (Object.keys(_supaFields).length > 0)
+            _updateSupabaseProfile(newEmail || oldEmail, normNewPhone, _supaFields);
+
         // ── 5. Aggiorna sessione se l'utente è loggato ────────────
         const current = getCurrentUser();
         if (current) {
@@ -4443,6 +4450,22 @@ function _getUsersFull() {
 function _saveUsers(users) {
     localStorage.setItem('gym_users', JSON.stringify(users));
 }
+async function _updateSupabaseProfile(email, whatsapp, fields) {
+    if (typeof supabaseClient === 'undefined') return;
+    try {
+        let query = supabaseClient.from('profiles').update(fields);
+        if (email) {
+            query = query.eq('email', email.toLowerCase());
+        } else if (whatsapp) {
+            query = query.eq('whatsapp', normalizePhone(whatsapp));
+        } else {
+            return;
+        }
+        await query;
+    } catch (e) {
+        console.warn('Supabase profile sync failed:', e);
+    }
+}
 function _getUserRecord(email, whatsapp) {
     const users = _getUsersFull();
     const idx = _findUserIdx(users, email, whatsapp);
@@ -4510,6 +4533,7 @@ function saveCertDate() {
         }
     }
     _saveUsers(users);
+    _updateSupabaseProfile(_certModalEmail, _certModalWhatsapp, { medical_cert_expiry: val || null });
 
     // Aggiorna sessione se è il cliente loggato
     const session = getCurrentUser();
@@ -4591,6 +4615,7 @@ function saveAssicDate() {
         }
     }
     _saveUsers(users);
+    _updateSupabaseProfile(_assicModalEmail, _assicModalWhatsapp, { insurance_expiry: val || null });
 
     // Aggiorna sessione se è il cliente loggato
     const session = getCurrentUser();
