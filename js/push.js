@@ -11,20 +11,48 @@ function urlBase64ToUint8Array(base64String) {
 
 async function registerPushSubscription() {
     if (!('PushManager' in window) || !navigator.serviceWorker) return null;
-    try {
-        const reg = await navigator.serviceWorker.ready;
+    const reg = await navigator.serviceWorker.ready;
+    const appKey = urlBase64ToUint8Array(VAPID_PUBLIC_KEY);
+
+    async function _subscribe() {
         let sub = await reg.pushManager.getSubscription();
-        if (!sub) {
-            sub = await reg.pushManager.subscribe({
-                userVisibleOnly: true,
-                applicationServerKey: urlBase64ToUint8Array(VAPID_PUBLIC_KEY)
-            });
+        if (sub) {
+            // Controlla se la chiave VAPID corrisponde — se no, cancella e ricrea
+            const existingKey = sub.options?.applicationServerKey;
+            if (existingKey) {
+                const a = new Uint8Array(existingKey);
+                const b = appKey;
+                const mismatch = a.length !== b.length || a.some((v, i) => v !== b[i]);
+                if (mismatch) {
+                    console.log('[Push] Chiave VAPID cambiata — cancello subscription vecchia');
+                    await sub.unsubscribe();
+                    sub = null;
+                }
+            }
         }
+        if (!sub) {
+            sub = await reg.pushManager.subscribe({ userVisibleOnly: true, applicationServerKey: appKey });
+        }
+        return sub;
+    }
+
+    try {
+        const sub = await _subscribe();
         await savePushSubscription(sub);
         return sub;
     } catch (e) {
-        console.warn('[Push] Subscription fallita:', e);
-        return null;
+        // Fallback: forza cancellazione e ricrea (es. push service error)
+        try {
+            console.warn('[Push] Primo tentativo fallito, forzo unsubscribe e riprovo:', e.message);
+            const old = await reg.pushManager.getSubscription();
+            if (old) await old.unsubscribe();
+            const sub = await reg.pushManager.subscribe({ userVisibleOnly: true, applicationServerKey: appKey });
+            await savePushSubscription(sub);
+            return sub;
+        } catch (e2) {
+            console.warn('[Push] Subscription fallita definitivamente:', e2);
+            return null;
+        }
     }
 }
 
