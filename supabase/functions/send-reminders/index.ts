@@ -85,8 +85,8 @@ Deno.serve(async (_req) => {
 
             const startTime = b.time.split(" - ")[0]?.trim() ?? b.time;
             const payload = JSON.stringify({
-                title: "Thomas Bresciani Palestra",
-                body:  `Promemoria: lezione domani alle ${startTime}`,
+                title: "Promemoria Allenamento",
+                body:  `Lezione domani alle ${startTime}`,
                 tag:   `reminder-24h-${b.id}`,
                 url:   "/prenotazioni.html",
             });
@@ -113,8 +113,8 @@ Deno.serve(async (_req) => {
 
             const startTime = b.time.split(" - ")[0]?.trim() ?? b.time;
             const payload = JSON.stringify({
-                title: "Thomas Bresciani Palestra",
-                body:  `Promemoria: lezione fra 1 ora (${startTime})`,
+                title: "Promemoria Allenamento",
+                body:  `Lezione fra 60 minuti (${startTime})`,
                 tag:   `reminder-1h-${b.id}`,
                 url:   "/prenotazioni.html",
             });
