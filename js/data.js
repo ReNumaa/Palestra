@@ -1281,6 +1281,22 @@ class ManualDebtStorage {
         const key = this._findKey(whatsapp, email);
         if (key) { delete all[key]; this._save(all); }
     }
+
+    // Elimina una singola voce di debito manuale per data (ISO string) e ricalcola il saldo
+    static deleteDebtEntry(whatsapp, email, entryDate) {
+        const all = this._getAll();
+        const key = this._findKey(whatsapp, email);
+        if (!key || !all[key]) return false;
+        const idx = all[key].history.findIndex(e => e.date === entryDate && e.amount > 0);
+        if (idx === -1) return false;
+        all[key].history.splice(idx, 1);
+        all[key].balance = Math.round(
+            Math.max(0, all[key].history.reduce((s, e) => s + e.amount, 0)) * 100
+        ) / 100;
+        if (all[key].history.length === 0) delete all[key];
+        this._save(all);
+        return true;
+    }
 }
 
 // Bonus storage — one free cancellation bonus per client per month (non-cumulative)

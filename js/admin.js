@@ -1879,6 +1879,15 @@ function renderPaymentsTab() {
     }
 }
 
+function deleteManualDebtEntry(whatsapp, email, entryDate) {
+    if (!confirm('Eliminare questa voce di debito manuale?')) return;
+    const ok = ManualDebtStorage.deleteDebtEntry(whatsapp, email, entryDate);
+    if (ok) {
+        renderPaymentsTab();
+        showToast('Voce eliminata.', 'success');
+    }
+}
+
 function toggleCreditsList() {
     if (_sensitiveHidden) return;
     creditsListVisible = !creditsListVisible;
@@ -2019,21 +2028,20 @@ function createDebtorCard(debtor, cardId) {
     });
     if (debtor.manualDebt > 0) {
         const record = ManualDebtStorage.getRecord(debtor.whatsapp, debtor.email);
-        const recentEntries = record ? [...record.history].reverse().slice(0, 3) : [];
-        recentEntries.forEach(entry => {
-            if (entry.amount > 0) {
-                const d = new Date(entry.date);
-                const dateStr = `${d.getDate()}/${d.getMonth()+1}/${d.getFullYear()}`;
-                bookingsHTML += `
-                    <div class="debtor-booking-item debtor-booking-manual">
-                        <div class="debtor-booking-details">✏️ ${dateStr} &nbsp;·&nbsp; ${_escHtml(entry.note || 'Debito manuale')}</div>
+        const allEntries = record ? [...record.history].reverse().filter(e => e.amount > 0) : [];
+        allEntries.forEach(entry => {
+            const d = new Date(entry.date);
+            const dateStr = `${d.getDate()}/${d.getMonth()+1}/${d.getFullYear()}`;
+            const safeDate = entry.date.replace(/'/g, "\\'");
+            bookingsHTML += `
+                <div class="debtor-booking-item debtor-booking-manual">
+                    <div class="debtor-booking-details">✏️ ${dateStr} &nbsp;·&nbsp; ${_escHtml(entry.note || 'Debito manuale')}</div>
+                    <div style="display:flex;align-items:center;gap:0.5rem;">
                         <div class="debtor-booking-price">€${entry.amount}</div>
-                    </div>`;
-            }
+                        <button class="debt-entry-delete-btn" onclick="deleteManualDebtEntry('${safeW}','${safeE}','${safeDate}')" title="Elimina questa voce">✕</button>
+                    </div>
+                </div>`;
         });
-        if (record && record.history.filter(e => e.amount > 0).length > 3) {
-            bookingsHTML += `<div class="debtor-booking-item" style="opacity:0.5;font-size:0.78rem;">… altri movimenti nel storico</div>`;
-        }
     }
     bookingsHTML += '</div>';
 
