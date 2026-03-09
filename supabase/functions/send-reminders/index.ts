@@ -68,7 +68,7 @@ Deno.serve(async (_req) => {
         let totalSent = 0;
 
         // ── Promemoria 24h ────────────────────────────────────────────────────
-        const { date: date24h, totalMin: min24h } = targetItaly(25 * 60 * 60 * 1000);
+        const { date: date24h, totalMin: min24h } = targetItaly(24 * 60 * 60 * 1000);
         const { data: bookings24h, error: err24h } = await supabase
             .from("bookings")
             .select("id, user_id, time")
