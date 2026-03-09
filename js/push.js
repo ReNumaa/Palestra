@@ -30,19 +30,35 @@ async function registerPushSubscription() {
 
 async function savePushSubscription(subscription) {
     const json = subscription.toJSON();
-    const user = typeof getCurrentUser === 'function' ? getCurrentUser() : null;
 
-    // Salva su Supabase push_subscriptions (legata all'utente autenticato)
-    if (typeof supabaseClient !== 'undefined' && user?.id) {
+    // Recupera user_id direttamente dalla sessione Supabase (non dipende dal timing di initAuth)
+    let userId = null;
+    let userEmail = null;
+    if (typeof supabaseClient !== 'undefined') {
+        try {
+            const { data: { session } } = await supabaseClient.auth.getSession();
+            userId    = session?.user?.id    ?? null;
+            userEmail = session?.user?.email ?? null;
+        } catch {}
+    }
+    // Fallback al cached getCurrentUser se la sessione non è ancora pronta
+    if (!userId) {
+        const u = typeof getCurrentUser === 'function' ? getCurrentUser() : null;
+        userId    = u?.id    ?? null;
+        userEmail = u?.email ?? null;
+    }
+
+    // Salva su Supabase push_subscriptions
+    if (typeof supabaseClient !== 'undefined' && userId) {
         supabaseClient.from('push_subscriptions').upsert({
             endpoint:   json.endpoint,
             p256dh:     json.keys.p256dh,
             auth:       json.keys.auth,
-            user_id:    user.id,
-            user_email: user.email || null,
+            user_id:    userId,
+            user_email: userEmail,
         }, { onConflict: 'endpoint' }).then(({ error }) => {
             if (error) console.warn('[Push] Supabase save error:', error.message);
-            else       console.log('[Push] Subscription salvata su Supabase');
+            else       console.log('[Push] Subscription salvata su Supabase per', userEmail);
         });
     } else {
         console.warn('[Push] Utente non autenticato — subscription non salvata su Supabase');
@@ -53,7 +69,7 @@ async function savePushSubscription(subscription) {
         endpoint:   json.endpoint,
         p256dh:     json.keys.p256dh,
         auth:       json.keys.auth,
-        user_email: user?.email || null,
+        user_email: userEmail,
         saved_at:   new Date().toISOString()
     }));
 }
