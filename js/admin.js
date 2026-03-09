@@ -1042,20 +1042,22 @@ function addExtraSpotToSlot(date, time, extraType) {
 }
 
 // ── Admin: prenota per un cliente specifico ────────────────────────────────
+// Stato picker (evita JSON inline negli onclick che causa SyntaxError)
+let _clientPickerState = { date: '', time: '', client: null };
 
 function openClientBookingPicker(date, time, pickerId) {
     const picker = document.getElementById(pickerId);
     if (!picker) return;
-
-    const clients = UserStorage.getAll();
+    _clientPickerState.date = date;
+    _clientPickerState.time = time;
+    _clientPickerState.client = null;
 
     picker.innerHTML = `
         <div style="width:100%;padding:8px 0 4px;display:flex;flex-direction:column;gap:8px">
             <div style="display:flex;gap:8px;align-items:center">
                 <input id="clientSearchInput" type="text" placeholder="Cerca cliente…"
                     autocomplete="off"
-                    style="flex:1;padding:7px 10px;border:1px solid #ddd;border-radius:8px;font-size:13px"
-                    oninput="_filterClientList(this.value,'${date}','${time}')">
+                    style="flex:1;padding:7px 10px;border:1px solid #ddd;border-radius:8px;font-size:13px">
                 <button onclick="toggleExtraPicker('${date}','${time}')"
                     style="background:none;border:none;color:#999;cursor:pointer;font-size:18px;padding:0 4px">✕</button>
             </div>
@@ -1064,11 +1066,13 @@ function openClientBookingPicker(date, time, pickerId) {
         </div>
     `;
 
-    // Mostra tutti i clienti inizialmente
-    _filterClientList('', date, time);
+    document.getElementById('clientSearchInput').addEventListener('input', function() {
+        _filterClientList(this.value);
+    });
+    _filterClientList('');
 }
 
-function _filterClientList(query, date, time) {
+function _filterClientList(query) {
     const resultsEl = document.getElementById('clientSearchResults');
     if (!resultsEl) return;
     const q = query.toLowerCase().trim();
@@ -1079,49 +1083,70 @@ function _filterClientList(query, date, time) {
         resultsEl.innerHTML = `<div style="font-size:12px;color:#999;padding:4px 8px">Nessun cliente trovato</div>`;
         return;
     }
-    resultsEl.innerHTML = clients.slice(0, 10).map(c => `
-        <div class="client-search-row" style="display:flex;justify-content:space-between;align-items:center;padding:6px 10px;border:1px solid #eee;border-radius:8px;cursor:pointer;background:#fff;font-size:13px"
-             onclick="_selectClientForBooking(${JSON.stringify(JSON.stringify(c))},'${date}','${time}')">
+    resultsEl.innerHTML = '';
+    clients.slice(0, 10).forEach((c, idx) => {
+        const row = document.createElement('div');
+        row.style.cssText = 'display:flex;justify-content:space-between;align-items:center;padding:6px 10px;border:1px solid #eee;border-radius:8px;cursor:pointer;background:#fff;font-size:13px';
+        row.innerHTML = `
             <div>
                 <div style="font-weight:600">${_escHtml(c.name)}</div>
                 <div style="font-size:11px;color:#888">${_escHtml(c.email || c.whatsapp || '')}</div>
             </div>
             <span style="font-size:11px;color:#aaa">›</span>
-        </div>
-    `).join('');
+        `;
+        row.addEventListener('click', () => _selectClientForBooking(c));
+        resultsEl.appendChild(row);
+    });
 }
 
-function _selectClientForBooking(clientJson, date, time) {
-    const client = JSON.parse(clientJson);
+function _selectClientForBooking(client) {
+    _clientPickerState.client = client;
     const confirmEl = document.getElementById('clientBookingConfirm');
     const resultsEl = document.getElementById('clientSearchResults');
+    const inputEl   = document.getElementById('clientSearchInput');
     if (!confirmEl || !resultsEl) return;
     resultsEl.style.display = 'none';
+    if (inputEl) inputEl.style.display = 'none';
     confirmEl.style.display = 'block';
+
+    const btnBack = document.createElement('button');
+    btnBack.textContent = '← Indietro';
+    btnBack.style.cssText = 'background:none;border:1px solid #ddd;border-radius:8px;padding:6px 10px;cursor:pointer;font-size:12px;color:#666';
+    btnBack.addEventListener('click', () => {
+        _clientPickerState.client = null;
+        resultsEl.style.display = 'flex';
+        if (inputEl) { inputEl.style.display = ''; inputEl.value = ''; }
+        confirmEl.style.display = 'none';
+        _filterClientList('');
+    });
+
+    const btnAut = document.createElement('button');
+    btnAut.className = 'extra-picker-btn personal-training';
+    btnAut.textContent = 'Autonomia';
+    btnAut.addEventListener('click', () => bookForClient('personal-training'));
+
+    const btnGrp = document.createElement('button');
+    btnGrp.className = 'extra-picker-btn small-group';
+    btnGrp.textContent = 'Lezione di Gruppo';
+    btnGrp.addEventListener('click', () => bookForClient('small-group'));
+
     confirmEl.innerHTML = `
-        <div style="font-size:13px;margin-bottom:6px">
+        <div style="font-size:13px;margin-bottom:8px">
             <strong>${_escHtml(client.name)}</strong>
             <span style="color:#888;font-size:11px"> · ${_escHtml(client.email || client.whatsapp || '')}</span>
         </div>
-        <div style="display:flex;gap:8px;flex-wrap:wrap">
-            <button class="extra-picker-btn personal-training"
-                onclick='bookForClient("${date}","${time}","personal-training",${JSON.stringify(JSON.stringify(client))})'>
-                Autonomia
-            </button>
-            <button class="extra-picker-btn small-group"
-                onclick='bookForClient("${date}","${time}","small-group",${JSON.stringify(JSON.stringify(client))})'>
-                Lezione di Gruppo
-            </button>
-            <button onclick="document.getElementById('clientSearchResults').style.display='flex';document.getElementById('clientBookingConfirm').style.display='none';document.getElementById('clientSearchInput').value='';_filterClientList('','${date}','${time}')"
-                style="background:none;border:1px solid #ddd;border-radius:8px;padding:6px 10px;cursor:pointer;font-size:12px;color:#666">
-                ← Indietro
-            </button>
-        </div>
     `;
+    const btnRow = document.createElement('div');
+    btnRow.style.cssText = 'display:flex;gap:8px;flex-wrap:wrap';
+    btnRow.appendChild(btnAut);
+    btnRow.appendChild(btnGrp);
+    btnRow.appendChild(btnBack);
+    confirmEl.appendChild(btnRow);
 }
 
-async function bookForClient(date, time, slotType, clientJson) {
-    const client = JSON.parse(clientJson);
+async function bookForClient(slotType) {
+    const { date, time, client } = _clientPickerState;
+    if (!client) return;
 
     // Cerca user_id del cliente in Supabase (per reminders push)
     let clientUserId = null;
