@@ -22,7 +22,7 @@ function parseStartMin(timeStr: string): number | null {
 
 // Data e ora corrente in fuso Europe/Rome, spostata di +1 ora
 function targetItaly(): { date: string; totalMin: number } {
-    const oneHourLater = new Date(Date.now() + 60 * 60 * 1000);
+    const oneHourLater = new Date(Date.now() + 40 * 60 * 1000);
     const fmt = new Intl.DateTimeFormat("en-CA", {
         timeZone: "Europe/Rome",
         year: "numeric", month: "2-digit", day: "2-digit",
@@ -71,7 +71,7 @@ Deno.serve(async (_req) => {
             const startTime = booking.time.split(" - ")[0]?.trim() ?? booking.time;
             const payload = JSON.stringify({
                 title: "Thomas Bresciani Palestra",
-                body:  `Promemoria: lezione fra 1 ora (${startTime})`,
+                body:  `Promemoria: lezione fra 40 minuti (${startTime})`,
                 tag:   `reminder-1h-${booking.id}`,
                 url:   "/prenotazioni.html",
             });
