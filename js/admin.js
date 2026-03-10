@@ -2663,37 +2663,54 @@ function saveManualEntry() {
     const method = activeMethodBtn ? activeMethodBtn.dataset.method : 'contanti';
     const { name, whatsapp, email } = _manualEntryContact;
 
+    const savedType = _manualEntryType;
+    closeManualEntryPopup();
+
     if (_manualEntryType === 'debt') {
         ManualDebtStorage.addDebt(whatsapp, email, name, amount,
             note || 'Debito manuale', method);
-    } else {
-        const isFreeLesson = method === 'lezione-gratuita';
-        CreditStorage.addCredit(whatsapp, email, name, amount,
-            note || (isFreeLesson ? 'Lezione gratuita' : 'Credito manuale'),
-            null, isFreeLesson, false, null, method);
-        CreditStorage.applyToUnpaidBookings(whatsapp, email, name);
-        // If there's a manual debt, use available credit to offset it at the source
-        const debtBalance = ManualDebtStorage.getBalance(whatsapp, email);
-        if (debtBalance > 0) {
-            const creditAfter = CreditStorage.getBalance(whatsapp, email);
-            if (creditAfter > 0) {
-                const toOffset = Math.round(Math.min(debtBalance, creditAfter) * 100) / 100;
-                ManualDebtStorage.addDebt(whatsapp, email, name, -toOffset, 'Compensato con credito');
-                CreditStorage.addCredit(whatsapp, email, name, -toOffset, 'Applicato a debito manuale');
-            }
-        }
-    }
-
-    const savedType = _manualEntryType;
-    closeManualEntryPopup();
-    renderPaymentsTab();
-    // Reveal the relevant list so user sees the new entry
-    if (savedType === 'debt') {
+        renderPaymentsTab();
         debtorsListVisible = false;
         toggleDebtorsList();
     } else {
-        creditsListVisible = false;
-        toggleCreditsList();
+        // Credito: operazione atomica server-side via RPC
+        const isFreeLesson = method === 'lezione-gratuita';
+        const slotPrices = { 'personal-training': 5, 'small-group': 10, 'group-class': 30 };
+
+        (async () => {
+            const { data, error } = await supabaseClient.rpc('admin_add_credit', {
+                p_email:       email.toLowerCase(),
+                p_whatsapp:    whatsapp || null,
+                p_name:        name,
+                p_amount:      amount,
+                p_note:        note || (isFreeLesson ? 'Lezione gratuita' : 'Credito manuale'),
+                p_method:      method,
+                p_free_lesson: isFreeLesson,
+                p_slot_prices: slotPrices,
+            });
+
+            if (error) {
+                console.error('[Supabase] admin_add_credit error:', error.message, error.code);
+                alert('⚠️ Errore durante l\'aggiunta del credito: ' + error.message);
+                return;
+            }
+
+            console.log('[admin_add_credit]', data);
+
+            // Cancella il debounce pendente (RPC ha già scritto i dati corretti)
+            clearTimeout(CreditStorage._supabaseSaveTimer);
+
+            // Risincronizza tutto da Supabase
+            await Promise.all([
+                BookingStorage.syncFromSupabase(),
+                CreditStorage.syncFromSupabase(),
+                ManualDebtStorage.syncFromSupabase(),
+            ]);
+
+            renderPaymentsTab();
+            creditsListVisible = false;
+            toggleCreditsList();
+        })();
     }
 }
 
