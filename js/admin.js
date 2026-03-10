@@ -3829,6 +3829,23 @@ function buildRegistroEntries() {
                 bookingStatus: 'cancelled',
                 bookingPaid:   false,
             });
+
+            // Evento: mora trattenuta (annullamento con penalità su booking già pagato)
+            // Il rimborso parziale +50% è già nel credit history; qui mostriamo il -50% trattenuto.
+            if (b.cancelledWithPenalty && b.cancelledPaidAt) {
+                const moraAmount = Math.round((SLOT_PRICES[b.slotType] || 0) * 0.5 * 100) / 100;
+                if (moraAmount > 0) {
+                    entries.push({
+                        ...base,
+                        eventType:     'cancellation_mora',
+                        timestamp:     new Date(b.cancelledAt),
+                        amount:        moraAmount,
+                        paymentMethod: null,
+                        bookingStatus: 'cancelled',
+                        bookingPaid:   false,
+                    });
+                }
+            }
         }
     }
 
