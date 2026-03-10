@@ -1492,6 +1492,7 @@ function deleteBooking(bookingId, bookingName) {
         bookings[index].cancelledPaidAt = booking.paidAt;
         bookings[index].status = 'cancelled';
         bookings[index].cancelledAt = new Date().toISOString();
+        bookings[index].cancelledWithBonus = useBonus;
         bookings[index].paid = false;
         bookings[index].paymentMethod = null;
         bookings[index].paidAt = null;
@@ -3846,6 +3847,19 @@ function buildRegistroEntries() {
                     });
                 }
             }
+
+            // Evento: bonus utilizzato per annullamento gratuito
+            if (b.cancelledWithBonus) {
+                entries.push({
+                    ...base,
+                    eventType:     'bonus_used',
+                    timestamp:     new Date(b.cancelledAt),
+                    amount:        null,
+                    paymentMethod: null,
+                    bookingStatus: 'cancelled',
+                    bookingPaid:   false,
+                });
+            }
         }
     }
 
@@ -4069,6 +4083,7 @@ function renderRegistroTable() {
         manual_debt:              { icon: '📋', cls: 'rtype-debt',       label: 'Debito Manuale' },
         manual_debt_paid:         { icon: '💰', cls: 'rtype-debtpaid',   label: 'Debito Saldato' },
         cancellation_mora:        { icon: '💸', cls: 'rtype-mora',       label: 'Mora' },
+        bonus_used:               { icon: '🎟️', cls: 'rtype-bonus',      label: 'Bonus Utilizzato' },
     };
     const METHOD_ICON  = { contanti: '💵', carta: '💳', iban: '🏦', credito: '🔄', 'lezione-gratuita': '🎁' };
     const METHOD_LABEL = { contanti: 'Contanti', carta: 'Carta', iban: 'Bonifico', credito: 'Credito', 'lezione-gratuita': 'Gratuita' };
@@ -4219,6 +4234,7 @@ function exportRegistro() {
         manual_debt:              'Debito Manuale',
         manual_debt_paid:         'Debito Saldato',
         cancellation_mora:        'Mora',
+        bonus_used:               'Bonus Utilizzato',
     };
     const METHOD_LABEL = {
         contanti: 'Contanti', carta: 'Carta', iban: 'Bonifico',
