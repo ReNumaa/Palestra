@@ -89,18 +89,34 @@ async function initAuth() {
                 whatsapp: session.user.user_metadata?.whatsapp || ''
             };
         }
+        // Propaga il claim admin al sessionStorage così updateNavAuth() può mostrare il link
+        if (session.user.app_metadata?.role === 'admin') {
+            sessionStorage.setItem('adminAuth', 'true');
+        } else {
+            // Utente loggato ma non admin: pulisce eventuali flag legacy
+            sessionStorage.removeItem('adminAuth');
+        }
     } else {
         window._currentUser = null;
+        sessionStorage.removeItem('adminAuth');
     }
+    // Rimuovi sempre il vecchio flag localStorage (era persistente a vita, causa di falsi positivi)
+    localStorage.removeItem('adminAuthenticated');
 
     // Registra il listener persistente una sola volta (evita duplicati su bfcache restore)
     if (!_authListenerActive) {
         _authListenerActive = true;
         supabaseClient.auth.onAuthStateChange(async (event, session) => {
             if (event === 'SIGNED_IN' || event === 'TOKEN_REFRESHED') {
-                if (session) await _loadProfile(session.user.id);
+                if (session) {
+                    await _loadProfile(session.user.id);
+                    if (session.user.app_metadata?.role === 'admin') {
+                        sessionStorage.setItem('adminAuth', 'true');
+                    }
+                }
             } else if (event === 'SIGNED_OUT') {
                 window._currentUser = null;
+                sessionStorage.removeItem('adminAuth');
             }
             updateNavAuth();
         });
@@ -280,7 +296,7 @@ function getUserBookings() {
 function updateNavAuth() {
     document.body.classList.add('auth-loaded');
     const user    = getCurrentUser();
-    const isAdmin = localStorage.getItem('adminAuthenticated') === 'true';
+    const isAdmin = sessionStorage.getItem('adminAuth') === 'true';
     const loginLink = document.getElementById('navLoginLink');
     const userMenu  = document.getElementById('navUserMenu');
     const userName  = document.getElementById('navUserName');
@@ -413,7 +429,7 @@ document.addEventListener('DOMContentLoaded', () => {
     if (profileBtn) {
         profileBtn.style.cursor = 'pointer';
         profileBtn.addEventListener('click', () => {
-            const isAdmin = localStorage.getItem('adminAuthenticated') === 'true';
+            const isAdmin = sessionStorage.getItem('adminAuth') === 'true';
             window.location.href = isAdmin ? 'admin.html' : 'prenotazioni.html';
         });
     }

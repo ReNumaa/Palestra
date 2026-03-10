@@ -113,8 +113,8 @@ async function handleBookingSubmit(e) {
     }
 
     // Reject if the lesson ends in less than 30 minutes from now
-    const _timeParts = selectedSlot.time.split(' - ');
-    const [_eh, _em] = (_timeParts[1] || _timeParts[0] || '').trim().split(':').map(Number);
+    const _slotTp = _parseSlotTime(selectedSlot.time);
+    const [_eh, _em] = _slotTp ? [_slotTp.endH, _slotTp.endM] : [23, 59]; // fallback non-bloccante
     const _lessonEnd = new Date(selectedSlot.date);
     _lessonEnd.setHours(_eh, _em, 0, 0);
     if ((_lessonEnd - new Date()) < 30 * 60 * 1000) {
@@ -325,9 +325,10 @@ async function handleBookingSubmit(e) {
 }
 
 function buildCalendarDates(dateStr, timeStr) {
-    const [startTime, endTime] = timeStr.split(' - ').map(t => t.trim());
-    const [sH, sM] = startTime.split(':');
-    const [eH, eM] = endTime.split(':');
+    const _btp = _parseSlotTime(timeStr);
+    if (!_btp) return { start: '', end: '' };
+    const [sH, sM] = [String(_btp.startH).padStart(2,'0'), String(_btp.startM).padStart(2,'0')];
+    const [eH, eM] = [String(_btp.endH).padStart(2,'0'), String(_btp.endM).padStart(2,'0')];
     const d = dateStr.replace(/-/g, '');
     return { start: `${d}T${sH}${sM}00`, end: `${d}T${eH}${eM}00` };
 }

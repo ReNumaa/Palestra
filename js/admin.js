@@ -1194,6 +1194,11 @@ function _selectClientForBooking(client) {
 }
 
 async function bookForClient(slotType) {
+    // Guard: sessione admin deve essere attiva (il backend verifica is_admin() sulle RPC)
+    if (sessionStorage.getItem('adminAuth') !== 'true') {
+        showToast('Sessione admin scaduta. Ricarica la pagina e accedi di nuovo.', 'error');
+        return;
+    }
     const { date, time, client } = _clientPickerState;
     if (!client) return;
 

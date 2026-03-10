@@ -4,6 +4,53 @@ function _localDateStr(d = new Date()) {
     return `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`;
 }
 
+// Parsa "HH:MM - HH:MM" in { startH, startM, endH, endM }.
+// Restituisce null e logga un errore se il formato non è riconosciuto.
+function _parseSlotTime(str) {
+    if (!str || typeof str !== 'string') {
+        console.error('[_parseSlotTime] Formato orario non valido:', str);
+        return null;
+    }
+    const parts = str.split(' - ');
+    if (parts.length !== 2) {
+        console.error('[_parseSlotTime] Formato atteso "HH:MM - HH:MM":', str);
+        return null;
+    }
+    const [sh, sm] = parts[0].trim().split(':').map(Number);
+    const [eh, em] = parts[1].trim().split(':').map(Number);
+    if ([sh, sm, eh, em].some(isNaN)) {
+        console.error('[_parseSlotTime] Ore/minuti non numerici in:', str);
+        return null;
+    }
+    return { startH: sh, startM: sm, endH: eh, endM: em };
+}
+
+// Salva in localStorage con gestione QuotaExceededError.
+// Logga l'errore senza lanciare eccezioni — evita crash silenziosi su storage pieno.
+function _lsSet(key, value) {
+    try {
+        localStorage.setItem(key, value);
+    } catch (e) {
+        if (e instanceof DOMException && (e.name === 'QuotaExceededError' || e.code === 22)) {
+            console.error('[localStorage] QuotaExceededError: impossibile salvare', key,
+                '— dimensione approssimativa:', Math.round((value?.length || 0) / 1024), 'KB');
+        } else {
+            console.error('[localStorage] Errore setItem per chiave', key, ':', e);
+        }
+    }
+}
+
+// Wrappa una promise RPC con un timeout esplicito.
+// Se supera ms millisecondi, rifiuta con Error('rpc_timeout').
+function _rpcWithTimeout(promise, ms = 12000) {
+    return Promise.race([
+        promise,
+        new Promise((_, reject) =>
+            setTimeout(() => reject(new Error('rpc_timeout')), ms)
+        )
+    ]);
+}
+
 // Mock data storage - In production, this would be a database
 const SLOT_TYPES = {
     PERSONAL: 'personal-training',
@@ -199,8 +246,9 @@ class BookingStorage {
 
             if (!user && !isAdmin) {
                 // ── ANON: solo disponibilità aggregata, nessun dato personale ──────────
-                const { data: availData, error } = await supabaseClient
-                    .rpc('get_availability_range', { p_start: todayStr, p_end: endStr });
+                const { data: availData, error } = await _rpcWithTimeout(
+                    supabaseClient.rpc('get_availability_range', { p_start: todayStr, p_end: endStr })
+                ).catch(e => ({ data: null, error: e }));
                 if (error) { console.error('[Supabase] get_availability_range error:', error.message); return; }
                 const synth = this._buildSyntheticBookings(availData, {});
                 // Mantieni booking locali non-sintetici (pending insert non ancora su Supabase)
@@ -225,7 +273,8 @@ class BookingStorage {
 
             // Utente non-admin: richiede anche la disponibilità aggregata in parallelo
             const fetchAvail = !isAdmin
-                ? supabaseClient.rpc('get_availability_range', { p_start: todayStr, p_end: endStr })
+                ? _rpcWithTimeout(supabaseClient.rpc('get_availability_range', { p_start: todayStr, p_end: endStr }))
+                    .catch(e => ({ data: null, error: e }))
                 : Promise.resolve({ data: null, error: null });
 
             const [{ data, error }, { data: availData, error: e2 }] =
@@ -449,7 +498,14 @@ class BookingStorage {
 
     // Versione admin di saveBooking: usa clientUserId per il record Supabase
     // in modo che il promemoria push arrivi al cliente, non all'admin.
+    // Il backend è protetto da is_admin() sulle RPC; questo guard dà un errore chiaro
+    // se la sessione admin non è attiva (A6 fix).
     static saveBookingForClient(booking, clientUserId, onSupabaseResult) {
+        if (typeof sessionStorage !== 'undefined' && sessionStorage.getItem('adminAuth') !== 'true') {
+            console.warn('[saveBookingForClient] Chiamata senza sessione admin attiva — operazione bloccata lato frontend');
+            if (onSupabaseResult) onSupabaseResult(false);
+            return null;
+        }
         const bookings = this.getAllBookings();
         booking.id = `${Date.now()}-${Math.random().toString(36).substr(2, 9)}`;
         booking.createdAt = new Date().toISOString();
@@ -791,8 +847,10 @@ class BookingStorage {
         let changed = false;
         all.forEach(b => {
             if (b.status !== 'cancellation_requested') return;
-            const startTime = b.time.split(' - ')[0].trim();
-            const lessonStart = new Date(`${b.date}T${startTime}:00`);
+            const _tp = _parseSlotTime(b.time);
+            if (!_tp) return;
+            const [_yr, _mo, _dy] = b.date.split('-').map(Number);
+            const lessonStart = new Date(_yr, _mo - 1, _dy, _tp.startH, _tp.startM, 0, 0);
             if (lessonStart - now <= twoHoursMs) {
                 b.status = 'confirmed';
                 // Keep cancellationRequestedAt so fulfillPendingCancellations can still
@@ -817,11 +875,10 @@ class BookingStorage {
             const emailMatch = email && b.email && b.email.toLowerCase() === email.toLowerCase();
             if (!phoneMatch && !emailMatch) return;
             // Controlla se la lezione è già terminata
-            const endPart = b.time.split(' - ')[1];
-            if (!endPart || !b.date) return;
-            const [eh, em] = endPart.trim().split(':').map(Number);
+            const _tp2 = _parseSlotTime(b.time);
+            if (!_tp2 || !b.date) return;
             const [yr, mo, dy] = b.date.split('-').map(Number);
-            const endDt = new Date(yr, mo - 1, dy, eh, em, 0);
+            const endDt = new Date(yr, mo - 1, dy, _tp2.endH, _tp2.endM, 0);
             if (now >= endDt) {
                 total += (SLOT_PRICES[b.slotType] || 0) - (b.creditApplied || 0);
             }
@@ -1001,7 +1058,9 @@ class BookingStorage {
                     const shuffled  = this._shuffle([...Array(clients.length).keys()], rand);
                     const selected  = shuffled.slice(0, Math.min(fillCount, capacity));
 
-                    const [endH, endM] = slot.time.split(' - ')[1].split(':').map(Number);
+                    const _stp = _parseSlotTime(slot.time);
+                    if (!_stp) return;
+                    const { endH, endM } = _stp;
                     const endDateTime  = new Date(current);
                     endDateTime.setHours(endH, endM, 0, 0);
 
@@ -1205,7 +1264,7 @@ class BookingStorage {
     // Sincronizza su Supabase solo i booking effettivamente cambiati (diff intelligente).
     static replaceAllBookings(bookings) {
         const prev = this.getAllBookings();
-        localStorage.setItem(this.BOOKINGS_KEY, JSON.stringify(bookings));
+        _lsSet(this.BOOKINGS_KEY, JSON.stringify(bookings));
 
         if (typeof supabaseClient === 'undefined') return;
         const prevMap = Object.fromEntries(prev.map(b => [b.id, b]));
@@ -1269,7 +1328,7 @@ class CreditStorage {
     }
 
     static _save(data) {
-        localStorage.setItem(this.CREDITS_KEY, JSON.stringify(data));
+        _lsSet(this.CREDITS_KEY, JSON.stringify(data));
         if (typeof supabaseClient === 'undefined') return;
         const rows = Object.values(data).map(r => ({
             name:         r.name,
@@ -1510,7 +1569,7 @@ class ManualDebtStorage {
     }
 
     static _save(data) {
-        localStorage.setItem(this.DEBTS_KEY, JSON.stringify(data));
+        _lsSet(this.DEBTS_KEY, JSON.stringify(data));
         if (typeof supabaseClient === 'undefined') return;
         const rows = Object.values(data).map(r => ({
             name:     r.name,
@@ -1636,7 +1695,7 @@ class BonusStorage {
     }
 
     static _save(data) {
-        localStorage.setItem(this.BONUS_KEY, JSON.stringify(data));
+        _lsSet(this.BONUS_KEY, JSON.stringify(data));
         if (typeof supabaseClient === 'undefined') return;
         const rows = Object.values(data).map(r => ({
             name:             r.name,
@@ -1907,11 +1966,6 @@ class UserStorage {
     }
 }
 
-// Process pending cancellations on every page load:
-// if nobody booked the slot and 2h before the lesson have passed,
-// the booking is automatically restored to 'confirmed'.
-if (typeof window !== 'undefined') {
-    document.addEventListener('DOMContentLoaded', () => {
-        BookingStorage.processPendingCancellations();
-    });
-}
+// processPendingCancellations() non viene più richiamata automaticamente al caricamento pagina.
+// Il pg_cron server-side (job "process-pending-cancellations", ogni 15 min) è ora la fonte
+// autorevole. La funzione JS rimane disponibile per eventuali chiamate manuali o di test.
