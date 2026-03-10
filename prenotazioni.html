@@ -239,46 +239,40 @@
             if (document.hidden) _stopPolling(); else { _startPolling(); _setupRealtime(); }
         });
 
-        // Supabase Realtime: aggiorna la lista prenotazioni in tempo reale
+        // Supabase Realtime: aggiorna la lista prenotazioni in tempo reale.
+        // Un singolo handler debounced sincronizza TUTTO (bookings + credits + debts + bonuses)
+        // per evitare desync quando un'operazione admin modifica più tabelle simultaneamente.
         let _realtimeChannel = null;
-        let _realtimeCreditChannel = null;
+        let _rtSyncTimer = null;
+        function _debouncedFullSync() {
+            clearTimeout(_rtSyncTimer);
+            _rtSyncTimer = setTimeout(async () => {
+                await Promise.all([
+                    BookingStorage.syncFromSupabase(),
+                    CreditStorage.syncFromSupabase(),
+                    ManualDebtStorage.syncFromSupabase(),
+                    BookingStorage.syncAppSettingsFromSupabase(),
+                ]);
+                renderPrenoList();
+                renderCreditBalance();
+                renderBonusBalance();
+            }, 300);
+        }
         function _setupRealtime() {
             if (typeof supabaseClient === 'undefined') return;
-
             if (!_realtimeChannel) {
                 _realtimeChannel = supabaseClient
-                    .channel('bookings-rt-preno')
-                    .on('postgres_changes', { event: '*', schema: 'public', table: 'bookings' }, async () => {
-                        await BookingStorage.syncFromSupabase();
-                        renderPrenoList();
-                        renderCreditBalance();
-                        renderBonusBalance();
-                    })
-                    .subscribe();
-            }
-
-            if (!_realtimeCreditChannel) {
-                const _syncCredits = async () => {
-                    await CreditStorage.syncFromSupabase();
-                    await ManualDebtStorage.syncFromSupabase();
-                    renderCreditBalance();
-                    renderBonusBalance();
-                };
-                _realtimeCreditChannel = supabaseClient
-                    .channel('credits-rt-preno')
-                    .on('postgres_changes', { event: '*', schema: 'public', table: 'credits' }, _syncCredits)
-                    .on('postgres_changes', { event: '*', schema: 'public', table: 'credit_history' }, _syncCredits)
-                    .on('postgres_changes', { event: '*', schema: 'public', table: 'manual_debts' }, _syncCredits)
-                    .on('postgres_changes', { event: '*', schema: 'public', table: 'bonuses' }, async () => {
-                        await BookingStorage.syncAppSettingsFromSupabase();
-                        renderBonusBalance();
-                    })
+                    .channel('preno-rt')
+                    .on('postgres_changes', { event: '*', schema: 'public', table: 'bookings' }, _debouncedFullSync)
+                    .on('postgres_changes', { event: '*', schema: 'public', table: 'credits' }, _debouncedFullSync)
+                    .on('postgres_changes', { event: '*', schema: 'public', table: 'credit_history' }, _debouncedFullSync)
+                    .on('postgres_changes', { event: '*', schema: 'public', table: 'manual_debts' }, _debouncedFullSync)
+                    .on('postgres_changes', { event: '*', schema: 'public', table: 'bonuses' }, _debouncedFullSync)
                     .subscribe();
             }
         }
         window.addEventListener('beforeunload', () => {
             if (_realtimeChannel) supabaseClient.removeChannel(_realtimeChannel);
-            if (_realtimeCreditChannel) supabaseClient.removeChannel(_realtimeCreditChannel);
         });
 
         // Avvio: aspetta la sessione Supabase, poi controlla il guard e inizializza
