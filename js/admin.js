@@ -918,6 +918,7 @@ async function clearAllData() {
         await Promise.all([
             supabaseClient.from('bookings').delete().neq('id', '00000000-0000-0000-0000-000000000000'),
             supabaseClient.from('credits').delete().not('id', 'is', null),
+            supabaseClient.from('credit_history').delete().not('id', 'is', null),
             supabaseClient.from('manual_debts').delete().not('id', 'is', null),
             supabaseClient.from('bonuses').delete().not('id', 'is', null),
             supabaseClient.from('schedule_overrides').delete().not('id', 'is', null),

@@ -1185,14 +1185,18 @@ class BookingStorage {
                 const localClearedAt = localStorage.getItem('dataLastCleared') || '0';
                 if (remoteClearedAt > localClearedAt) {
                     localStorage.removeItem(BookingStorage.BOOKINGS_KEY);
+                    localStorage.removeItem(CreditStorage.CREDITS_KEY);
+                    localStorage.removeItem(ManualDebtStorage.DEBTS_KEY);
+                    localStorage.removeItem(BonusStorage.BONUS_KEY);
+                    localStorage.removeItem('scheduleOverrides');
                     localStorage.setItem('dataLastCleared', remoteClearedAt);
                     localStorage.setItem('dataClearedByUser', 'true');
-                    console.log('[Supabase] clearAllData ricevuto da remoto — booking locali svuotati');
+                    console.log('[Supabase] clearAllData ricevuto da remoto — tutti i dati locali svuotati');
                 }
             }
 
             // 2. Credits + credit_history
-            if (!e1 && creditsData?.length) {
+            if (!e1) {
                 const histMap = {};
                 for (const h of histData || []) {
                     if (!histMap[h.credit_id]) histMap[h.credit_id] = [];
@@ -1207,7 +1211,7 @@ class BookingStorage {
             }
 
             // 3. Manual debts
-            if (!e3 && debtsData?.length) {
+            if (!e3) {
                 const debts = {};
                 for (const r of debtsData) {
                     const key = `${r.whatsapp || ''}||${r.email}`;
@@ -1217,7 +1221,7 @@ class BookingStorage {
             }
 
             // 4. Bonuses
-            if (!e4 && bonusesData?.length) {
+            if (!e4) {
                 const bonuses = {};
                 for (const r of bonusesData) {
                     const key = `${r.whatsapp || ''}||${r.email}`;
