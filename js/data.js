@@ -1229,9 +1229,9 @@ class BookingStorage {
             }
 
             // 5. Schedule overrides
-            if (!e5 && overridesData?.length) {
+            if (!e5) {
                 const overrides = {};
-                for (const r of overridesData) {
+                for (const r of (overridesData || [])) {
                     if (!overrides[r.date]) overrides[r.date] = [];
                     const slot = { time: r.time, type: r.slot_type };
                     if (r.extras?.length) slot.extras = r.extras;

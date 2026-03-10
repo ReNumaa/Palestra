@@ -900,7 +900,28 @@ function resetDemoData() {
 async function clearAllData() {
     if (!confirm('⚠️ ATTENZIONE: Questo eliminerà definitivamente tutte le prenotazioni e i dati sia localmente che su Supabase. NON verranno generati nuovi dati demo. Continuare?')) return;
 
-    // 1. Cancella localStorage
+    // 1. Cancella Supabase PRIMA del localStorage — così il sync post-reload
+    //    non riscarica dati che stiamo per eliminare.
+    if (typeof supabaseClient !== 'undefined') {
+        // Disiscriviti dai canali Realtime per evitare che un evento
+        // postgres_changes faccia syncFromSupabase() prima che il clear sia completo
+        try { supabaseClient.removeAllChannels(); } catch (_) {}
+
+        const { error: rpcErr } = await supabaseClient.rpc('admin_clear_all_data');
+        if (rpcErr) {
+            console.error('[Supabase] admin_clear_all_data RPC error:', rpcErr.message, rpcErr.code);
+            alert('⚠️ Errore durante la cancellazione su Supabase: ' + rpcErr.message);
+            return;
+        }
+        const now = new Date().toISOString();
+        const { error: settingsErr } = await supabaseClient.from('app_settings').upsert([
+            { key: 'data_cleared_at', value: { ts: now }, updated_at: now },
+        ]);
+        if (settingsErr) console.error('[Supabase] clearAllData - upsert app_settings error:', settingsErr.message);
+        localStorage.setItem('dataLastCleared', now);
+    }
+
+    // 2. Cancella localStorage DOPO che Supabase è vuoto
     localStorage.removeItem(BookingStorage.BOOKINGS_KEY);
     localStorage.removeItem(BookingStorage.STATS_KEY);
     localStorage.removeItem(CreditStorage.CREDITS_KEY);
@@ -908,24 +929,14 @@ async function clearAllData() {
     localStorage.removeItem(BonusStorage.BONUS_KEY);
     localStorage.removeItem('scheduleOverrides');
     localStorage.removeItem(UserStorage.USERS_KEY);
-    const now = new Date().toISOString();
     localStorage.setItem('dataClearedByUser', 'true');
-    localStorage.setItem('dataLastCleared', now);
 
-    // 2. Cancella Supabase
-    // Cancella le tabelle dedicate + scrive data_cleared_at su app_settings
-    // per propagare il reset agli altri dispositivi via Realtime.
-    if (typeof supabaseClient !== 'undefined') {
-        const { error: rpcErr } = await supabaseClient.rpc('admin_clear_all_data');
-        if (rpcErr) {
-            console.error('[Supabase] admin_clear_all_data RPC error:', rpcErr.message, rpcErr.code);
-            alert('⚠️ Errore durante la cancellazione su Supabase: ' + rpcErr.message);
-            return;
-        }
-        const { error: settingsErr } = await supabaseClient.from('app_settings').upsert([
-            { key: 'data_cleared_at', value: { ts: now }, updated_at: now },
-        ]);
-        if (settingsErr) console.error('[Supabase] clearAllData - upsert app_settings error:', settingsErr.message);
+    // 3. Svuota cache PWA — previene dati fantasma dal service worker
+    if ('caches' in window) {
+        try {
+            const keys = await caches.keys();
+            await Promise.all(keys.map(k => caches.delete(k)));
+        } catch (_) {}
     }
 
     alert('✅ Tutti i dati sono stati eliminati (localStorage + Supabase).');
