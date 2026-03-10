@@ -204,9 +204,6 @@
             document.getElementById('prenoUserEmail').textContent = user.email;
             document.getElementById('prenoAvatar').textContent = user.name.charAt(0).toUpperCase();
 
-            // Verifica le richieste pendenti: se la lezione è entro 2h, nega l'annullamento
-            BookingStorage.processPendingCancellations();
-
             renderPrenoList();
             renderCreditBalance();
             renderBonusBalance();
@@ -215,7 +212,7 @@
             _setupRealtime();
         }
 
-        // Polling ridotto a 30s — serve solo per processPendingCancellations (check basato sul tempo).
+        // Polling 30s — re-render se l'utente ha prenotazioni con cancellation_requested.
         // Le re-render live arrivano da Supabase Realtime (vedi _setupRealtime).
         function _startPolling() {
             if (_pollInterval) return;
@@ -232,7 +229,6 @@
                     clearInterval(_pollInterval);
                     _pollInterval = null;
                 }
-                BookingStorage.processPendingCancellations();
                 renderPrenoList();
                 renderCreditBalance();
                 renderBonusBalance();

@@ -30,13 +30,27 @@ function _parseSlotTime(str) {
 function _lsSet(key, value) {
     try {
         localStorage.setItem(key, value);
+        return true;
     } catch (e) {
         if (e instanceof DOMException && (e.name === 'QuotaExceededError' || e.code === 22)) {
             console.error('[localStorage] QuotaExceededError: impossibile salvare', key,
                 '— dimensione approssimativa:', Math.round((value?.length || 0) / 1024), 'KB');
+            if (typeof showToast === 'function') showToast('⚠️ Memoria locale piena. Alcuni dati potrebbero non essere salvati.', 'error', 8000);
         } else {
             console.error('[localStorage] Errore setItem per chiave', key, ':', e);
         }
+        return false;
+    }
+}
+
+// Legge e parsa JSON da localStorage con protezione errori.
+function _lsGetJSON(key, fallback) {
+    try {
+        const raw = localStorage.getItem(key);
+        return raw ? JSON.parse(raw) : fallback;
+    } catch (e) {
+        console.error('[localStorage] JSON.parse error per chiave', key, ':', e);
+        return fallback;
     }
 }
 
@@ -203,16 +217,18 @@ function getWeeklySchedule() {
     const saved = localStorage.getItem('weeklyScheduleTemplate');
     const savedVersion = localStorage.getItem('scheduleVersion');
     if (saved && savedVersion === SCHEDULE_VERSION) {
-        const parsed = JSON.parse(saved);
-        // Extra safety: verify slot format matches current TIME_SLOTS
-        const storedTimes = Object.values(parsed).flat().map(s => s.time);
-        const isCurrentFormat = storedTimes.length === 0 || storedTimes.every(t => TIME_SLOTS.includes(t));
-        if (isCurrentFormat) return parsed;
+        try {
+            const parsed = JSON.parse(saved);
+            // Extra safety: verify slot format matches current TIME_SLOTS
+            const storedTimes = Object.values(parsed).flat().map(s => s.time);
+            const isCurrentFormat = storedTimes.length === 0 || storedTimes.every(t => TIME_SLOTS.includes(t));
+            if (isCurrentFormat) return parsed;
+        } catch { /* corrupted — will reset below */ }
     }
     // Outdated version or format — reset template and overrides
     localStorage.removeItem('scheduleOverrides');
-    localStorage.setItem('weeklyScheduleTemplate', JSON.stringify(DEFAULT_WEEKLY_SCHEDULE));
-    localStorage.setItem('scheduleVersion', SCHEDULE_VERSION);
+    _lsSet('weeklyScheduleTemplate', JSON.stringify(DEFAULT_WEEKLY_SCHEDULE));
+    _lsSet('scheduleVersion', SCHEDULE_VERSION);
     return DEFAULT_WEEKLY_SCHEDULE;
 }
 
@@ -225,8 +241,7 @@ class BookingStorage {
     static STATS_KEY = 'gym_stats';
 
     static getAllBookings() {
-        const data = localStorage.getItem(this.BOOKINGS_KEY);
-        return data ? JSON.parse(data) : [];
+        return _lsGetJSON(this.BOOKINGS_KEY, []);
     }
 
     // Fetches bookings from Supabase and updates the localStorage cache.
@@ -259,7 +274,7 @@ class BookingStorage {
                 const synth = this._buildSyntheticBookings(availData, {});
                 // Mantieni booking locali non-sintetici (pending insert non ancora su Supabase)
                 const local = this.getAllBookings().filter(b => !b.id?.startsWith('_avail_'));
-                localStorage.setItem(this.BOOKINGS_KEY, JSON.stringify([...synth, ...local]));
+                _lsSet(this.BOOKINGS_KEY, JSON.stringify([...synth, ...local]));
                 console.log(`[Supabase] syncFromSupabase (anon): ${synth.length} slot sintetici`);
                 return;
             }
@@ -321,7 +336,7 @@ class BookingStorage {
                 return true;
             });
 
-            localStorage.setItem(this.BOOKINGS_KEY, JSON.stringify([...mapped, ...synth, ...pending]));
+            _lsSet(this.BOOKINGS_KEY, JSON.stringify([...mapped, ...synth, ...pending]));
             console.log(`[Supabase] syncFromSupabase (${isAdmin ? 'admin' : 'user'}): ${mapped.length} da Supabase, ${synth.length} sintetici, ${pending.length} pending`);
 
             this._retryPending(pending, user);
@@ -479,7 +494,7 @@ class BookingStorage {
             // RPC confermata — ora salva anche in localStorage
             booking._sbId = data.booking_id || null;
             bookings.push(booking);
-            localStorage.setItem(this.BOOKINGS_KEY, JSON.stringify(bookings));
+            _lsSet(this.BOOKINGS_KEY, JSON.stringify(bookings));
             this.updateStats(booking);
             console.log('[Supabase] book_slot_atomic OK — id:', booking.id);
             return { ok: true, booking };
@@ -487,7 +502,7 @@ class BookingStorage {
 
         // Offline/no Supabase: salva solo in localStorage (pending sync)
         bookings.push(booking);
-        localStorage.setItem(this.BOOKINGS_KEY, JSON.stringify(bookings));
+        _lsSet(this.BOOKINGS_KEY, JSON.stringify(bookings));
         this.updateStats(booking);
         return { ok: true, offline: true, booking };
     }
@@ -532,13 +547,13 @@ class BookingStorage {
             }
             booking._sbId = data.booking_id || null;
             bookings.push(booking);
-            localStorage.setItem(this.BOOKINGS_KEY, JSON.stringify(bookings));
+            _lsSet(this.BOOKINGS_KEY, JSON.stringify(bookings));
             this.updateStats(booking);
             return { ok: true, booking };
         }
 
         bookings.push(booking);
-        localStorage.setItem(this.BOOKINGS_KEY, JSON.stringify(bookings));
+        _lsSet(this.BOOKINGS_KEY, JSON.stringify(bookings));
         this.updateStats(booking);
         return { ok: true, offline: true, booking };
     }
@@ -906,7 +921,7 @@ class BookingStorage {
         const dateKey = booking.date;
         stats.dailyBookings[dateKey] = (stats.dailyBookings[dateKey] || 0) + 1;
 
-        localStorage.setItem(this.STATS_KEY, JSON.stringify(stats));
+        _lsSet(this.STATS_KEY, JSON.stringify(stats));
     }
 
     static getStats() {
@@ -950,7 +965,7 @@ class BookingStorage {
     // Always ensure current week + next week have schedule overrides populated.
     // Runs even for brand-new browsers with no data.
     static _ensureWeekOverrides() {
-        const overrides = JSON.parse(localStorage.getItem('scheduleOverrides') || '{}');
+        const overrides = _lsGetJSON('scheduleOverrides', {});
         const dayNamesMap = ['Domenica', 'Lunedì', 'Martedì', 'Mercoledì', 'Giovedì', 'Venerdì', 'Sabato'];
         const now = new Date();
         const dow = now.getDay();
@@ -970,7 +985,7 @@ class BookingStorage {
                 }
             }
         }
-        if (changed) localStorage.setItem('scheduleOverrides', JSON.stringify(overrides));
+        if (changed) _lsSet('scheduleOverrides', JSON.stringify(overrides));
     }
 
     static initializeDemoData() {
@@ -990,7 +1005,7 @@ class BookingStorage {
                 const realBookings = existing.filter(b =>
                     !b.id?.startsWith('demo-') && TIME_SLOTS.includes(b.time)
                 );
-                localStorage.setItem(this.BOOKINGS_KEY, JSON.stringify(realBookings));
+                _lsSet(this.BOOKINGS_KEY, JSON.stringify(realBookings));
                 localStorage.removeItem(this.STATS_KEY);
             } else {
                 return; // Data is current, nothing to do
@@ -1110,7 +1125,7 @@ class BookingStorage {
             }
 
             // Save all demo bookings in one shot (no random IDs, no Date.now())
-            localStorage.setItem(this.BOOKINGS_KEY, JSON.stringify(demoBookings));
+            _lsSet(this.BOOKINGS_KEY, JSON.stringify(demoBookings));
 
             // Recalculate stats from scratch
             const stats = { totalBookings: 0, totalRevenue: 0, typeDistribution: {}, dailyBookings: {} };
@@ -1120,7 +1135,7 @@ class BookingStorage {
                 stats.typeDistribution[b.slotType] = (stats.typeDistribution[b.slotType] || 0) + 1;
                 stats.dailyBookings[b.date] = (stats.dailyBookings[b.date] || 0) + 1;
             });
-            localStorage.setItem(this.STATS_KEY, JSON.stringify(stats));
+            _lsSet(this.STATS_KEY, JSON.stringify(stats));
         }
     }
 
@@ -1139,7 +1154,7 @@ class BookingStorage {
     }
 
     static saveScheduleOverrides(overrides) {
-        localStorage.setItem('scheduleOverrides', JSON.stringify(overrides));
+        _lsSet('scheduleOverrides', JSON.stringify(overrides));
         if (typeof supabaseClient === 'undefined') return;
         // UPSERT atomico: usa onConflict(date, time) per evitare la finestra di race
         // condition che il vecchio DELETE+INSERT causava (altro device vede 0 slot)
@@ -1209,8 +1224,8 @@ class BookingStorage {
                     localStorage.removeItem(ManualDebtStorage.DEBTS_KEY);
                     localStorage.removeItem(BonusStorage.BONUS_KEY);
                     localStorage.removeItem('scheduleOverrides');
-                    localStorage.setItem('dataLastCleared', remoteClearedAt);
-                    localStorage.setItem('dataClearedByUser', 'true');
+                    _lsSet('dataLastCleared', remoteClearedAt);
+                    _lsSet('dataClearedByUser', 'true');
                     console.log('[Supabase] clearAllData ricevuto da remoto — tutti i dati locali svuotati');
                 }
             }
@@ -1227,7 +1242,7 @@ class BookingStorage {
                     const key = `${c.whatsapp || ''}||${c.email}`;
                     credits[key] = { name: c.name, whatsapp: c.whatsapp || '', email: c.email, balance: c.balance, freeBalance: c.free_balance || 0, history: histMap[c.id] || [] };
                 }
-                localStorage.setItem(CreditStorage.CREDITS_KEY, JSON.stringify(credits));
+                _lsSet(CreditStorage.CREDITS_KEY, JSON.stringify(credits));
             }
 
             // 3. Manual debts
@@ -1237,7 +1252,7 @@ class BookingStorage {
                     const key = `${r.whatsapp || ''}||${r.email}`;
                     debts[key] = { name: r.name, whatsapp: r.whatsapp || '', email: r.email, balance: r.balance, history: r.history || [] };
                 }
-                localStorage.setItem(ManualDebtStorage.DEBTS_KEY, JSON.stringify(debts));
+                _lsSet(ManualDebtStorage.DEBTS_KEY, JSON.stringify(debts));
             }
 
             // 4. Bonuses
@@ -1247,7 +1262,7 @@ class BookingStorage {
                     const key = `${r.whatsapp || ''}||${r.email}`;
                     bonuses[key] = { name: r.name, whatsapp: r.whatsapp || '', email: r.email, bonus: r.bonus, lastResetMonth: r.last_reset_month || null };
                 }
-                localStorage.setItem(BonusStorage.BONUS_KEY, JSON.stringify(bonuses));
+                _lsSet(BonusStorage.BONUS_KEY, JSON.stringify(bonuses));
             }
 
             // 5. Schedule overrides
@@ -1259,13 +1274,13 @@ class BookingStorage {
                     if (r.extras?.length) slot.extras = r.extras;
                     overrides[r.date].push(slot);
                 }
-                localStorage.setItem('scheduleOverrides', JSON.stringify(overrides));
+                _lsSet('scheduleOverrides', JSON.stringify(overrides));
             }
 
             // 6. Settings — chiavi nel DB senza prefisso gym_, in localStorage con prefisso
             if (!e6 && settingsData?.length) {
                 const sMap = Object.fromEntries(settingsData.map(r => [r.key, r.value]));
-                const _s = (lsKey, dbKey) => { if (sMap[dbKey] != null) localStorage.setItem(lsKey, String(sMap[dbKey])); };
+                const _s = (lsKey, dbKey) => { if (sMap[dbKey] != null) _lsSet(lsKey, String(sMap[dbKey])); };
                 _s(DebtThresholdStorage.KEY,       'debt_threshold');
                 _s(CancellationModeStorage.KEY,    'cancellation_mode');
                 _s(CertEditableStorage.KEY,        'cert_scadenza_editable');
@@ -1365,9 +1380,24 @@ class BookingStorage {
 class CreditStorage {
     static CREDITS_KEY = 'gym_credits';
     static _supabaseSaveTimer = null;
+    static MAX_HISTORY_LOCAL = 60; // max voci history per cliente in localStorage (il resto è su Supabase)
 
     static _getAll() {
         try { return JSON.parse(localStorage.getItem(this.CREDITS_KEY) || '{}'); } catch { return {}; }
+    }
+
+    // Tronca le history locali per evitare che localStorage superi il limite 5MB.
+    // Mantiene le ultime MAX_HISTORY_LOCAL voci per cliente; lo storico completo resta su Supabase.
+    static _pruneHistory() {
+        const all = this._getAll();
+        let pruned = false;
+        for (const key of Object.keys(all)) {
+            if (all[key].history && all[key].history.length > this.MAX_HISTORY_LOCAL) {
+                all[key].history = all[key].history.slice(-this.MAX_HISTORY_LOCAL);
+                pruned = true;
+            }
+        }
+        if (pruned) _lsSet(this.CREDITS_KEY, JSON.stringify(all));
     }
 
     static _save(data) {
@@ -1423,7 +1453,8 @@ class CreditStorage {
                 const key = `${c.whatsapp || ''}||${c.email}`;
                 result[key] = { name: c.name, whatsapp: c.whatsapp || '', email: c.email, balance: c.balance, freeBalance: c.free_balance || 0, history: histMap[c.id] || [] };
             }
-            localStorage.setItem(this.CREDITS_KEY, JSON.stringify(result));
+            _lsSet(this.CREDITS_KEY, JSON.stringify(result));
+            this._pruneHistory();
             console.log('[Supabase] CreditStorage.sync: dati caricati');
         } catch (e) { console.error('[Supabase] CreditStorage.sync exception:', e); }
     }
@@ -1517,8 +1548,8 @@ class CreditStorage {
         all[key].history.push(entry);
         this._save(all);
 
-        // Inserisce la nuova voce in credit_history su Supabase.
-        // Awaited per evitare perdita dati se il tab viene chiuso subito dopo.
+        // Inserisce la nuova voce in credit_history su Supabase (fire-and-forget).
+        // Il balance è già salvato sincrono via _save(); questo log è best-effort.
         if (typeof supabaseClient !== 'undefined') {
             const _entry = entry;
             const _email = (email || '').toLowerCase();
@@ -1686,7 +1717,7 @@ class ManualDebtStorage {
                 const key = `${r.whatsapp || ''}||${r.email}`;
                 result[key] = { name: r.name, whatsapp: r.whatsapp || '', email: r.email, balance: r.balance, history: r.history || [] };
             }
-            localStorage.setItem(this.DEBTS_KEY, JSON.stringify(result));
+            _lsSet(this.DEBTS_KEY, JSON.stringify(result));
             console.log('[Supabase] ManualDebtStorage.sync: dati caricati');
         } catch (e) { console.error('[Supabase] ManualDebtStorage.sync exception:', e); }
     }
@@ -1887,7 +1918,7 @@ class DebtThresholdStorage {
     static get() { return parseFloat(localStorage.getItem(this.KEY) || '0') || 0; }
     static set(amount) {
         const v = parseFloat(amount) || 0;
-        localStorage.setItem(this.KEY, String(v));
+        _lsSet(this.KEY, String(v));
         _upsertSetting(this.KEY, v);
     }
 }
@@ -1896,14 +1927,14 @@ class DebtThresholdStorage {
 class CancellationModeStorage {
     static KEY = 'gym_cancellation_mode';
     static get() { return localStorage.getItem(this.KEY) || 'new-person'; }
-    static set(mode) { localStorage.setItem(this.KEY, mode); _upsertSetting(this.KEY, mode); }
+    static set(mode) { _lsSet(this.KEY, mode); _upsertSetting(this.KEY, mode); }
 }
 
 // Cert editable — whether clients can modify their own medical certificate expiry date
 class CertEditableStorage {
     static KEY = 'gym_cert_scadenza_editable';
     static get() { const v = localStorage.getItem(this.KEY); return v === null ? true : v === 'true'; }
-    static set(val) { localStorage.setItem(this.KEY, val ? 'true' : 'false'); _upsertSetting(this.KEY, val ? 'true' : 'false'); }
+    static set(val) { _lsSet(this.KEY, val ? 'true' : 'false'); _upsertSetting(this.KEY, val ? 'true' : 'false'); }
 }
 
 // Cert booking restrictions — block bookings when cert is expired or not set
@@ -1912,8 +1943,8 @@ class CertBookingStorage {
     static KEY_NOT_SET  = 'gym_cert_block_not_set';
     static getBlockIfExpired() { return localStorage.getItem(this.KEY_EXPIRED) === 'true'; }
     static getBlockIfNotSet()  { return localStorage.getItem(this.KEY_NOT_SET)  === 'true'; }
-    static setBlockIfExpired(val) { localStorage.setItem(this.KEY_EXPIRED, val ? 'true' : 'false'); _upsertSetting(this.KEY_EXPIRED, val ? 'true' : 'false'); }
-    static setBlockIfNotSet(val)  { localStorage.setItem(this.KEY_NOT_SET,  val ? 'true' : 'false'); _upsertSetting(this.KEY_NOT_SET,  val ? 'true' : 'false'); }
+    static setBlockIfExpired(val) { _lsSet(this.KEY_EXPIRED, val ? 'true' : 'false'); _upsertSetting(this.KEY_EXPIRED, val ? 'true' : 'false'); }
+    static setBlockIfNotSet(val)  { _lsSet(this.KEY_NOT_SET,  val ? 'true' : 'false'); _upsertSetting(this.KEY_NOT_SET,  val ? 'true' : 'false'); }
 }
 
 // Assicurazione booking restrictions — block bookings when assicurazione is expired or not set
@@ -1922,8 +1953,8 @@ class AssicBookingStorage {
     static KEY_NOT_SET  = 'gym_assic_block_not_set';
     static getBlockIfExpired() { return localStorage.getItem(this.KEY_EXPIRED) === 'true'; }
     static getBlockIfNotSet()  { return localStorage.getItem(this.KEY_NOT_SET)  === 'true'; }
-    static setBlockIfExpired(val) { localStorage.setItem(this.KEY_EXPIRED, val ? 'true' : 'false'); _upsertSetting(this.KEY_EXPIRED, val ? 'true' : 'false'); }
-    static setBlockIfNotSet(val)  { localStorage.setItem(this.KEY_NOT_SET,  val ? 'true' : 'false'); _upsertSetting(this.KEY_NOT_SET,  val ? 'true' : 'false'); }
+    static setBlockIfExpired(val) { _lsSet(this.KEY_EXPIRED, val ? 'true' : 'false'); _upsertSetting(this.KEY_EXPIRED, val ? 'true' : 'false'); }
+    static setBlockIfNotSet(val)  { _lsSet(this.KEY_NOT_SET,  val ? 'true' : 'false'); _upsertSetting(this.KEY_NOT_SET,  val ? 'true' : 'false'); }
 }
 
 // User storage — client lookup for schedule management (Slot prenotato picker)
@@ -2047,7 +2078,7 @@ class UserStorage {
                 return !(e && supabaseEmails.has(e)) && !(p.length >= 9 && supabasePhones.has(p));
             });
 
-            localStorage.setItem(this.USERS_KEY, JSON.stringify([...merged, ...localOnly]));
+            _lsSet(this.USERS_KEY, JSON.stringify([...merged, ...localOnly]));
             console.log(`[Supabase] syncUsersFromSupabase: ${data.length} da Supabase, ${localOnly.length} solo locali`);
         } catch (e) {
             console.error('[Supabase] syncUsersFromSupabase exception:', e);
@@ -2066,9 +2097,9 @@ class UserStorage {
     }
 }
 
-// processPendingCancellations() non viene più richiamata automaticamente al caricamento pagina.
-// Il pg_cron server-side (job "process-pending-cancellations", ogni 15 min) è ora la fonte
-// autorevole. La funzione JS rimane disponibile per eventuali chiamate manuali o di test.
+// processPendingCancellations() è chiamata solo da pagine admin (admin.js).
+// Il pg_cron server-side (job "process-pending-cancellations", ogni 15 min) è la fonte autorevole.
+// NON chiamare da pagine utente: replaceAllBookings usa admin_update_booking RPC che richiede is_admin().
 
 // ── Flush debounced writes prima di chiusura tab ─────────────────────────────
 // Previene perdita dati se l'utente chiude il browser entro 200ms da una modifica.

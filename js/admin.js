@@ -1877,7 +1877,7 @@ function formatAdminBookingDate(dateStr) {
 }
 
 // Called when a user clicks a result — creates a real booking and links it to the slot
-function selectSlotClient(timeSlot, index) {
+async function selectSlotClient(timeSlot, index) {
     const user = (_clientSearchResults[timeSlot] || [])[index];
     if (!user || !selectedScheduleDate) return;
 
@@ -1904,11 +1904,16 @@ function selectSlotClient(timeSlot, index) {
         notes: '',
         dateDisplay: formatAdminBookingDate(selectedScheduleDate.formatted)
     };
-    const savedBooking = BookingStorage.saveBooking(booking);
+    const result = await BookingStorage.saveBooking(booking);
+    if (!result.ok) {
+        showToast('⚠️ Errore: prenotazione non riuscita. Riprova.', 'error');
+        renderAllTimeSlots();
+        return;
+    }
 
     // Store client and bookingId in the override for display purposes
     slot.client = { name: user.name, email: user.email, whatsapp: user.whatsapp || '' };
-    slot.bookingId = savedBooking.id;
+    slot.bookingId = result.booking.id;
     BookingStorage.saveScheduleOverrides(overrides);
     renderAllTimeSlots();
 }

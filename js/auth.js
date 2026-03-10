@@ -72,6 +72,7 @@ async function initAuth() {
         setTimeout(async () => {
             if (!resolved) {
                 resolved = true;
+                subscription.unsubscribe();
                 const { data } = await supabaseClient.auth.getSession();
                 resolve(data.session);
             }
@@ -160,9 +161,14 @@ async function loginWithPassword(email, password) {
 async function logoutUser() {
     await supabaseClient.auth.signOut();
     window._currentUser = null;
-    // Pulisce anche l'eventuale sessione admin
+    // Pulisce sessione admin e dati utente per evitare leak tra utenti diversi sullo stesso device
     localStorage.removeItem('adminAuthenticated');
     sessionStorage.removeItem('adminAuth');
+    localStorage.removeItem('gym_bookings');
+    localStorage.removeItem('gym_credits');
+    localStorage.removeItem('gym_manual_debts');
+    localStorage.removeItem('gym_bonus');
+    localStorage.removeItem('gym_registered_users');
 }
 
 // ── Aggiorna profilo ──────────────────────────────────────────────────────────
