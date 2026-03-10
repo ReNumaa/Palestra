@@ -63,17 +63,45 @@ function openBookingModal(dateInfo, timeSlot, slotType, remainingSpots) {
     const user = typeof getCurrentUser === 'function' ? getCurrentUser() : null;
     const loginPrompt = document.getElementById('loginPrompt');
 
+    // Rimuovi eventuale blocco precedente
+    const oldBlock = document.getElementById('bookingBlockMessage');
+    if (oldBlock) oldBlock.remove();
+
     if (!user) {
         // Not logged in: show login prompt, hide form
         loginPrompt.style.display = 'block';
         document.getElementById('bookingForm').style.display = 'none';
     } else {
-        // Logged in: show form, pre-fill fields
         loginPrompt.style.display = 'none';
-        document.getElementById('bookingForm').style.display = 'flex';
-        document.getElementById('name').value     = user.name     || '';
-        document.getElementById('email').value    = user.email    || '';
-        document.getElementById('whatsapp').value = user.whatsapp || '';
+
+        // Check blocchi certificato/assicurazione PRIMA di mostrare il form
+        const _certScad  = user.medical_cert_expiry || '';
+        const _assicScad = user.insurance_expiry || '';
+        const _today     = _localDateStr();
+        let blockMsg = null;
+        if (!_certScad && typeof CertBookingStorage !== 'undefined' && CertBookingStorage.getBlockIfNotSet())
+            blockMsg = 'Non hai inserito la data di scadenza del certificato medico. Contatta il trainer.';
+        else if (_certScad && _certScad < _today && typeof CertBookingStorage !== 'undefined' && CertBookingStorage.getBlockIfExpired())
+            blockMsg = 'Il tuo certificato medico è scaduto. Contatta il trainer per aggiornarlo.';
+        else if (!_assicScad && typeof AssicBookingStorage !== 'undefined' && AssicBookingStorage.getBlockIfNotSet())
+            blockMsg = 'Non hai inserito la data di scadenza dell\'assicurazione. Contatta il trainer.';
+        else if (_assicScad && _assicScad < _today && typeof AssicBookingStorage !== 'undefined' && AssicBookingStorage.getBlockIfExpired())
+            blockMsg = 'La tua assicurazione è scaduta. Contatta il trainer per aggiornarla.';
+
+        if (blockMsg) {
+            document.getElementById('bookingForm').style.display = 'none';
+            const blockEl = document.createElement('div');
+            blockEl.id = 'bookingBlockMessage';
+            blockEl.style.cssText = 'padding:24px;text-align:center;color:#c0392b;font-weight:600;line-height:1.5';
+            blockEl.textContent = '⚠️ ' + blockMsg;
+            document.getElementById('bookingForm').parentNode.insertBefore(blockEl, document.getElementById('bookingForm'));
+        } else {
+            // Logged in, nessun blocco: show form, pre-fill fields
+            document.getElementById('bookingForm').style.display = 'flex';
+            document.getElementById('name').value     = user.name     || '';
+            document.getElementById('email').value    = user.email    || '';
+            document.getElementById('whatsapp').value = user.whatsapp || '';
+        }
     }
 
     // Show modal
@@ -107,8 +135,13 @@ async function handleBookingSubmit(e) {
 
     const submitBtn = e.target.querySelector('button[type="submit"]');
 
+    // Previeni doppio click: disabilita subito il bottone
+    if (submitBtn.disabled) return;
+    submitBtn.disabled = true;
+
     if (!selectedSlot) {
         showToast('Seleziona uno slot dal calendario prima di prenotare.', 'error');
+        submitBtn.disabled = false;
         return;
     }
 
@@ -134,21 +167,21 @@ async function handleBookingSubmit(e) {
     // Basic validation
     if (!formData.name || !formData.email || !formData.whatsapp) {
         showToast('Compila tutti i campi obbligatori.', 'error');
-        return;
+        submitBtn.disabled = false; return;
     }
 
     // Validate email
     const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
     if (!emailRegex.test(formData.email)) {
         showToast('Inserisci un indirizzo email valido.', 'error');
-        return;
+        submitBtn.disabled = false; return;
     }
 
     // Validate phone (basic check)
     const phoneRegex = /[\d\s+()-]{10,}/;
     if (!phoneRegex.test(formData.whatsapp)) {
         showToast('Inserisci un numero WhatsApp valido.', 'error');
-        return;
+        submitBtn.disabled = false; return;
     }
 
     // Check if slot is still available
@@ -161,7 +194,7 @@ async function handleBookingSubmit(e) {
     if (remainingSpots <= 0) {
         showToast('Slot completo. Seleziona un altro orario.', 'error');
         renderCalendar();
-        return;
+        submitBtn.disabled = false; return;
     }
 
     // Check duplicate booking (same user, same date+time, not cancelled)
@@ -179,7 +212,7 @@ async function handleBookingSubmit(e) {
     );
     if (duplicate) {
         showToast('Hai già una prenotazione per questo orario.', 'error');
-        return;
+        submitBtn.disabled = false; return;
     }
 
     // Check debt threshold — usa RPC Supabase se l'utente è loggato, altrimenti localStorage
@@ -196,7 +229,7 @@ async function handleBookingSubmit(e) {
         }
         if (_pastDebt > _threshold) {
             showToast(`Prenotazione bloccata: hai un debito di €${_pastDebt} che supera la soglia massima di €${_threshold}. Contatta il trainer per regolarizzare.`, 'error');
-            return;
+            submitBtn.disabled = false; return;
         }
     }
 
@@ -206,22 +239,22 @@ async function handleBookingSubmit(e) {
     const _today    = _localDateStr();
     if (!_certScad && CertBookingStorage.getBlockIfNotSet()) {
         showToast('Prenotazione bloccata: non hai inserito la data di scadenza del certificato medico. Contatta il trainer.', 'error');
-        return;
+        submitBtn.disabled = false; return;
     }
     if (_certScad && _certScad < _today && CertBookingStorage.getBlockIfExpired()) {
         showToast('Prenotazione bloccata: il tuo certificato medico è scaduto. Contatta il trainer per aggiornarlo.', 'error');
-        return;
+        submitBtn.disabled = false; return;
     }
 
     // Check assicurazione restrictions
     const _assicScad = _certUser?.insurance_expiry || '';
     if (!_assicScad && AssicBookingStorage.getBlockIfNotSet()) {
         showToast('Prenotazione bloccata: non hai inserito la data di scadenza dell\'assicurazione. Contatta il trainer.', 'error');
-        return;
+        submitBtn.disabled = false; return;
     }
     if (_assicScad && _assicScad < _today && AssicBookingStorage.getBlockIfExpired()) {
         showToast('Prenotazione bloccata: la tua assicurazione è scaduta. Contatta il trainer per aggiornarla.', 'error');
-        return;
+        submitBtn.disabled = false; return;
     }
 
     setLoading(submitBtn, true, 'Prenotazione in corso...');
@@ -235,10 +268,26 @@ async function handleBookingSubmit(e) {
         dateDisplay: selectedSlot.dateDisplay
     };
 
-    // Save booking (callback avvisa se Supabase fallisce)
-    const savedBooking = BookingStorage.saveBooking(booking, (ok) => {
-        if (!ok) showToast('⚠️ Prenotazione salvata localmente, ma non è stata sincronizzata con il server. Ricarica la pagina tra qualche minuto per verificare.', 'error');
-    });
+    // Save booking — attende la conferma server prima di mostrare il risultato
+    const result = await BookingStorage.saveBooking(booking);
+    if (!result.ok) {
+        setLoading(submitBtn, false);
+        submitBtn.disabled = false;
+        if (result.error === 'slot_full') {
+            showToast('Slot non più disponibile. Qualcun altro ha prenotato prima di te.', 'error');
+            renderCalendar();
+            if (typeof renderMobileSlots === 'function' && selectedMobileDay) renderMobileSlots(selectedMobileDay);
+        } else if (result.error === 'server_error' && !navigator.onLine) {
+            showToast('Sei offline. Connettiti a internet per prenotare.', 'error');
+        } else {
+            showToast('Errore durante la prenotazione. Riprova tra qualche secondo.', 'error');
+        }
+        return;
+    }
+    const savedBooking = result.booking;
+    if (result.offline) {
+        showToast('⚠️ Prenotazione salvata localmente. Verrà sincronizzata quando torni online.', 'warning', 5000);
+    }
 
     // Se c'era una richiesta di annullamento per questo slot, è ora soddisfatta
     if (typeof supabaseClient !== 'undefined') {
@@ -334,6 +383,7 @@ async function handleBookingSubmit(e) {
     // Reset form
     document.getElementById('bookingForm').reset();
     setLoading(submitBtn, false);
+    submitBtn.disabled = false;
 
     // Refresh calendar to show updated availability
     renderCalendar();

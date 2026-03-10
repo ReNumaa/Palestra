@@ -233,6 +233,8 @@ class BookingStorage {
     // - Admin: SELECT * (sees all via is_admin() RLS)
     // - Authenticated user: SELECT own + RPC availability for others' slots (synthetic)
     // - Anon: RPC availability only (no personal data)
+    static _syncRetryTimer = null;
+
     static async syncFromSupabase() {
         if (typeof supabaseClient === 'undefined') return;
         try {
@@ -323,9 +325,17 @@ class BookingStorage {
             console.log(`[Supabase] syncFromSupabase (${isAdmin ? 'admin' : 'user'}): ${mapped.length} da Supabase, ${synth.length} sintetici, ${pending.length} pending`);
 
             this._retryPending(pending, user);
+            // Sync riuscita — cancella eventuale retry pendente
+            clearTimeout(BookingStorage._syncRetryTimer);
         } catch (e) {
             console.error('[Supabase] syncFromSupabase exception:', e);
             if (typeof showToast === 'function') showToast('Errore di connessione al server. Verifica la tua connessione.', 'error', 5000);
+            // Retry automatico dopo 5 secondi (max 1 tentativo)
+            clearTimeout(BookingStorage._syncRetryTimer);
+            BookingStorage._syncRetryTimer = setTimeout(() => {
+                console.log('[Supabase] syncFromSupabase — retry automatico');
+                BookingStorage.syncFromSupabase();
+            }, 5000);
         }
     }
 
@@ -431,21 +441,19 @@ class BookingStorage {
         }
     }
 
-    static saveBooking(booking, onSupabaseResult) {
+    static async saveBooking(booking) {
         const bookings = this.getAllBookings();
         // Generate truly unique ID using timestamp + random number
         booking.id = `${Date.now()}-${Math.random().toString(36).substr(2, 9)}`;
         booking.createdAt = new Date().toISOString();
         booking.status = 'confirmed';
-        bookings.push(booking);
-        localStorage.setItem(this.BOOKINGS_KEY, JSON.stringify(bookings));
-        this.updateStats(booking);
 
-        // Dual-write to Supabase via RPC atomica (previene double-booking in race condition)
+        // Se Supabase è disponibile, la RPC è la fonte di verità.
+        // Il booking viene aggiunto al localStorage SOLO dopo conferma server.
         if (typeof supabaseClient !== 'undefined') {
             const user = typeof getCurrentUser === 'function' ? getCurrentUser() : null;
             const maxCap = BookingStorage.getEffectiveCapacity(booking.date, booking.time, booking.slotType);
-            supabaseClient.rpc('book_slot_atomic', {
+            const { data, error } = await supabaseClient.rpc('book_slot_atomic', {
                 p_local_id:     booking.id,
                 p_user_id:      user?.id || null,
                 p_date:         booking.date,
@@ -458,47 +466,49 @@ class BookingStorage {
                 p_notes:        booking.notes || '',
                 p_created_at:   booking.createdAt,
                 p_date_display: booking.dateDisplay || ''
-            }).then(({ data, error }) => {
-                if (error) {
-                    console.error('[Supabase] book_slot_atomic error:', error.message);
-                    if (onSupabaseResult) onSupabaseResult(false);
-                } else if (!data) {
-                    console.error('[Supabase] book_slot_atomic: risposta null');
-                    if (onSupabaseResult) onSupabaseResult(false);
-                } else if (!data.success) {
-                    console.warn('[Supabase] book_slot_atomic rifiutato:', data.error);
-                    if (onSupabaseResult) onSupabaseResult(false);
-                } else {
-                    console.log('[Supabase] book_slot_atomic OK — id:', booking.id);
-                    if (onSupabaseResult) onSupabaseResult(true);
-                }
             });
+            if (error) {
+                console.error('[Supabase] book_slot_atomic error:', error.message);
+                return { ok: false, error: 'server_error', booking };
+            }
+            if (!data || !data.success) {
+                const reason = data?.error || 'unknown';
+                console.warn('[Supabase] book_slot_atomic rifiutato:', reason);
+                return { ok: false, error: reason, booking };
+            }
+            // RPC confermata — ora salva anche in localStorage
+            booking._sbId = data.booking_id || null;
+            bookings.push(booking);
+            localStorage.setItem(this.BOOKINGS_KEY, JSON.stringify(bookings));
+            this.updateStats(booking);
+            console.log('[Supabase] book_slot_atomic OK — id:', booking.id);
+            return { ok: true, booking };
         }
 
-        return booking;
+        // Offline/no Supabase: salva solo in localStorage (pending sync)
+        bookings.push(booking);
+        localStorage.setItem(this.BOOKINGS_KEY, JSON.stringify(bookings));
+        this.updateStats(booking);
+        return { ok: true, offline: true, booking };
     }
 
     // Versione admin di saveBooking: usa clientUserId per il record Supabase
     // in modo che il promemoria push arrivi al cliente, non all'admin.
     // Il backend è protetto da is_admin() sulle RPC; questo guard dà un errore chiaro
     // se la sessione admin non è attiva (A6 fix).
-    static saveBookingForClient(booking, clientUserId, onSupabaseResult) {
+    static async saveBookingForClient(booking, clientUserId) {
         if (typeof sessionStorage !== 'undefined' && sessionStorage.getItem('adminAuth') !== 'true') {
             console.warn('[saveBookingForClient] Chiamata senza sessione admin attiva — operazione bloccata lato frontend');
-            if (onSupabaseResult) onSupabaseResult(false);
-            return null;
+            return { ok: false, error: 'not_admin', booking };
         }
         const bookings = this.getAllBookings();
         booking.id = `${Date.now()}-${Math.random().toString(36).substr(2, 9)}`;
         booking.createdAt = new Date().toISOString();
         booking.status = 'confirmed';
-        bookings.push(booking);
-        localStorage.setItem(this.BOOKINGS_KEY, JSON.stringify(bookings));
-        this.updateStats(booking);
 
         if (typeof supabaseClient !== 'undefined') {
             const maxCap = BookingStorage.getEffectiveCapacity(booking.date, booking.time, booking.slotType);
-            supabaseClient.rpc('book_slot_atomic', {
+            const { data, error } = await supabaseClient.rpc('book_slot_atomic', {
                 p_local_id:     booking.id,
                 p_user_id:      clientUserId || null,
                 p_date:         booking.date,
@@ -511,14 +521,26 @@ class BookingStorage {
                 p_notes:        booking.notes || '',
                 p_created_at:   booking.createdAt,
                 p_date_display: booking.dateDisplay || ''
-            }).then(({ data, error }) => {
-                if (error) console.error('[Supabase] adminBook error:', error.message);
-                else if (data?.success) console.log('[Supabase] adminBook OK:', booking.id);
-                else console.warn('[Supabase] adminBook rifiutato:', data?.error);
-                if (onSupabaseResult) onSupabaseResult(!error && data?.success);
             });
+            if (error) {
+                console.error('[Supabase] adminBook error:', error.message);
+                return { ok: false, error: 'server_error', booking };
+            }
+            if (!data || !data.success) {
+                console.warn('[Supabase] adminBook rifiutato:', data?.error);
+                return { ok: false, error: data?.error || 'unknown', booking };
+            }
+            booking._sbId = data.booking_id || null;
+            bookings.push(booking);
+            localStorage.setItem(this.BOOKINGS_KEY, JSON.stringify(bookings));
+            this.updateStats(booking);
+            return { ok: true, booking };
         }
-        return booking;
+
+        bookings.push(booking);
+        localStorage.setItem(this.BOOKINGS_KEY, JSON.stringify(bookings));
+        this.updateStats(booking);
+        return { ok: true, offline: true, booking };
     }
 
     static getBookingsForSlot(date, time) {
@@ -1303,9 +1325,18 @@ class BookingStorage {
             }).then(({ data, error }) => {
                 if (error) {
                     console.error('[Supabase] admin_update_booking error:', error.message);
+                    if (typeof showToast === 'function') showToast('⚠️ Errore aggiornamento prenotazione sul server.', 'error', 5000);
+                    // Rollback: riscarica i dati dal server per riallineare
+                    BookingStorage.syncFromSupabase().then(() => {
+                        if (typeof renderAdminDayView === 'function' && typeof selectedAdminDay !== 'undefined' && selectedAdminDay) renderAdminDayView(selectedAdminDay);
+                    });
                 } else if (data && !data.success && data.error === 'stale_data') {
-                    console.warn('[Supabase] admin_update_booking: dati obsoleti per', b._sbId, '— ricarica necessaria');
-                    if (typeof showToast === 'function') showToast('Prenotazione modificata da un altro dispositivo. Ricarica la pagina.', 'error', 6000);
+                    console.warn('[Supabase] admin_update_booking: dati obsoleti per', b._sbId, '— rollback');
+                    if (typeof showToast === 'function') showToast('Prenotazione modificata da un altro dispositivo. Dati ricaricati.', 'error', 5000);
+                    // Rollback: riscarica i dati dal server per riallineare
+                    BookingStorage.syncFromSupabase().then(() => {
+                        if (typeof renderAdminDayView === 'function' && typeof selectedAdminDay !== 'undefined' && selectedAdminDay) renderAdminDayView(selectedAdminDay);
+                    });
                 } else {
                     console.log('[Supabase] admin_update_booking OK — id:', b._sbId, 'status:', b.status);
                 }
@@ -1358,7 +1389,10 @@ class CreditStorage {
             supabaseClient.from('credits')
                 .upsert(rows, { onConflict: 'email' })
                 .then(({ error }) => {
-                    if (error) console.error('[Supabase] CreditStorage._save error:', error.message);
+                    if (error) {
+                        console.error('[Supabase] CreditStorage._save error:', error.message);
+                        if (typeof showToast === 'function') showToast('⚠️ Errore salvataggio crediti sul server. Ricarica la pagina.', 'error', 5000);
+                    }
                 });
         }, 200);
     }
@@ -1633,7 +1667,10 @@ class ManualDebtStorage {
         supabaseClient.from('manual_debts')
             .upsert(rows, { onConflict: 'email' })
             .then(({ error }) => {
-                if (error) console.error('[Supabase] ManualDebtStorage._save error:', error.message);
+                if (error) {
+                    console.error('[Supabase] ManualDebtStorage._save error:', error.message);
+                    if (typeof showToast === 'function') showToast('⚠️ Errore salvataggio debiti sul server. Ricarica la pagina.', 'error', 5000);
+                }
             });
     }
 
@@ -1731,8 +1768,17 @@ class ManualDebtStorage {
         all[key].balance = Math.round(
             Math.max(0, all[key].history.reduce((s, e) => s + e.amount, 0)) * 100
         ) / 100;
-        if (all[key].history.length === 0) delete all[key];
+        const wasDeleted = all[key].history.length === 0;
+        if (wasDeleted) delete all[key];
         this._save(all);
+        // Se il record è stato eliminato completamente, rimuovilo anche da Supabase
+        // (_save fa upsert dei record rimasti, ma non cancella quelli assenti)
+        if (wasDeleted && typeof supabaseClient !== 'undefined' && email) {
+            supabaseClient.from('manual_debts').delete().eq('email', (email || '').toLowerCase())
+                .then(({ error }) => {
+                    if (error) console.error('[Supabase] deleteDebtEntry cleanup error:', error.message);
+                });
+        }
         return true;
     }
 }
@@ -1759,7 +1805,10 @@ class BonusStorage {
         supabaseClient.from('bonuses')
             .upsert(rows, { onConflict: 'email' })
             .then(({ error }) => {
-                if (error) console.error('[Supabase] BonusStorage._save error:', error.message);
+                if (error) {
+                    console.error('[Supabase] BonusStorage._save error:', error.message);
+                    if (typeof showToast === 'function') showToast('⚠️ Errore salvataggio bonus sul server. Ricarica la pagina.', 'error', 5000);
+                }
             });
     }
 

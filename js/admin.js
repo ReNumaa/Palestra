@@ -1245,9 +1245,13 @@ async function bookForClient(slotType) {
     // Aggiungi slot extra solo se lo slot è pieno (altrimenti usa posti già disponibili)
     const remaining = BookingStorage.getRemainingSpots(date, time, slotType);
     if (remaining <= 0) BookingStorage.addExtraSpot(date, time, slotType);
-    BookingStorage.saveBookingForClient(booking, clientUserId, (ok) => {
-        if (!ok) showToast('⚠️ Salvato localmente, sync Supabase non riuscita', 'error');
-    });
+    const result = await BookingStorage.saveBookingForClient(booking, clientUserId);
+    if (!result.ok) {
+        if (result.error === 'slot_full') showToast('Slot pieno — qualcun altro ha prenotato prima.', 'error');
+        else showToast('⚠️ Errore: prenotazione non riuscita. Riprova.', 'error');
+        if (window._currentAdminDate) renderAdminDayView(window._currentAdminDate);
+        return;
+    }
     BookingStorage.fulfillPendingCancellations(date, time);
 
     showToast(`Prenotazione aggiunta per ${client.name}`, 'success');
