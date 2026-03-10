@@ -34,6 +34,8 @@ function _authError(error) {
 }
 
 // ── Load profile from Supabase ────────────────────────────────────────────────
+// Returns true on success, false on error (does NOT null out _currentUser on error
+// to prevent false logouts on transient network failures in PWA).
 async function _loadProfile(userId) {
     const { data: profile, error } = await supabaseClient
         .from('profiles')
@@ -41,29 +43,68 @@ async function _loadProfile(userId) {
         .eq('id', userId)
         .single();
 
-    window._currentUser = (profile && !error) ? profile : null;
+    if (profile && !error) {
+        window._currentUser = profile;
+        return true;
+    }
+    if (error) console.error('[Auth] _loadProfile error:', error.message);
+    return false;
 }
 
 // ── Init: recupera la sessione e carica il profilo ────────────────────────────
 // Chiamata su ogni pagina prima di qualsiasi operazione auth.
 // Ritorna la sessione Supabase (o null).
+// Usa INITIAL_SESSION invece di getSession() per evitare la race condition
+// in PWA: getSession() può tornare null mentre il refresh del token è in corso,
+// INITIAL_SESSION si risolve solo dopo che il refresh è completato.
+let _authListenerActive = false;
 async function initAuth() {
-    const { data: { session } } = await supabaseClient.auth.getSession();
+    const session = await new Promise((resolve) => {
+        let resolved = false;
+        const { data: { subscription } } = supabaseClient.auth.onAuthStateChange((event, session) => {
+            if (event === 'INITIAL_SESSION' && !resolved) {
+                resolved = true;
+                subscription.unsubscribe();
+                resolve(session);
+            }
+        });
+        // Fallback: se INITIAL_SESSION non arriva entro 4s, usa getSession()
+        setTimeout(async () => {
+            if (!resolved) {
+                resolved = true;
+                const { data } = await supabaseClient.auth.getSession();
+                resolve(data.session);
+            }
+        }, 4000);
+    });
+
     if (session) {
-        await _loadProfile(session.user.id);
+        const ok = await _loadProfile(session.user.id);
+        if (!ok && !window._currentUser) {
+            // Fallback minimo: non redirigere a login su errori di rete transitori
+            window._currentUser = {
+                id:      session.user.id,
+                email:   session.user.email || session.user.user_metadata?.email || '',
+                name:    session.user.user_metadata?.full_name || session.user.email || '',
+                whatsapp: session.user.user_metadata?.whatsapp || ''
+            };
+        }
     } else {
         window._currentUser = null;
     }
 
-    // Reagisce a login/logout in altre tab o dopo OAuth redirect
-    supabaseClient.auth.onAuthStateChange(async (event, session) => {
-        if (event === 'SIGNED_IN' || event === 'TOKEN_REFRESHED') {
-            if (session) await _loadProfile(session.user.id);
-        } else if (event === 'SIGNED_OUT') {
-            window._currentUser = null;
-        }
-        updateNavAuth();
-    });
+    // Registra il listener persistente una sola volta (evita duplicati su bfcache restore)
+    if (!_authListenerActive) {
+        _authListenerActive = true;
+        supabaseClient.auth.onAuthStateChange(async (event, session) => {
+            if (event === 'SIGNED_IN' || event === 'TOKEN_REFRESHED') {
+                if (session) await _loadProfile(session.user.id);
+            } else if (event === 'SIGNED_OUT') {
+                window._currentUser = null;
+            }
+            updateNavAuth();
+        });
+    }
 
     updateNavAuth();
     return session;

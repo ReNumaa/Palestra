@@ -862,18 +862,17 @@ async function clearAllData() {
     localStorage.setItem('dataLastCleared', now);
 
     // 2. Cancella Supabase
-    // Usiamo UPSERT con valori vuoti invece di DELETE: così gli altri browser
-    // ricevono il Realtime e sovrascrivono il loro localStorage con i valori vuoti.
-    // data_cleared_at serve a bloccare il retry di booking pending sugli altri dispositivi.
+    // Cancella le tabelle dedicate + scrive data_cleared_at su app_settings
+    // per propagare il reset agli altri dispositivi via Realtime.
     if (typeof supabaseClient !== 'undefined') {
         await Promise.all([
             supabaseClient.from('bookings').delete().neq('id', '00000000-0000-0000-0000-000000000000'),
+            supabaseClient.from('credits').delete().not('id', 'is', null),
+            supabaseClient.from('manual_debts').delete().not('id', 'is', null),
+            supabaseClient.from('bonuses').delete().not('id', 'is', null),
+            supabaseClient.from('schedule_overrides').delete().not('id', 'is', null),
             supabaseClient.from('app_settings').upsert([
-                { key: 'gym_credits',      value: {}, updated_at: now },
-                { key: 'gym_manual_debts', value: {}, updated_at: now },
-                { key: 'gym_bonus',        value: {}, updated_at: now },
-                { key: 'scheduleOverrides',value: {}, updated_at: now },
-                { key: 'data_cleared_at',  value: { ts: now }, updated_at: now },
+                { key: 'data_cleared_at', value: { ts: now }, updated_at: now },
             ]),
         ]).catch(e => console.error('[Supabase] clearAllData error:', e));
     }

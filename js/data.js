@@ -415,7 +415,8 @@ class BookingStorage {
         const extrasOfType = slot.extras.filter(e => e.type === extraType).length;
         if (extrasOfType === 0) return false;
         // Controlla se c'è posto libero da rimuovere
-        const base = SLOT_MAX_CAPACITY[extraType] || 0;
+        const isMainType = slot.type === extraType;
+        const base = isMainType ? (SLOT_MAX_CAPACITY[extraType] || 0) : 0;
         const bookings = this.getBookingsForSlot(date, time);
         const bookedCount = bookings.filter(b => b.status === 'confirmed' && b.slotType === extraType).length;
         const effectiveCap = base + extrasOfType;
@@ -953,33 +954,51 @@ class BookingStorage {
 
     static saveScheduleOverrides(overrides) {
         localStorage.setItem('scheduleOverrides', JSON.stringify(overrides));
-        // Dual-write to Supabase (fire-and-forget)
-        if (typeof supabaseClient !== 'undefined') {
-            supabaseClient.from('app_settings').upsert({
-                key: 'scheduleOverrides',
-                value: overrides,
-                updated_at: new Date().toISOString()
-            }).then(({ error }) => {
-                if (error) console.error('[Supabase] saveScheduleOverrides error:', error.message);
-            });
+        if (typeof supabaseClient === 'undefined') return;
+        // Ricostruisce l'intera tabella: elimina tutto e reinserisce (fire-and-forget)
+        const rows = [];
+        for (const [dateStr, slots] of Object.entries(overrides)) {
+            for (const slot of slots) {
+                rows.push({ date: dateStr, time: slot.time, slot_type: slot.type, extras: slot.extras || [] });
+            }
         }
+        supabaseClient.from('schedule_overrides')
+            .delete().not('id', 'is', null)
+            .then(() => {
+                if (rows.length === 0) return;
+                return supabaseClient.from('schedule_overrides').insert(rows);
+            })
+            .then(res => {
+                if (res?.error) console.error('[Supabase] saveScheduleOverrides error:', res.error.message);
+            });
     }
 
-    // Fetches ALL app_settings from Supabase in a single query and updates localStorage.
-    // Covers: scheduleOverrides, credits, debts, bonus, and all global settings.
+    // Carica tutti i dati da Supabase in parallelo e aggiorna il localStorage.
+    // Fonti: tabelle dedicate (credits, manual_debts, bonuses, schedule_overrides, settings)
+    //        + app_settings solo per il segnale data_cleared_at.
     static async syncAppSettingsFromSupabase() {
         if (typeof supabaseClient === 'undefined') return;
         try {
-            const { data, error } = await supabaseClient
-                .from('app_settings')
-                .select('key, value');
-            if (error) { console.error('[Supabase] syncAppSettings error:', error.message); return; }
-            if (!data || data.length === 0) return;
-            const map = Object.fromEntries(data.map(r => [r.key, r.value]));
+            const [
+                { data: clearedRow },
+                { data: creditsData,   error: e1 },
+                { data: histData },
+                { data: debtsData,     error: e3 },
+                { data: bonusesData,   error: e4 },
+                { data: overridesData, error: e5 },
+                { data: settingsData,  error: e6 },
+            ] = await Promise.all([
+                supabaseClient.from('app_settings').select('value').eq('key', 'data_cleared_at').maybeSingle(),
+                supabaseClient.from('credits').select('id, name, whatsapp, email, balance, free_balance'),
+                supabaseClient.from('credit_history').select('credit_id, amount, note, created_at').order('created_at', { ascending: true }),
+                supabaseClient.from('manual_debts').select('name, whatsapp, email, balance, history'),
+                supabaseClient.from('bonuses').select('name, whatsapp, email, bonus, last_reset_month'),
+                supabaseClient.from('schedule_overrides').select('date, time, slot_type, extras').order('date').order('time'),
+                supabaseClient.from('settings').select('key, value'),
+            ]);
 
-            // Propaga clearAllData: se data_cleared_at è più recente dell'ultimo clear locale,
-            // svuota i booking locali e imposta il flag per bloccare il retry di syncFromSupabase.
-            const remoteClearedAt = map['data_cleared_at']?.ts || null;
+            // 1. Propaga clearAllData: data_cleared_at ancora su app_settings per la propagazione Realtime
+            const remoteClearedAt = clearedRow?.value?.ts || null;
             if (remoteClearedAt) {
                 const localClearedAt = localStorage.getItem('dataLastCleared') || '0';
                 if (remoteClearedAt > localClearedAt) {
@@ -990,20 +1009,69 @@ class BookingStorage {
                 }
             }
 
-            const _setJson = (k, v) => { if (v != null) localStorage.setItem(k, JSON.stringify(v)); };
-            const _setStr  = (k, v) => { if (v != null) localStorage.setItem(k, String(v)); };
-            _setJson('scheduleOverrides',                        map['scheduleOverrides']);
-            _setJson(CreditStorage.CREDITS_KEY,                  map[CreditStorage.CREDITS_KEY]);
-            _setJson(ManualDebtStorage.DEBTS_KEY,                map[ManualDebtStorage.DEBTS_KEY]);
-            _setJson(BonusStorage.BONUS_KEY,                     map[BonusStorage.BONUS_KEY]);
-            _setStr(DebtThresholdStorage.KEY,                    map[DebtThresholdStorage.KEY]);
-            _setStr(CancellationModeStorage.KEY,                 map[CancellationModeStorage.KEY]);
-            _setStr(CertEditableStorage.KEY,                     map[CertEditableStorage.KEY]);
-            _setStr(CertBookingStorage.KEY_EXPIRED,              map[CertBookingStorage.KEY_EXPIRED]);
-            _setStr(CertBookingStorage.KEY_NOT_SET,              map[CertBookingStorage.KEY_NOT_SET]);
-            _setStr(AssicBookingStorage.KEY_EXPIRED,             map[AssicBookingStorage.KEY_EXPIRED]);
-            _setStr(AssicBookingStorage.KEY_NOT_SET,             map[AssicBookingStorage.KEY_NOT_SET]);
-            console.log(`[Supabase] syncAppSettings: ${data.length} voci caricate`);
+            // 2. Credits + credit_history
+            if (!e1 && creditsData?.length) {
+                const histMap = {};
+                for (const h of histData || []) {
+                    if (!histMap[h.credit_id]) histMap[h.credit_id] = [];
+                    histMap[h.credit_id].push({ date: h.created_at, amount: h.amount, note: h.note || '' });
+                }
+                const credits = {};
+                for (const c of creditsData) {
+                    const key = `${c.whatsapp || ''}||${c.email}`;
+                    credits[key] = { name: c.name, whatsapp: c.whatsapp || '', email: c.email, balance: c.balance, freeBalance: c.free_balance || 0, history: histMap[c.id] || [] };
+                }
+                localStorage.setItem(CreditStorage.CREDITS_KEY, JSON.stringify(credits));
+            }
+
+            // 3. Manual debts
+            if (!e3 && debtsData?.length) {
+                const debts = {};
+                for (const r of debtsData) {
+                    const key = `${r.whatsapp || ''}||${r.email}`;
+                    debts[key] = { name: r.name, whatsapp: r.whatsapp || '', email: r.email, balance: r.balance, history: r.history || [] };
+                }
+                localStorage.setItem(ManualDebtStorage.DEBTS_KEY, JSON.stringify(debts));
+            }
+
+            // 4. Bonuses
+            if (!e4 && bonusesData?.length) {
+                const bonuses = {};
+                for (const r of bonusesData) {
+                    const key = `${r.whatsapp || ''}||${r.email}`;
+                    bonuses[key] = { name: r.name, whatsapp: r.whatsapp || '', email: r.email, bonus: r.bonus, lastResetMonth: r.last_reset_month || null };
+                }
+                localStorage.setItem(BonusStorage.BONUS_KEY, JSON.stringify(bonuses));
+            }
+
+            // 5. Schedule overrides
+            if (!e5 && overridesData?.length) {
+                const overrides = {};
+                for (const r of overridesData) {
+                    if (!overrides[r.date]) overrides[r.date] = [];
+                    const slot = { time: r.time, type: r.slot_type };
+                    if (r.extras?.length) slot.extras = r.extras;
+                    overrides[r.date].push(slot);
+                }
+                localStorage.setItem('scheduleOverrides', JSON.stringify(overrides));
+            }
+
+            // 6. Settings — chiavi nel DB senza prefisso gym_, in localStorage con prefisso
+            if (!e6 && settingsData?.length) {
+                const sMap = Object.fromEntries(settingsData.map(r => [r.key, r.value]));
+                const _s = (lsKey, dbKey) => { if (sMap[dbKey] != null) localStorage.setItem(lsKey, String(sMap[dbKey])); };
+                _s(DebtThresholdStorage.KEY,       'debt_threshold');
+                _s(CancellationModeStorage.KEY,    'cancellation_mode');
+                _s(CertEditableStorage.KEY,        'cert_scadenza_editable');
+                _s(CertBookingStorage.KEY_EXPIRED, 'cert_block_expired');
+                _s(CertBookingStorage.KEY_NOT_SET, 'cert_block_not_set');
+                _s(AssicBookingStorage.KEY_EXPIRED,'assic_block_expired');
+                _s(AssicBookingStorage.KEY_NOT_SET,'assic_block_not_set');
+            }
+
+            const count = (creditsData?.length || 0) + (debtsData?.length || 0) +
+                          (bonusesData?.length || 0) + (overridesData?.length || 0) + (settingsData?.length || 0);
+            console.log(`[Supabase] syncAppSettings: ${count} record caricati`);
         } catch (e) { console.error('[Supabase] syncAppSettings exception:', e); }
     }
 
@@ -1079,31 +1147,44 @@ class CreditStorage {
 
     static _save(data) {
         localStorage.setItem(this.CREDITS_KEY, JSON.stringify(data));
-        if (typeof supabaseClient !== 'undefined') {
-            supabaseClient.from('app_settings').upsert({
-                key: this.CREDITS_KEY,
-                value: data,
-                updated_at: new Date().toISOString()
-            }).then(({ error }) => {
+        if (typeof supabaseClient === 'undefined') return;
+        const rows = Object.values(data).map(r => ({
+            name:         r.name,
+            whatsapp:     r.whatsapp || null,
+            email:        (r.email || '').toLowerCase(),
+            balance:      r.balance      || 0,
+            free_balance: r.freeBalance  || 0,
+        }));
+        if (rows.length === 0) return;
+        supabaseClient.from('credits')
+            .upsert(rows, { onConflict: 'email' })
+            .then(({ error }) => {
                 if (error) console.error('[Supabase] CreditStorage._save error:', error.message);
             });
-        }
     }
 
     static async syncFromSupabase() {
         if (typeof supabaseClient === 'undefined') return;
         try {
-            const { data, error } = await supabaseClient
-                .from('app_settings').select('value')
-                .eq('key', this.CREDITS_KEY).maybeSingle();
-            if (error) {
-                console.error('[Supabase] CreditStorage.sync error:', error.message);
-                return;
+            const [{ data: creditsData, error: e1 }, { data: histData }] = await Promise.all([
+                supabaseClient.from('credits').select('id, name, whatsapp, email, balance, free_balance'),
+                supabaseClient.from('credit_history').select('credit_id, amount, note, created_at').order('created_at', { ascending: true }),
+            ]);
+            if (e1) { console.error('[Supabase] CreditStorage.sync error:', e1.message); return; }
+            if (!creditsData?.length) return;
+
+            const histMap = {};
+            for (const h of histData || []) {
+                if (!histMap[h.credit_id]) histMap[h.credit_id] = [];
+                histMap[h.credit_id].push({ date: h.created_at, amount: h.amount, note: h.note || '' });
             }
-            if (data?.value) {
-                localStorage.setItem(this.CREDITS_KEY, JSON.stringify(data.value));
-                console.log('[Supabase] CreditStorage.sync: dati caricati');
+            const result = {};
+            for (const c of creditsData) {
+                const key = `${c.whatsapp || ''}||${c.email}`;
+                result[key] = { name: c.name, whatsapp: c.whatsapp || '', email: c.email, balance: c.balance, freeBalance: c.free_balance || 0, history: histMap[c.id] || [] };
             }
+            localStorage.setItem(this.CREDITS_KEY, JSON.stringify(result));
+            console.log('[Supabase] CreditStorage.sync: dati caricati');
         } catch (e) { console.error('[Supabase] CreditStorage.sync exception:', e); }
     }
 
@@ -1158,6 +1239,25 @@ class CreditStorage {
         if (method) entry.method = method;
         all[key].history.push(entry);
         this._save(all);
+
+        // Inserisce la nuova voce in credit_history (fire-and-forget)
+        if (typeof supabaseClient !== 'undefined') {
+            const _entry = entry;
+            const _email = (email || '').toLowerCase();
+            supabaseClient.from('credits').select('id').eq('email', _email).maybeSingle()
+                .then(({ data: row }) => {
+                    if (!row?.id) return;
+                    return supabaseClient.from('credit_history').insert({
+                        credit_id:  row.id,
+                        amount:     _entry.amount,
+                        note:       _entry.note,
+                        created_at: _entry.date,
+                    });
+                })
+                .then(res => {
+                    if (res?.error) console.error('[Supabase] credit_history insert error:', res.error.message);
+                });
+        }
     }
 
     static hidePaymentEntryByBooking(whatsapp, email, bookingId) {
@@ -1199,6 +1299,12 @@ class CreditStorage {
         const all = this._getAll();
         const key = this._findKey(whatsapp, email);
         if (key) { delete all[key]; this._save(all); }
+        if (typeof supabaseClient !== 'undefined' && email) {
+            supabaseClient.from('credits').delete().eq('email', (email || '').toLowerCase())
+                .then(({ error }) => {
+                    if (error) console.error('[Supabase] CreditStorage.clearRecord error:', error.message);
+                });
+        }
     }
 
     // Auto-pay unpaid bookings (past and future) for this client using available credit
@@ -1282,31 +1388,36 @@ class ManualDebtStorage {
 
     static _save(data) {
         localStorage.setItem(this.DEBTS_KEY, JSON.stringify(data));
-        if (typeof supabaseClient !== 'undefined') {
-            supabaseClient.from('app_settings').upsert({
-                key: this.DEBTS_KEY,
-                value: data,
-                updated_at: new Date().toISOString()
-            }).then(({ error }) => {
+        if (typeof supabaseClient === 'undefined') return;
+        const rows = Object.values(data).map(r => ({
+            name:     r.name,
+            whatsapp: r.whatsapp || null,
+            email:    (r.email || '').toLowerCase(),
+            balance:  r.balance  || 0,
+            history:  r.history  || [],
+        }));
+        if (rows.length === 0) return;
+        supabaseClient.from('manual_debts')
+            .upsert(rows, { onConflict: 'email' })
+            .then(({ error }) => {
                 if (error) console.error('[Supabase] ManualDebtStorage._save error:', error.message);
             });
-        }
     }
 
     static async syncFromSupabase() {
         if (typeof supabaseClient === 'undefined') return;
         try {
             const { data, error } = await supabaseClient
-                .from('app_settings').select('value')
-                .eq('key', this.DEBTS_KEY).maybeSingle();
-            if (error) {
-                console.error('[Supabase] ManualDebtStorage.sync error:', error.message);
-                return;
+                .from('manual_debts').select('name, whatsapp, email, balance, history');
+            if (error) { console.error('[Supabase] ManualDebtStorage.sync error:', error.message); return; }
+            if (!data?.length) return;
+            const result = {};
+            for (const r of data) {
+                const key = `${r.whatsapp || ''}||${r.email}`;
+                result[key] = { name: r.name, whatsapp: r.whatsapp || '', email: r.email, balance: r.balance, history: r.history || [] };
             }
-            if (data?.value) {
-                localStorage.setItem(this.DEBTS_KEY, JSON.stringify(data.value));
-                console.log('[Supabase] ManualDebtStorage.sync: dati caricati');
-            }
+            localStorage.setItem(this.DEBTS_KEY, JSON.stringify(result));
+            console.log('[Supabase] ManualDebtStorage.sync: dati caricati');
         } catch (e) { console.error('[Supabase] ManualDebtStorage.sync exception:', e); }
     }
 
@@ -1368,6 +1479,12 @@ class ManualDebtStorage {
         const all = this._getAll();
         const key = this._findKey(whatsapp, email);
         if (key) { delete all[key]; this._save(all); }
+        if (typeof supabaseClient !== 'undefined' && email) {
+            supabaseClient.from('manual_debts').delete().eq('email', (email || '').toLowerCase())
+                .then(({ error }) => {
+                    if (error) console.error('[Supabase] ManualDebtStorage.clearRecord error:', error.message);
+                });
+        }
     }
 
     // Elimina una singola voce di debito manuale per data (ISO string) e ricalcola il saldo
@@ -1397,13 +1514,20 @@ class BonusStorage {
 
     static _save(data) {
         localStorage.setItem(this.BONUS_KEY, JSON.stringify(data));
-        if (typeof supabaseClient !== 'undefined') {
-            supabaseClient.from('app_settings').upsert({
-                key: this.BONUS_KEY, value: data, updated_at: new Date().toISOString()
-            }).then(({ error }) => {
+        if (typeof supabaseClient === 'undefined') return;
+        const rows = Object.values(data).map(r => ({
+            name:             r.name,
+            whatsapp:         r.whatsapp || null,
+            email:            (r.email || '').toLowerCase(),
+            bonus:            r.bonus ?? 1,
+            last_reset_month: r.lastResetMonth || null,
+        }));
+        if (rows.length === 0) return;
+        supabaseClient.from('bonuses')
+            .upsert(rows, { onConflict: 'email' })
+            .then(({ error }) => {
                 if (error) console.error('[Supabase] BonusStorage._save error:', error.message);
             });
-        }
     }
 
     // Returns current month as "YYYY-MM" using JS Date (handles leap years, variable month lengths).
@@ -1463,13 +1587,15 @@ class BonusStorage {
     }
 }
 
-// Helper: dual-write a primitive setting to Supabase app_settings (fire-and-forget)
+// Helper: scrive un'impostazione primitiva nella tabella settings (fire-and-forget).
+// Mappa la chiave localStorage (con prefisso gym_) alla chiave DB (senza prefisso).
 function _upsertSetting(key, value) {
     if (typeof supabaseClient === 'undefined') return;
-    supabaseClient.from('app_settings').upsert({
-        key, value, updated_at: new Date().toISOString()
+    const dbKey = key.replace(/^gym_/, ''); // 'gym_debt_threshold' → 'debt_threshold'
+    supabaseClient.from('settings').upsert({
+        key: dbKey, value: String(value), updated_at: new Date().toISOString()
     }).then(({ error }) => {
-        if (error) console.error(`[Supabase] setting '${key}' save error:`, error.message);
+        if (error) console.error(`[Supabase] setting '${dbKey}' save error:`, error.message);
     });
 }
 
