@@ -2897,77 +2897,80 @@ function paySelectedDebts() {
     const checked = document.querySelectorAll('.debt-item-check:checked');
     if (checked.length === 0) return;
 
-    const dueTotal = Array.from(checked).reduce((sum, cb) => sum + Number(cb.dataset.price), 0);
     const activeMethodBtn = document.querySelector('#debtPopupModal .debt-method-btn.active');
     const paymentMethod = activeMethodBtn ? activeMethodBtn.dataset.method : 'contanti';
     const isFreeLesson = paymentMethod === 'lezione-gratuita';
     const amountInput = document.getElementById('debtAmountInput');
-    const amountPaid = isFreeLesson ? 0 : (amountInput ? (parseFloat(amountInput.value) || dueTotal) : dueTotal);
-    const creditDelta = Math.round((amountPaid - dueTotal) * 100) / 100;
+    const amountPaid = isFreeLesson ? 0 : (amountInput ? (parseFloat(amountInput.value) || 0) : 0);
 
+    // Separa checkbox debito manuale da checkbox prenotazioni
     const bookings = BookingStorage.getAllBookings();
-    const now = new Date().toISOString();
-    checked.forEach(cb => {
-        const booking = bookings.find(b => b.id === cb.dataset.id);
-        if (booking) {
-            booking.paid = true;
-            booking.paymentMethod = paymentMethod;
-            booking.paidAt = now;
-        }
-    });
-    BookingStorage.replaceAllBookings(bookings);
+    const bookingCbs = Array.from(checked).filter(cb => cb.dataset.id !== 'manual-debt');
+    const sbIds = bookingCbs.map(cb => {
+        const b = bookings.find(bk => bk.id === cb.dataset.id);
+        return b?._sbId;
+    }).filter(Boolean);
 
-    // Salda debiti manuali se selezionati
     const manualDebtCb = document.querySelector('.debt-item-check[data-id="manual-debt"]:checked');
-    if (manualDebtCb && currentDebtContact) {
-        const debtAmount = Number(manualDebtCb.dataset.price);
-        ManualDebtStorage.addDebt(
-            currentDebtContact.whatsapp,
-            currentDebtContact.email,
-            currentDebtContact.name,
-            -debtAmount,
-            'Saldo debito manuale',
-            paymentMethod
-        );
-    }
+    const manualDebtOffset = manualDebtCb ? Number(manualDebtCb.dataset.price) : 0;
 
-    // Record payment received + handle overpayment
-    if (!isFreeLesson && amountPaid > 0 && currentDebtContact) {
-        const methodLabel = { contanti: 'Contanti', carta: 'Carta', iban: 'Bonifico' }[paymentMethod] || paymentMethod;
-        if (creditDelta > 0) {
-            // Overpayment: add positive credit entry (shows +€amountPaid in transactions)
-            CreditStorage.addCredit(
-                currentDebtContact.whatsapp,
-                currentDebtContact.email,
-                currentDebtContact.name,
-                creditDelta,
-                `Pagamento in acconto di €${amountPaid}`,
-                amountPaid,
-                false, false, null, paymentMethod
-            );
-            CreditStorage.applyToUnpaidBookings(
-                currentDebtContact.whatsapp,
-                currentDebtContact.email,
-                currentDebtContact.name
-            );
-        } else {
-            // Exact or partial payment: add informational entry (amount=0, shows +€amountPaid)
-            CreditStorage.addCredit(
-                currentDebtContact.whatsapp,
-                currentDebtContact.email,
-                currentDebtContact.name,
-                0,
-                `${methodLabel} ricevuto`,
-                amountPaid,
-                false, false, null, paymentMethod
-            );
+    // Cattura il contatto prima di closeDebtPopup (che lo azzera)
+    const contact = currentDebtContact;
+
+    if (!sbIds.length) {
+        // Fallback: logica client-side (nessuna prenotazione Supabase selezionata)
+        const dueTotal = Array.from(checked).reduce((sum, cb) => sum + Number(cb.dataset.price), 0);
+        const creditDelta = Math.round((amountPaid - dueTotal) * 100) / 100;
+        const now = new Date().toISOString();
+        bookingCbs.forEach(cb => {
+            const booking = bookings.find(b => b.id === cb.dataset.id);
+            if (booking) { booking.paid = true; booking.paymentMethod = paymentMethod; booking.paidAt = now; }
+        });
+        BookingStorage.replaceAllBookings(bookings);
+        if (manualDebtCb && contact) {
+            ManualDebtStorage.addDebt(contact.whatsapp, contact.email, contact.name, -manualDebtOffset, 'Saldo debito manuale', paymentMethod);
         }
+        if (!isFreeLesson && amountPaid > 0 && contact) {
+            const methodLabel = { contanti: 'Contanti', carta: 'Carta', iban: 'Bonifico' }[paymentMethod] || paymentMethod;
+            if (creditDelta > 0) {
+                CreditStorage.addCredit(contact.whatsapp, contact.email, contact.name, creditDelta, `Pagamento in acconto di €${amountPaid}`, amountPaid, false, false, null, paymentMethod);
+                CreditStorage.applyToUnpaidBookings(contact.whatsapp, contact.email, contact.name);
+            } else {
+                CreditStorage.addCredit(contact.whatsapp, contact.email, contact.name, 0, `${methodLabel} ricevuto`, amountPaid, false, false, null, paymentMethod);
+            }
+        }
+        closeDebtPopup();
+        if (selectedAdminDay) renderAdminDayView(selectedAdminDay);
+        const activeTab = document.querySelector('.admin-tab.active');
+        if (activeTab && activeTab.dataset.tab === 'payments') renderPaymentsTab();
+        return;
     }
 
     closeDebtPopup();
-    if (selectedAdminDay) renderAdminDayView(selectedAdminDay);
-    const activeTab = document.querySelector('.admin-tab.active');
-    if (activeTab && activeTab.dataset.tab === 'payments') renderPaymentsTab();
+
+    (async () => {
+        const { data, error } = await supabaseClient.rpc('admin_pay_bookings', {
+            p_booking_sb_ids:     sbIds,
+            p_email:              contact.email.toLowerCase(),
+            p_whatsapp:           contact.whatsapp || null,
+            p_name:               contact.name,
+            p_payment_method:     paymentMethod,
+            p_amount_paid:        amountPaid,
+            p_manual_debt_offset: manualDebtOffset,
+            p_slot_prices:        { 'personal-training': 5, 'small-group': 10, 'group-class': 30 },
+        });
+        if (error) {
+            console.error('[Supabase] admin_pay_bookings error:', error.message);
+            alert('⚠️ Errore: ' + error.message);
+            return;
+        }
+        console.log('[admin_pay_bookings]', data);
+        clearTimeout(CreditStorage._supabaseSaveTimer);
+        await Promise.all([BookingStorage.syncFromSupabase(), CreditStorage.syncFromSupabase(), ManualDebtStorage.syncFromSupabase()]);
+        if (selectedAdminDay) renderAdminDayView(selectedAdminDay);
+        const activeTab = document.querySelector('.admin-tab.active');
+        if (activeTab && activeTab.dataset.tab === 'payments') renderPaymentsTab();
+    })();
 }
 
 function closeDebtPopup() {
@@ -3503,6 +3506,36 @@ function saveBookingRowEdit(bookingId, clientIndex) {
     const oldMethod = booking.paymentMethod || '';
     const price     = SLOT_PRICES[booking.slotType];
 
+    if (typeof supabaseClient !== 'undefined' && booking._sbId) {
+        // ── Percorso Supabase: RPC atomica ────────────────────────────────────
+        const slotPrices = { 'personal-training': 5, 'small-group': 10, 'group-class': 30 };
+        (async () => {
+            const newPaidAtRaw = document.getElementById(`bedit-paidat-${bookingId}`)?.value;
+            const { data, error } = await supabaseClient.rpc('admin_change_payment_method', {
+                p_booking_id:  booking._sbId,
+                p_new_paid:    newPaid,
+                p_new_method:  newMethod || null,
+                p_new_paid_at: newPaidAtRaw ? new Date(newPaidAtRaw).toISOString() : null,
+                p_slot_prices: slotPrices,
+            });
+            if (error) {
+                if (error.message.includes('insufficient_credit')) {
+                    const bal = data?.balance ?? '?';
+                    alert(`Credito insufficiente (€${bal} < €${price})`);
+                } else {
+                    console.error('[Supabase] admin_change_payment_method error:', error.message);
+                    alert('⚠️ Errore: ' + error.message);
+                }
+                return;
+            }
+            clearTimeout(CreditStorage._supabaseSaveTimer);
+            await Promise.all([BookingStorage.syncFromSupabase(), CreditStorage.syncFromSupabase(), ManualDebtStorage.syncFromSupabase()]);
+            renderClientsTab();
+        })();
+        return;
+    }
+
+    // ── Fallback: logica client-side ──────────────────────────────────────────
     const _editPayML = { contanti: 'Contanti', carta: 'Carta', iban: 'Bonifico' };
 
     // Helper: offset refunded credit against any manual debt

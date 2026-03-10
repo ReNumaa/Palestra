@@ -243,67 +243,76 @@ async function handleBookingSubmit(e) {
     // Se c'era una richiesta di annullamento per questo slot, è ora soddisfatta
     BookingStorage.fulfillPendingCancellations(booking.date, booking.time);
 
-    // Auto-apply credit (full or partial)
-    // Subtract manual debt from credit so only the net positive credit is used
-    const price = SLOT_PRICES[savedBooking.slotType];
-    const rawCreditBalance = CreditStorage.getBalance(savedBooking.whatsapp, savedBooking.email);
-    const manualDebtBalance = ManualDebtStorage.getBalance(savedBooking.whatsapp, savedBooking.email);
-    const creditBalance = Math.max(0, Math.round((rawCreditBalance - manualDebtBalance) * 100) / 100);
-    if (creditBalance >= price) {
-        // Full payment with credit
-        const freeBalance = CreditStorage.getFreeBalance(savedBooking.whatsapp, savedBooking.email);
-        const isFreeLesson = freeBalance >= price;
-        const allBookings = BookingStorage.getAllBookings();
-        const stored = allBookings.find(b => b.id === savedBooking.id);
-        if (stored) {
-            stored.paid = true;
-            stored.paymentMethod = isFreeLesson ? 'lezione-gratuita' : 'credito';
-            stored.paidAt = new Date().toISOString();
-            BookingStorage.replaceAllBookings(allBookings);
+    // Auto-apply credit atomically via server-side RPC
+    if (typeof supabaseClient !== 'undefined' && savedBooking._sbId) {
+        try {
+            const { data: creditResult } = await supabaseClient.rpc('apply_credit_on_booking', {
+                p_booking_id:  savedBooking._sbId,
+                p_email:       savedBooking.email,
+                p_slot_prices: { 'personal-training': 5, 'small-group': 10, 'group-class': 30 },
+            });
+            if (creditResult?.paid) {
+                savedBooking.paid = true;
+                savedBooking.paidWithCredit = true;
+                savedBooking.remainingCredit = creditResult.remaining_credit || 0;
+                // Sync local state from Supabase so UI reflects the change
+                await CreditStorage.syncFromSupabase();
+                await BookingStorage.syncFromSupabase();
+            } else if (creditResult?.credit_applied > 0) {
+                savedBooking.creditApplied = creditResult.credit_applied;
+                await CreditStorage.syncFromSupabase();
+                await BookingStorage.syncFromSupabase();
+            }
+        } catch (e) {
+            console.warn('[apply_credit_on_booking] error:', e.message);
         }
-        CreditStorage.addCredit(
-            savedBooking.whatsapp,
-            savedBooking.email,
-            savedBooking.name,
-            -price,
-            `Lezione ${savedBooking.date} ${savedBooking.time} — pagata con ${isFreeLesson ? 'lezione gratuita' : 'credito'}`
-        );
-        // Decrement freeBalance if the payment used free credit
-        if (isFreeLesson) {
-            const credKey = CreditStorage._findKey(savedBooking.whatsapp, savedBooking.email);
-            if (credKey) {
-                const freshAll = CreditStorage._getAll();
-                if (freshAll[credKey]) {
-                    freshAll[credKey].freeBalance = Math.round(
-                        Math.max(0, (freshAll[credKey].freeBalance || 0) - price) * 100) / 100;
-                    CreditStorage._save(freshAll);
+    } else {
+        // Fallback: client-side credit apply (keeps existing logic)
+        const price = SLOT_PRICES[savedBooking.slotType];
+        const rawCreditBalance = CreditStorage.getBalance(savedBooking.whatsapp, savedBooking.email);
+        const manualDebtBalance = ManualDebtStorage.getBalance(savedBooking.whatsapp, savedBooking.email);
+        const creditBalance = Math.max(0, Math.round((rawCreditBalance - manualDebtBalance) * 100) / 100);
+        if (creditBalance >= price) {
+            const freeBalance = CreditStorage.getFreeBalance(savedBooking.whatsapp, savedBooking.email);
+            const isFreeLesson = freeBalance >= price;
+            const allBookings = BookingStorage.getAllBookings();
+            const stored = allBookings.find(b => b.id === savedBooking.id);
+            if (stored) {
+                stored.paid = true;
+                stored.paymentMethod = isFreeLesson ? 'lezione-gratuita' : 'credito';
+                stored.paidAt = new Date().toISOString();
+                BookingStorage.replaceAllBookings(allBookings);
+            }
+            CreditStorage.addCredit(savedBooking.whatsapp, savedBooking.email, savedBooking.name, -price,
+                `Lezione ${savedBooking.date} ${savedBooking.time} — pagata con ${isFreeLesson ? 'lezione gratuita' : 'credito'}`);
+            if (isFreeLesson) {
+                const credKey = CreditStorage._findKey(savedBooking.whatsapp, savedBooking.email);
+                if (credKey) {
+                    const freshAll = CreditStorage._getAll();
+                    if (freshAll[credKey]) {
+                        freshAll[credKey].freeBalance = Math.round(Math.max(0, (freshAll[credKey].freeBalance || 0) - price) * 100) / 100;
+                        CreditStorage._save(freshAll);
+                    }
                 }
             }
+            savedBooking.paid = true;
+            savedBooking.paidWithCredit = true;
+            savedBooking.remainingCredit = Math.round((creditBalance - price) * 100) / 100;
+            if (savedBooking.remainingCredit > 0) {
+                CreditStorage.applyToUnpaidBookings(savedBooking.whatsapp, savedBooking.email, savedBooking.name);
+            }
+        } else if (creditBalance > 0) {
+            const allBookings = BookingStorage.getAllBookings();
+            const stored = allBookings.find(b => b.id === savedBooking.id);
+            if (stored) {
+                stored.creditApplied = Math.round(creditBalance * 100) / 100;
+                BookingStorage.replaceAllBookings(allBookings);
+            }
+            CreditStorage.addCredit(savedBooking.whatsapp, savedBooking.email, savedBooking.name, -creditBalance,
+                `Credito parziale lezione ${savedBooking.date} ${savedBooking.time} (€${creditBalance} su €${price})`);
+            savedBooking.creditApplied = Math.round(creditBalance * 100) / 100;
+            savedBooking.remainingCredit = 0;
         }
-        savedBooking.paid = true;
-        savedBooking.paidWithCredit = true;
-        savedBooking.remainingCredit = Math.round((creditBalance - price) * 100) / 100;
-        // Apply any remaining credit to existing unpaid bookings
-        if (savedBooking.remainingCredit > 0) {
-            CreditStorage.applyToUnpaidBookings(savedBooking.whatsapp, savedBooking.email, savedBooking.name);
-        }
-    } else if (creditBalance > 0) {
-        // Partial payment: use all available credit, rest remains to be paid
-        const allBookings = BookingStorage.getAllBookings();
-        const stored = allBookings.find(b => b.id === savedBooking.id);
-        if (stored) {
-            stored.creditApplied = Math.round(creditBalance * 100) / 100;
-            BookingStorage.replaceAllBookings(allBookings);
-        }
-        CreditStorage.addCredit(
-            savedBooking.whatsapp,
-            savedBooking.email,
-            savedBooking.name,
-            -creditBalance,
-            `Credito parziale lezione ${savedBooking.date} ${savedBooking.time} (€${creditBalance} su €${price})`
-        );
-        savedBooking.creditApplied = Math.round(creditBalance * 100) / 100;
-        savedBooking.remainingCredit = 0;
     }
 
     // Show confirmation

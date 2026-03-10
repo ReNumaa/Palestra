@@ -1361,7 +1361,7 @@ class CreditStorage {
         try {
             const [{ data: creditsData, error: e1 }, { data: histData }] = await Promise.all([
                 supabaseClient.from('credits').select('id, name, whatsapp, email, balance, free_balance'),
-                supabaseClient.from('credit_history').select('credit_id, amount, note, created_at').order('created_at', { ascending: true }),
+                supabaseClient.from('credit_history').select('credit_id, amount, note, created_at, display_amount, booking_ref, hidden').eq('hidden', false).order('created_at', { ascending: true }),
             ]);
             if (e1) { console.error('[Supabase] CreditStorage.sync error:', e1.message); return; }
             if (!creditsData?.length) return;
@@ -1369,7 +1369,13 @@ class CreditStorage {
             const histMap = {};
             for (const h of histData || []) {
                 if (!histMap[h.credit_id]) histMap[h.credit_id] = [];
-                histMap[h.credit_id].push({ date: h.created_at, amount: h.amount, note: h.note || '' });
+                histMap[h.credit_id].push({
+                    date: h.created_at,
+                    amount: h.amount,
+                    note: h.note || '',
+                    ...(h.display_amount != null && { displayAmount: h.display_amount }),
+                    ...(h.booking_ref && { bookingRef: h.booking_ref }),
+                });
             }
             const result = {};
             for (const c of creditsData) {
