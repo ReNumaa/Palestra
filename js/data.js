@@ -1434,34 +1434,45 @@ class CreditStorage {
         this._save(all);
 
         // Inserisce la nuova voce in credit_history (fire-and-forget).
-        // Usa upsert+select per ottenere l'ID anche se il record credits non esiste ancora,
-        // evitando la race condition con il _save() debounced.
+        // Ottiene l'ID della riga credits senza modificare il balance (gestito solo da _save debounced).
+        // Se la riga non esiste ancora, la crea con balance=0 come placeholder.
         if (typeof supabaseClient !== 'undefined') {
             const _entry = entry;
             const _email = (email || '').toLowerCase();
-            const _currentRecord = all[key];
-            supabaseClient.from('credits')
-                .upsert({
-                    name:         _currentRecord.name,
-                    whatsapp:     _currentRecord.whatsapp || null,
-                    email:        _email,
-                    balance:      _currentRecord.balance      || 0,
-                    free_balance: _currentRecord.freeBalance  || 0,
-                }, { onConflict: 'email' })
-                .select('id')
-                .maybeSingle()
-                .then(({ data: row }) => {
-                    if (!row?.id) return;
-                    return supabaseClient.from('credit_history').insert({
-                        credit_id:  row.id,
-                        amount:     _entry.amount,
-                        note:       _entry.note,
-                        created_at: _entry.date,
-                    });
-                })
-                .then(res => {
-                    if (res?.error) console.error('[Supabase] credit_history insert error:', res.error.message);
+            const _rec = all[key];
+            (async () => {
+                // 1. Prova a leggere la riga esistente
+                let { data: row } = await supabaseClient.from('credits')
+                    .select('id').eq('email', _email).maybeSingle();
+                // 2. Se non esiste, la crea (ON CONFLICT DO NOTHING via ignoreDuplicates)
+                //    Il balance reale verrà scritto dal _save() debounced — qui usiamo 0
+                if (!row?.id) {
+                    const { data: inserted } = await supabaseClient.from('credits')
+                        .upsert({
+                            name:         _rec.name,
+                            whatsapp:     _rec.whatsapp || null,
+                            email:        _email,
+                            balance:      0,
+                            free_balance: 0,
+                        }, { onConflict: 'email', ignoreDuplicates: true })
+                        .select('id').maybeSingle();
+                    // Se ignoreDuplicates ha skippato l'insert, rileggi
+                    if (!inserted?.id) {
+                        ({ data: row } = await supabaseClient.from('credits')
+                            .select('id').eq('email', _email).maybeSingle());
+                    } else {
+                        row = inserted;
+                    }
+                }
+                if (!row?.id) return;
+                const res = await supabaseClient.from('credit_history').insert({
+                    credit_id:  row.id,
+                    amount:     _entry.amount,
+                    note:       _entry.note,
+                    created_at: _entry.date,
                 });
+                if (res?.error) console.error('[Supabase] credit_history insert error:', res.error.message);
+            })();
         }
     }
 
