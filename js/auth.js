@@ -327,6 +327,7 @@ function _injectNavLinkFirst(href, label, cssClass) {
         const nav = document.querySelector(sel);
         if (!nav || nav.querySelector('.' + cssClass)) return;
         const li = document.createElement('li');
+        li.setAttribute('data-nav-dynamic', '');
         li.innerHTML = `<a href="${href}" class="${cssClass}">${label}</a>`;
         nav.prepend(li);
     });
@@ -337,13 +338,14 @@ function _injectNavLinkLast(href, label, cssClass) {
         const nav = document.querySelector(sel);
         if (!nav || nav.querySelector('.' + cssClass)) return;
         const li = document.createElement('li');
+        li.setAttribute('data-nav-dynamic', '');
         li.innerHTML = `<a href="${href}" class="${cssClass}">${label}</a>`;
         nav.append(li);
     });
 }
 
 function _removeDynamicNavLinks() {
-    document.querySelectorAll('.nav-prenotazioni-link, .nav-admin-link').forEach(el => el.closest('li')?.remove());
+    document.querySelectorAll('[data-nav-dynamic]').forEach(el => el.remove());
     document.querySelectorAll('.nav-sidebar-logout-item').forEach(el => el.remove());
 }
 
