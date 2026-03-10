@@ -1326,6 +1326,7 @@ class BookingStorage {
 // Credit storage — tracks per-client credit balance
 class CreditStorage {
     static CREDITS_KEY = 'gym_credits';
+    static _supabaseSaveTimer = null;
 
     static _getAll() {
         try { return JSON.parse(localStorage.getItem(this.CREDITS_KEY) || '{}'); } catch { return {}; }
@@ -1334,19 +1335,25 @@ class CreditStorage {
     static _save(data) {
         _lsSet(this.CREDITS_KEY, JSON.stringify(data));
         if (typeof supabaseClient === 'undefined') return;
-        const rows = Object.values(data).map(r => ({
-            name:         r.name,
-            whatsapp:     r.whatsapp || null,
-            email:        (r.email || '').toLowerCase(),
-            balance:      r.balance      || 0,
-            free_balance: r.freeBalance  || 0,
-        }));
-        if (rows.length === 0) return;
-        supabaseClient.from('credits')
-            .upsert(rows, { onConflict: 'email' })
-            .then(({ error }) => {
-                if (error) console.error('[Supabase] CreditStorage._save error:', error.message);
-            });
+        // Debounce Supabase upsert: rapid successive calls (e.g. addCredit + applyToUnpaidBookings)
+        // collapse into one write using the latest localStorage state, avoiding race conditions.
+        clearTimeout(CreditStorage._supabaseSaveTimer);
+        CreditStorage._supabaseSaveTimer = setTimeout(() => {
+            const latest = CreditStorage._getAll();
+            const rows = Object.values(latest).map(r => ({
+                name:         r.name,
+                whatsapp:     r.whatsapp || null,
+                email:        (r.email || '').toLowerCase(),
+                balance:      r.balance      || 0,
+                free_balance: r.freeBalance  || 0,
+            }));
+            if (rows.length === 0) return;
+            supabaseClient.from('credits')
+                .upsert(rows, { onConflict: 'email' })
+                .then(({ error }) => {
+                    if (error) console.error('[Supabase] CreditStorage._save error:', error.message);
+                });
+        }, 200);
     }
 
     static async syncFromSupabase() {
@@ -1426,11 +1433,23 @@ class CreditStorage {
         all[key].history.push(entry);
         this._save(all);
 
-        // Inserisce la nuova voce in credit_history (fire-and-forget)
+        // Inserisce la nuova voce in credit_history (fire-and-forget).
+        // Usa upsert+select per ottenere l'ID anche se il record credits non esiste ancora,
+        // evitando la race condition con il _save() debounced.
         if (typeof supabaseClient !== 'undefined') {
             const _entry = entry;
             const _email = (email || '').toLowerCase();
-            supabaseClient.from('credits').select('id').eq('email', _email).maybeSingle()
+            const _currentRecord = all[key];
+            supabaseClient.from('credits')
+                .upsert({
+                    name:         _currentRecord.name,
+                    whatsapp:     _currentRecord.whatsapp || null,
+                    email:        _email,
+                    balance:      _currentRecord.balance      || 0,
+                    free_balance: _currentRecord.freeBalance  || 0,
+                }, { onConflict: 'email' })
+                .select('id')
+                .maybeSingle()
                 .then(({ data: row }) => {
                     if (!row?.id) return;
                     return supabaseClient.from('credit_history').insert({
