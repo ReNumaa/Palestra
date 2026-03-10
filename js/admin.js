@@ -3020,6 +3020,14 @@ function filterClientTx(cardIndex, days, btn) {
     btn.classList.add('active');
 }
 
+async function refreshClients() {
+    const btn = document.getElementById('refreshClientsBtn');
+    if (btn) { btn.textContent = '↻ Caricamento...'; btn.disabled = true; }
+    await UserStorage.syncUsersFromSupabase();
+    renderClientsTab();
+    if (btn) { btn.textContent = '↻ Ricarica'; btn.disabled = false; }
+}
+
 function renderClientsTab() {
     const allClients = getAllClients();
     const query = clientsSearchQuery.trim().toLowerCase();
