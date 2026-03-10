@@ -200,7 +200,7 @@ function setupLogin() {
 
         if (await _checkAdminPassword(password)) {
             sessionStorage.setItem('adminAuth', 'true');
-            localStorage.setItem('adminAuthenticated', 'true');
+            // Non persistere in localStorage: la sessione admin dura fino alla chiusura del tab
             showDashboard();
         } else {
             alert('Password errata!');
@@ -208,11 +208,33 @@ function setupLogin() {
     });
 }
 
-function checkAuth() {
-    if (sessionStorage.getItem('adminAuth') === 'true' ||
-        localStorage.getItem('adminAuthenticated') === 'true') {
+async function checkAuth() {
+    // 1. Se Supabase è disponibile, verifica che l'utente abbia il claim admin nel JWT
+    if (typeof supabaseClient !== 'undefined') {
+        try {
+            const { data: { session } } = await supabaseClient.auth.getSession();
+            const role = session?.user?.app_metadata?.role;
+            if (role === 'admin') {
+                // Utente autenticato con claim admin → accesso garantito senza password
+                sessionStorage.setItem('adminAuth', 'true');
+                localStorage.removeItem('adminAuthenticated'); // pulizia flag legacy
+                showDashboard();
+                return;
+            }
+            if (role && role !== 'admin') {
+                // Utente autenticato ma non admin → nega l'accesso anche se ha il flag locale
+                sessionStorage.removeItem('adminAuth');
+                localStorage.removeItem('adminAuthenticated');
+                return; // rimane sulla schermata di login
+            }
+        } catch (_) { /* supabase non raggiungibile — cade sul check locale */ }
+    }
+
+    // 2. Fallback: controlla sessione locale (es. Supabase offline o non caricato)
+    if (sessionStorage.getItem('adminAuth') === 'true') {
         showDashboard();
     }
+    // Rimosso il check su localStorage.adminAuthenticated (era persistente a vita)
 }
 
 function showDashboard() {
@@ -303,8 +325,8 @@ async function loadDashboardData() {
             Date.now() + 90 * 24 * 60 * 60 * 1000  // includi prossimi 90 gg per contesto
         ));
         _statsBookings = await BookingStorage.fetchForAdmin(
-            extFrom.toISOString().slice(0, 10),
-            extTo.toISOString().slice(0, 10)
+            _localDateStr(extFrom),
+            _localDateStr(extTo)
         );
     }
 
@@ -610,7 +632,7 @@ function exportBackup() {
     const blob = new Blob([JSON.stringify(backup, null, 2)], { type: 'application/json' });
     const a = document.createElement('a');
     a.href = URL.createObjectURL(blob);
-    a.download = `gym-backup-${new Date().toISOString().split('T')[0]}.json`;
+    a.download = `gym-backup-${_localDateStr()}.json`;
     a.click();
     URL.revokeObjectURL(a.href);
     const s = document.getElementById('backupStatus');
@@ -653,7 +675,7 @@ function importBackup(input) {
 }
 
 async function exportData() {
-    const date = new Date().toISOString().split('T')[0];
+    const date = _localDateStr();
 
     // Mostra loading sul bottone durante il fetch
     const btn = document.querySelector('[onclick="exportData()"]');
@@ -918,7 +940,7 @@ function pruneOldData() {
 
     const cutoff = new Date();
     cutoff.setMonth(cutoff.getMonth() - months);
-    const cutoffStr = cutoff.toISOString().split('T')[0]; // YYYY-MM-DD
+    const cutoffStr = _localDateStr(cutoff);
 
     if (!confirm(`⚠️ Verranno eliminati definitivamente:\n• Tutte le prenotazioni DEMO\n• Prenotazioni reali con data precedente al ${cutoff.toLocaleDateString('it-IT')}\n• Voci di credito/transazioni precedenti a tale data\n\nI saldi credito rimangono invariati. Continuare?`)) return;
 
@@ -1237,9 +1259,9 @@ function _buildParticipantCard(booking) {
     const emE = (booking.email || '').replace(/'/g, "\\'");
     const waE = (booking.whatsapp || '').replace(/'/g, "\\'");
     const nmE2 = booking.name.replace(/'/g, "\\'");
-    const _todayStr   = new Date().toISOString().split('T')[0];
+    const _todayStr   = _localDateStr();
     const _today30    = new Date(); _today30.setDate(_today30.getDate() + 30);
-    const _today30Str = _today30.toISOString().split('T')[0];
+    const _today30Str = _localDateStr(_today30);
     let certBadge = '';
     if (!certScad) {
         certBadge = `<div class="cert-expired-badge cert-expired-badge--clickable" onclick="openCertModal(this,'${emE}','${waE}','${nmE2}')">🏥 Imposta scadenza Cert. Med</div>`;
@@ -1903,14 +1925,14 @@ function clientHasCertIssue(client) {
     const userRecord = _getUserRecord(client.email, client.whatsapp);
     const certScad = userRecord?.certificatoMedicoScadenza || '';
     if (!certScad) return true;
-    return certScad < new Date().toISOString().split('T')[0];
+    return certScad < _localDateStr();
 }
 
 function clientHasAssicIssue(client) {
     const userRecord = _getUserRecord(client.email, client.whatsapp);
     const assicScad = userRecord?.assicurazioneScadenza || '';
     if (!assicScad) return true;
-    return assicScad < new Date().toISOString().split('T')[0];
+    return assicScad < _localDateStr();
 }
 
 function toggleCertFilter() {
@@ -3052,7 +3074,7 @@ function createClientCard(client, index) {
     const assicScad2  = userRecord?.assicurazioneScadenza || '';
     const _mkBadge = (scad, missingLabel, expiredPrefix, expiringPrefix, okPrefix) => {
         if (!scad) return `<span class="cedit-cert-badge cedit-cert-expired">${missingLabel}</span>`;
-        const today = new Date().toISOString().split('T')[0];
+        const today = _localDateStr();
         const [y, m, d] = scad.split('-');
         const label = `${d}/${m}/${y}`;
         if (scad < today) return `<span class="cedit-cert-badge cedit-cert-expired">${expiredPrefix} ${label}</span>`;
@@ -4078,7 +4100,7 @@ function exportRegistro() {
     ws['!cols'] = colWidths.map(w => ({ wch: w }));
     XLSX.utils.book_append_sheet(wb, ws, 'Registro');
 
-    const date = new Date().toISOString().split('T')[0];
+    const date = _localDateStr();
     XLSX.writeFile(wb, `TB_Registro_${date}.xlsx`);
 
     const btn = document.getElementById('registroExportBtn');
@@ -4769,7 +4791,7 @@ function saveCertDate() {
 
     // Aggiorna il badge in-place
     if (_certModalBadgeEl) {
-        const today = new Date().toISOString().split('T')[0];
+        const today = _localDateStr();
         if (!val) {
             _certModalBadgeEl.textContent = '🏥 Imposta scadenza Cert. Med';
             _certModalBadgeEl.removeAttribute('style');
@@ -4852,9 +4874,9 @@ function saveAssicDate() {
 
     // Aggiorna il badge in-place
     if (_assicModalBadgeEl) {
-        const today = new Date().toISOString().split('T')[0];
+        const today = _localDateStr();
         const t30 = new Date(); t30.setDate(t30.getDate() + 30);
-        const today30 = t30.toISOString().split('T')[0];
+        const today30 = _localDateStr(t30);
         if (!val) {
             _assicModalBadgeEl.textContent = '📋 Imposta scadenza Assicurazione';
             _assicModalBadgeEl.style.cssText = 'background:#fef3c7;border-color:#fde68a;color:#92400e;border-left:3px solid #f59e0b';

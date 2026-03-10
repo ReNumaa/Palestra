@@ -78,16 +78,21 @@ async function savePushSubscription(subscription) {
 
     // Salva su Supabase via RPC (SECURITY DEFINER — bypassa RLS)
     if (typeof supabaseClient !== 'undefined' && userId) {
-        supabaseClient.rpc('save_push_subscription', {
+        const { error } = await supabaseClient.rpc('save_push_subscription', {
             p_endpoint:   json.endpoint,
             p_p256dh:     json.keys.p256dh,
             p_auth:       json.keys.auth,
             p_user_email: userEmail,
             p_user_id:    userId,
-        }).then(({ error }) => {
-            if (error) console.warn('[Push] Supabase RPC error:', error.message, error);
-            else       console.log('[Push] Subscription salvata su Supabase per', userEmail, userId);
         });
+        if (error) {
+            console.warn('[Push] Supabase RPC error:', error.message, error);
+            // Mostra avviso visibile: l'utente ha abilitato le notifiche ma non sono state salvate
+            const toastFn = typeof showToast === 'function' ? showToast : null;
+            toastFn?.('Notifiche attivate, ma non salvate sul server. Riprova.', 'warning');
+        } else {
+            console.log('[Push] Subscription salvata su Supabase per', userEmail, userId);
+        }
     } else {
         console.warn('[Push] Utente non autenticato — subscription non salvata su Supabase', { userId, userEmail, supabaseReady: typeof supabaseClient !== 'undefined' });
     }

@@ -195,7 +195,7 @@ function handleBookingSubmit(e) {
     // Check medical certificate restrictions — usa il profilo Supabase (getCurrentUser è sync)
     const _certUser = typeof getCurrentUser === 'function' ? getCurrentUser() : null;
     const _certScad = _certUser?.medical_cert_expiry || '';
-    const _today    = new Date().toISOString().split('T')[0];
+    const _today    = _localDateStr();
     if (!_certScad && CertBookingStorage.getBlockIfNotSet()) {
         showToast('Prenotazione bloccata: non hai inserito la data di scadenza del certificato medico. Contatta il trainer.', 'error');
         return;

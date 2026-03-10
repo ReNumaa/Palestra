@@ -249,7 +249,7 @@ function getUserBookings() {
 
     const allBookings = BookingStorage.getAllBookings();
     const now   = new Date();
-    const today = now.toISOString().split('T')[0];
+    const today = _localDateStr();
 
     const myPhone = user.whatsapp ? normalizePhone(user.whatsapp) : '';
     const mine = allBookings.filter(b => {

@@ -1,3 +1,9 @@
+// Restituisce la data locale corrente (o di un oggetto Date) come "YYYY-MM-DD".
+// Usa il fuso locale del browser, non UTC — evita l'off-by-one dopo le 23:00 CET.
+function _localDateStr(d = new Date()) {
+    return `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`;
+}
+
 // Mock data storage - In production, this would be a database
 const SLOT_TYPES = {
     PERSONAL: 'personal-training',
@@ -187,9 +193,9 @@ class BookingStorage {
             const isAdmin = localStorage.getItem('adminAuthenticated') === 'true';
 
             // Date range for availability RPC (~3 months forward)
-            const todayStr = new Date().toISOString().slice(0, 10);
+            const todayStr = _localDateStr();
             const endDate  = new Date(); endDate.setDate(endDate.getDate() + 90);
-            const endStr   = endDate.toISOString().slice(0, 10);
+            const endStr   = _localDateStr(endDate);
 
             if (!user && !isAdmin) {
                 // ── ANON: solo disponibilità aggregata, nessun dato personale ──────────
@@ -212,8 +218,8 @@ class BookingStorage {
                 const pastD   = new Date(); pastD.setDate(pastD.getDate() - 180);
                 const futureD = new Date(); futureD.setDate(futureD.getDate() + 90);
                 qBookings = qBookings
-                    .gte('date', pastD.toISOString().slice(0, 10))
-                    .lte('date', futureD.toISOString().slice(0, 10));
+                    .gte('date', _localDateStr(pastD))
+                    .lte('date', _localDateStr(futureD));
             }
             const fetchBookings = qBookings;
 
@@ -415,11 +421,19 @@ class BookingStorage {
                 p_date_display: booking.dateDisplay || ''
             }).then(({ data, error }) => {
                 if (error) {
-                    console.error('[Supabase] book_slot_atomic error:', error.message, '— fallback a INSERT diretto');
-                    _sbInsert();
+                    // Fallback a INSERT diretto SOLO se la RPC non esiste sul DB (deploy non ancora applicato).
+                    // Per qualsiasi altro errore (rete, capacità, auth) non bypassa l'atomicità.
+                    const isRpcMissing = error.code === 'PGRST202' || error.message?.includes('Could not find the function');
+                    if (isRpcMissing) {
+                        console.warn('[Supabase] book_slot_atomic non trovata — fallback INSERT (RPC non deployata)');
+                        _sbInsert();
+                    } else {
+                        console.error('[Supabase] book_slot_atomic error:', error.message);
+                        if (onSupabaseResult) onSupabaseResult(false);
+                    }
                 } else if (!data) {
-                    console.error('[Supabase] book_slot_atomic: risposta null — fallback a INSERT diretto');
-                    _sbInsert();
+                    console.error('[Supabase] book_slot_atomic: risposta null');
+                    if (onSupabaseResult) onSupabaseResult(false);
                 } else if (!data.success) {
                     console.warn('[Supabase] book_slot_atomic rifiutato:', data.error);
                     if (onSupabaseResult) onSupabaseResult(false);
@@ -539,12 +553,15 @@ class BookingStorage {
         booking.cancelledPaidAt = booking.paidAt;
         booking.status = 'cancelled';
         booking.cancelledAt = new Date().toISOString();
+        const savedCreditApplied = booking.creditApplied || 0;
         booking.paid = false;
         booking.paymentMethod = null;
         booking.paidAt = null;
         booking.creditApplied = 0;
         this.replaceAllBookings(all);
-        const creditToRefund = wasPaid ? (SLOT_PRICES[slotType] || 0) : 0;
+        const creditToRefund = wasPaid
+            ? (savedCreditApplied > 0 ? savedCreditApplied : (SLOT_PRICES[slotType] || 0))
+            : 0;
         if (creditToRefund > 0) {
             CreditStorage.addCredit(
                 booking.whatsapp, booking.email, booking.name,
@@ -571,12 +588,15 @@ class BookingStorage {
         booking.cancelledPaidAt = booking.paidAt;
         booking.status = 'cancelled';
         booking.cancelledAt = new Date().toISOString();
+        const savedCreditApplied2 = booking.creditApplied || 0;
         booking.paid = false;
         booking.paymentMethod = null;
         booking.paidAt = null;
         booking.creditApplied = 0;
         this.replaceAllBookings(all);
-        const creditToRefund = wasPaid ? (SLOT_PRICES[slotType] || 0) : 0;
+        const creditToRefund = wasPaid
+            ? (savedCreditApplied2 > 0 ? savedCreditApplied2 : (SLOT_PRICES[slotType] || 0))
+            : 0;
         if (creditToRefund > 0) {
             CreditStorage.addCredit(
                 booking.whatsapp, booking.email, booking.name,
@@ -614,6 +634,7 @@ class BookingStorage {
         booking.status = 'cancelled';
         booking.cancelledAt = new Date().toISOString();
         booking.cancelledWithBonus = true;
+        const savedCreditApplied3 = booking.creditApplied || 0;
         booking.paid = false;
         booking.paymentMethod = null;
         booking.paidAt = null;
@@ -633,7 +654,9 @@ class BookingStorage {
                 }
             }
         }
-        const creditToRefund = wasPaid ? (SLOT_PRICES[slotType] || 0) : 0;
+        const creditToRefund = wasPaid
+            ? (savedCreditApplied3 > 0 ? savedCreditApplied3 : (SLOT_PRICES[slotType] || 0))
+            : 0;
         if (creditToRefund > 0) {
             CreditStorage.addCredit(
                 booking.whatsapp, booking.email, booking.name,
