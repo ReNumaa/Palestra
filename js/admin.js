@@ -2056,11 +2056,12 @@ function renderPaymentsTab() {
     const debtors = getDebtors();
     const totalUnpaid = debtors.reduce((sum, debtor) => sum + debtor.totalAmount, 0);
     // Net debts against credit balance: only show as creditor if credit > debt
+    // NB: getUnpaidAmountForContact include GIÀ ManualDebtStorage.getBalance(),
+    //     quindi NON sommare manualDebt una seconda volta.
     const credits = CreditStorage.getAllWithBalance()
         .map(c => {
-            const bookingDebt = getUnpaidAmountForContact(c.whatsapp, c.email);
-            const manualDebt  = ManualDebtStorage.getBalance(c.whatsapp, c.email) || 0;
-            const netBalance  = Math.round(Math.max(0, c.balance - bookingDebt - manualDebt) * 100) / 100;
+            const totalDebt  = getUnpaidAmountForContact(c.whatsapp, c.email);
+            const netBalance = Math.round(Math.max(0, c.balance - totalDebt) * 100) / 100;
             return { ...c, balance: netBalance };
         })
         .filter(c => c.balance > 0);
