@@ -205,8 +205,17 @@ class BookingStorage {
             }
 
             // ── ADMIN o UTENTE: SELECT bookings reali ─────────────────────────────────
-            const fetchBookings = supabaseClient
-                .from('bookings').select('*').order('created_at', { ascending: false });
+            // Admin: finestra operativa (6 mesi passati + 3 futuri) per contenere localStorage.
+            // Query complete (senza limite) per stats/export avvengono tramite fetchForAdmin().
+            let qBookings = supabaseClient.from('bookings').select('*').order('created_at', { ascending: false });
+            if (isAdmin) {
+                const pastD   = new Date(); pastD.setDate(pastD.getDate() - 180);
+                const futureD = new Date(); futureD.setDate(futureD.getDate() + 90);
+                qBookings = qBookings
+                    .gte('date', pastD.toISOString().slice(0, 10))
+                    .lte('date', futureD.toISOString().slice(0, 10));
+            }
+            const fetchBookings = qBookings;
 
             // Utente non-admin: richiede anche la disponibilità aggregata in parallelo
             const fetchAvail = !isAdmin
@@ -312,6 +321,23 @@ class BookingStorage {
             }
         }
         return result;
+    }
+
+    // Fetch diretto da Supabase senza toccare localStorage — usato da stats admin ed export.
+    // startStr / endStr: 'YYYY-MM-DD' oppure null per nessun limite.
+    static async fetchForAdmin(startStr, endStr) {
+        if (typeof supabaseClient === 'undefined') return [];
+        try {
+            let q = supabaseClient.from('bookings').select('*').order('date', { ascending: false });
+            if (startStr) q = q.gte('date', startStr);
+            if (endStr)   q = q.lte('date', endStr);
+            const { data, error } = await q;
+            if (error) { console.error('[Supabase] fetchForAdmin error:', error.message); return []; }
+            return data.map(row => this._mapRow(row));
+        } catch (e) {
+            console.error('[Supabase] fetchForAdmin exception:', e);
+            return [];
+        }
     }
 
     // Ritenta l'insert su Supabase per booking in stato pending (falliti in precedenza)

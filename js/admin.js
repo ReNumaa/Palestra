@@ -55,6 +55,9 @@ let selectedAdminDay = null;
 let currentFilter = 'this-month';
 let customFilterFrom = null;
 let customFilterTo = null;
+// Cache in memoria per le stats: caricato fresh da Supabase ad ogni loadDashboardData().
+// Non finisce in localStorage — bypass del limite di 5MB.
+let _statsBookings = null;
 
 function getFilterDateRange(filter) {
     const now = new Date();
@@ -118,7 +121,8 @@ function getPreviousFilterDateRange(filter) {
 }
 
 function getFilteredBookings(filter) {
-    const allBookings = BookingStorage.getAllBookings();
+    // Usa _statsBookings (fetch Supabase) se disponibile, altrimenti localStorage
+    const allBookings = _statsBookings ?? BookingStorage.getAllBookings();
     const { from, to } = getFilterDateRange(filter);
     return allBookings.filter(b => {
         if (b.status === 'cancelled') return false;
@@ -283,10 +287,29 @@ function updateNonChartData() {
     updatePopularTimes(filteredBookings);
 }
 
-function loadDashboardData() {
+async function loadDashboardData() {
     BookingStorage.processPendingCancellations();
-    const allBookings = BookingStorage.getAllBookings();
+
+    // Fetch stats fresh da Supabase: periodo corrente + precedente + prossimi 90 gg.
+    // Non usa localStorage — bypassa il limite di 5MB per dataset grandi.
+    if (typeof BookingStorage !== 'undefined' && typeof supabaseClient !== 'undefined') {
+        const { from, to } = getFilterDateRange(currentFilter);
+        const prevRange = getPreviousFilterDateRange(currentFilter);
+        const extFrom = prevRange
+            ? new Date(Math.min(prevRange.from.getTime(), from.getTime()))
+            : from;
+        const extTo = new Date(Math.max(
+            to.getTime(),
+            Date.now() + 90 * 24 * 60 * 60 * 1000  // includi prossimi 90 gg per contesto
+        ));
+        _statsBookings = await BookingStorage.fetchForAdmin(
+            extFrom.toISOString().slice(0, 10),
+            extTo.toISOString().slice(0, 10)
+        );
+    }
+
     const filteredBookings = getFilteredBookings(currentFilter);
+    const allBookings = _statsBookings ?? BookingStorage.getAllBookings();
 
     updateStatsCards(filteredBookings, allBookings);
     drawBookingsChart(filteredBookings);
@@ -629,8 +652,13 @@ function importBackup(input) {
     reader.readAsText(file);
 }
 
-function exportData() {
+async function exportData() {
     const date = new Date().toISOString().split('T')[0];
+
+    // Mostra loading sul bottone durante il fetch
+    const btn = document.querySelector('[onclick="exportData()"]');
+    const origLabel = btn?.innerHTML;
+    if (btn) { btn.innerHTML = '⏳ Caricamento...'; btn.disabled = true; }
 
     // ── Helpers ───────────────────────────────────────────────────
     function fmtDate(iso) {
@@ -660,7 +688,8 @@ function exportData() {
     const DAYS = ['Domenica','Lunedì','Martedì','Mercoledì','Giovedì','Venerdì','Sabato'];
 
     // ── Fonti dati ─────────────────────────────────────────────────
-    const allBookings  = BookingStorage.getAllBookings()
+    // Fetch tutti i booking direttamente da Supabase (bypass localStorage size limit)
+    const allBookings  = (await BookingStorage.fetchForAdmin(null, null))
                             .sort((a, b) => b.date.localeCompare(a.date));
     const allUsers     = UserStorage.getAll();
     const allCredits   = CreditStorage._getAll();
@@ -823,11 +852,10 @@ function exportData() {
     const filename = `TB_Training_export_${date}.xlsx`;
     XLSX.writeFile(wb, filename);
 
-    const btn = document.querySelector('[onclick="exportData()"]');
     if (btn) {
-        const orig = btn.innerHTML;
+        btn.disabled = false;
         btn.innerHTML = '✅ Scaricato!';
-        setTimeout(() => { btn.innerHTML = orig; }, 2500);
+        setTimeout(() => { btn.innerHTML = origLabel; }, 2500);
     }
 }
 
