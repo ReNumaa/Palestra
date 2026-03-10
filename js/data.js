@@ -249,7 +249,11 @@ class BookingStorage {
                 const { data: availData, error } = await _rpcWithTimeout(
                     supabaseClient.rpc('get_availability_range', { p_start: todayStr, p_end: endStr })
                 ).catch(e => ({ data: null, error: e }));
-                if (error) { console.error('[Supabase] get_availability_range error:', error.message); return; }
+                if (error) {
+                    console.error('[Supabase] get_availability_range error:', error.message);
+                    if (typeof showToast === 'function') showToast('Errore di sincronizzazione. I dati potrebbero non essere aggiornati.', 'error', 5000);
+                    return;
+                }
                 const synth = this._buildSyntheticBookings(availData, {});
                 // Mantieni booking locali non-sintetici (pending insert non ancora su Supabase)
                 const local = this.getAllBookings().filter(b => !b.id?.startsWith('_avail_'));
@@ -280,8 +284,12 @@ class BookingStorage {
             const [{ data, error }, { data: availData, error: e2 }] =
                 await Promise.all([fetchBookings, fetchAvail]);
 
-            if (error) { console.error('[Supabase] syncFromSupabase error:', error.message); return; }
-            if (e2)    { console.error('[Supabase] get_availability_range error:', e2.message); }
+            if (error) {
+                console.error('[Supabase] syncFromSupabase error:', error.message);
+                if (typeof showToast === 'function') showToast('Errore di sincronizzazione. I dati potrebbero non essere aggiornati.', 'error', 5000);
+                return;
+            }
+            if (e2) { console.error('[Supabase] get_availability_range error:', e2.message); }
 
             const mapped = data.map(row => this._mapRow(row));
 
@@ -317,6 +325,7 @@ class BookingStorage {
             this._retryPending(pending, user);
         } catch (e) {
             console.error('[Supabase] syncFromSupabase exception:', e);
+            if (typeof showToast === 'function') showToast('Errore di connessione al server. Verifica la tua connessione.', 'error', 5000);
         }
     }
 
@@ -346,6 +355,7 @@ class BookingStorage {
             cancelledPaidAt:          row.cancelled_paid_at || null,
             cancelledWithBonus:       row.cancelled_with_bonus || false,
             cancelledWithPenalty:     row.cancelled_with_penalty || false,
+            updatedAt:                row.updated_at || null,
         };
     }
 
@@ -435,26 +445,6 @@ class BookingStorage {
         if (typeof supabaseClient !== 'undefined') {
             const user = typeof getCurrentUser === 'function' ? getCurrentUser() : null;
             const maxCap = BookingStorage.getEffectiveCapacity(booking.date, booking.time, booking.slotType);
-            const _sbInsert = () => {
-                if (!user?.id) { if (onSupabaseResult) onSupabaseResult(false); return; }
-                supabaseClient.from('bookings').insert({
-                    local_id:     booking.id,
-                    user_id:      user.id,
-                    date:         booking.date,
-                    time:         booking.time,
-                    slot_type:    booking.slotType,
-                    name:         booking.name,
-                    email:        booking.email,
-                    whatsapp:     booking.whatsapp,
-                    notes:        booking.notes || '',
-                    status:       'confirmed',
-                    created_at:   booking.createdAt,
-                    date_display: booking.dateDisplay || ''
-                }).then(({ error: e2 }) => {
-                    if (e2) { console.error('[Supabase] fallback insert error:', e2.message); if (onSupabaseResult) onSupabaseResult(false); }
-                    else { console.log('[Supabase] fallback insert OK'); if (onSupabaseResult) onSupabaseResult(true); }
-                });
-            };
             supabaseClient.rpc('book_slot_atomic', {
                 p_local_id:     booking.id,
                 p_user_id:      user?.id || null,
@@ -470,16 +460,8 @@ class BookingStorage {
                 p_date_display: booking.dateDisplay || ''
             }).then(({ data, error }) => {
                 if (error) {
-                    // Fallback a INSERT diretto SOLO se la RPC non esiste sul DB (deploy non ancora applicato).
-                    // Per qualsiasi altro errore (rete, capacità, auth) non bypassa l'atomicità.
-                    const isRpcMissing = error.code === 'PGRST202' || error.message?.includes('Could not find the function');
-                    if (isRpcMissing) {
-                        console.warn('[Supabase] book_slot_atomic non trovata — fallback INSERT (RPC non deployata)');
-                        _sbInsert();
-                    } else {
-                        console.error('[Supabase] book_slot_atomic error:', error.message);
-                        if (onSupabaseResult) onSupabaseResult(false);
-                    }
+                    console.error('[Supabase] book_slot_atomic error:', error.message);
+                    if (onSupabaseResult) onSupabaseResult(false);
                 } else if (!data) {
                     console.error('[Supabase] book_slot_atomic: risposta null');
                     if (onSupabaseResult) onSupabaseResult(false);
@@ -1137,22 +1119,38 @@ class BookingStorage {
     static saveScheduleOverrides(overrides) {
         localStorage.setItem('scheduleOverrides', JSON.stringify(overrides));
         if (typeof supabaseClient === 'undefined') return;
-        // Ricostruisce l'intera tabella: elimina tutto e reinserisce (fire-and-forget)
+        // UPSERT atomico: usa onConflict(date, time) per evitare la finestra di race
+        // condition che il vecchio DELETE+INSERT causava (altro device vede 0 slot)
         const rows = [];
         for (const [dateStr, slots] of Object.entries(overrides)) {
             for (const slot of slots) {
                 rows.push({ date: dateStr, time: slot.time, slot_type: slot.type, extras: slot.extras || [] });
             }
         }
-        supabaseClient.from('schedule_overrides')
-            .delete().not('id', 'is', null)
-            .then(() => {
-                if (rows.length === 0) return;
-                return supabaseClient.from('schedule_overrides').insert(rows);
-            })
-            .then(res => {
-                if (res?.error) console.error('[Supabase] saveScheduleOverrides error:', res.error.message);
-            });
+        // Calcola le combinazioni (date, time) attive per eliminare le vecchie
+        const activeKeys = new Set(rows.map(r => `${r.date}|${r.time}`));
+        (async () => {
+            try {
+                // 1. Upsert le righe attuali (crea o aggiorna)
+                if (rows.length > 0) {
+                    const { error } = await supabaseClient.from('schedule_overrides')
+                        .upsert(rows, { onConflict: 'date,time' });
+                    if (error) { console.error('[Supabase] saveScheduleOverrides upsert error:', error.message); return; }
+                }
+                // 2. Elimina le righe che non sono più nell'override set
+                const { data: existing } = await supabaseClient.from('schedule_overrides')
+                    .select('id, date, time');
+                if (existing) {
+                    const toDelete = existing
+                        .filter(r => !activeKeys.has(`${r.date}|${r.time}`))
+                        .map(r => r.id);
+                    if (toDelete.length > 0) {
+                        await supabaseClient.from('schedule_overrides')
+                            .delete().in('id', toDelete);
+                    }
+                }
+            } catch (e) { console.error('[Supabase] saveScheduleOverrides exception:', e); }
+        })();
     }
 
     // Carica tutti i dati da Supabase in parallelo e aggiorna il localStorage.
@@ -1286,6 +1284,8 @@ class BookingStorage {
         for (const b of changed) {
             if (!b._sbId) { console.warn('[Supabase] booking update skip — nessun _sbId per:', b.id); continue; }
             // Usa RPC SECURITY DEFINER per bypassare RLS (admin può modificare booking altrui)
+            // Passa updatedAt per optimistic locking: se il booking è stato modificato
+            // da un altro admin nel frattempo, la RPC rifiuta con 'stale_data'
             supabaseClient.rpc('admin_update_booking', {
                 p_booking_id:                b._sbId,
                 p_status:                    b.status,
@@ -1299,9 +1299,16 @@ class BookingStorage {
                 p_cancelled_paid_at:         b.cancelledPaidAt || null,
                 p_cancelled_with_bonus:      b.cancelledWithBonus || false,
                 p_cancelled_with_penalty:    b.cancelledWithPenalty || false,
-            }).then(({ error }) => {
-                if (error) console.error('[Supabase] admin_update_booking error:', error.message);
-                else console.log('[Supabase] admin_update_booking OK — id:', b._sbId, 'status:', b.status);
+                p_expected_updated_at:       b.updatedAt || null,
+            }).then(({ data, error }) => {
+                if (error) {
+                    console.error('[Supabase] admin_update_booking error:', error.message);
+                } else if (data && !data.success && data.error === 'stale_data') {
+                    console.warn('[Supabase] admin_update_booking: dati obsoleti per', b._sbId, '— ricarica necessaria');
+                    if (typeof showToast === 'function') showToast('Prenotazione modificata da un altro dispositivo. Ricarica la pagina.', 'error', 6000);
+                } else {
+                    console.log('[Supabase] admin_update_booking OK — id:', b._sbId, 'status:', b.status);
+                }
             });
         }
     }
@@ -1387,10 +1394,47 @@ class CreditStorage {
         } catch (e) { console.error('[Supabase] CreditStorage.sync exception:', e); }
     }
 
+    // Inserisce una voce credit_history su Supabase.
+    // Estratto per essere richiamabile e non fire-and-forget.
+    static async _insertCreditHistory(email, rec, entry) {
+        try {
+            // 1. Trova la riga credits esistente
+            let { data: row } = await supabaseClient.from('credits')
+                .select('id').eq('email', email).maybeSingle();
+            // 2. Se non esiste, creala come placeholder (balance reale arriva dal debounced _save)
+            if (!row?.id) {
+                const { data: inserted } = await supabaseClient.from('credits')
+                    .upsert({
+                        name:         rec.name,
+                        whatsapp:     rec.whatsapp || null,
+                        email:        email,
+                        balance:      0,
+                        free_balance: 0,
+                    }, { onConflict: 'email', ignoreDuplicates: true })
+                    .select('id').maybeSingle();
+                if (!inserted?.id) {
+                    ({ data: row } = await supabaseClient.from('credits')
+                        .select('id').eq('email', email).maybeSingle());
+                } else {
+                    row = inserted;
+                }
+            }
+            if (!row?.id) return;
+            const res = await supabaseClient.from('credit_history').insert({
+                credit_id:  row.id,
+                amount:     entry.amount,
+                note:       entry.note,
+                created_at: entry.date,
+            });
+            if (res?.error) console.error('[Supabase] credit_history insert error:', res.error.message);
+        } catch (e) {
+            console.error('[Supabase] _insertCreditHistory exception:', e);
+        }
+    }
+
     static _key(whatsapp, email) {
         return `${whatsapp}||${email}`;
     }
-
 
     // Check if a stored record matches the given contact: phone OR email
     static _matchContact(record, whatsapp, email) {
@@ -1439,46 +1483,13 @@ class CreditStorage {
         all[key].history.push(entry);
         this._save(all);
 
-        // Inserisce la nuova voce in credit_history (fire-and-forget).
-        // Ottiene l'ID della riga credits senza modificare il balance (gestito solo da _save debounced).
-        // Se la riga non esiste ancora, la crea con balance=0 come placeholder.
+        // Inserisce la nuova voce in credit_history su Supabase.
+        // Awaited per evitare perdita dati se il tab viene chiuso subito dopo.
         if (typeof supabaseClient !== 'undefined') {
             const _entry = entry;
             const _email = (email || '').toLowerCase();
             const _rec = all[key];
-            (async () => {
-                // 1. Prova a leggere la riga esistente
-                let { data: row } = await supabaseClient.from('credits')
-                    .select('id').eq('email', _email).maybeSingle();
-                // 2. Se non esiste, la crea (ON CONFLICT DO NOTHING via ignoreDuplicates)
-                //    Il balance reale verrà scritto dal _save() debounced — qui usiamo 0
-                if (!row?.id) {
-                    const { data: inserted } = await supabaseClient.from('credits')
-                        .upsert({
-                            name:         _rec.name,
-                            whatsapp:     _rec.whatsapp || null,
-                            email:        _email,
-                            balance:      0,
-                            free_balance: 0,
-                        }, { onConflict: 'email', ignoreDuplicates: true })
-                        .select('id').maybeSingle();
-                    // Se ignoreDuplicates ha skippato l'insert, rileggi
-                    if (!inserted?.id) {
-                        ({ data: row } = await supabaseClient.from('credits')
-                            .select('id').eq('email', _email).maybeSingle());
-                    } else {
-                        row = inserted;
-                    }
-                }
-                if (!row?.id) return;
-                const res = await supabaseClient.from('credit_history').insert({
-                    credit_id:  row.id,
-                    amount:     _entry.amount,
-                    note:       _entry.note,
-                    created_at: _entry.date,
-                });
-                if (res?.error) console.error('[Supabase] credit_history insert error:', res.error.message);
-            })();
+            this._insertCreditHistory(_email, _rec, _entry);
         }
     }
 
@@ -2009,3 +2020,40 @@ class UserStorage {
 // processPendingCancellations() non viene più richiamata automaticamente al caricamento pagina.
 // Il pg_cron server-side (job "process-pending-cancellations", ogni 15 min) è ora la fonte
 // autorevole. La funzione JS rimane disponibile per eventuali chiamate manuali o di test.
+
+// ── Flush debounced writes prima di chiusura tab ─────────────────────────────
+// Previene perdita dati se l'utente chiude il browser entro 200ms da una modifica.
+window.addEventListener('beforeunload', () => {
+    if (CreditStorage._supabaseSaveTimer) {
+        clearTimeout(CreditStorage._supabaseSaveTimer);
+        CreditStorage._supabaseSaveTimer = null;
+        if (typeof supabaseClient !== 'undefined') {
+            const latest = CreditStorage._getAll();
+            const rows = Object.values(latest).map(r => ({
+                name:         r.name,
+                whatsapp:     r.whatsapp || null,
+                email:        (r.email || '').toLowerCase(),
+                balance:      r.balance      || 0,
+                free_balance: r.freeBalance  || 0,
+            }));
+            if (rows.length > 0) {
+                // sendBeacon non supporta upsert Supabase, usiamo fetch keepalive
+                const url = typeof SUPABASE_URL !== 'undefined' ? SUPABASE_URL : '';
+                const key = typeof SUPABASE_ANON_KEY !== 'undefined' ? SUPABASE_ANON_KEY : '';
+                if (url && key) {
+                    fetch(`${url}/rest/v1/credits?on_conflict=email`, {
+                        method: 'POST',
+                        headers: {
+                            'Content-Type':  'application/json',
+                            'apikey':        key,
+                            'Authorization': `Bearer ${key}`,
+                            'Prefer':        'resolution=merge-duplicates',
+                        },
+                        body: JSON.stringify(rows),
+                        keepalive: true,
+                    }).catch(() => {});
+                }
+            }
+        }
+    }
+});

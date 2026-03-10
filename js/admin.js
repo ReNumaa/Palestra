@@ -221,20 +221,21 @@ async function checkAuth() {
                 showDashboard();
                 return;
             }
-            if (role && role !== 'admin') {
+            if (session) {
                 // Utente autenticato ma non admin → nega l'accesso anche se ha il flag locale
                 sessionStorage.removeItem('adminAuth');
                 localStorage.removeItem('adminAuthenticated');
                 return; // rimane sulla schermata di login
             }
+            // session null = non loggato → cade sul check locale (password fallback)
         } catch (_) { /* supabase non raggiungibile — cade sul check locale */ }
     }
 
-    // 2. Fallback: controlla sessione locale (es. Supabase offline o non caricato)
+    // 2. Fallback: controlla sessione locale (password hash, solo se Supabase non raggiungibile)
+    // NOTA: questo path è meno sicuro — le RPC admin verificano is_admin() server-side comunque
     if (sessionStorage.getItem('adminAuth') === 'true') {
         showDashboard();
     }
-    // Rimosso il check su localStorage.adminAuthenticated (era persistente a vita)
 }
 
 function showDashboard() {
