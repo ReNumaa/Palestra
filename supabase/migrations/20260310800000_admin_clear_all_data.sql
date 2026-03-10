@@ -10,12 +10,12 @@ begin
         raise exception 'Accesso negato: richiesto ruolo admin';
     end if;
 
-    delete from credit_history;
-    delete from credits;
-    delete from manual_debts;
-    delete from bonuses;
-    delete from schedule_overrides;
-    delete from bookings;
+    delete from credit_history where true;
+    delete from credits where true;
+    delete from manual_debts where true;
+    delete from bonuses where true;
+    delete from schedule_overrides where true;
+    delete from bookings where true;
 end;
 $$;
 
