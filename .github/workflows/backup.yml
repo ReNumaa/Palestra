@@ -1,0 +1,113 @@
+name: Backup Supabase → Nextcloud
+
+on:
+  schedule:
+    - cron: '0 3 * * *'   # 3:00 UTC = 4:00 ora italiana (estate)
+  workflow_dispatch:        # trigger manuale dalla UI di GitHub
+
+jobs:
+  backup:
+    runs-on: ubuntu-latest
+
+    steps:
+      # ── 1. Esporta tutti i dati da Supabase ─────────────────────────────────
+      - name: Export dati da Supabase
+        env:
+          SUPA_URL: ${{ secrets.SUPABASE_URL }}
+          SUPA_KEY: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}
+        run: |
+          set -e
+          DATE=$(date +%Y-%m-%d)
+          echo "DATE=${DATE}" >> $GITHUB_ENV
+
+          # Fetch una tabella intera (fino a 500k righe — abbondantemente sufficiente)
+          _fetch() {
+            curl -sf \
+              -H "apikey: $SUPA_KEY" \
+              -H "Authorization: Bearer $SUPA_KEY" \
+              -H "Range: 0-499999" \
+              "$SUPA_URL/rest/v1/$1?select=*&order=created_at.asc"
+          }
+
+          # settings non ha created_at — ordina per key
+          _fetch_settings() {
+            curl -sf \
+              -H "apikey: $SUPA_KEY" \
+              -H "Authorization: Bearer $SUPA_KEY" \
+              "$SUPA_URL/rest/v1/settings?select=*&order=key.asc"
+          }
+
+          jq -n \
+            --arg ts "$(date -u +%Y-%m-%dT%H:%M:%SZ)" \
+            --argjson bookings           "$(_fetch bookings)" \
+            --argjson credits            "$(_fetch credits)" \
+            --argjson credit_history     "$(_fetch credit_history)" \
+            --argjson manual_debts       "$(_fetch manual_debts)" \
+            --argjson bonuses            "$(_fetch bonuses)" \
+            --argjson schedule_overrides "$(_fetch schedule_overrides)" \
+            --argjson settings           "$(_fetch_settings)" \
+            '{
+              generated_at:       $ts,
+              bookings:           $bookings,
+              credits:            $credits,
+              credit_history:     $credit_history,
+              manual_debts:       $manual_debts,
+              bonuses:            $bonuses,
+              schedule_overrides: $schedule_overrides,
+              settings:           $settings
+            }' > "backup_${DATE}.json"
+
+          SIZE=$(du -h "backup_${DATE}.json" | cut -f1)
+          echo "SIZE=${SIZE}" >> $GITHUB_ENV
+          echo "✅ Backup creato: backup_${DATE}.json (${SIZE})"
+
+      # ── 2. Upload su Nextcloud via WebDAV ────────────────────────────────────
+      - name: Upload su Nextcloud
+        env:
+          NC_URL:  ${{ secrets.NEXTCLOUD_URL }}
+          NC_USER: ${{ secrets.NEXTCLOUD_USER }}
+          NC_PASS: ${{ secrets.NEXTCLOUD_PASSWORD }}
+        run: |
+          FOLDER="${NC_URL}/remote.php/dav/files/${NC_USER}/TB-Training-Backups"
+          FILE="backup_${{ env.DATE }}.json"
+
+          # Crea la cartella (ignora errore se esiste già)
+          curl -sf -X MKCOL -u "${NC_USER}:${NC_PASS}" "${FOLDER}/" || true
+
+          # Upload
+          curl -f -X PUT \
+            -u "${NC_USER}:${NC_PASS}" \
+            -T "${FILE}" \
+            "${FOLDER}/${FILE}"
+
+          echo "✅ Caricato: TB-Training-Backups/${FILE} (${{ env.SIZE }})"
+
+      # ── 3. Mantieni solo gli ultimi 60 backup (2 mesi) ──────────────────────
+      - name: Pulizia backup vecchi
+        env:
+          NC_URL:  ${{ secrets.NEXTCLOUD_URL }}
+          NC_USER: ${{ secrets.NEXTCLOUD_USER }}
+          NC_PASS: ${{ secrets.NEXTCLOUD_PASSWORD }}
+        run: |
+          FOLDER="${NC_URL}/remote.php/dav/files/${NC_USER}/TB-Training-Backups"
+          KEEP=60
+
+          # Lista file via PROPFIND → estrae nomi backup_YYYY-MM-DD.json → ordina
+          NAMES=$(curl -sf -X PROPFIND \
+            -u "${NC_USER}:${NC_PASS}" \
+            -H "Depth: 1" \
+            "${FOLDER}/" \
+            | grep -oE 'backup_[0-9]{4}-[0-9]{2}-[0-9]{2}\.json' | sort -u)
+
+          COUNT=$(echo "$NAMES" | grep -c . 2>/dev/null || echo 0)
+
+          if [ "$COUNT" -gt "$KEEP" ]; then
+            TO_DEL=$(echo "$NAMES" | head -n $((COUNT - KEEP)))
+            echo "Elimino $((COUNT - KEEP)) backup vecchi..."
+            while IFS= read -r f; do
+              curl -sf -X DELETE -u "${NC_USER}:${NC_PASS}" "${FOLDER}/${f}" && \
+                echo "  Eliminato: $f"
+            done <<< "$TO_DEL"
+          else
+            echo "Nessuna pulizia necessaria (${COUNT}/${KEEP} backup presenti)"
+          fi
