@@ -309,17 +309,12 @@ function updateNavAuth() {
 
     _removeDynamicNavLinks();
 
-    if (user) {
+    if (user || isAdmin) {
         if (loginLink) loginLink.style.display = 'none';
         if (userMenu)  userMenu.style.display  = 'flex';
-        if (userName)  userName.textContent    = (user.name || user.email).split(' ')[0];
-        _injectNavLinkFirst('prenotazioni.html', 'Le mie prenotazioni', 'nav-prenotazioni-link');
-        _injectSidebarLogout();
-    } else if (isAdmin) {
-        if (loginLink) loginLink.style.display = 'none';
-        if (userMenu)  userMenu.style.display  = 'flex';
-        if (userName)  userName.textContent    = 'Thomas';
-        _injectNavLinkLast('admin.html', 'Amministrazione', 'nav-admin-link');
+        if (userName)  userName.textContent    = user ? (user.name || user.email).split(' ')[0] : 'Thomas';
+        if (user) _injectNavLinkFirst('prenotazioni.html', 'Le mie prenotazioni', 'nav-prenotazioni-link');
+        if (isAdmin) _injectNavLinkLast('admin.html', 'Amministrazione', 'nav-admin-link');
         _injectSidebarLogout();
     } else {
         if (loginLink) loginLink.style.display = 'flex';
@@ -435,8 +430,7 @@ document.addEventListener('DOMContentLoaded', () => {
     if (profileBtn) {
         profileBtn.style.cursor = 'pointer';
         profileBtn.addEventListener('click', () => {
-            const isAdmin = sessionStorage.getItem('adminAuth') === 'true';
-            window.location.href = isAdmin ? 'admin.html' : 'prenotazioni.html';
+            window.location.href = 'prenotazioni.html';
         });
     }
 });
