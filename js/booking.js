@@ -102,7 +102,7 @@ function handleModalOverlayClick(e) {
     }
 }
 
-function handleBookingSubmit(e) {
+async function handleBookingSubmit(e) {
     e.preventDefault();
 
     const submitBtn = e.target.querySelector('button[type="submit"]');
@@ -182,10 +182,18 @@ function handleBookingSubmit(e) {
         return;
     }
 
-    // Check debt threshold
+    // Check debt threshold — usa RPC Supabase se l'utente è loggato, altrimenti localStorage
     const _threshold = DebtThresholdStorage.get();
     if (_threshold > 0) {
-        const _pastDebt = BookingStorage.getUnpaidPastDebt(formData.whatsapp, formData.email);
+        let _pastDebt = BookingStorage.getUnpaidPastDebt(formData.whatsapp, formData.email);
+        const _debtUser = typeof getCurrentUser === 'function' ? getCurrentUser() : null;
+        if (_debtUser?.id && typeof supabaseClient !== 'undefined') {
+            try {
+                const { data: _rpcDebt, error: _rpcErr } = await supabaseClient
+                    .rpc('get_unpaid_past_debt', { p_user_id: _debtUser.id });
+                if (!_rpcErr && _rpcDebt !== null) _pastDebt = _rpcDebt;
+            } catch (_) { /* fallback al valore localStorage già calcolato */ }
+        }
         if (_pastDebt > _threshold) {
             showToast(`Prenotazione bloccata: hai un debito di €${_pastDebt} che supera la soglia massima di €${_threshold}. Contatta il trainer per regolarizzare.`, 'error');
             return;

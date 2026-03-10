@@ -701,8 +701,17 @@
         });
     </script>
     <script>
+        // M1: sync lista prenotazioni tra tab dello stesso browser
+        window.addEventListener('storage', (ev) => {
+            if (ev.key === 'gym_bookings') {
+                if (typeof renderPrenoList === 'function') renderPrenoList();
+                if (typeof renderBonusBalance === 'function') renderBonusBalance();
+                if (typeof renderCreditBalance === 'function') renderCreditBalance();
+            }
+        });
+
         if ('serviceWorker' in navigator) {
-            navigator.serviceWorker.register('/sw.js');
+            navigator.serviceWorker.register('/sw.js', { updateViaCache: 'none' });
         }
     </script>
 </body>
