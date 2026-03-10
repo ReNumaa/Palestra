@@ -244,20 +244,44 @@
 
         // Supabase Realtime: aggiorna la lista prenotazioni in tempo reale
         let _realtimeChannel = null;
+        let _realtimeCreditChannel = null;
         function _setupRealtime() {
-            if (typeof supabaseClient === 'undefined' || _realtimeChannel) return;
-            _realtimeChannel = supabaseClient
-                .channel('bookings-rt-preno')
-                .on('postgres_changes', { event: '*', schema: 'public', table: 'bookings' }, async () => {
-                    await BookingStorage.syncFromSupabase();
-                    renderPrenoList();
+            if (typeof supabaseClient === 'undefined') return;
+
+            if (!_realtimeChannel) {
+                _realtimeChannel = supabaseClient
+                    .channel('bookings-rt-preno')
+                    .on('postgres_changes', { event: '*', schema: 'public', table: 'bookings' }, async () => {
+                        await BookingStorage.syncFromSupabase();
+                        renderPrenoList();
+                        renderCreditBalance();
+                        renderBonusBalance();
+                    })
+                    .subscribe();
+            }
+
+            if (!_realtimeCreditChannel) {
+                const _syncCredits = async () => {
+                    await CreditStorage.syncFromSupabase();
+                    await ManualDebtStorage.syncFromSupabase();
                     renderCreditBalance();
                     renderBonusBalance();
-                })
-                .subscribe();
+                };
+                _realtimeCreditChannel = supabaseClient
+                    .channel('credits-rt-preno')
+                    .on('postgres_changes', { event: '*', schema: 'public', table: 'credits' }, _syncCredits)
+                    .on('postgres_changes', { event: '*', schema: 'public', table: 'credit_history' }, _syncCredits)
+                    .on('postgres_changes', { event: '*', schema: 'public', table: 'manual_debts' }, _syncCredits)
+                    .on('postgres_changes', { event: '*', schema: 'public', table: 'bonuses' }, async () => {
+                        await BookingStorage.syncAppSettingsFromSupabase();
+                        renderBonusBalance();
+                    })
+                    .subscribe();
+            }
         }
         window.addEventListener('beforeunload', () => {
             if (_realtimeChannel) supabaseClient.removeChannel(_realtimeChannel);
+            if (_realtimeCreditChannel) supabaseClient.removeChannel(_realtimeCreditChannel);
         });
 
         // Avvio: aspetta la sessione Supabase, poi controlla il guard e inizializza
@@ -699,12 +723,16 @@
         });
     </script>
     <script>
-        // M1: sync lista prenotazioni tra tab dello stesso browser
+        // M1: sync lista prenotazioni e crediti tra tab dello stesso browser
         window.addEventListener('storage', (ev) => {
             if (ev.key === 'gym_bookings') {
                 if (typeof renderPrenoList === 'function') renderPrenoList();
                 if (typeof renderBonusBalance === 'function') renderBonusBalance();
                 if (typeof renderCreditBalance === 'function') renderCreditBalance();
+            }
+            if (ev.key === 'gym_credits') {
+                if (typeof renderCreditBalance === 'function') renderCreditBalance();
+                if (typeof renderTransazioni === 'function' && typeof _currentTab !== 'undefined' && _currentTab === 'transactions') renderTransazioni();
             }
         });
 
