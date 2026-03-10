@@ -2111,10 +2111,32 @@ function renderPaymentsTab() {
 
 function deleteManualDebtEntry(whatsapp, email, entryDate) {
     if (!confirm('Eliminare questa voce di debito manuale?')) return;
-    const ok = ManualDebtStorage.deleteDebtEntry(whatsapp, email, entryDate);
-    if (ok) {
-        renderPaymentsTab();
-        showToast('Voce eliminata.', 'success');
+    if (typeof supabaseClient !== 'undefined') {
+        (async () => {
+            const { data, error } = await supabaseClient.rpc('admin_delete_debt_entry', {
+                p_email:      (email || '').toLowerCase(),
+                p_entry_date: entryDate,
+            });
+            if (error) {
+                console.error('[Supabase] admin_delete_debt_entry error:', error.message);
+                alert('⚠️ Errore: ' + error.message);
+                return;
+            }
+            if (!data?.success) {
+                alert('⚠️ Voce non trovata.');
+                return;
+            }
+            console.log('[admin_delete_debt_entry]', data);
+            await ManualDebtStorage.syncFromSupabase();
+            renderPaymentsTab();
+            showToast('Voce eliminata.', 'success');
+        })();
+    } else {
+        const ok = ManualDebtStorage.deleteDebtEntry(whatsapp, email, entryDate);
+        if (ok) {
+            renderPaymentsTab();
+            showToast('Voce eliminata.', 'success');
+        }
     }
 }
 
@@ -2667,11 +2689,32 @@ function saveManualEntry() {
     closeManualEntryPopup();
 
     if (_manualEntryType === 'debt') {
-        ManualDebtStorage.addDebt(whatsapp, email, name, amount,
-            note || 'Debito manuale', method);
-        renderPaymentsTab();
-        debtorsListVisible = false;
-        toggleDebtorsList();
+        // Debito: operazione atomica server-side via RPC
+        (async () => {
+            if (typeof supabaseClient !== 'undefined') {
+                const { data, error } = await supabaseClient.rpc('admin_add_debt', {
+                    p_email:      email.toLowerCase(),
+                    p_whatsapp:   whatsapp || null,
+                    p_name:       name,
+                    p_amount:     amount,
+                    p_note:       note || 'Debito manuale',
+                    p_method:     method,
+                });
+                if (error) {
+                    console.error('[Supabase] admin_add_debt error:', error.message, error.code);
+                    alert('⚠️ Errore durante l\'aggiunta del debito: ' + error.message);
+                    return;
+                }
+                console.log('[admin_add_debt]', data);
+                await ManualDebtStorage.syncFromSupabase();
+            } else {
+                ManualDebtStorage.addDebt(whatsapp, email, name, amount,
+                    note || 'Debito manuale', method);
+            }
+            renderPaymentsTab();
+            debtorsListVisible = false;
+            toggleDebtorsList();
+        })();
     } else {
         // Credito: operazione atomica server-side via RPC
         const isFreeLesson = method === 'lezione-gratuita';
@@ -3320,6 +3363,60 @@ function cancelClientEdit(index) {
     section.querySelector('.client-edit-mode').style.display = 'none';
 }
 
+// Helper: aggiorna profilo locale (users), cert, assic, sessione dopo rename
+function _saveClientEditLocalProfile(index, oldWhatsapp, oldEmail, newName, newWhatsapp, newEmail, newCert, newAssic, normOld, normNewPhone) {
+    const users  = _getUsersFull();
+    const oldEmailLow = (oldEmail || '').toLowerCase();
+    let userIdx = users.findIndex(u => {
+        const phoneMatch = normOld && normalizePhone(u.whatsapp) === normOld;
+        const emailMatch = oldEmailLow && u.email && u.email.toLowerCase() === oldEmailLow;
+        return phoneMatch || emailMatch;
+    });
+
+    if (userIdx === -1 && (newCert || newAssic)) {
+        users.push({ name: newName, email: newEmail, whatsapp: normNewPhone, createdAt: new Date().toISOString() });
+        userIdx = users.length - 1;
+    }
+
+    if (userIdx !== -1) {
+        users[userIdx].name     = newName;
+        users[userIdx].whatsapp = normNewPhone;
+        if (newEmail) users[userIdx].email = newEmail;
+
+        const oldCert = users[userIdx].certificatoMedicoScadenza || '';
+        if (newCert !== oldCert) {
+            users[userIdx].certificatoMedicoScadenza = newCert || null;
+            if (!users[userIdx].certificatoMedicoHistory) users[userIdx].certificatoMedicoHistory = [];
+            users[userIdx].certificatoMedicoHistory.push({ scadenza: newCert || null, aggiornatoIl: new Date().toISOString() });
+        }
+        const oldAssic = users[userIdx].assicurazioneScadenza || '';
+        if (newAssic !== oldAssic) {
+            users[userIdx].assicurazioneScadenza = newAssic || null;
+            if (!users[userIdx].assicurazioneHistory) users[userIdx].assicurazioneHistory = [];
+            users[userIdx].assicurazioneHistory.push({ scadenza: newAssic || null, aggiornatoIl: new Date().toISOString() });
+        }
+        _saveUsers(users);
+
+        const _supaFields = {};
+        if (newCert !== oldCert) _supaFields.medical_cert_expiry = newCert || null;
+        if (newAssic !== oldAssic) _supaFields.insurance_expiry = newAssic || null;
+        if (Object.keys(_supaFields).length > 0)
+            _updateSupabaseProfile(newEmail || oldEmail, normNewPhone, _supaFields);
+
+        const current = getCurrentUser();
+        if (current) {
+            const sessionPhone = normalizePhone(current.whatsapp);
+            const sessionEmail = (current.email || '').toLowerCase();
+            const isLogged = (normOld && sessionPhone === normOld) || (oldEmailLow && sessionEmail === oldEmailLow);
+            if (isLogged) loginUser({ ...current, name: newName, email: newEmail || current.email, whatsapp: normNewPhone });
+        }
+    }
+
+    openClientIndex = null;
+    renderClientsTab();
+    showToast('Contatto aggiornato.', 'success');
+}
+
 function saveClientEdit(index, oldWhatsapp, oldEmail) {
     const newName     = document.getElementById(`cedit-name-${index}`).value.trim();
     const newWhatsapp = document.getElementById(`cedit-phone-${index}`).value.trim();
@@ -3331,7 +3428,35 @@ function saveClientEdit(index, oldWhatsapp, oldEmail) {
     const normOld      = normalizePhone(oldWhatsapp);
     const normNewPhone = normalizePhone(newWhatsapp) || newWhatsapp;
 
-    // ── 1. gym_bookings ───────────────────────────────────────────
+    // ── 1-3. bookings + credits + manual_debts: atomico server-side ──
+    if (typeof supabaseClient !== 'undefined') {
+        (async () => {
+            const { data, error } = await supabaseClient.rpc('admin_rename_client', {
+                p_old_email:    oldEmail || '',
+                p_old_whatsapp: normOld || null,
+                p_new_name:     newName,
+                p_new_email:    newEmail,
+                p_new_whatsapp: normNewPhone,
+            });
+            if (error) {
+                console.error('[Supabase] admin_rename_client error:', error.message);
+                alert('⚠️ Errore durante l\'aggiornamento: ' + error.message);
+                return;
+            }
+            console.log('[admin_rename_client]', data);
+            clearTimeout(CreditStorage._supabaseSaveTimer);
+            await Promise.all([
+                BookingStorage.syncFromSupabase(),
+                CreditStorage.syncFromSupabase(),
+                ManualDebtStorage.syncFromSupabase(),
+            ]);
+            // Continua con profilo locale + cert/assic (sotto)
+            _saveClientEditLocalProfile(index, oldWhatsapp, oldEmail, newName, newWhatsapp, newEmail, newCert, newAssic, normOld, normNewPhone);
+        })();
+        return; // il resto è gestito nella callback async
+    }
+
+    // Fallback client-side (offline)
     const bookings = BookingStorage.getAllBookings();
     bookings.forEach(b => {
         const phoneMatch = normOld && normalizePhone(b.whatsapp) === normOld;
@@ -3344,7 +3469,6 @@ function saveClientEdit(index, oldWhatsapp, oldEmail) {
     });
     BookingStorage.replaceAllBookings(bookings);
 
-    // ── 2. gym_credits ────────────────────────────────────────────
     const creditKey = CreditStorage._findKey(oldWhatsapp, oldEmail);
     if (creditKey) {
         const all = CreditStorage._getAll();
@@ -3354,7 +3478,6 @@ function saveClientEdit(index, oldWhatsapp, oldEmail) {
         CreditStorage._save(all);
     }
 
-    // ── 3. gym_manual_debts ───────────────────────────────────────
     const debtKey = ManualDebtStorage._findKey(oldWhatsapp, oldEmail);
     if (debtKey) {
         const all = ManualDebtStorage._getAll();
@@ -3364,72 +3487,8 @@ function saveClientEdit(index, oldWhatsapp, oldEmail) {
         ManualDebtStorage._save(all);
     }
 
-    // ── 4. gym_users (profilo registrato) ─────────────────────────
-    const users  = _getUsersFull();
-    const oldEmailLow = (oldEmail || '').toLowerCase();
-    let userIdx = users.findIndex(u => {
-        const phoneMatch = normOld && normalizePhone(u.whatsapp) === normOld;
-        const emailMatch = oldEmailLow && u.email && u.email.toLowerCase() === oldEmailLow;
-        return phoneMatch || emailMatch;
-    });
-
-    if (userIdx === -1 && (newCert || newAssic)) {
-        // Cliente non registrato: crea profilo minimo per salvare il certificato o l'assicurazione
-        users.push({ name: newName, email: newEmail, whatsapp: normNewPhone, createdAt: new Date().toISOString() });
-        userIdx = users.length - 1;
-    }
-
-    if (userIdx !== -1) {
-        users[userIdx].name     = newName;
-        users[userIdx].whatsapp = normNewPhone;
-        if (newEmail) users[userIdx].email = newEmail;
-
-        // Cert. medico: aggiorna solo se cambiato, mantieni storico
-        const oldCert = users[userIdx].certificatoMedicoScadenza || '';
-        if (newCert !== oldCert) {
-            users[userIdx].certificatoMedicoScadenza = newCert || null;
-            if (!users[userIdx].certificatoMedicoHistory) users[userIdx].certificatoMedicoHistory = [];
-            users[userIdx].certificatoMedicoHistory.push({
-                scadenza: newCert || null,
-                aggiornatoIl: new Date().toISOString()
-            });
-        }
-
-        // Assicurazione: aggiorna solo se cambiato, mantieni storico
-        const oldAssic = users[userIdx].assicurazioneScadenza || '';
-        if (newAssic !== oldAssic) {
-            users[userIdx].assicurazioneScadenza = newAssic || null;
-            if (!users[userIdx].assicurazioneHistory) users[userIdx].assicurazioneHistory = [];
-            users[userIdx].assicurazioneHistory.push({
-                scadenza: newAssic || null,
-                aggiornatoIl: new Date().toISOString()
-            });
-        }
-        _saveUsers(users);
-
-        // ── Sincronizza cert/assic su Supabase profiles ───────────
-        const _supaFields = {};
-        if (newCert !== oldCert) _supaFields.medical_cert_expiry = newCert || null;
-        if (newAssic !== oldAssic) _supaFields.insurance_expiry = newAssic || null;
-        if (Object.keys(_supaFields).length > 0)
-            _updateSupabaseProfile(newEmail || oldEmail, normNewPhone, _supaFields);
-
-        // ── 5. Aggiorna sessione se l'utente è loggato ────────────
-        const current = getCurrentUser();
-        if (current) {
-            const sessionPhone = normalizePhone(current.whatsapp);
-            const sessionEmail = (current.email || '').toLowerCase();
-            const isLogged = (normOld && sessionPhone === normOld) ||
-                             (oldEmailLow && sessionEmail === oldEmailLow);
-            if (isLogged) {
-                loginUser({ ...current, name: newName, email: newEmail || current.email, whatsapp: normNewPhone });
-            }
-        }
-    }
-
-    openClientIndex = null; // l'ordinamento per nome può cambiare l'indice della card
-    renderClientsTab();
-    showToast('Contatto aggiornato.', 'success');
+    // Profilo locale + cert/assic + sessione
+    _saveClientEditLocalProfile(index, oldWhatsapp, oldEmail, newName, newWhatsapp, newEmail, newCert, newAssic, normOld, normNewPhone);
 }
 
 function startEditBookingRow(bookingId, clientIndex) {
@@ -3616,25 +3675,42 @@ function deleteBookingFromClients(bookingId, bookingName) {
 
     const bookings = BookingStorage.getAllBookings();
     const idx = bookings.findIndex(b => b.id === bookingId);
-    if (idx !== -1) {
-        const b = bookings[idx];
+    if (idx === -1) { renderClientsTab(); return; }
+
+    const b = bookings[idx];
+    const slotPrices = { 'personal-training': 5, 'small-group': 10, 'group-class': 30 };
+
+    if (typeof supabaseClient !== 'undefined' && b._sbId) {
+        // Operazione atomica server-side: delete + rimborso in una transazione
+        (async () => {
+            const { data, error } = await supabaseClient.rpc('admin_delete_booking_with_refund', {
+                p_booking_id:  b._sbId,
+                p_slot_prices: slotPrices,
+            });
+            if (error) {
+                console.error('[Supabase] admin_delete_booking_with_refund error:', error.message);
+                alert('⚠️ Errore durante l\'eliminazione: ' + error.message);
+                return;
+            }
+            console.log('[admin_delete_booking_with_refund]', data);
+            clearTimeout(CreditStorage._supabaseSaveTimer);
+            await Promise.all([
+                BookingStorage.syncFromSupabase(),
+                CreditStorage.syncFromSupabase(),
+            ]);
+            renderClientsTab();
+        })();
+    } else {
+        // Fallback client-side (offline)
         if (b.paid) {
             CreditStorage.addCredit(b.whatsapp, b.email, b.name, SLOT_PRICES[b.slotType],
                 `Rimborso lezione ${b.date}`,
                 null, false, false, null, b.paymentMethod || '');
         }
-        // Elimina da Supabase prima di rimuovere da localStorage (per avere _sbId disponibile)
-        if (typeof supabaseClient !== 'undefined' && b._sbId) {
-            supabaseClient.rpc('admin_delete_booking', { p_booking_id: b._sbId })
-                .then(({ error }) => {
-                    if (error) console.error('[Supabase] admin_delete_booking error:', error.message);
-                    else console.log('[Supabase] admin_delete_booking OK — id:', b._sbId);
-                });
-        }
         bookings.splice(idx, 1);
         BookingStorage.replaceAllBookings(bookings);
+        renderClientsTab();
     }
-    renderClientsTab();
 }
 
 function clearClientCredit(whatsapp, email, index) {

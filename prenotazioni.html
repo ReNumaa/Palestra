@@ -596,7 +596,7 @@
         }
 
         // ── Annullamento con mora del 50% ─────────────────────────────────
-        function cancelWithPenalty(id) {
+        async function cancelWithPenalty(id) {
             const booking = BookingStorage.getAllBookings().find(b => b.id === id);
             if (!booking) return;
             const price  = SLOT_PRICES[booking.slotType] || 0;
@@ -607,7 +607,37 @@
                 `• Mora trattenuta: €${mora}\n\n` +
                 `L'annullamento è immediato e definitivo.`;
             if (!confirm(msg)) return;
-            BookingStorage.cancelWithPenalty(id);
+
+            if (typeof supabaseClient !== 'undefined' && booking._sbId) {
+                const wasPaid = booking.paid || (booking.creditApplied || 0) > 0;
+                try {
+                    const { data, error } = await supabaseClient.rpc('cancel_booking_with_refund', {
+                        p_booking_id:       booking._sbId,
+                        p_credit_amount:    wasPaid ? refund : 0,
+                        p_credit_note:      wasPaid ? `Rimborso parziale 50% — annullamento con mora ${booking.date} ${booking.time}` : '',
+                        p_with_penalty:     true,
+                        p_mora_debt_amount: !wasPaid ? mora : 0,
+                        p_mora_debt_note:   !wasPaid ? `Mora 50% annullamento tardivo ${booking.date} ${booking.time}` : '',
+                    });
+                    if (error) {
+                        console.error('[cancel_booking_with_refund] error:', error.message);
+                        alert('⚠️ Errore: ' + error.message);
+                        return;
+                    }
+                    await Promise.all([
+                        BookingStorage.syncFromSupabase(),
+                        CreditStorage.syncFromSupabase(),
+                        ManualDebtStorage.syncFromSupabase(),
+                    ]);
+                } catch (e) {
+                    console.error('[cancelWithPenalty] exception:', e);
+                    alert('⚠️ Errore di rete. Riprova.');
+                    return;
+                }
+            } else {
+                BookingStorage.cancelWithPenalty(id);
+            }
+
             if (typeof notifySlotAvailable === 'function') notifySlotAvailable(booking);
             renderPrenoList();
             renderCreditBalance();

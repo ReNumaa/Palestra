@@ -241,7 +241,19 @@ async function handleBookingSubmit(e) {
     });
 
     // Se c'era una richiesta di annullamento per questo slot, è ora soddisfatta
-    BookingStorage.fulfillPendingCancellations(booking.date, booking.time);
+    if (typeof supabaseClient !== 'undefined') {
+        try {
+            const { data: fcResult, error: fcErr } = await supabaseClient.rpc('fulfill_pending_cancellation', {
+                p_date: booking.date,
+                p_time: booking.time,
+                p_slot_prices: { 'personal-training': 5, 'small-group': 10, 'group-class': 30 },
+            });
+            if (fcErr) console.error('[Supabase] fulfill_pending_cancellation error:', fcErr.message);
+            else if (fcResult?.found) console.log('[fulfill_pending_cancellation] annullamento soddisfatto:', fcResult);
+        } catch (e) { console.error('[fulfill_pending_cancellation] exception:', e); }
+    } else {
+        BookingStorage.fulfillPendingCancellations(booking.date, booking.time);
+    }
 
     // Auto-apply credit atomically via server-side RPC
     if (typeof supabaseClient !== 'undefined' && savedBooking._sbId) {
