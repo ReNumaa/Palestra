@@ -915,17 +915,16 @@ async function clearAllData() {
     // Cancella le tabelle dedicate + scrive data_cleared_at su app_settings
     // per propagare il reset agli altri dispositivi via Realtime.
     if (typeof supabaseClient !== 'undefined') {
-        await Promise.all([
-            supabaseClient.from('bookings').delete().neq('id', '00000000-0000-0000-0000-000000000000'),
-            supabaseClient.from('credits').delete().not('id', 'is', null),
-            supabaseClient.from('credit_history').delete().not('id', 'is', null),
-            supabaseClient.from('manual_debts').delete().not('id', 'is', null),
-            supabaseClient.from('bonuses').delete().not('id', 'is', null),
-            supabaseClient.from('schedule_overrides').delete().not('id', 'is', null),
-            supabaseClient.from('app_settings').upsert([
-                { key: 'data_cleared_at', value: { ts: now }, updated_at: now },
-            ]),
-        ]).catch(e => console.error('[Supabase] clearAllData error:', e));
+        const { error: rpcErr } = await supabaseClient.rpc('admin_clear_all_data');
+        if (rpcErr) {
+            console.error('[Supabase] admin_clear_all_data RPC error:', rpcErr.message, rpcErr.code);
+            alert('⚠️ Errore durante la cancellazione su Supabase: ' + rpcErr.message);
+            return;
+        }
+        const { error: settingsErr } = await supabaseClient.from('app_settings').upsert([
+            { key: 'data_cleared_at', value: { ts: now }, updated_at: now },
+        ]);
+        if (settingsErr) console.error('[Supabase] clearAllData - upsert app_settings error:', settingsErr.message);
     }
 
     alert('✅ Tutti i dati sono stati eliminati (localStorage + Supabase).');
