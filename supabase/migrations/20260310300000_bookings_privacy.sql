@@ -6,23 +6,23 @@
 -- ── RPC: get_slot_availability (singola data) ─────────────────────────────────
 -- Usata per check rapido disponibilità slot (es. prima di prenotare).
 create or replace function get_slot_availability(p_date date)
-returns table(time text, slot_type text, confirmed_count bigint)
+returns table(slot_time text, slot_type text, confirmed_count bigint)
 language sql security definer stable as $$
-    select time, slot_type, count(*) as confirmed_count
+    select "time", slot_type, count(*) as confirmed_count
     from   bookings
-    where  date = p_date and status = 'confirmed'
-    group  by time, slot_type;
+    where  "date" = p_date and status = 'confirmed'
+    group  by "time", slot_type;
 $$;
 
 -- ── RPC: get_availability_range (range di date) ───────────────────────────────
 -- Usata al caricamento pagina per precaricare la disponibilità (più efficiente di N chiamate).
 create or replace function get_availability_range(p_start date, p_end date)
-returns table(date date, time text, slot_type text, confirmed_count bigint)
+returns table(slot_date date, slot_time text, slot_type text, confirmed_count bigint)
 language sql security definer stable as $$
-    select date, time, slot_type, count(*) as confirmed_count
+    select "date", "time", slot_type, count(*) as confirmed_count
     from   bookings
-    where  date between p_start and p_end and status = 'confirmed'
-    group  by date, time, slot_type;
+    where  "date" between p_start and p_end and status = 'confirmed'
+    group  by "date", "time", slot_type;
 $$;
 
 -- Entrambe accessibili a tutti (anon e authenticated) — restituiscono solo conteggi

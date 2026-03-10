@@ -286,18 +286,20 @@ class BookingStorage {
     }
 
     // Crea booking sintetici (senza dati personali) per slot occupati da altri utenti.
-    // availData: array di {date, time, slot_type, confirmed_count} dalla RPC
+    // availData: array di {slot_date, slot_time, slot_type, confirmed_count} dalla RPC
     // ownCounts: {date|time -> n} dei propri booking già confermati (da sottrarre)
     static _buildSyntheticBookings(availData, ownCounts) {
         const result = [];
         for (const row of availData || []) {
-            const own   = ownCounts[`${row.date}|${row.time}`] || 0;
+            const d     = row.slot_date;
+            const t     = row.slot_time;
+            const own   = ownCounts[`${d}|${t}`] || 0;
             const count = Math.max(0, Number(row.confirmed_count) - own);
             for (let i = 0; i < count; i++) {
                 result.push({
-                    id:        `_avail_${row.date}_${row.time.replace(/[: ]/g, '')}_${row.slot_type}_${i}`,
-                    date:      row.date,
-                    time:      row.time,
+                    id:        `_avail_${d}_${t.replace(/[: ]/g, '')}_${row.slot_type}_${i}`,
+                    date:      d,
+                    time:      t,
                     slotType:  row.slot_type,
                     status:    'confirmed',
                     name:      '',
@@ -305,7 +307,7 @@ class BookingStorage {
                     whatsapp:  '',
                     notes:     '',
                     paid:      false,
-                    createdAt: row.date + 'T00:00:00.000Z',
+                    createdAt: d + 'T00:00:00.000Z',
                 });
             }
         }
