@@ -176,93 +176,165 @@ class BookingStorage {
         return data ? JSON.parse(data) : [];
     }
 
-    // Fetches all bookings from Supabase and updates the localStorage cache.
-    // Call this on page init (after auth) to keep the cache in sync.
-    // Only updates localStorage if Supabase returns at least 1 row (prevents accidental wipe).
+    // Fetches bookings from Supabase and updates the localStorage cache.
+    // - Admin: SELECT * (sees all via is_admin() RLS)
+    // - Authenticated user: SELECT own + RPC availability for others' slots (synthetic)
+    // - Anon: RPC availability only (no personal data)
     static async syncFromSupabase() {
         if (typeof supabaseClient === 'undefined') return;
         try {
-            const { data, error } = await supabaseClient
-                .from('bookings')
-                .select('*')
-                .order('created_at', { ascending: false });
-            if (error) {
-                console.error('[Supabase] syncFromSupabase error:', error.message);
+            const user    = typeof getCurrentUser === 'function' ? getCurrentUser() : null;
+            const isAdmin = localStorage.getItem('adminAuthenticated') === 'true';
+
+            // Date range for availability RPC (~3 months forward)
+            const todayStr = new Date().toISOString().slice(0, 10);
+            const endDate  = new Date(); endDate.setDate(endDate.getDate() + 90);
+            const endStr   = endDate.toISOString().slice(0, 10);
+
+            if (!user && !isAdmin) {
+                // ── ANON: solo disponibilità aggregata, nessun dato personale ──────────
+                const { data: availData, error } = await supabaseClient
+                    .rpc('get_availability_range', { p_start: todayStr, p_end: endStr });
+                if (error) { console.error('[Supabase] get_availability_range error:', error.message); return; }
+                const synth = this._buildSyntheticBookings(availData, {});
+                // Mantieni booking locali non-sintetici (pending insert non ancora su Supabase)
+                const local = this.getAllBookings().filter(b => !b.id?.startsWith('_avail_'));
+                localStorage.setItem(this.BOOKINGS_KEY, JSON.stringify([...synth, ...local]));
+                console.log(`[Supabase] syncFromSupabase (anon): ${synth.length} slot sintetici`);
                 return;
             }
-            const mapped = data.map(row => ({
-                id: row.local_id || row.id,
-                _sbId: row.id,
-                userId: row.user_id,
-                date: row.date,
-                time: row.time,
-                slotType: row.slot_type,
-                dateDisplay: row.date_display || '',
-                name: row.name,
-                email: row.email,
-                whatsapp: row.whatsapp,
-                notes: row.notes || '',
-                status: row.status,
-                paid: row.paid || false,
-                paymentMethod: row.payment_method || null,
-                paidAt: row.paid_at || null,
-                creditApplied: row.credit_applied || 0,
-                createdAt: row.created_at,
-                cancellationRequestedAt: row.cancellation_requested_at || null,
-                cancelledAt: row.cancelled_at || null,
-                cancelledPaymentMethod: row.cancelled_payment_method || null,
-                cancelledPaidAt: row.cancelled_paid_at || null,
-                cancelledWithBonus: row.cancelled_with_bonus || false,
-                cancelledWithPenalty: row.cancelled_with_penalty || false,
-            }));
-            // Merge: mantieni solo booking locali MOLTO RECENTI (< 5 min) non ancora su Supabase
-            // Evita di perdere prenotazioni in caso di fallback INSERT lento,
-            // ma NON impedisce che clearAllData propaghi lo svuotamento su tutti i dispositivi.
+
+            // ── ADMIN o UTENTE: SELECT bookings reali ─────────────────────────────────
+            const fetchBookings = supabaseClient
+                .from('bookings').select('*').order('created_at', { ascending: false });
+
+            // Utente non-admin: richiede anche la disponibilità aggregata in parallelo
+            const fetchAvail = !isAdmin
+                ? supabaseClient.rpc('get_availability_range', { p_start: todayStr, p_end: endStr })
+                : Promise.resolve({ data: null, error: null });
+
+            const [{ data, error }, { data: availData, error: e2 }] =
+                await Promise.all([fetchBookings, fetchAvail]);
+
+            if (error) { console.error('[Supabase] syncFromSupabase error:', error.message); return; }
+            if (e2)    { console.error('[Supabase] get_availability_range error:', e2.message); }
+
+            const mapped = data.map(row => this._mapRow(row));
+
+            // Booking sintetici per slot occupati da altri (solo utente non-admin)
+            let synth = [];
+            if (!isAdmin && availData) {
+                const ownCounts = {};
+                for (const b of mapped) {
+                    if (b.status === 'confirmed') {
+                        const k = `${b.date}|${b.time}`;
+                        ownCounts[k] = (ownCounts[k] || 0) + 1;
+                    }
+                }
+                synth = this._buildSyntheticBookings(availData, ownCounts);
+            }
+
+            // Pending: booking locali recenti (< 30 min) non ancora confermati su Supabase
             const supabaseIds = new Set(mapped.map(m => m.id));
-            const local = this.getAllBookings();
-            const PENDING_WINDOW = 30 * 60 * 1000; // 30 minuti
+            const local = this.getAllBookings().filter(b => !b.id?.startsWith('_avail_'));
             const now = Date.now();
             const dataLastCleared = localStorage.getItem('dataLastCleared') || '0';
             const pending = local.filter(b => {
                 if (supabaseIds.has(b.id) || b.status === 'cancelled') return false;
                 const age = now - new Date(b.createdAt).getTime();
-                if (age >= PENDING_WINDOW) return false;
-                // Non reinserire booking creati prima dell'ultimo clearAllData
+                if (age >= 30 * 60 * 1000) return false;
                 if (b.createdAt <= dataLastCleared) return false;
                 return true;
             });
-            const merged = [...mapped, ...pending];
-            localStorage.setItem(this.BOOKINGS_KEY, JSON.stringify(merged));
-            console.log(`[Supabase] syncFromSupabase: ${mapped.length} da Supabase, ${pending.length} pending locali`);
 
-            // Retry: reinserisci su Supabase i booking pending (RPC fallita in precedenza)
-            if (pending.length > 0) {
-                const user = typeof getCurrentUser === 'function' ? getCurrentUser() : null;
-                for (const b of pending) {
-                    console.warn('[Supabase] retry insert booking pending:', b.id);
-                    supabaseClient.from('bookings').insert({
-                        local_id:     b.id,
-                        user_id:      user?.id || b.userId || null,
-                        date:         b.date,
-                        time:         b.time,
-                        slot_type:    b.slotType,
-                        name:         b.name,
-                        email:        b.email,
-                        whatsapp:     b.whatsapp,
-                        notes:        b.notes || '',
-                        status:       b.status || 'confirmed',
-                        created_at:   b.createdAt,
-                        date_display: b.dateDisplay || '',
-                    }).then(({ error }) => {
-                        if (error && error.code !== '23505') // ignora duplicati
-                            console.error('[Supabase] retry insert error:', error.message);
-                        else if (!error)
-                            console.log('[Supabase] retry insert OK:', b.id);
-                    });
-                }
-            }
+            localStorage.setItem(this.BOOKINGS_KEY, JSON.stringify([...mapped, ...synth, ...pending]));
+            console.log(`[Supabase] syncFromSupabase (${isAdmin ? 'admin' : 'user'}): ${mapped.length} da Supabase, ${synth.length} sintetici, ${pending.length} pending`);
+
+            this._retryPending(pending, user);
         } catch (e) {
             console.error('[Supabase] syncFromSupabase exception:', e);
+        }
+    }
+
+    // Mappa una riga Supabase al formato booking localStorage
+    static _mapRow(row) {
+        return {
+            id:                       row.local_id || row.id,
+            _sbId:                    row.id,
+            userId:                   row.user_id,
+            date:                     row.date,
+            time:                     row.time,
+            slotType:                 row.slot_type,
+            dateDisplay:              row.date_display || '',
+            name:                     row.name,
+            email:                    row.email,
+            whatsapp:                 row.whatsapp,
+            notes:                    row.notes || '',
+            status:                   row.status,
+            paid:                     row.paid || false,
+            paymentMethod:            row.payment_method || null,
+            paidAt:                   row.paid_at || null,
+            creditApplied:            row.credit_applied || 0,
+            createdAt:                row.created_at,
+            cancellationRequestedAt:  row.cancellation_requested_at || null,
+            cancelledAt:              row.cancelled_at || null,
+            cancelledPaymentMethod:   row.cancelled_payment_method || null,
+            cancelledPaidAt:          row.cancelled_paid_at || null,
+            cancelledWithBonus:       row.cancelled_with_bonus || false,
+            cancelledWithPenalty:     row.cancelled_with_penalty || false,
+        };
+    }
+
+    // Crea booking sintetici (senza dati personali) per slot occupati da altri utenti.
+    // availData: array di {date, time, slot_type, confirmed_count} dalla RPC
+    // ownCounts: {date|time -> n} dei propri booking già confermati (da sottrarre)
+    static _buildSyntheticBookings(availData, ownCounts) {
+        const result = [];
+        for (const row of availData || []) {
+            const own   = ownCounts[`${row.date}|${row.time}`] || 0;
+            const count = Math.max(0, Number(row.confirmed_count) - own);
+            for (let i = 0; i < count; i++) {
+                result.push({
+                    id:        `_avail_${row.date}_${row.time.replace(/[: ]/g, '')}_${row.slot_type}_${i}`,
+                    date:      row.date,
+                    time:      row.time,
+                    slotType:  row.slot_type,
+                    status:    'confirmed',
+                    name:      '',
+                    email:     '',
+                    whatsapp:  '',
+                    notes:     '',
+                    paid:      false,
+                    createdAt: row.date + 'T00:00:00.000Z',
+                });
+            }
+        }
+        return result;
+    }
+
+    // Ritenta l'insert su Supabase per booking in stato pending (falliti in precedenza)
+    static _retryPending(pending, user) {
+        for (const b of pending) {
+            console.warn('[Supabase] retry insert booking pending:', b.id);
+            supabaseClient.from('bookings').insert({
+                local_id:     b.id,
+                user_id:      user?.id || b.userId || null,
+                date:         b.date,
+                time:         b.time,
+                slot_type:    b.slotType,
+                name:         b.name,
+                email:        b.email,
+                whatsapp:     b.whatsapp,
+                notes:        b.notes || '',
+                status:       b.status || 'confirmed',
+                created_at:   b.createdAt,
+                date_display: b.dateDisplay || '',
+            }).then(({ error }) => {
+                if (error && error.code !== '23505')
+                    console.error('[Supabase] retry insert error:', error.message);
+                else if (!error)
+                    console.log('[Supabase] retry insert OK:', b.id);
+            });
         }
     }
 
