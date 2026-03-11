@@ -1,0 +1,333 @@
+<!DOCTYPE html>
+<html lang="it">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Backup Viewer - Thomas Bresciani</title>
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; background: #f0f2f5; color: #1a1a1a; min-height: 100vh; }
+
+        /* ── Header ─────────────────────────────────────────── */
+        .app-header { background: linear-gradient(135deg, #1a1a1a 0%, #2d2d2d 100%); color: #fff; padding: 1rem 0; position: sticky; top: 0; z-index: 10; box-shadow: 0 2px 12px rgba(0,0,0,0.2); }
+        .header-inner { max-width: 1100px; margin: 0 auto; padding: 0 1rem; display: flex; align-items: center; gap: 1rem; }
+        .header-logo { width: 42px; height: 42px; border-radius: 8px; object-fit: cover; }
+        .header-text h1 { font-size: 1.15rem; font-weight: 700; letter-spacing: -0.01em; }
+        .header-text p { font-size: 0.75rem; color: #aaa; margin-top: 0.1rem; }
+        .header-badge { margin-left: auto; background: rgba(255,255,255,0.1); padding: 0.3rem 0.7rem; border-radius: 6px; font-size: 0.72rem; color: #ccc; backdrop-filter: blur(4px); }
+
+        .container { max-width: 1100px; margin: 0 auto; padding: 1.25rem 1rem 3rem; }
+
+        /* ── Import area ────────────────────────────────────── */
+        .import-area { background: #fff; border: 2px dashed #d1d5db; border-radius: 16px; padding: 2.5rem 1.5rem; text-align: center; margin-bottom: 1.5rem; transition: all 0.25s; }
+        .import-area:hover { border-color: #9ca3af; }
+        .import-area.loaded { border-color: #22c55e; border-style: solid; background: linear-gradient(135deg, #f0fdf4 0%, #ecfdf5 100%); }
+        .import-icon { font-size: 2.5rem; margin-bottom: 0.75rem; }
+        .import-btn { background: linear-gradient(135deg, #2563eb 0%, #1d4ed8 100%); color: #fff; border: none; padding: 0.8rem 2rem; border-radius: 10px; font-size: 1rem; font-weight: 600; cursor: pointer; transition: transform 0.1s, box-shadow 0.2s; box-shadow: 0 2px 8px rgba(37,99,235,0.3); }
+        .import-btn:hover { transform: translateY(-1px); box-shadow: 0 4px 14px rgba(37,99,235,0.4); }
+        .import-btn:active { transform: translateY(0); }
+        .import-info { margin-top: 0.6rem; color: #6b7280; font-size: 0.82rem; }
+        .import-area.loaded .import-icon { font-size: 1.5rem; }
+        .import-area.loaded .import-info { color: #166534; font-weight: 500; }
+
+        /* ── Search ─────────────────────────────────────────── */
+        .search-wrap { position: relative; margin-bottom: 1.25rem; }
+        .search-icon { position: absolute; left: 1rem; top: 50%; transform: translateY(-50%); color: #9ca3af; font-size: 1rem; pointer-events: none; }
+        .search-bar { width: 100%; padding: 0.75rem 1rem 0.75rem 2.6rem; border: 1px solid #e5e7eb; border-radius: 12px; font-size: 0.95rem; background: #fff; transition: border-color 0.2s, box-shadow 0.2s; }
+        .search-bar:focus { outline: none; border-color: #2563eb; box-shadow: 0 0 0 3px rgba(37,99,235,0.1); }
+
+        /* ── Stats ──────────────────────────────────────────── */
+        .stats-row { display: grid; grid-template-columns: repeat(auto-fit, minmax(140px, 1fr)); gap: 0.75rem; margin-bottom: 1.5rem; }
+        .stat-card { background: #fff; border-radius: 12px; padding: 1rem 1.2rem; box-shadow: 0 1px 3px rgba(0,0,0,0.06); border: 1px solid #f3f4f6; }
+        .stat-value { font-size: 1.5rem; font-weight: 800; letter-spacing: -0.02em; }
+        .stat-label { font-size: 0.78rem; color: #6b7280; margin-top: 0.15rem; font-weight: 500; }
+
+        /* ── Client cards ───────────────────────────────────── */
+        .client-list { display: grid; gap: 0.6rem; }
+        .client-card { background: #fff; border-radius: 12px; padding: 1rem 1.2rem; box-shadow: 0 1px 3px rgba(0,0,0,0.06); border: 1px solid #f3f4f6; cursor: pointer; transition: all 0.15s; }
+        .client-card:hover { box-shadow: 0 4px 12px rgba(0,0,0,0.1); border-color: #e5e7eb; transform: translateY(-1px); }
+        .client-header { display: flex; justify-content: space-between; align-items: center; }
+        .client-avatar { width: 38px; height: 38px; border-radius: 50%; background: linear-gradient(135deg, #2563eb, #7c3aed); color: #fff; display: flex; align-items: center; justify-content: center; font-weight: 700; font-size: 0.95rem; flex-shrink: 0; margin-right: 0.8rem; }
+        .client-info-row { display: flex; align-items: center; flex: 1; min-width: 0; }
+        .client-name { font-weight: 600; font-size: 1rem; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+        .client-contact { font-size: 0.78rem; color: #6b7280; margin-top: 0.1rem; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+        .client-badges { display: flex; gap: 0.4rem; flex-wrap: wrap; flex-shrink: 0; }
+        .badge { padding: 0.2rem 0.55rem; border-radius: 6px; font-size: 0.72rem; font-weight: 600; white-space: nowrap; }
+        .badge-credit { background: #dcfce7; color: #166534; }
+        .badge-debt { background: #fef3c7; color: #92400e; }
+        .badge-bonus-ok { background: #e0e7ff; color: #3730a3; }
+        .badge-bonus-used { background: #f3f4f6; color: #9ca3af; }
+        .badge-bookings { background: #f3f4f6; color: #4b5563; }
+
+        /* ── Detail section ─────────────────────────────────── */
+        .detail-section { margin-top: 1rem; border-top: 1px solid #f3f4f6; padding-top: 1rem; }
+        .detail-tabs { display: flex; gap: 0.4rem; margin-bottom: 0.75rem; }
+        .detail-tab { padding: 0.4rem 0.9rem; border-radius: 8px; border: none; background: #f3f4f6; cursor: pointer; font-size: 0.82rem; font-weight: 500; color: #4b5563; transition: all 0.15s; }
+        .detail-tab:hover { background: #e5e7eb; }
+        .detail-tab.active { background: #1a1a1a; color: #fff; }
+
+        .booking-row { display: flex; justify-content: space-between; align-items: center; padding: 0.55rem 0; border-bottom: 1px solid #f9fafb; font-size: 0.85rem; }
+        .booking-row:last-child { border-bottom: none; }
+        .booking-info { display: flex; gap: 0.4rem; align-items: center; flex-wrap: wrap; }
+        .booking-date { font-weight: 600; color: #1a1a1a; }
+        .booking-meta { color: #6b7280; }
+        .booking-status { font-size: 0.75rem; padding: 0.2rem 0.55rem; border-radius: 6px; font-weight: 600; }
+        .status-paid { background: #dcfce7; color: #166534; }
+        .status-unpaid { background: #fef3c7; color: #92400e; }
+        .status-cancelled { background: #fee2e2; color: #991b1b; }
+
+        .tx-row { display: flex; align-items: center; padding: 0.5rem 0; border-bottom: 1px solid #f9fafb; font-size: 0.85rem; gap: 0.5rem; }
+        .tx-row:last-child { border-bottom: none; }
+        .tx-icon { font-size: 1rem; flex-shrink: 0; width: 24px; text-align: center; }
+        .tx-label { flex: 1; min-width: 0; }
+        .tx-label-main { font-weight: 500; }
+        .tx-label-sub { font-size: 0.75rem; color: #9ca3af; }
+        .tx-amount { font-weight: 700; min-width: 75px; text-align: right; font-size: 0.88rem; }
+        .tx-date { color: #9ca3af; font-size: 0.75rem; min-width: 80px; text-align: right; }
+        .tx-pos { color: #16a34a; }
+        .tx-neg { color: #dc2626; }
+        .tx-neutral { color: #9ca3af; }
+
+        .empty { color: #9ca3af; font-style: italic; font-size: 0.85rem; padding: 0.75rem 0; }
+
+        @media (max-width: 640px) {
+            .client-header { flex-direction: column; align-items: flex-start; gap: 0.5rem; }
+            .client-badges { margin-top: 0.2rem; }
+            .header-badge { display: none; }
+            .booking-row { flex-direction: column; align-items: flex-start; gap: 0.3rem; }
+        }
+    </style>
+</head>
+<body>
+    <header class="app-header">
+        <div class="header-inner">
+            <img src="images/logo-tb---nero.jpg" alt="TB" class="header-logo" onerror="this.style.display='none'">
+            <div class="header-text">
+                <h1>Thomas Bresciani</h1>
+                <p>Backup Viewer Offline</p>
+            </div>
+            <div class="header-badge" id="headerBadge">Nessun backup caricato</div>
+        </div>
+    </header>
+
+    <div class="container">
+        <div class="import-area" id="importArea">
+            <div class="import-icon">📂</div>
+            <input type="file" id="fileInput" accept=".json" style="display:none">
+            <button class="import-btn" onclick="document.getElementById('fileInput').click()">Importa backup JSON</button>
+            <div class="import-info" id="importInfo">Carica il file gym-backup-*.json esportato dall'admin</div>
+        </div>
+
+        <div id="content" style="display:none">
+            <div class="stats-row" id="statsRow"></div>
+            <div class="search-wrap">
+                <span class="search-icon">&#128269;</span>
+                <input type="text" class="search-bar" id="searchBar" placeholder="Cerca cliente per nome, email o telefono...">
+            </div>
+            <div class="client-list" id="clientList"></div>
+        </div>
+    </div>
+
+    <script>
+    const SLOT_PRICES = { 'personal-training': 5, 'small-group': 10, 'group-class': 30 };
+    const SLOT_NAMES = { 'personal-training': 'Autonomia', 'small-group': 'Lezione di Gruppo', 'group-class': 'Slot prenotato' };
+    const METHOD_LABELS = { credito: 'Credito', contanti: 'Contanti', carta: 'Carta', iban: 'Bonifico', 'lezione-gratuita': 'Gratuita' };
+
+    let DATA = null;
+
+    document.getElementById('fileInput').addEventListener('change', e => {
+        const file = e.target.files[0];
+        if (!file) return;
+        const reader = new FileReader();
+        reader.onload = ev => {
+            try {
+                const json = JSON.parse(ev.target.result);
+                const raw = json.data || json;
+                DATA = {};
+                for (const [k, v] of Object.entries(raw)) {
+                    try { DATA[k] = JSON.parse(v); } catch { DATA[k] = v; }
+                }
+                document.getElementById('importArea').classList.add('loaded');
+                const d = json.exportedAt ? new Date(json.exportedAt).toLocaleString('it-IT') : '?';
+                document.getElementById('importInfo').innerHTML = `&#10003; Backup del <strong>${d}</strong> caricato`;
+                document.getElementById('importArea').querySelector('.import-icon').textContent = '&#10003;';
+                document.getElementById('headerBadge').textContent = `Backup: ${d}`;
+                document.getElementById('headerBadge').style.color = '#86efac';
+                document.getElementById('content').style.display = 'block';
+                render();
+            } catch (err) {
+                alert('Errore nel file: ' + err.message);
+            }
+        };
+        reader.readAsText(file);
+    });
+
+    document.getElementById('searchBar').addEventListener('input', render);
+
+    function normalizePhone(raw) {
+        if (!raw) return '';
+        let n = raw.replace(/[\s\-().]/g, '');
+        if (n.startsWith('0039')) n = '+39' + n.slice(4);
+        else if (n.startsWith('39') && n[0] !== '+') n = '+' + n;
+        else if (n.startsWith('0')) n = '+39' + n.slice(1);
+        else if (!n.startsWith('+')) n = '+39' + n;
+        return n;
+    }
+
+    function getClients() {
+        if (!DATA) return [];
+        const bookings = Array.isArray(DATA.gym_bookings) ? DATA.gym_bookings : [];
+        const credits = DATA.gym_credits || {};
+        const debts = DATA.gym_manual_debts || {};
+        const bonus = DATA.gym_bonus || {};
+
+        const map = {};
+        function ensure(name, wa, em) {
+            const normWa = normalizePhone(wa);
+            const normEm = (em || '').toLowerCase();
+            const key = `${normEm}||${normWa}`;
+            if (!map[key]) map[key] = { name: name || '', whatsapp: normWa, email: normEm, bookings: [], creditBalance: 0, creditHistory: [], debtBalance: 0, debtHistory: [], bonusValue: 1 };
+            if (name && (!map[key].name || map[key].name.length < name.length)) map[key].name = name;
+            return map[key];
+        }
+
+        bookings.filter(b => b.email && !b.id?.startsWith('demo-')).forEach(b => ensure(b.name, b.whatsapp, b.email).bookings.push(b));
+        Object.values(credits).forEach(r => { const c = ensure(r.name, r.whatsapp, r.email); c.creditBalance = r.balance || 0; c.creditHistory = r.history || []; });
+        Object.values(debts).forEach(r => { const c = ensure(r.name, r.whatsapp, r.email); c.debtBalance = r.balance || 0; c.debtHistory = r.history || []; });
+        Object.values(bonus).forEach(r => { const c = ensure(r.name, r.whatsapp, r.email); c.bonusValue = r.bonus ?? 1; });
+
+        for (const c of Object.values(map)) {
+            c.bookingDebt = c.bookings.filter(b => !b.paid && b.status !== 'cancelled').reduce((s, b) => s + (SLOT_PRICES[b.slotType] || 0) - (b.creditApplied || 0), 0);
+            c.totalDebt = c.bookingDebt + c.debtBalance;
+            c.bookings.sort((a, b) => (b.date || '').localeCompare(a.date || '') || (b.time || '').localeCompare(a.time || ''));
+        }
+        return Object.values(map).sort((a, b) => a.name.localeCompare(b.name));
+    }
+
+    function render() {
+        const query = (document.getElementById('searchBar').value || '').toLowerCase().trim();
+        let clients = getClients();
+        if (query) clients = clients.filter(c => c.name.toLowerCase().includes(query) || c.email.includes(query) || c.whatsapp.includes(query));
+
+        const totalClients = clients.length;
+        const totalBookings = clients.reduce((s, c) => s + c.bookings.length, 0);
+        const totalCredit = clients.reduce((s, c) => s + c.creditBalance, 0);
+        const totalDebt = clients.reduce((s, c) => s + c.totalDebt, 0);
+
+        document.getElementById('statsRow').innerHTML = [
+            stat(totalClients, 'Clienti', '#1a1a1a'),
+            stat(totalBookings, 'Prenotazioni', '#2563eb'),
+            stat(`&euro;${totalCredit.toFixed(2)}`, 'Crediti totali', '#16a34a'),
+            stat(`&euro;${totalDebt.toFixed(2)}`, 'Debiti totali', '#dc2626'),
+        ].join('');
+
+        document.getElementById('clientList').innerHTML = clients.map((c, i) => {
+            const initial = (c.name || '?')[0].toUpperCase();
+            const badges = [];
+            if (c.creditBalance > 0) badges.push(`<span class="badge badge-credit">&euro;${c.creditBalance.toFixed(2)} credito</span>`);
+            if (c.totalDebt > 0) badges.push(`<span class="badge badge-debt">&euro;${c.totalDebt.toFixed(2)} da pagare</span>`);
+            badges.push(`<span class="badge ${c.bonusValue > 0 ? 'badge-bonus-ok' : 'badge-bonus-used'}">${c.bonusValue}/1 bonus</span>`);
+            badges.push(`<span class="badge badge-bookings">${c.bookings.length} pren.</span>`);
+
+            return `<div class="client-card" onclick="toggleDetail(${i})">
+                <div class="client-header">
+                    <div class="client-info-row">
+                        <div class="client-avatar">${initial}</div>
+                        <div style="min-width:0">
+                            <div class="client-name">${esc(c.name) || '(senza nome)'}</div>
+                            <div class="client-contact">${esc(c.email)}${c.whatsapp ? ' &middot; ' + esc(c.whatsapp) : ''}</div>
+                        </div>
+                    </div>
+                    <div class="client-badges">${badges.join('')}</div>
+                </div>
+                <div class="detail-section" id="detail-${i}" style="display:none"></div>
+            </div>`;
+        }).join('');
+    }
+
+    function stat(val, label, color) {
+        return `<div class="stat-card"><div class="stat-value" style="color:${color}">${val}</div><div class="stat-label">${label}</div></div>`;
+    }
+
+    function toggleDetail(idx) {
+        const el = document.getElementById('detail-' + idx);
+        if (el.style.display !== 'none') { el.style.display = 'none'; return; }
+        el.style.display = 'block';
+        el.dataset.tab = 'bookings';
+        renderDetail(idx);
+    }
+
+    function switchTab(idx, tab) {
+        document.getElementById('detail-' + idx).dataset.tab = tab;
+        renderDetail(idx);
+        event.stopPropagation();
+    }
+
+    function renderDetail(idx) {
+        const c = getClients()[idx];
+        if (!c) return;
+        const el = document.getElementById('detail-' + idx);
+        const tab = el.dataset.tab || 'bookings';
+
+        const tabs = `<div class="detail-tabs">
+            <button class="detail-tab ${tab === 'bookings' ? 'active' : ''}" onclick="switchTab(${idx},'bookings')">Prenotazioni</button>
+            <button class="detail-tab ${tab === 'transactions' ? 'active' : ''}" onclick="switchTab(${idx},'transactions')">Transazioni</button>
+        </div>`;
+
+        let content = '';
+        if (tab === 'bookings') {
+            if (!c.bookings.length) { content = '<div class="empty">Nessuna prenotazione</div>'; }
+            else {
+                content = c.bookings.map(b => {
+                    const slot = SLOT_NAMES[b.slotType] || b.slotType || '?';
+                    const [y, m, d] = (b.date || '').split('-');
+                    const dt = d ? `${d}/${m}/${y}` : b.date;
+                    let cls = 'status-unpaid', txt = 'Da pagare';
+                    if (b.status === 'cancelled') { cls = 'status-cancelled'; txt = 'Annullata'; }
+                    else if (b.paid) { cls = 'status-paid'; txt = METHOD_LABELS[b.paymentMethod] || 'Pagata'; }
+                    return `<div class="booking-row">
+                        <div class="booking-info"><span class="booking-date">${dt}</span><span class="booking-meta">${b.time || ''} &middot; ${slot}</span></div>
+                        <span class="booking-status ${cls}">${txt}</span>
+                    </div>`;
+                }).join('');
+            }
+        } else {
+            const entries = [];
+            c.bookings.filter(b => b.paid).forEach(b => {
+                const price = SLOT_PRICES[b.slotType] || 0;
+                const isFree = b.paymentMethod === 'lezione-gratuita';
+                if (price <= 0 && !isFree) return;
+                entries.push({ date: new Date(b.paidAt || `${b.date}T12:00:00`), icon: '&#127947;', label: SLOT_NAMES[b.slotType] || b.slotType, sub: METHOD_LABELS[b.paymentMethod] || '', amount: isFree ? 0 : -price, isFree });
+            });
+            c.creditHistory.filter(e => e.amount > 0 || (e.amount === 0 && (e.displayAmount || 0) > 0)).forEach(e => {
+                entries.push({ date: new Date(e.date), icon: '&#128179;', label: (e.note || 'Credito aggiunto').replace(/^[^\w\s]\s*/, '').replace(/\s+ricevuto$/i, ''), sub: '', amount: e.displayAmount ?? e.amount });
+            });
+            c.bookings.filter(b => b.cancelledWithBonus && b.status === 'cancelled').forEach(b => {
+                entries.push({ date: new Date(b.cancelledAt || `${b.date}T12:00:00`), icon: '&#127915;', label: `Bonus utilizzato - ${SLOT_NAMES[b.slotType] || b.slotType}`, sub: '', amount: 0, isFree: true });
+            });
+            c.debtHistory.filter(e => e.amount > 0).forEach(e => {
+                entries.push({ date: new Date(e.date), icon: '&#9888;', label: e.note || 'Addebito', sub: '', amount: -e.amount });
+            });
+            entries.sort((a, b) => b.date - a.date);
+            if (!entries.length) { content = '<div class="empty">Nessuna transazione</div>'; }
+            else {
+                content = entries.map(e => {
+                    const sign = e.isFree ? '' : (e.amount < 0 ? '-' : '+');
+                    const cls = e.isFree ? 'tx-neutral' : (e.amount > 0 ? 'tx-pos' : 'tx-neg');
+                    const fd = `${String(e.date.getDate()).padStart(2,'0')}/${String(e.date.getMonth()+1).padStart(2,'0')}/${e.date.getFullYear()}`;
+                    return `<div class="tx-row">
+                        <div class="tx-icon">${e.icon}</div>
+                        <div class="tx-label"><div class="tx-label-main">${esc(e.label)}</div>${e.sub ? `<div class="tx-label-sub">${esc(e.sub)}</div>` : ''}</div>
+                        <div class="tx-amount ${cls}">${sign}&euro;${Math.abs(e.amount).toFixed(2)}</div>
+                        <div class="tx-date">${fd}</div>
+                    </div>`;
+                }).join('');
+            }
+        }
+        el.innerHTML = tabs + content;
+    }
+
+    function esc(s) { if (!s) return ''; const d = document.createElement('div'); d.textContent = s; return d.innerHTML; }
+    </script>
+</body>
+</html>
