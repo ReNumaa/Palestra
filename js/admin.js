@@ -2450,6 +2450,7 @@ function createDebtorCard(debtor, cardId) {
                     <option value="contanti">💵 Contanti</option>
                     <option value="carta">💳 Carta</option>
                     <option value="iban">🏦 Bonifico</option>
+                    <option value="lezione-gratuita">🎁 Gratuita</option>
                 </select>
                 <button class="btn-pay-all" onclick="payAllDebtsInline('${safeW}', '${safeE}', '${safeN}', this)">✓ Incassa tutto</button>
             </div>
