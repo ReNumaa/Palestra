@@ -112,6 +112,35 @@ function getWeekDates(offset = 0) {
     return dates;
 }
 
+// Desktop: mostra Lunedì-Venerdì della settimana corrente
+function getWeekDatesDesktop(offset = 0) {
+    const now = new Date();
+    const today = new Date(now);
+    today.setHours(0, 0, 0, 0);
+
+    // Trova il lunedì della settimana corrente
+    const dayOfWeek = today.getDay(); // 0=Dom, 1=Lun, ..., 6=Sab
+    const diffToMonday = dayOfWeek === 0 ? -6 : 1 - dayOfWeek;
+    const monday = new Date(today);
+    monday.setDate(today.getDate() + diffToMonday + offset * 7);
+
+    const allDayNames = ['Domenica', 'Lunedì', 'Martedì', 'Mercoledì', 'Giovedì', 'Venerdì', 'Sabato'];
+    const dates = [];
+
+    for (let i = 0; i < 5; i++) { // Lun-Ven = 5 giorni
+        const date = new Date(monday);
+        date.setDate(monday.getDate() + i);
+        dates.push({
+            date: date,
+            dayName: allDayNames[date.getDay()],
+            formatted: formatDate(date),
+            displayDate: `${date.getDate()}/${date.getMonth() + 1}`
+        });
+    }
+
+    return dates;
+}
+
 function formatDate(date) {
     const year = date.getFullYear();
     const month = String(date.getMonth() + 1).padStart(2, '0');
@@ -124,8 +153,13 @@ function weekHasSlots(offset) {
     return getWeekDates(offset).some(d => overrides[d.formatted] && overrides[d.formatted].length > 0);
 }
 
+function weekHasSlotsDesktop(offset) {
+    const overrides = BookingStorage.getScheduleOverrides();
+    return getWeekDatesDesktop(offset).some(d => overrides[d.formatted] && overrides[d.formatted].length > 0);
+}
+
 function renderCalendar() {
-    const weekDates = getWeekDates(currentWeekOffset);
+    const weekDates = getWeekDatesDesktop(currentWeekOffset);
     const calendarGrid = document.getElementById('calendar');
     calendarGrid.innerHTML = '';
 
@@ -137,14 +171,14 @@ function renderCalendar() {
 
     // Disable "next" button when the next week has no configured slots
     const nextBtn = document.getElementById('nextWeek');
-    const nextHasSlots = weekHasSlots(currentWeekOffset + 1);
+    const nextHasSlots = weekHasSlotsDesktop(currentWeekOffset + 1);
     nextBtn.disabled = !nextHasSlots;
     nextBtn.style.opacity = nextHasSlots ? '1' : '0.3';
     nextBtn.style.cursor = nextHasSlots ? 'pointer' : 'not-allowed';
 
     // Update week display
     const firstDate = weekDates[0].date;
-    const lastDate = weekDates[6].date;
+    const lastDate = weekDates[weekDates.length - 1].date;
     document.getElementById('currentWeek').textContent =
         `${firstDate.getDate()}/${firstDate.getMonth() + 1} - ${lastDate.getDate()}/${lastDate.getMonth() + 1}/${lastDate.getFullYear()}`;
 
