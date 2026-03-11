@@ -1881,6 +1881,28 @@ class BonusStorage {
         return record.bonus ?? 1;
     }
 
+    static async syncFromSupabase() {
+        if (typeof supabaseClient === 'undefined') return;
+        try {
+            const { data, error } = await supabaseClient
+                .from('bonuses')
+                .select('name, whatsapp, email, bonus, last_reset_month');
+            if (error) { console.error('[Supabase] BonusStorage.syncFromSupabase error:', error.message); return; }
+            const all = {};
+            (data || []).forEach(r => {
+                const key = `${normalizePhone(r.whatsapp) || ''}||${(r.email || '').toLowerCase()}`;
+                all[key] = {
+                    name:           r.name || '',
+                    whatsapp:       normalizePhone(r.whatsapp) || '',
+                    email:          (r.email || '').toLowerCase(),
+                    bonus:          r.bonus ?? 1,
+                    lastResetMonth: r.last_reset_month || null,
+                };
+            });
+            _lsSet(this.BONUS_KEY, JSON.stringify(all));
+        } catch (e) { console.error('[Supabase] BonusStorage.syncFromSupabase exception:', e); }
+    }
+
     // Consume the bonus (1 → 0)
     static useBonus(whatsapp, email, name) {
         const all       = this._getAll();

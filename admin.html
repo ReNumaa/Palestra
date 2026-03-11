@@ -719,7 +719,7 @@
     <script src="js/supabase-client.js?v=1"></script>
     <script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
     <script src="js/ui.js?v=2"></script>
-    <script src="js/data.js?v=48"></script>
+    <script src="js/data.js?v=49"></script>
     <script src="js/auth.js?v=18"></script>
     <script src="js/push.js?v=11"></script>
     <script src="js/chart-mini.js?v=12"></script>
@@ -739,56 +739,40 @@
             if (typeof renderAdminCalendar === 'function') renderAdminCalendar();
             if (typeof renderScheduleManager === 'function') renderScheduleManager();
 
-            // Supabase Realtime: aggiorna dashboard e calendario admin in tempo reale
+            // Supabase Realtime: un unico handler debounced che sincronizza TUTTO
+            // evita race condition tra canali separati (es. bookings si aggiorna ma credits no)
             if (typeof supabaseClient !== 'undefined') {
-                supabaseClient
-                    .channel('bookings-rt-admin')
-                    .on('postgres_changes', { event: '*', schema: 'public', table: 'bookings' }, async () => {
-                        await BookingStorage.syncFromSupabase();
+                let _adminRtTimer = null;
+                function _adminDebouncedSync() {
+                    clearTimeout(_adminRtTimer);
+                    _adminRtTimer = setTimeout(async () => {
+                        await Promise.all([
+                            BookingStorage.syncFromSupabase(),
+                            BookingStorage.syncAppSettingsFromSupabase(),
+                            UserStorage.syncUsersFromSupabase(),
+                            ManualDebtStorage.syncFromSupabase(),
+                            CreditStorage.syncFromSupabase(),
+                            BonusStorage.syncFromSupabase(),
+                        ]);
                         if (typeof loadDashboardData === 'function') loadDashboardData();
                         if (typeof renderAdminCalendar === 'function') renderAdminCalendar();
                         if (typeof renderAdminDayView === 'function' && typeof selectedAdminDay !== 'undefined' && selectedAdminDay) renderAdminDayView(selectedAdminDay);
-                    })
-                    .subscribe();
-
-                supabaseClient
-                    .channel('appsettings-rt-admin')
-                    .on('postgres_changes', { event: '*', schema: 'public', table: 'app_settings' }, async () => {
-                        await BookingStorage.syncAppSettingsFromSupabase();
-                        if (typeof loadDashboardData === 'function') loadDashboardData();
-                        if (typeof renderClientsTab === 'function') renderClientsTab();
-                        if (typeof renderPaymentsTab === 'function') renderPaymentsTab();
-                    })
-                    .subscribe();
-
-                supabaseClient
-                    .channel('profiles-rt-admin')
-                    .on('postgres_changes', { event: '*', schema: 'public', table: 'profiles' }, async () => {
-                        await UserStorage.syncUsersFromSupabase();
-                        if (typeof renderClientsTab === 'function') renderClientsTab();
-                    })
-                    .subscribe();
-
-                // Realtime debiti manuali e crediti: aggiorna badge "Da pagare" sulle card
-                const _rtDebtCreditSync = async () => {
-                    await Promise.all([
-                        ManualDebtStorage.syncFromSupabase(),
-                        CreditStorage.syncFromSupabase(),
-                    ]);
-                    if (typeof renderAdminCalendar === 'function') renderAdminCalendar();
-                    if (typeof renderAdminDayView === 'function' && typeof selectedAdminDay !== 'undefined' && selectedAdminDay) renderAdminDayView(selectedAdminDay);
-                    if (typeof renderPaymentsTab === 'function') {
                         const activeTab = document.querySelector('.admin-tab.active');
-                        if (activeTab && activeTab.dataset.tab === 'payments') renderPaymentsTab();
-                    }
-                };
+                        if (activeTab) {
+                            if (activeTab.dataset.tab === 'payments' && typeof renderPaymentsTab === 'function') renderPaymentsTab();
+                            if (activeTab.dataset.tab === 'clients' && typeof renderClientsTab === 'function') renderClientsTab();
+                        }
+                    }, 600);
+                }
                 supabaseClient
-                    .channel('debts-rt-admin')
-                    .on('postgres_changes', { event: '*', schema: 'public', table: 'manual_debts' }, _rtDebtCreditSync)
-                    .subscribe();
-                supabaseClient
-                    .channel('credits-rt-admin')
-                    .on('postgres_changes', { event: '*', schema: 'public', table: 'credits' }, _rtDebtCreditSync)
+                    .channel('admin-rt')
+                    .on('postgres_changes', { event: '*', schema: 'public', table: 'bookings' }, _adminDebouncedSync)
+                    .on('postgres_changes', { event: '*', schema: 'public', table: 'app_settings' }, _adminDebouncedSync)
+                    .on('postgres_changes', { event: '*', schema: 'public', table: 'profiles' }, _adminDebouncedSync)
+                    .on('postgres_changes', { event: '*', schema: 'public', table: 'manual_debts' }, _adminDebouncedSync)
+                    .on('postgres_changes', { event: '*', schema: 'public', table: 'credits' }, _adminDebouncedSync)
+                    .on('postgres_changes', { event: '*', schema: 'public', table: 'credit_history' }, _adminDebouncedSync)
+                    .on('postgres_changes', { event: '*', schema: 'public', table: 'bonuses' }, _adminDebouncedSync)
                     .subscribe();
             }
         })();
