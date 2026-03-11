@@ -615,31 +615,104 @@
         }
 
         // ── Annullamento diretto (> 24h prima) ───────────────────────────
-        function cancelDirect(id) {
+        async function cancelDirect(id) {
             const booking = BookingStorage.getAllBookings().find(b => b.id === id);
             if (!booking) return;
             if (booking.slotType === 'group-class') {
                 const msg = 'Confermare l\'annullamento?\n\n' +
                     'La prenotazione sarà annullata e lo slot diventerà una Lezione di Gruppo aperta al pubblico.';
                 if (!confirm(msg)) return;
-                BookingStorage.cancelAndConvertSlot(id);
             } else {
                 if (!confirm('Confermare l\'annullamento della prenotazione?')) return;
-                BookingStorage.cancelDirectly(id);
+            }
+
+            if (typeof supabaseClient !== 'undefined' && booking._sbId) {
+                const wasPaid = booking.paid || (booking.creditApplied || 0) > 0;
+                const price = SLOT_PRICES[booking.slotType] || 0;
+                const creditToRefund = wasPaid
+                    ? ((booking.creditApplied || 0) > 0 ? booking.creditApplied : price)
+                    : 0;
+                try {
+                    const { data, error } = await supabaseClient.rpc('cancel_booking_with_refund', {
+                        p_booking_id:    booking._sbId,
+                        p_credit_amount: creditToRefund,
+                        p_credit_note:   creditToRefund > 0 ? `Rimborso annullamento ${booking.date} ${booking.time}` : '',
+                    });
+                    if (error) {
+                        console.error('[cancelDirect] RPC error:', error.message);
+                        alert('⚠️ Errore: ' + error.message);
+                        return;
+                    }
+                    if (data && !data.success) {
+                        alert('⚠️ ' + (data.error || 'Errore sconosciuto'));
+                        return;
+                    }
+                    await Promise.all([
+                        BookingStorage.syncFromSupabase(),
+                        CreditStorage.syncFromSupabase(),
+                    ]);
+                } catch (e) {
+                    console.error('[cancelDirect] exception:', e);
+                    alert('⚠️ Errore di rete. Riprova.');
+                    return;
+                }
+            } else {
+                if (booking.slotType === 'group-class') {
+                    BookingStorage.cancelAndConvertSlot(id);
+                } else {
+                    BookingStorage.cancelDirectly(id);
+                }
             }
             if (typeof notifySlotAvailable === 'function') notifySlotAvailable(booking);
             renderPrenoList();
+            renderCreditBalance();
         }
 
         // ── Annullamento con bonus (slot non annullabile) ─────────────────
-        function cancelWithBonus(id) {
+        async function cancelWithBonus(id) {
             const booking = BookingStorage.getAllBookings().find(b => b.id === id);
             if (!booking) return;
             const msg = 'Vuoi usare il tuo bonus mensile per annullare questa prenotazione?\n\n' +
                 '• Il bonus verrà consumato (disponibile di nuovo il mese prossimo).\n' +
                 '• Il credito eventualmente pagato ti verrà rimborsato.';
             if (!confirm(msg)) return;
-            BookingStorage.cancelWithBonus(id);
+
+            if (typeof supabaseClient !== 'undefined' && booking._sbId) {
+                const wasPaid = booking.paid || (booking.creditApplied || 0) > 0;
+                const price = SLOT_PRICES[booking.slotType] || 0;
+                const creditToRefund = wasPaid
+                    ? ((booking.creditApplied || 0) > 0 ? booking.creditApplied : price)
+                    : 0;
+                try {
+                    const { data, error } = await supabaseClient.rpc('cancel_booking_with_refund', {
+                        p_booking_id:    booking._sbId,
+                        p_credit_amount: creditToRefund,
+                        p_credit_note:   creditToRefund > 0 ? `Rimborso annullamento ${booking.date} ${booking.time}` : '',
+                        p_use_bonus:     true,
+                        p_with_bonus:    true,
+                    });
+                    if (error) {
+                        console.error('[cancelWithBonus] RPC error:', error.message);
+                        alert('⚠️ Errore: ' + error.message);
+                        return;
+                    }
+                    if (data && !data.success) {
+                        alert('⚠️ ' + (data.error || 'Errore sconosciuto'));
+                        return;
+                    }
+                    await Promise.all([
+                        BookingStorage.syncFromSupabase(),
+                        CreditStorage.syncFromSupabase(),
+                        BonusStorage.syncFromSupabase(),
+                    ]);
+                } catch (e) {
+                    console.error('[cancelWithBonus] exception:', e);
+                    alert('⚠️ Errore di rete. Riprova.');
+                    return;
+                }
+            } else {
+                BookingStorage.cancelWithBonus(id);
+            }
             if (typeof notifySlotAvailable === 'function') notifySlotAvailable(booking);
             renderPrenoList();
             renderCreditBalance();
@@ -695,12 +768,32 @@
         }
 
         // ── Richiesta annullamento (ultime 24h) ───────────────────────────
-        function requestCancellation(id) {
+        async function requestCancellation(id) {
             const msg = 'Richiedere l\'annullamento?\n\n' +
                 '• Se qualcuno prenota al tuo posto, la prenotazione sarà annullata.\n' +
                 '• Se entro 2 ore dalla lezione nessuno ha preso il tuo posto, l\'annullamento viene negato e dovrai presentarti.';
             if (!confirm(msg)) return;
-            BookingStorage.requestCancellation(id);
+
+            const booking = BookingStorage.getAllBookings().find(b => b.id === id);
+            if (typeof supabaseClient !== 'undefined' && booking?._sbId) {
+                try {
+                    const { error } = await supabaseClient.rpc('user_request_cancellation', {
+                        p_booking_id: booking._sbId,
+                    });
+                    if (error) {
+                        console.error('[requestCancellation] RPC error:', error.message);
+                        alert('⚠️ Errore: ' + error.message);
+                        return;
+                    }
+                    await BookingStorage.syncFromSupabase();
+                } catch (e) {
+                    console.error('[requestCancellation] exception:', e);
+                    alert('⚠️ Errore di rete. Riprova.');
+                    return;
+                }
+            } else {
+                BookingStorage.requestCancellation(id);
+            }
             renderPrenoList();
         }
 
