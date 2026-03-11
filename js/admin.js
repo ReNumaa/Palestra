@@ -3498,6 +3498,7 @@ function createClientCard(client, index) {
                     <div class="client-edit-actions">
                         <button class="btn-save-edit"   onclick="saveClientEdit(${index}, '${wEsc}', '${emEsc}')">✓ Salva</button>
                         <button class="btn-cancel-edit" onclick="cancelClientEdit(${index})">✕ Annulla</button>
+                        <button class="btn-delete-client" onclick="deleteClientData(${index}, '${wEsc}', '${emEsc}')" title="Elimina tutti i dati del cliente">🗑️</button>
                     </div>
                 </div>
             </div>
@@ -3656,6 +3657,75 @@ function saveClientEdit(index, oldWhatsapp, oldEmail) {
 
     // Profilo locale + cert/assic + sessione
     _saveClientEditLocalProfile(index, oldWhatsapp, oldEmail, newName, newWhatsapp, newEmail, newCert, newAssic, normOld, normNewPhone);
+}
+
+async function deleteClientData(index, whatsapp, email) {
+    const pwd = prompt('Inserisci la password per eliminare tutti i dati del cliente:');
+    if (pwd !== 'Palestra123') {
+        if (pwd !== null) alert('Password errata.');
+        return;
+    }
+
+    const clients = _getClientsForDisplay();
+    const client = clients[index];
+    if (!client) return;
+    const clientEmail = (client.email || email || '').toLowerCase();
+    const clientPhone = normalizePhone(client.whatsapp || whatsapp || '');
+    const clientName = client.name || '';
+
+    if (!confirm(`Confermi l'eliminazione di TUTTI i dati di ${clientName}?\n\nPrenotazioni, crediti, debiti e bonus verranno eliminati permanentemente.`)) return;
+
+    // 1. Elimina prenotazioni
+    const allBookings = BookingStorage.getAllBookings();
+    const kept = allBookings.filter(b => {
+        if (clientEmail && b.email?.toLowerCase() === clientEmail) return false;
+        if (clientPhone && b.whatsapp && normalizePhone(b.whatsapp) === clientPhone) return false;
+        return true;
+    });
+    const removedBookings = allBookings.length - kept.length;
+    BookingStorage.replaceAllBookings(kept);
+
+    // 2. Elimina crediti
+    const credits = CreditStorage._getAll();
+    let removedCredits = false;
+    for (const key of Object.keys(credits)) {
+        const c = credits[key];
+        if (clientEmail && (c.email || '').toLowerCase() === clientEmail) { delete credits[key]; removedCredits = true; }
+        else if (clientPhone && key === clientPhone) { delete credits[key]; removedCredits = true; }
+    }
+    if (removedCredits) localStorage.setItem(CreditStorage.CREDITS_KEY, JSON.stringify(credits));
+
+    // 3. Elimina debiti
+    const debts = ManualDebtStorage._getAll();
+    let removedDebts = false;
+    for (const key of Object.keys(debts)) {
+        const d = debts[key];
+        if (clientEmail && (d.email || '').toLowerCase() === clientEmail) { delete debts[key]; removedDebts = true; }
+        else if (clientPhone && key === clientPhone) { delete debts[key]; removedDebts = true; }
+    }
+    if (removedDebts) localStorage.setItem(ManualDebtStorage.DEBTS_KEY, JSON.stringify(debts));
+
+    // 4. Elimina bonus
+    const bonuses = BonusStorage._getAll();
+    let removedBonus = false;
+    for (const key of Object.keys(bonuses)) {
+        const bn = bonuses[key];
+        if (clientEmail && (bn.email || '').toLowerCase() === clientEmail) { delete bonuses[key]; removedBonus = true; }
+        else if (clientPhone && key === clientPhone) { delete bonuses[key]; removedBonus = true; }
+    }
+    if (removedBonus) localStorage.setItem(BonusStorage.BONUS_KEY, JSON.stringify(bonuses));
+
+    // 5. Supabase: elimina dati dal DB via RPC admin
+    if (typeof supabaseClient !== 'undefined' && clientEmail) {
+        try {
+            const { data, error } = await supabaseClient.rpc('admin_delete_client_data', { p_email: clientEmail });
+            if (error) console.error('[deleteClientData] RPC error:', error.message);
+            else console.log('[deleteClientData] Supabase:', data);
+        } catch (e) { console.error('[deleteClientData] Supabase error:', e); }
+    }
+
+    showToast(`Dati di ${clientName} eliminati (${removedBookings} prenotazioni rimosse).`, 'success');
+    renderClientList();
 }
 
 function startEditBookingRow(bookingId, clientIndex) {
