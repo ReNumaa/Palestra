@@ -174,7 +174,7 @@
     <script src="js/supabase-client.js?v=1"></script>
     <script src="js/ui.js?v=2"></script>
     <script src="js/data.js?v=48"></script>
-    <script src="js/auth.js?v=17"></script>
+    <script src="js/auth.js?v=18"></script>
     <script src="js/push.js?v=11"></script>
     <script>
         // ── Guard async: aspetta la sessione Supabase prima di controllare ─
@@ -278,6 +278,21 @@
         // Avvio: aspetta la sessione Supabase, poi controlla il guard e inizializza
         async function _boot() {
             await initAuth();
+            // Se la sessione non è pronta (cold start PWA, token scaduto), riprova una volta
+            // prima di redirigere: il refresh del token potrebbe essere ancora in corso.
+            if (!getCurrentUser()) {
+                await new Promise(r => setTimeout(r, 2000));
+                const { data } = await supabaseClient.auth.getSession();
+                if (data.session) {
+                    await _loadProfile(data.session.user.id);
+                } else {
+                    try {
+                        const { data: refreshed } = await supabaseClient.auth.refreshSession();
+                        if (refreshed.session) await _loadProfile(refreshed.session.user.id);
+                    } catch {}
+                }
+                updateNavAuth();
+            }
             if (!getCurrentUser()) { window.location.href = 'login.html'; return; }
             await Promise.all([
                 BookingStorage.syncFromSupabase(),
@@ -299,6 +314,13 @@
         window.addEventListener('pageshow', async (e) => {
             if (!e.persisted) return;
             await initAuth();
+            if (!getCurrentUser()) {
+                await new Promise(r => setTimeout(r, 2000));
+                try {
+                    const { data: refreshed } = await supabaseClient.auth.refreshSession();
+                    if (refreshed.session) { await _loadProfile(refreshed.session.user.id); updateNavAuth(); }
+                } catch {}
+            }
             if (!getCurrentUser()) { window.location.href = 'login.html'; return; }
             await Promise.all([
                 BookingStorage.syncFromSupabase(),

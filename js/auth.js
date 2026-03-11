@@ -68,15 +68,21 @@ async function initAuth() {
                 resolve(session);
             }
         });
-        // Fallback: se INITIAL_SESSION non arriva entro 4s, usa getSession()
+        // Fallback: se INITIAL_SESSION non arriva entro 6s, usa getSession()
+        // (su cold start mobile con token scaduto il refresh può impiegare più tempo)
         setTimeout(async () => {
             if (!resolved) {
                 resolved = true;
                 subscription.unsubscribe();
                 const { data } = await supabaseClient.auth.getSession();
-                resolve(data.session);
+                if (data.session) { resolve(data.session); return; }
+                // Ultimo tentativo: forza refresh del token se c'è una sessione scaduta in storage
+                try {
+                    const { data: refreshed, error } = await supabaseClient.auth.refreshSession();
+                    resolve(error ? null : refreshed.session);
+                } catch { resolve(null); }
             }
-        }, 4000);
+        }, 6000);
     });
 
     if (session) {
@@ -119,6 +125,28 @@ async function initAuth() {
                 window._currentUser = null;
                 sessionStorage.removeItem('adminAuth');
             }
+            updateNavAuth();
+        });
+    }
+
+    // Quando l'app PWA torna in foreground dopo un periodo in background,
+    // ri-valida la sessione (il token potrebbe essere scaduto e serve un refresh).
+    if (!window._visibilityAuthActive) {
+        window._visibilityAuthActive = true;
+        document.addEventListener('visibilitychange', async () => {
+            if (document.hidden) return;
+            try {
+                const { data } = await supabaseClient.auth.getSession();
+                if (data.session) {
+                    await _loadProfile(data.session.user.id);
+                } else {
+                    // Tenta refresh esplicito — il token potrebbe essere appena scaduto
+                    const { data: refreshed } = await supabaseClient.auth.refreshSession();
+                    if (refreshed.session) {
+                        await _loadProfile(refreshed.session.user.id);
+                    }
+                }
+            } catch { /* rete assente — mantieni stato corrente */ }
             updateNavAuth();
         });
     }
