@@ -142,10 +142,59 @@
         reader.onload = ev => {
             try {
                 const json = JSON.parse(ev.target.result);
-                const raw = json.data || json;
+
+                // Detect format: admin export (json.data with localStorage keys) vs cron backup (json.tables with Supabase tables)
                 DATA = {};
-                for (const [k, v] of Object.entries(raw)) {
-                    try { DATA[k] = JSON.parse(v); } catch { DATA[k] = v; }
+                if (json.tables) {
+                    // ── Cron/Supabase format → convert to viewer format ──
+                    const t = json.tables;
+
+                    // Bookings: map Supabase columns to localStorage format
+                    DATA.gym_bookings = (t.bookings || []).map(r => ({
+                        id: r.local_id || r.id, userId: r.user_id, date: r.date, time: r.time,
+                        slotType: r.slot_type, name: r.name, email: r.email, whatsapp: r.whatsapp,
+                        notes: r.notes || '', status: r.status, paid: r.paid || false,
+                        paymentMethod: r.payment_method, paidAt: r.paid_at,
+                        creditApplied: r.credit_applied || 0, createdAt: r.created_at,
+                        cancelledAt: r.cancelled_at, cancelledWithBonus: r.cancelled_with_bonus || false,
+                        cancelledWithPenalty: r.cancelled_with_penalty || false,
+                    }));
+
+                    // Credits: key by normalized phone||email
+                    const creds = {};
+                    (t.credits || []).forEach(r => {
+                        const key = `${normalizePhone(r.whatsapp) || ''}||${(r.email || '').toLowerCase()}`;
+                        creds[key] = { name: r.name, whatsapp: r.whatsapp || '', email: r.email || '', balance: r.balance || 0, freeBalance: r.free_balance || 0, history: [] };
+                    });
+                    // Attach credit_history entries
+                    (t.credit_history || []).forEach(h => {
+                        const em = (h.email || (h.credit_id ? '' : '')).toLowerCase();
+                        const entry = Object.values(creds).find(c => c.email === em || c.name === h.name);
+                        if (entry) entry.history.push({ date: h.created_at, amount: h.amount || 0, displayAmount: h.display_amount ?? h.amount, note: h.note || '' });
+                    });
+                    DATA.gym_credits = creds;
+
+                    // Manual debts
+                    const debts = {};
+                    (t.manual_debts || []).forEach(r => {
+                        const key = `${normalizePhone(r.whatsapp) || ''}||${(r.email || '').toLowerCase()}`;
+                        debts[key] = { name: r.name, whatsapp: r.whatsapp || '', email: r.email || '', balance: r.balance || 0, history: r.history || [] };
+                    });
+                    DATA.gym_manual_debts = debts;
+
+                    // Bonuses
+                    const bon = {};
+                    (t.bonuses || []).forEach(r => {
+                        const key = `${normalizePhone(r.whatsapp) || ''}||${(r.email || '').toLowerCase()}`;
+                        bon[key] = { name: r.name, whatsapp: r.whatsapp || '', email: r.email || '', bonus: r.bonus ?? 1, lastResetMonth: r.last_reset_month };
+                    });
+                    DATA.gym_bonus = bon;
+                } else {
+                    // ── Admin export format (localStorage keys) ──
+                    const raw = json.data || json;
+                    for (const [k, v] of Object.entries(raw)) {
+                        try { DATA[k] = JSON.parse(v); } catch { DATA[k] = v; }
+                    }
                 }
                 document.getElementById('importArea').classList.add('loaded');
                 const d = json.exportedAt ? new Date(json.exportedAt).toLocaleString('it-IT') : '?';
