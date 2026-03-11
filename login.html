@@ -457,8 +457,17 @@
                 return;
             }
 
+            // Controlla se il numero è già usato da un altro utente
             setLoading(btn, true, 'Salvataggio...');
             const { name, email, userId } = window._pendingOAuthUser;
+
+            const { data: taken } = await supabaseClient.rpc('is_whatsapp_taken', { phone: whatsapp, exclude_user_id: userId });
+            if (taken) {
+                setLoading(btn, false);
+                errEl.textContent = 'Questo numero WhatsApp è già associato a un altro account.';
+                errEl.style.display = 'block';
+                return;
+            }
 
             // Upsert profilo su Supabase
             const { error } = await supabaseClient

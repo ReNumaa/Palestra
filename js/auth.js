@@ -172,6 +172,12 @@ function getCurrentUser() {
 // Il profilo viene creato automaticamente dal trigger handle_new_user su auth.users.
 // Passiamo nome e whatsapp come user_metadata così il trigger li riceve.
 async function registerUser(name, email, whatsapp, password) {
+    // Controlla se il numero WhatsApp è già usato da un altro utente
+    if (whatsapp) {
+        const { data: taken } = await supabaseClient.rpc('is_whatsapp_taken', { phone: whatsapp });
+        if (taken) return { ok: false, error: 'Questo numero WhatsApp è già associato a un altro account.' };
+    }
+
     const capitalized = (name || '').trim().replace(/\S+/g, w => w[0].toUpperCase() + w.slice(1).toLowerCase());
     const { data, error } = await supabaseClient.auth.signUp({
         email,
@@ -196,7 +202,7 @@ async function loginWithPassword(email, password) {
 
 // ── Logout ────────────────────────────────────────────────────────────────────
 async function logoutUser() {
-    await supabaseClient.auth.signOut();
+    await supabaseClient.auth.signOut({ scope: 'local' });
     window._currentUser = null;
     // Pulisce sessione admin e dati utente per evitare leak tra utenti diversi sullo stesso device
     localStorage.removeItem('adminAuthenticated');
@@ -219,7 +225,14 @@ async function updateUserProfile(currentEmail, updates, newPassword) {
     let emailPendingConfirmation = false;
 
     if (updates.name     !== undefined) profileUpdate.name     = (updates.name || '').trim().replace(/\S+/g, w => w[0].toUpperCase() + w.slice(1).toLowerCase());
-    if (updates.whatsapp !== undefined) profileUpdate.whatsapp = updates.whatsapp;
+    if (updates.whatsapp !== undefined) {
+        profileUpdate.whatsapp = updates.whatsapp;
+        // Controlla che il numero non sia già usato da un altro utente
+        if (updates.whatsapp && updates.whatsapp !== (user.whatsapp || '')) {
+            const { data: taken } = await supabaseClient.rpc('is_whatsapp_taken', { phone: updates.whatsapp, exclude_user_id: user.id });
+            if (taken) return { ok: false, error: 'Questo numero WhatsApp è già associato a un altro account.' };
+        }
+    }
     // Email: aggiorna nel profilo SOLO se non è cambiata (altrimenti aspettiamo la conferma)
     if (updates.email !== undefined && updates.email.toLowerCase() === currentEmail.toLowerCase()) {
         profileUpdate.email = updates.email.toLowerCase();
