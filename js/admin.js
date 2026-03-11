@@ -617,7 +617,8 @@ const BACKUP_KEYS = [
     'scheduleOverrides', 'scheduleVersion', 'gym_debt_threshold',
     'gym_cancellation_mode', 'gym_cert_scadenza_editable',
     'gym_cert_block_expired', 'gym_cert_block_not_set',
-    'gym_assic_block_expired', 'gym_assic_block_not_set', 'dataClearedByUser'
+    'gym_assic_block_expired', 'gym_assic_block_not_set', 'dataClearedByUser',
+    'dataLastCleared'
 ];
 
 function exportBackup() {
