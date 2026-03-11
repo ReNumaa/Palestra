@@ -2446,11 +2446,11 @@ function createDebtorCard(debtor, cardId) {
             ${bookingsHTML}
             <div class="debtor-pay-footer">
                 <div class="debtor-pay-total">Totale: <strong>€${debtor.totalAmount}</strong></div>
-                <div class="debtor-pay-methods">
-                    <button class="debt-method-btn active" data-method="contanti" onclick="selectDebtorPayMethod(this)">💵 Contanti</button>
-                    <button class="debt-method-btn" data-method="carta" onclick="selectDebtorPayMethod(this)">💳 Carta</button>
-                    <button class="debt-method-btn" data-method="iban" onclick="selectDebtorPayMethod(this)">🏦 Bonifico</button>
-                </div>
+                <select class="debt-method-select debtor-method-select">
+                    <option value="contanti">💵 Contanti</option>
+                    <option value="carta">💳 Carta</option>
+                    <option value="iban">🏦 Bonifico</option>
+                </select>
                 <button class="btn-pay-all" onclick="payAllDebtsInline('${safeW}', '${safeE}', '${safeN}', this)">✓ Incassa tutto</button>
             </div>
         </div>
@@ -2473,8 +2473,8 @@ function selectDebtorPayMethod(btn) {
 
 function payAllDebtsInline(whatsapp, email, name, btn) {
     const footer = btn.closest('.debtor-pay-footer');
-    const activeMethodBtn = footer.querySelector('.debt-method-btn.active');
-    const method = activeMethodBtn ? activeMethodBtn.dataset.method : 'contanti';
+    const methodSelect = footer.querySelector('.debtor-method-select');
+    const method = methodSelect ? methodSelect.value : 'contanti';
     const methodLabels = { contanti: '💵 Contanti', carta: '💳 Carta', iban: '🏦 Bonifico' };
 
     const normW = normalizePhone(whatsapp);
