@@ -112,7 +112,7 @@ function getWeekDates(offset = 0) {
     return dates;
 }
 
-// Desktop: mostra Lunedì-Venerdì della settimana corrente
+// Desktop: mostra Lunedì-Domenica della settimana corrente
 function getWeekDatesDesktop(offset = 0) {
     const now = new Date();
     const today = new Date(now);
@@ -127,7 +127,7 @@ function getWeekDatesDesktop(offset = 0) {
     const allDayNames = ['Domenica', 'Lunedì', 'Martedì', 'Mercoledì', 'Giovedì', 'Venerdì', 'Sabato'];
     const dates = [];
 
-    for (let i = 0; i < 5; i++) { // Lun-Ven = 5 giorni
+    for (let i = 0; i < 7; i++) { // Lun-Dom = 7 giorni
         const date = new Date(monday);
         date.setDate(monday.getDate() + i);
         dates.push({

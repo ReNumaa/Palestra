@@ -488,7 +488,7 @@ body.nav-open {
 /* Calendar Grid */
 .calendar-grid {
     display: grid;
-    grid-template-columns: 80px repeat(5, 1fr);
+    grid-template-columns: 80px repeat(7, 1fr);
     gap: 2px;
     background-color: white;
     border: 1px solid #ddd;
@@ -925,7 +925,7 @@ body.nav-open {
     }
 
     .calendar-grid {
-        grid-template-columns: 58px repeat(5, 1fr);
+        grid-template-columns: 58px repeat(7, 1fr);
     }
 
     .calendar-slot {
