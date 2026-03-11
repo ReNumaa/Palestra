@@ -13,7 +13,7 @@
     <link rel="icon" type="image/jpeg" href="images/logo-tb---nero.jpg">
     <link rel="stylesheet" href="css/style.css?v=6">
     <link rel="stylesheet" href="css/login.css?v=5">
-    <link rel="stylesheet" href="css/admin.css?v=18">
+    <link rel="stylesheet" href="css/admin.css?v=19">
 </head>
 <body>
     <nav class="navbar">
@@ -589,12 +589,12 @@
         <div class="debt-popup-payment">
             <div class="debt-payment-method-row">
                 <span class="debt-field-label">Metodo di pagamento</span>
-                <div class="debt-method-btns">
-                    <button class="debt-method-btn active" data-method="contanti" onclick="selectPaymentMethod(this)">💵 Contanti</button>
-                    <button class="debt-method-btn" data-method="carta" onclick="selectPaymentMethod(this)">💳 Carta</button>
-                    <button class="debt-method-btn" data-method="iban" onclick="selectPaymentMethod(this)">🏦 Bonifico</button>
-                    <button class="debt-method-btn method-free-lesson" data-method="lezione-gratuita" onclick="selectPaymentMethod(this)">🎁 Gratuita</button>
-                </div>
+                <select class="debt-method-select" id="debtMethodSelect" onchange="onPaymentMethodChange(this)">
+                    <option value="contanti">💵 Contanti</option>
+                    <option value="carta">💳 Carta</option>
+                    <option value="iban">🏦 Bonifico</option>
+                    <option value="lezione-gratuita">🎁 Gratuita</option>
+                </select>
             </div>
             <div class="debt-payment-amount-row">
                 <span class="debt-field-label">Importo incassato</span>
@@ -656,12 +656,12 @@
             </div>
             <div class="manual-entry-field" id="manualMethodField">
                 <span class="debt-field-label">Metodo di pagamento</span>
-                <div class="debt-method-btns">
-                    <button class="debt-method-btn active" data-method="contanti" onclick="selectManualMethod(this)">💵 Contanti</button>
-                    <button class="debt-method-btn" data-method="carta" onclick="selectManualMethod(this)">💳 Carta</button>
-                    <button class="debt-method-btn" data-method="iban" onclick="selectManualMethod(this)">🏦 Bonifico</button>
-                    <button class="debt-method-btn method-free-lesson" data-method="lezione-gratuita" onclick="selectManualMethod(this)">🎁 Lezione Gratuita</button>
-                </div>
+                <select class="debt-method-select" id="manualMethodSelect">
+                    <option value="contanti">💵 Contanti</option>
+                    <option value="carta">💳 Carta</option>
+                    <option value="iban">🏦 Bonifico</option>
+                    <option value="lezione-gratuita">🎁 Lezione Gratuita</option>
+                </select>
             </div>
             <div class="manual-entry-field">
                 <span class="debt-field-label">Nota (opzionale)</span>
@@ -721,7 +721,7 @@
     <script src="js/auth.js?v=18"></script>
     <script src="js/push.js?v=11"></script>
     <script src="js/chart-mini.js?v=12"></script>
-    <script src="js/admin.js?v=66"></script>
+    <script src="js/admin.js?v=67"></script>
     <script>
         // Avvia auth, sincronizza i booking da Supabase, poi aggiorna la dashboard
         (async function () {

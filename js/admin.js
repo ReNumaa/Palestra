@@ -2744,9 +2744,8 @@ function openManualEntryPopup(type) {
     document.getElementById('manualClientSelected').style.display = 'none';
     document.getElementById('manualAmountInput').value = '';
     document.getElementById('manualNoteInput').value = '';
-    document.querySelectorAll('#manualEntryModal .debt-method-btn').forEach(b => b.classList.remove('active'));
-    const defaultBtn = document.querySelector('#manualEntryModal .debt-method-btn[data-method="contanti"]');
-    if (defaultBtn) defaultBtn.classList.add('active');
+    const manualSelect = document.getElementById('manualMethodSelect');
+    if (manualSelect) manualSelect.value = 'contanti';
     document.getElementById('manualMethodField').style.display = isDebt ? 'none' : '';
     document.getElementById('manualEntryOverlay').classList.add('open');
     document.getElementById('manualEntryModal').classList.add('open');
@@ -2797,7 +2796,8 @@ function selectManualClient(name, whatsapp, email) {
 }
 
 function selectManualMethod(btn) {
-    btn.closest('.debt-method-btns').querySelectorAll('.debt-method-btn').forEach(b => b.classList.remove('active'));
+    // Legacy button handler (kept for safety)
+    btn.closest('.debt-method-btns')?.querySelectorAll('.debt-method-btn').forEach(b => b.classList.remove('active'));
     btn.classList.add('active');
 }
 
@@ -2814,8 +2814,8 @@ function saveManualEntry() {
         return;
     }
     const note = document.getElementById('manualNoteInput').value.trim();
-    const activeMethodBtn = document.querySelector('#manualEntryModal .debt-method-btn.active');
-    const method = activeMethodBtn ? activeMethodBtn.dataset.method : 'contanti';
+    const manualSelect = document.getElementById('manualMethodSelect');
+    const method = manualSelect ? manualSelect.value : 'contanti';
     const { name, whatsapp, email } = _manualEntryContact;
 
     const savedType = _manualEntryType;
@@ -2925,11 +2925,12 @@ function openDebtPopup(whatsapp, email, name) {
     document.getElementById('debtPopupSubtitle').textContent = subtitle;
 
     // Reset payment method to default
-    document.querySelectorAll('.debt-method-btn').forEach(b => b.classList.remove('active'));
-    const defaultBtn = document.querySelector('.debt-method-btn[data-method="contanti"]');
-    if (defaultBtn) defaultBtn.classList.add('active');
+    const debtSelect = document.getElementById('debtMethodSelect');
+    if (debtSelect) debtSelect.value = 'contanti';
 
-    // Reset amount input
+    // Reset amount input & show amount row (in case previous selection was 'gratuita')
+    const amountRow = document.querySelector('#debtPopupModal .debt-payment-amount-row');
+    if (amountRow) amountRow.style.display = '';
     const amountInput = document.getElementById('debtAmountInput');
     if (amountInput) amountInput.value = 0;
 
@@ -3061,9 +3062,17 @@ function toggleAllDebts(checked) {
 }
 
 function selectPaymentMethod(btn) {
+    // Legacy button handler (kept for safety)
     document.querySelectorAll('#debtPopupModal .debt-method-btn').forEach(b => b.classList.remove('active'));
     btn.classList.add('active');
     const isFree = btn.dataset.method === 'lezione-gratuita';
+    const amountRow = document.querySelector('#debtPopupModal .debt-payment-amount-row');
+    if (amountRow) amountRow.style.display = isFree ? 'none' : '';
+    updateCreditPreview();
+}
+
+function onPaymentMethodChange(select) {
+    const isFree = select.value === 'lezione-gratuita';
     const amountRow = document.querySelector('#debtPopupModal .debt-payment-amount-row');
     if (amountRow) amountRow.style.display = isFree ? 'none' : '';
     updateCreditPreview();
@@ -3073,8 +3082,8 @@ function paySelectedDebts() {
     const checked = document.querySelectorAll('.debt-item-check:checked');
     if (checked.length === 0) return;
 
-    const activeMethodBtn = document.querySelector('#debtPopupModal .debt-method-btn.active');
-    const paymentMethod = activeMethodBtn ? activeMethodBtn.dataset.method : 'contanti';
+    const methodSelect = document.getElementById('debtMethodSelect');
+    const paymentMethod = methodSelect ? methodSelect.value : 'contanti';
     const isFreeLesson = paymentMethod === 'lezione-gratuita';
     const amountInput = document.getElementById('debtAmountInput');
     const amountPaid = isFreeLesson ? 0 : (amountInput ? (parseFloat(amountInput.value) || 0) : 0);
