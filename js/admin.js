@@ -3666,7 +3666,7 @@ async function deleteClientData(index, whatsapp, email) {
         return;
     }
 
-    const clients = _getClientsForDisplay();
+    const clients = getAllClients();
     const client = clients[index];
     if (!client) return;
     const clientEmail = (client.email || email || '').toLowerCase();
@@ -3725,7 +3725,7 @@ async function deleteClientData(index, whatsapp, email) {
     }
 
     showToast(`Dati di ${clientName} eliminati (${removedBookings} prenotazioni rimosse).`, 'success');
-    renderClientList();
+    renderClientsTab();
 }
 
 function startEditBookingRow(bookingId, clientIndex) {
