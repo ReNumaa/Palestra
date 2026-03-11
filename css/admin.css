@@ -594,14 +594,17 @@ canvas {
 
 .admin-slot-card.personal-training {
     border-left-color: var(--personal-training);
+    background: rgba(34, 197, 94, 0.08);
 }
 
 .admin-slot-card.small-group {
     border-left-color: var(--small-group);
+    background: rgba(251, 191, 36, 0.1);
 }
 
 .admin-slot-card.group-class {
     border-left-color: var(--group-class);
+    background: rgba(239, 68, 68, 0.08);
 }
 
 .admin-slot-header {
@@ -4011,19 +4014,7 @@ canvas {
 /* ── Mobile Admin Improvements ──────────────────────────── */
 @media (max-width: 768px) {
 
-    /* -- Slot cards coloring -- */
-    .admin-slot-card.personal-training {
-        background: rgba(34, 197, 94, 0.08);
-        border-left-width: 5px;
-    }
-    .admin-slot-card.small-group {
-        background: rgba(251, 191, 36, 0.1);
-        border-left-width: 5px;
-    }
-    .admin-slot-card.group-class {
-        background: rgba(239, 68, 68, 0.08);
-        border-left-width: 5px;
-    }
+    /* -- Slot cards mobile -- */
     .admin-slot-card { padding: 1rem; }
     .admin-slot-header { margin-bottom: 0.6rem; gap: 0.3rem; }
     .admin-slot-time { font-size: 0.9rem; }
