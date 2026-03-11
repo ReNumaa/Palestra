@@ -761,6 +761,30 @@ function importBackup(input) {
                         promises.push(supabaseClient.from('schedule_overrides').upsert(oRows, { onConflict: 'date,time' }));
                     }
 
+                    // 6. Credit history (only offline-added entries from viewer emergency export)
+                    if (backup.data._credit_history) {
+                        const chRows = JSON.parse(backup.data._credit_history || '[]');
+                        if (chRows.length > 0) {
+                            // Wait for credits upsert to complete first so IDs exist
+                            await Promise.allSettled(promises);
+                            promises.length = 0;
+                            // Link to credit IDs
+                            const creditsRes = await supabaseClient.from('credits').select('id,email');
+                            const emailToId = {};
+                            if (creditsRes.data) creditsRes.data.forEach(c => { emailToId[c.email] = c.id; });
+                            const histRows = chRows.filter(h => emailToId[h.email]).map(h => ({
+                                credit_id: emailToId[h.email],
+                                amount: h.amount || 0,
+                                display_amount: h.display_amount ?? h.amount,
+                                note: h.note || '',
+                                created_at: h.created_at,
+                            }));
+                            if (histRows.length > 0) {
+                                promises.push(supabaseClient.from('credit_history').insert(histRows));
+                            }
+                        }
+                    }
+
                     const results = await Promise.allSettled(promises);
                     const errors = results.filter(r => r.status === 'fulfilled' && r.value?.error);
                     if (errors.length > 0) {

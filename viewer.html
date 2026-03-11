@@ -90,11 +90,49 @@
 
         .empty { color: #9ca3af; font-style: italic; font-size: 0.85rem; padding: 0.75rem 0; }
 
+        /* ── Emergency toolbar ─────────────────────────────── */
+        .emergency-bar { display: flex; gap: 0.5rem; margin-bottom: 1.25rem; flex-wrap: wrap; }
+        .em-btn { padding: 0.6rem 1rem; border-radius: 10px; border: none; font-size: 0.85rem; font-weight: 600; cursor: pointer; transition: all 0.15s; display: flex; align-items: center; gap: 0.4rem; }
+        .em-btn:hover { transform: translateY(-1px); }
+        .em-btn-booking { background: #2563eb; color: #fff; box-shadow: 0 2px 8px rgba(37,99,235,0.3); }
+        .em-btn-credit { background: #16a34a; color: #fff; box-shadow: 0 2px 8px rgba(22,163,74,0.3); }
+        .em-btn-export { background: #1a1a1a; color: #fff; box-shadow: 0 2px 8px rgba(0,0,0,0.2); }
+        .em-btn-export.has-changes { background: #dc2626; animation: pulse-red 2s infinite; }
+        @keyframes pulse-red { 0%,100% { box-shadow: 0 2px 8px rgba(220,38,38,0.3); } 50% { box-shadow: 0 2px 16px rgba(220,38,38,0.6); } }
+        .changes-count { background: #dc2626; color: #fff; font-size: 0.7rem; padding: 0.1rem 0.4rem; border-radius: 99px; margin-left: 0.2rem; }
+
+        /* ── Modal ──────────────────────────────────────────── */
+        .modal-overlay { display: none; position: fixed; inset: 0; background: rgba(0,0,0,0.5); z-index: 100; justify-content: center; align-items: center; padding: 1rem; }
+        .modal-overlay.open { display: flex; }
+        .modal { background: #fff; border-radius: 16px; padding: 1.5rem; max-width: 480px; width: 100%; max-height: 90vh; overflow-y: auto; box-shadow: 0 20px 60px rgba(0,0,0,0.3); }
+        .modal h3 { font-size: 1.1rem; margin-bottom: 1rem; }
+        .modal-field { margin-bottom: 0.75rem; }
+        .modal-field label { display: block; font-size: 0.8rem; font-weight: 600; color: #4b5563; margin-bottom: 0.25rem; }
+        .modal-field input, .modal-field select { width: 100%; padding: 0.6rem 0.8rem; border: 1px solid #e5e7eb; border-radius: 8px; font-size: 0.9rem; background: #fff; }
+        .modal-field input:focus, .modal-field select:focus { outline: none; border-color: #2563eb; box-shadow: 0 0 0 3px rgba(37,99,235,0.1); }
+        .modal-actions { display: flex; gap: 0.5rem; margin-top: 1rem; justify-content: flex-end; }
+        .modal-actions button { padding: 0.55rem 1.2rem; border-radius: 8px; border: none; font-size: 0.88rem; font-weight: 600; cursor: pointer; }
+        .btn-cancel { background: #f3f4f6; color: #4b5563; }
+        .btn-save { background: #2563eb; color: #fff; }
+        .btn-save-green { background: #16a34a; color: #fff; }
+        .modal-field .client-search-input { position: relative; }
+        .client-dropdown { position: absolute; left: 0; right: 0; top: 100%; background: #fff; border: 1px solid #e5e7eb; border-radius: 8px; max-height: 180px; overflow-y: auto; z-index: 10; box-shadow: 0 4px 12px rgba(0,0,0,0.1); display: none; }
+        .client-dropdown.show { display: block; }
+        .client-dropdown-item { padding: 0.5rem 0.8rem; cursor: pointer; font-size: 0.85rem; }
+        .client-dropdown-item:hover { background: #f3f4f6; }
+        .client-dropdown-item .cd-name { font-weight: 600; }
+        .client-dropdown-item .cd-email { font-size: 0.75rem; color: #6b7280; }
+        .new-client-fields { display: none; margin-top: 0.5rem; padding: 0.75rem; background: #f9fafb; border-radius: 8px; }
+        .new-client-fields.show { display: block; }
+
         @media (max-width: 640px) {
             .client-header { flex-direction: column; align-items: flex-start; gap: 0.5rem; }
             .client-badges { margin-top: 0.2rem; }
             .header-badge { display: none; }
             .booking-row { flex-direction: column; align-items: flex-start; gap: 0.3rem; }
+            .emergency-bar { flex-direction: column; }
+            .em-btn { justify-content: center; }
+            .modal { margin: 0.5rem; padding: 1.2rem; }
         }
     </style>
 </head>
@@ -119,12 +157,85 @@
         </div>
 
         <div id="content" style="display:none">
+            <div class="emergency-bar">
+                <button class="em-btn em-btn-booking" onclick="openBookingModal()">+ Prenotazione</button>
+                <button class="em-btn em-btn-credit" onclick="openCreditModal()">+ Credito</button>
+                <button class="em-btn em-btn-export" id="exportBtn" onclick="exportData()">Esporta backup</button>
+            </div>
             <div class="stats-row" id="statsRow"></div>
             <div class="search-wrap">
                 <span class="search-icon">&#128269;</span>
                 <input type="text" class="search-bar" id="searchBar" placeholder="Cerca cliente per nome, email o telefono...">
             </div>
             <div class="client-list" id="clientList"></div>
+        </div>
+    </div>
+
+    <!-- Booking modal -->
+    <div class="modal-overlay" id="bookingModal">
+        <div class="modal">
+            <h3>Nuova prenotazione</h3>
+            <div class="modal-field">
+                <label>Cliente</label>
+                <div class="client-search-input">
+                    <input type="text" id="bkClientSearch" placeholder="Cerca cliente o digita nuovo..." autocomplete="off" oninput="filterClientDropdown('bk')">
+                    <div class="client-dropdown" id="bkClientDropdown"></div>
+                </div>
+                <div class="new-client-fields" id="bkNewClient">
+                    <div class="modal-field"><label>Nome</label><input type="text" id="bkNewName"></div>
+                    <div class="modal-field"><label>Email</label><input type="email" id="bkNewEmail"></div>
+                    <div class="modal-field"><label>WhatsApp</label><input type="tel" id="bkNewWhatsapp"></div>
+                </div>
+            </div>
+            <input type="hidden" id="bkSelectedEmail" value="">
+            <input type="hidden" id="bkSelectedName" value="">
+            <input type="hidden" id="bkSelectedWhatsapp" value="">
+            <div class="modal-field"><label>Data</label><input type="date" id="bkDate"></div>
+            <div class="modal-field"><label>Ora</label><input type="time" id="bkTime"></div>
+            <div class="modal-field">
+                <label>Tipo slot</label>
+                <select id="bkSlotType">
+                    <option value="personal-training">Autonomia</option>
+                    <option value="small-group">Lezione di Gruppo</option>
+                    <option value="group-class">Slot prenotato</option>
+                </select>
+            </div>
+            <div class="modal-field"><label>Note (opzionale)</label><input type="text" id="bkNotes" placeholder=""></div>
+            <div class="modal-actions">
+                <button class="btn-cancel" onclick="closeModal('bookingModal')">Annulla</button>
+                <button class="btn-save" onclick="saveBooking()">Salva prenotazione</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Credit modal -->
+    <div class="modal-overlay" id="creditModal">
+        <div class="modal">
+            <h3>Aggiungi credito</h3>
+            <div class="modal-field">
+                <label>Cliente</label>
+                <div class="client-search-input">
+                    <input type="text" id="crClientSearch" placeholder="Cerca cliente..." autocomplete="off" oninput="filterClientDropdown('cr')">
+                    <div class="client-dropdown" id="crClientDropdown"></div>
+                </div>
+            </div>
+            <input type="hidden" id="crSelectedEmail" value="">
+            <input type="hidden" id="crSelectedName" value="">
+            <input type="hidden" id="crSelectedWhatsapp" value="">
+            <div class="modal-field"><label>Importo (&euro;)</label><input type="number" id="crAmount" step="0.01" min="0" placeholder="es. 50"></div>
+            <div class="modal-field">
+                <label>Metodo</label>
+                <select id="crMethod">
+                    <option value="contanti">Contanti</option>
+                    <option value="carta">Carta</option>
+                    <option value="iban">Bonifico</option>
+                </select>
+            </div>
+            <div class="modal-field"><label>Nota (opzionale)</label><input type="text" id="crNote" placeholder=""></div>
+            <div class="modal-actions">
+                <button class="btn-cancel" onclick="closeModal('creditModal')">Annulla</button>
+                <button class="btn-save btn-save-green" onclick="saveCredit()">Aggiungi credito</button>
+            </div>
         </div>
     </div>
 
@@ -189,6 +300,22 @@
                         bon[key] = { name: r.name, whatsapp: r.whatsapp || '', email: r.email || '', bonus: r.bonus ?? 1, lastResetMonth: r.last_reset_month };
                     });
                     DATA.gym_bonus = bon;
+
+                    // Profiles (cert, insurance, registration date)
+                    DATA._profiles = {};
+                    (t.profiles || []).forEach(r => {
+                        const em = (r.email || '').toLowerCase();
+                        if (em) DATA._profiles[em] = {
+                            certExpiry: r.medical_cert_expiry || null,
+                            insuranceExpiry: r.insurance_expiry || null,
+                            createdAt: r.created_at || null,
+                        };
+                    });
+
+                    // Schedule & settings (raw)
+                    DATA._schedule = t.settings || [];
+                    DATA._appSettings = t.app_settings || [];
+                    DATA._scheduleOverrides = t.schedule_overrides || [];
                 } else {
                     // ── Admin export format (localStorage keys) ──
                     const raw = json.data || json;
@@ -203,6 +330,8 @@
                 document.getElementById('headerBadge').textContent = `Backup: ${d}`;
                 document.getElementById('headerBadge').style.color = '#86efac';
                 document.getElementById('content').style.display = 'block';
+                pendingChanges = 0;
+                persistData();
                 render();
             } catch (err) {
                 alert('Errore nel file: ' + err.message);
@@ -235,7 +364,7 @@
             const normWa = normalizePhone(wa);
             const normEm = (em || '').toLowerCase();
             const key = `${normEm}||${normWa}`;
-            if (!map[key]) map[key] = { name: name || '', whatsapp: normWa, email: normEm, bookings: [], creditBalance: 0, creditHistory: [], debtBalance: 0, debtHistory: [], bonusValue: 1 };
+            if (!map[key]) map[key] = { name: name || '', whatsapp: normWa, email: normEm, bookings: [], creditBalance: 0, creditHistory: [], debtBalance: 0, debtHistory: [], bonusValue: 1, profile: null };
             if (name && (!map[key].name || map[key].name.length < name.length)) map[key].name = name;
             return map[key];
         }
@@ -244,6 +373,12 @@
         Object.values(credits).forEach(r => { const c = ensure(r.name, r.whatsapp, r.email); c.creditBalance = r.balance || 0; c.creditHistory = r.history || []; });
         Object.values(debts).forEach(r => { const c = ensure(r.name, r.whatsapp, r.email); c.debtBalance = r.balance || 0; c.debtHistory = r.history || []; });
         Object.values(bonus).forEach(r => { const c = ensure(r.name, r.whatsapp, r.email); c.bonusValue = r.bonus ?? 1; });
+
+        // Attach profiles if available (Supabase backup)
+        const profiles = DATA._profiles || {};
+        for (const c of Object.values(map)) {
+            if (c.email && profiles[c.email]) c.profile = profiles[c.email];
+        }
 
         for (const c of Object.values(map)) {
             c.bookingDebt = c.bookings.filter(b => !b.paid && b.status !== 'cancelled').reduce((s, b) => s + (SLOT_PRICES[b.slotType] || 0) - (b.creditApplied || 0), 0);
@@ -277,6 +412,17 @@
             if (c.totalDebt > 0) badges.push(`<span class="badge badge-debt">&euro;${c.totalDebt.toFixed(2)} da pagare</span>`);
             badges.push(`<span class="badge ${c.bonusValue > 0 ? 'badge-bonus-ok' : 'badge-bonus-used'}">${c.bonusValue}/1 bonus</span>`);
             badges.push(`<span class="badge badge-bookings">${c.bookings.length} pren.</span>`);
+            if (c.profile) {
+                const today = new Date().toISOString().slice(0,10);
+                if (c.profile.certExpiry) {
+                    const exp = c.profile.certExpiry <= today;
+                    badges.push(`<span class="badge" style="background:${exp ? '#fee2e2' : '#dcfce7'};color:${exp ? '#991b1b' : '#166534'}">Cert ${exp ? 'scaduto' : c.profile.certExpiry.slice(5)}</span>`);
+                }
+                if (c.profile.insuranceExpiry) {
+                    const exp = c.profile.insuranceExpiry <= today;
+                    badges.push(`<span class="badge" style="background:${exp ? '#fee2e2' : '#dcfce7'};color:${exp ? '#991b1b' : '#166534'}">Assic ${exp ? 'scaduta' : c.profile.insuranceExpiry.slice(5)}</span>`);
+                }
+            }
 
             return `<div class="client-card" onclick="toggleDetail(${i})">
                 <div class="client-header">
@@ -318,9 +464,11 @@
         const el = document.getElementById('detail-' + idx);
         const tab = el.dataset.tab || 'bookings';
 
+        const hasProfile = !!c.profile;
         const tabs = `<div class="detail-tabs">
             <button class="detail-tab ${tab === 'bookings' ? 'active' : ''}" onclick="switchTab(${idx},'bookings')">Prenotazioni</button>
             <button class="detail-tab ${tab === 'transactions' ? 'active' : ''}" onclick="switchTab(${idx},'transactions')">Transazioni</button>
+            ${hasProfile ? `<button class="detail-tab ${tab === 'profile' ? 'active' : ''}" onclick="switchTab(${idx},'profile')">Profilo</button>` : ''}
         </div>`;
 
         let content = '';
@@ -340,7 +488,29 @@
                     </div>`;
                 }).join('');
             }
-        } else {
+        } else if (tab === 'profile' && c.profile) {
+            const p = c.profile;
+            const today = new Date().toISOString().slice(0,10);
+            const fmtDate = d => { if (!d) return '—'; const [y,m,dd] = d.split('-'); return `${dd}/${m}/${y}`; };
+            const statusBadge = (date, okLabel, expLabel) => {
+                if (!date) return '<span style="color:#9ca3af">Non inserito</span>';
+                const exp = date <= today;
+                return `<span class="badge" style="background:${exp ? '#fee2e2' : '#dcfce7'};color:${exp ? '#991b1b' : '#166534'}">${exp ? expLabel : okLabel}</span>`;
+            };
+            content = `<div style="display:grid;gap:0.75rem;padding:0.5rem 0">
+                <div style="display:flex;justify-content:space-between;align-items:center;padding:0.6rem 0;border-bottom:1px solid #f3f4f6">
+                    <div><div style="font-weight:600;font-size:0.9rem">Certificato medico</div><div style="font-size:0.8rem;color:#6b7280">Scadenza: ${fmtDate(p.certExpiry)}</div></div>
+                    ${statusBadge(p.certExpiry, 'Valido', 'Scaduto')}
+                </div>
+                <div style="display:flex;justify-content:space-between;align-items:center;padding:0.6rem 0;border-bottom:1px solid #f3f4f6">
+                    <div><div style="font-weight:600;font-size:0.9rem">Assicurazione</div><div style="font-size:0.8rem;color:#6b7280">Scadenza: ${fmtDate(p.insuranceExpiry)}</div></div>
+                    ${statusBadge(p.insuranceExpiry, 'Valida', 'Scaduta')}
+                </div>
+                <div style="display:flex;justify-content:space-between;align-items:center;padding:0.6rem 0">
+                    <div><div style="font-weight:600;font-size:0.9rem">Data registrazione</div><div style="font-size:0.8rem;color:#6b7280">${p.createdAt ? fmtDate(p.createdAt.slice(0,10)) : '—'}</div></div>
+                </div>
+            </div>`;
+        } else if (tab === 'transactions') {
             const entries = [];
             c.bookings.filter(b => b.paid).forEach(b => {
                 const price = SLOT_PRICES[b.slotType] || 0;
@@ -377,6 +547,287 @@
     }
 
     function esc(s) { if (!s) return ''; const d = document.createElement('div'); d.textContent = s; return d.innerHTML; }
+
+    /* ── Emergency management ──────────────────────────────── */
+    let pendingChanges = 0;
+    const VIEWER_STORAGE_KEY = 'viewer_emergency_data';
+
+    function persistData() {
+        if (!DATA) return;
+        try {
+            localStorage.setItem(VIEWER_STORAGE_KEY, JSON.stringify({ DATA, pendingChanges, savedAt: new Date().toISOString() }));
+        } catch(e) { /* localStorage full or unavailable */ }
+    }
+
+    function restoreData() {
+        try {
+            const saved = localStorage.getItem(VIEWER_STORAGE_KEY);
+            if (!saved) return false;
+            const obj = JSON.parse(saved);
+            if (!obj.DATA) return false;
+            DATA = obj.DATA;
+            pendingChanges = obj.pendingChanges || 0;
+            document.getElementById('importArea').classList.add('loaded');
+            const d = obj.savedAt ? new Date(obj.savedAt).toLocaleString('it-IT') : '?';
+            document.getElementById('importInfo').innerHTML = `&#10003; Sessione ripristinata (salvata: <strong>${d}</strong>)`;
+            document.getElementById('importArea').querySelector('.import-icon').textContent = '\u2713';
+            document.getElementById('headerBadge').textContent = `Sessione: ${d}`;
+            document.getElementById('headerBadge').style.color = '#86efac';
+            document.getElementById('content').style.display = 'block';
+            updateChangesIndicator();
+            render();
+            return true;
+        } catch(e) { return false; }
+    }
+
+    // Restore on page load
+    restoreData();
+
+    // Warn before leaving with unsaved changes
+    window.addEventListener('beforeunload', e => {
+        if (pendingChanges > 0) { e.preventDefault(); e.returnValue = ''; }
+    });
+
+    function updateChangesIndicator() {
+        const btn = document.getElementById('exportBtn');
+        if (pendingChanges > 0) {
+            btn.classList.add('has-changes');
+            btn.innerHTML = `Esporta backup <span class="changes-count">${pendingChanges}</span>`;
+        } else {
+            btn.classList.remove('has-changes');
+            btn.textContent = 'Esporta backup';
+        }
+    }
+
+    /* ── Modals ──────────────────────────────────────────── */
+    function openBookingModal() {
+        document.getElementById('bkClientSearch').value = '';
+        document.getElementById('bkSelectedEmail').value = '';
+        document.getElementById('bkSelectedName').value = '';
+        document.getElementById('bkSelectedWhatsapp').value = '';
+        document.getElementById('bkNewClient').classList.remove('show');
+        document.getElementById('bkNewName').value = '';
+        document.getElementById('bkNewEmail').value = '';
+        document.getElementById('bkNewWhatsapp').value = '';
+        document.getElementById('bkDate').value = new Date().toISOString().slice(0,10);
+        document.getElementById('bkTime').value = '';
+        document.getElementById('bkSlotType').value = 'personal-training';
+        document.getElementById('bkNotes').value = '';
+        document.getElementById('bookingModal').classList.add('open');
+    }
+
+    function openCreditModal() {
+        document.getElementById('crClientSearch').value = '';
+        document.getElementById('crSelectedEmail').value = '';
+        document.getElementById('crSelectedName').value = '';
+        document.getElementById('crSelectedWhatsapp').value = '';
+        document.getElementById('crAmount').value = '';
+        document.getElementById('crMethod').value = 'contanti';
+        document.getElementById('crNote').value = '';
+        document.getElementById('creditModal').classList.add('open');
+    }
+
+    function closeModal(id) {
+        document.getElementById(id).classList.remove('open');
+    }
+
+    // Close modals on overlay click
+    document.querySelectorAll('.modal-overlay').forEach(el => {
+        el.addEventListener('click', e => { if (e.target === el) el.classList.remove('open'); });
+    });
+
+    /* ── Client dropdown search ─────────────────────────── */
+    function filterClientDropdown(prefix) {
+        const input = document.getElementById(prefix + 'ClientSearch');
+        const dropdown = document.getElementById(prefix + 'ClientDropdown');
+        const query = input.value.toLowerCase().trim();
+        const clients = getClients();
+
+        if (!query) { dropdown.classList.remove('show'); return; }
+
+        const matches = clients.filter(c =>
+            c.name.toLowerCase().includes(query) || c.email.includes(query) || c.whatsapp.includes(query)
+        ).slice(0, 8);
+
+        // Store client data for selection
+        window._dropdownClients = matches;
+        let html = matches.map((c, i) =>
+            `<div class="client-dropdown-item" onclick="pickDropdownClient('${prefix}',${i})">
+                <div class="cd-name">${esc(c.name)}</div>
+                <div class="cd-email">${esc(c.email)}</div>
+            </div>`
+        ).join('');
+
+        if (prefix === 'bk') {
+            html += `<div class="client-dropdown-item" style="color:#2563eb;font-weight:600" onclick="showNewClientFields()">+ Nuovo cliente</div>`;
+        }
+
+        dropdown.innerHTML = html;
+        dropdown.classList.add('show');
+    }
+
+    function pickDropdownClient(prefix, idx) {
+        const c = window._dropdownClients[idx];
+        if (c) selectClient(prefix, c.name, c.email, c.whatsapp);
+    }
+
+    function selectClient(prefix, name, email, whatsapp) {
+        document.getElementById(prefix + 'ClientSearch').value = name;
+        document.getElementById(prefix + 'SelectedEmail').value = email;
+        document.getElementById(prefix + 'SelectedName').value = name;
+        document.getElementById(prefix + 'SelectedWhatsapp').value = whatsapp;
+        document.getElementById(prefix + 'ClientDropdown').classList.remove('show');
+        if (prefix === 'bk') document.getElementById('bkNewClient').classList.remove('show');
+    }
+
+    function showNewClientFields() {
+        document.getElementById('bkClientDropdown').classList.remove('show');
+        document.getElementById('bkSelectedEmail').value = '';
+        document.getElementById('bkNewClient').classList.add('show');
+        document.getElementById('bkNewName').focus();
+    }
+
+    /* ── Save booking ────────────────────────────────────── */
+    function saveBooking() {
+        let name, email, whatsapp;
+        if (document.getElementById('bkNewClient').classList.contains('show')) {
+            name = document.getElementById('bkNewName').value.trim();
+            email = document.getElementById('bkNewEmail').value.trim().toLowerCase();
+            whatsapp = document.getElementById('bkNewWhatsapp').value.trim();
+            if (!name || !email) { alert('Inserisci nome e email del nuovo cliente'); return; }
+        } else {
+            email = document.getElementById('bkSelectedEmail').value;
+            name = document.getElementById('bkSelectedName').value;
+            whatsapp = document.getElementById('bkSelectedWhatsapp').value;
+            if (!email) { alert('Seleziona un cliente'); return; }
+        }
+
+        const date = document.getElementById('bkDate').value;
+        const time = document.getElementById('bkTime').value;
+        const slotType = document.getElementById('bkSlotType').value;
+        const notes = document.getElementById('bkNotes').value.trim();
+
+        if (!date || !time) { alert('Inserisci data e ora'); return; }
+
+        const booking = {
+            id: 'emergency-' + Date.now() + '-' + Math.random().toString(36).slice(2,8),
+            userId: email,
+            date, time, slotType, name, email,
+            whatsapp: normalizePhone(whatsapp),
+            notes,
+            status: 'confirmed',
+            paid: false,
+            paymentMethod: null,
+            paidAt: null,
+            creditApplied: 0,
+            createdAt: new Date().toISOString(),
+            cancelledAt: null,
+            cancelledWithBonus: false,
+            cancelledWithPenalty: false,
+            _addedOffline: true,
+        };
+
+        if (!Array.isArray(DATA.gym_bookings)) DATA.gym_bookings = [];
+        DATA.gym_bookings.push(booking);
+        pendingChanges++;
+        persistData();
+        updateChangesIndicator();
+        closeModal('bookingModal');
+        render();
+    }
+
+    /* ── Save credit ─────────────────────────────────────── */
+    function saveCredit() {
+        const email = document.getElementById('crSelectedEmail').value;
+        const name = document.getElementById('crSelectedName').value;
+        const whatsapp = document.getElementById('crSelectedWhatsapp').value;
+        const amount = parseFloat(document.getElementById('crAmount').value);
+        const method = document.getElementById('crMethod').value;
+        const note = document.getElementById('crNote').value.trim();
+
+        if (!email) { alert('Seleziona un cliente'); return; }
+        if (!amount || amount <= 0) { alert('Inserisci un importo valido'); return; }
+
+        const credits = DATA.gym_credits || {};
+        const normWa = normalizePhone(whatsapp);
+        const key = `${normWa}||${email.toLowerCase()}`;
+
+        if (!credits[key]) {
+            credits[key] = { name, whatsapp: whatsapp || '', email: email || '', balance: 0, freeBalance: 0, history: [] };
+        }
+        credits[key].balance = (credits[key].balance || 0) + amount;
+        credits[key].history.push({
+            date: new Date().toISOString(),
+            amount: amount,
+            displayAmount: amount,
+            note: note || `Credito aggiunto (${METHOD_LABELS[method] || method}) - offline`,
+            _addedOffline: true,
+        });
+        DATA.gym_credits = credits;
+
+        pendingChanges++;
+        persistData();
+        updateChangesIndicator();
+        closeModal('creditModal');
+        render();
+    }
+
+    /* ── Export ───────────────────────────────────────────── */
+    function exportData() {
+        if (!DATA) { alert('Nessun dato caricato'); return; }
+
+        // Export in admin-compatible format (localStorage keys as JSON strings)
+        const exportObj = {
+            version: 1,
+            exportedAt: new Date().toISOString(),
+            source: 'viewer-emergency',
+            data: {
+                gym_bookings: JSON.stringify(DATA.gym_bookings || []),
+                gym_credits: JSON.stringify(DATA.gym_credits || {}),
+                gym_manual_debts: JSON.stringify(DATA.gym_manual_debts || {}),
+                gym_bonus: JSON.stringify(DATA.gym_bonus || {}),
+            }
+        };
+
+        // Schedule overrides — use admin's key name
+        if (DATA._scheduleOverrides?.length) {
+            // Convert Supabase array format to admin's {date: slots[]} format
+            const ovMap = {};
+            DATA._scheduleOverrides.forEach(o => {
+                if (!ovMap[o.date]) ovMap[o.date] = [];
+                ovMap[o.date].push({ time: o.time, type: o.slot_type, extras: o.extras || [] });
+            });
+            exportObj.data.scheduleOverrides = JSON.stringify(ovMap);
+        }
+
+        // Collect ONLY offline-added credit_history entries for Supabase sync
+        const creditHistory = [];
+        Object.values(DATA.gym_credits || {}).forEach(c => {
+            (c.history || []).forEach(h => {
+                if (!h._addedOffline) return;
+                creditHistory.push({
+                    email: (c.email || '').toLowerCase(),
+                    name: c.name,
+                    amount: h.amount || 0,
+                    display_amount: h.displayAmount ?? h.amount,
+                    note: h.note || '',
+                    created_at: h.date,
+                });
+            });
+        });
+        if (creditHistory.length) {
+            exportObj.data._credit_history = JSON.stringify(creditHistory);
+        }
+
+        const blob = new Blob([JSON.stringify(exportObj, null, 2)], { type: 'application/json' });
+        const url = URL.createObjectURL(blob);
+        const a = document.createElement('a');
+        const ts = new Date().toISOString().replace(/[:.]/g, '-').slice(0,19);
+        a.href = url;
+        a.download = `gym-backup-emergency-${ts}.json`;
+        a.click();
+        URL.revokeObjectURL(url);
+    }
     </script>
 </body>
 </html>
