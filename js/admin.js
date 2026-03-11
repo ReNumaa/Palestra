@@ -651,7 +651,7 @@ function importBackup(input) {
         return;
     }
     const reader = new FileReader();
-    reader.onload = e => {
+    reader.onload = async e => {
         try {
             const backup = JSON.parse(e.target.result);
             if (!backup?.data || typeof backup.data !== 'object') throw new Error('Formato non valido');
