@@ -144,6 +144,24 @@
     text-align: left;
 }
 
+/* ===== Forgot password link ===== */
+.forgot-password-link {
+    background: none;
+    border: none;
+    color: #888;
+    font-size: 0.85rem;
+    cursor: pointer;
+    margin-top: 0.75rem;
+    padding: 0;
+    transition: color 0.2s;
+    display: inline-block;
+}
+
+.forgot-password-link:hover {
+    color: var(--primary-cyan);
+    text-decoration: underline;
+}
+
 /* ===== Admin toggle ===== */
 .admin-login-toggle {
     margin-top: 1.5rem;

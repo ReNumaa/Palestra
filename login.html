@@ -75,6 +75,56 @@
                     <div id="loginError" class="login-error" style="display:none;"></div>
                     <button type="submit" class="btn-primary" style="width:100%">Accedi</button>
                 </form>
+                <button class="forgot-password-link" onclick="switchTab('forgot')">Hai dimenticato la password?</button>
+            </div>
+
+            <!-- ===== PASSWORD DIMENTICATA ===== -->
+            <div id="panelForgot" style="display:none;">
+                <p class="login-subtitle">Inserisci la tua email e ti invieremo un link per reimpostare la password.</p>
+                <div id="forgotSuccess" style="display:none; text-align:center; padding: 1.5rem 0;">
+                    <div style="font-size:2.5rem; margin-bottom:0.75rem;">📧</div>
+                    <p style="font-weight:600; margin-bottom:0.5rem;">Email inviata!</p>
+                    <p style="color:#555; font-size:0.95rem;">Controlla la tua casella di posta e clicca il link per reimpostare la password.</p>
+                    <button class="forgot-password-link" style="margin-top:1rem;" onclick="switchTab('accedi')">← Torna al login</button>
+                </div>
+                <form id="forgotForm" class="auth-form">
+                    <div class="form-group">
+                        <label for="forgotEmail">Email</label>
+                        <input type="email" id="forgotEmail" placeholder="mario@email.com" autocomplete="email">
+                    </div>
+                    <div id="forgotError" class="login-error" style="display:none;"></div>
+                    <button type="submit" class="btn-primary" style="width:100%">Invia link di reset</button>
+                </form>
+                <button class="forgot-password-link" style="margin-top:1rem;" onclick="switchTab('accedi')">← Torna al login</button>
+            </div>
+
+            <!-- ===== REIMPOSTA PASSWORD ===== -->
+            <div id="panelReset" style="display:none;">
+                <p class="login-subtitle">Scegli la tua nuova password.</p>
+                <div id="resetSuccess" style="display:none; text-align:center; padding: 1.5rem 0;">
+                    <div style="font-size:2.5rem; margin-bottom:0.75rem;">✅</div>
+                    <p style="font-weight:600; margin-bottom:0.5rem;">Password aggiornata!</p>
+                    <p style="color:#555; font-size:0.95rem;">Ora puoi accedere con la nuova password.</p>
+                    <button class="btn-primary" style="width:100%; margin-top:1rem;" onclick="switchTab('accedi')">Vai al login</button>
+                </div>
+                <form id="resetForm" class="auth-form">
+                    <div class="form-group">
+                        <label for="resetPassword">Nuova Password</label>
+                        <div class="password-input-wrap">
+                            <input type="password" id="resetPassword" placeholder="Min. 6 caratteri" autocomplete="new-password">
+                            <button type="button" class="password-toggle" onclick="togglePwd('resetPassword', this)">Mostra</button>
+                        </div>
+                    </div>
+                    <div class="form-group">
+                        <label for="resetPasswordConfirm">Conferma Password</label>
+                        <div class="password-input-wrap">
+                            <input type="password" id="resetPasswordConfirm" placeholder="Ripeti la password" autocomplete="new-password">
+                            <button type="button" class="password-toggle" onclick="togglePwd('resetPasswordConfirm', this)">Mostra</button>
+                        </div>
+                    </div>
+                    <div id="resetError" class="login-error" style="display:none;"></div>
+                    <button type="submit" class="btn-primary" style="width:100%">Salva nuova password</button>
+                </form>
             </div>
 
             <!-- ===== REGISTRATI ===== -->
@@ -213,8 +263,12 @@
         function switchTab(tab) {
             document.getElementById('panelAccedi').style.display     = tab === 'accedi'     ? 'block' : 'none';
             document.getElementById('panelRegistrati').style.display = tab === 'registrati' ? 'block' : 'none';
+            document.getElementById('panelForgot').style.display     = tab === 'forgot'     ? 'block' : 'none';
+            document.getElementById('panelReset').style.display      = tab === 'reset'      ? 'block' : 'none';
             document.getElementById('tabAccedi').classList.toggle('active',     tab === 'accedi');
             document.getElementById('tabRegistrati').classList.toggle('active', tab === 'registrati');
+            // Nascondi le tabs quando si è su forgot/reset
+            document.querySelector('.login-tabs').style.display = (tab === 'forgot' || tab === 'reset') ? 'none' : 'flex';
         }
 
         // ── Manual login ──────────────────────────────────────────────────
@@ -298,6 +352,82 @@
                 errEl.style.display = 'block';
                 console.error('registerUser exception:', err);
             }
+        });
+
+        // ── Forgot password ──────────────────────────────────────────────
+        document.getElementById('forgotForm').addEventListener('submit', async e => {
+            e.preventDefault();
+            const email = document.getElementById('forgotEmail').value.trim();
+            const errEl = document.getElementById('forgotError');
+            const btn   = e.target.querySelector('button[type="submit"]');
+            errEl.style.display = 'none';
+
+            if (!email) {
+                errEl.textContent = 'Inserisci la tua email.';
+                errEl.style.display = 'block';
+                return;
+            }
+            if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) {
+                errEl.textContent = 'Inserisci un indirizzo email valido.';
+                errEl.style.display = 'block';
+                return;
+            }
+
+            setLoading(btn, true, 'Invio in corso...');
+            const { error } = await supabaseClient.auth.resetPasswordForEmail(email, {
+                redirectTo: window.location.origin + '/login.html'
+            });
+            setLoading(btn, false);
+
+            if (error) {
+                errEl.textContent = 'Errore durante l\'invio. Riprova.';
+                errEl.style.display = 'block';
+                return;
+            }
+
+            // Mostra successo, nascondi form
+            document.getElementById('forgotForm').style.display = 'none';
+            document.getElementById('forgotSuccess').style.display = 'block';
+        });
+
+        // ── Reset password (nuova password dopo click link email) ────────
+        document.getElementById('resetForm').addEventListener('submit', async e => {
+            e.preventDefault();
+            const password = document.getElementById('resetPassword').value;
+            const confirm  = document.getElementById('resetPasswordConfirm').value;
+            const errEl    = document.getElementById('resetError');
+            const btn      = e.target.querySelector('button[type="submit"]');
+            errEl.style.display = 'none';
+
+            if (!password || !confirm) {
+                errEl.textContent = 'Compila entrambi i campi.';
+                errEl.style.display = 'block';
+                return;
+            }
+            if (password.length < 6) {
+                errEl.textContent = 'La password deve essere di almeno 6 caratteri.';
+                errEl.style.display = 'block';
+                return;
+            }
+            if (password !== confirm) {
+                errEl.textContent = 'Le password non coincidono.';
+                errEl.style.display = 'block';
+                return;
+            }
+
+            setLoading(btn, true, 'Salvataggio...');
+            const { error } = await supabaseClient.auth.updateUser({ password });
+            setLoading(btn, false);
+
+            if (error) {
+                errEl.textContent = 'Errore durante il salvataggio: ' + (error.message || 'Riprova.');
+                errEl.style.display = 'block';
+                return;
+            }
+
+            // Successo: mostra conferma, nascondi form
+            document.getElementById('resetForm').style.display = 'none';
+            document.getElementById('resetSuccess').style.display = 'block';
         });
 
         // ── Admin toggle ──────────────────────────────────────────────────
@@ -398,8 +528,20 @@
             if (error) alert('Errore durante il login con Google: ' + error.message);
         }
 
+        // ── Detect PASSWORD_RECOVERY event from Supabase ─────────────────
+        // Supabase emits this when the user clicks the reset link in the email.
+        // We listen BEFORE initAuth() so we catch it immediately.
+        window._isPasswordRecovery = false;
+        supabaseClient.auth.onAuthStateChange((event) => {
+            if (event === 'PASSWORD_RECOVERY') {
+                window._isPasswordRecovery = true;
+                switchTab('reset');
+            }
+        });
+
         // ── Init: redirect se già loggato, oppure gestisci OAuth return ──
         initAuth().then(async session => {
+            if (window._isPasswordRecovery) return; // Non redirigere durante il reset
             const isOAuth = await handleOAuthReturn();
             if (!isOAuth && session && getCurrentUser()) {
                 // Già loggato con profilo completo: vai all'homepage
