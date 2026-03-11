@@ -732,6 +732,8 @@
                 BookingStorage.syncFromSupabase(),
                 BookingStorage.syncAppSettingsFromSupabase(),
                 UserStorage.syncUsersFromSupabase(),
+                ManualDebtStorage.syncFromSupabase(),
+                CreditStorage.syncFromSupabase(),
             ]);
             if (typeof loadDashboardData === 'function') loadDashboardData();
             if (typeof renderAdminCalendar === 'function') renderAdminCalendar();
@@ -765,6 +767,28 @@
                         await UserStorage.syncUsersFromSupabase();
                         if (typeof renderClientsTab === 'function') renderClientsTab();
                     })
+                    .subscribe();
+
+                // Realtime debiti manuali e crediti: aggiorna badge "Da pagare" sulle card
+                const _rtDebtCreditSync = async () => {
+                    await Promise.all([
+                        ManualDebtStorage.syncFromSupabase(),
+                        CreditStorage.syncFromSupabase(),
+                    ]);
+                    if (typeof renderAdminCalendar === 'function') renderAdminCalendar();
+                    if (typeof renderAdminDayView === 'function' && typeof selectedAdminDay !== 'undefined' && selectedAdminDay) renderAdminDayView(selectedAdminDay);
+                    if (typeof renderPaymentsTab === 'function') {
+                        const activeTab = document.querySelector('.admin-tab.active');
+                        if (activeTab && activeTab.dataset.tab === 'payments') renderPaymentsTab();
+                    }
+                };
+                supabaseClient
+                    .channel('debts-rt-admin')
+                    .on('postgres_changes', { event: '*', schema: 'public', table: 'manual_debts' }, _rtDebtCreditSync)
+                    .subscribe();
+                supabaseClient
+                    .channel('credits-rt-admin')
+                    .on('postgres_changes', { event: '*', schema: 'public', table: 'credits' }, _rtDebtCreditSync)
                     .subscribe();
             }
         })();
