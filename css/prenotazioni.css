@@ -367,6 +367,29 @@
     text-decoration: underline;
 }
 
+/* ── Show more button ─────────────────────────────────────────── */
+.preno-show-more {
+    display: block;
+    width: 100%;
+    padding: 0.75rem;
+    margin-top: 0.75rem;
+    border: 1px solid #e5e7eb;
+    border-radius: 12px;
+    background: #fff;
+    color: #2563eb;
+    font-size: 0.9rem;
+    font-weight: 600;
+    cursor: pointer;
+    transition: all 0.15s;
+}
+.preno-show-more:hover {
+    background: #f0f4ff;
+    border-color: #2563eb;
+}
+.preno-show-more:active {
+    transform: scale(0.98);
+}
+
 /* ── Bottom CTA ───────────────────────────────────────────────── */
 .preno-cta {
     margin-top: 2rem;

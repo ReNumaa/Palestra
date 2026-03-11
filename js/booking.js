@@ -158,7 +158,7 @@ async function handleBookingSubmit(e) {
 
     // Validate form
     const formData = {
-        name: document.getElementById('name').value.trim(),
+        name: document.getElementById('name').value.trim().replace(/\S+/g, w => w[0].toUpperCase() + w.slice(1).toLowerCase()),
         email: document.getElementById('email').value.trim(),
         whatsapp: normalizePhone(document.getElementById('whatsapp').value.trim()),
         notes: document.getElementById('notes').value.trim()

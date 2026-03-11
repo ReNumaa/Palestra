@@ -45,6 +45,14 @@ async function _loadProfile(userId) {
 
     if (profile && !error) {
         window._currentUser = profile;
+        // Auto-fix: capitalizza nomi esistenti con lettere minuscole (es. utenti Gmail)
+        if (profile.name) {
+            const capitalized = profile.name.trim().replace(/\S+/g, w => w[0].toUpperCase() + w.slice(1).toLowerCase());
+            if (capitalized !== profile.name) {
+                supabaseClient.from('profiles').update({ name: capitalized }).eq('id', userId)
+                    .then(() => { window._currentUser.name = capitalized; });
+            }
+        }
         return true;
     }
     if (error) console.error('[Auth] _loadProfile error:', error.message);
@@ -164,10 +172,11 @@ function getCurrentUser() {
 // Il profilo viene creato automaticamente dal trigger handle_new_user su auth.users.
 // Passiamo nome e whatsapp come user_metadata così il trigger li riceve.
 async function registerUser(name, email, whatsapp, password) {
+    const capitalized = (name || '').trim().replace(/\S+/g, w => w[0].toUpperCase() + w.slice(1).toLowerCase());
     const { data, error } = await supabaseClient.auth.signUp({
         email,
         password,
-        options: { data: { full_name: name, whatsapp } }
+        options: { data: { full_name: capitalized, whatsapp } }
     });
     if (error) return { ok: false, error: _authError(error) };
     if (!data.user?.id) return { ok: false, error: 'Errore durante la registrazione.' };
@@ -208,7 +217,7 @@ async function updateUserProfile(currentEmail, updates, newPassword) {
 
     const profileUpdate = {};
 
-    if (updates.name     !== undefined) profileUpdate.name     = updates.name;
+    if (updates.name     !== undefined) profileUpdate.name     = (updates.name || '').trim().replace(/\S+/g, w => w[0].toUpperCase() + w.slice(1).toLowerCase());
     if (updates.whatsapp !== undefined) profileUpdate.whatsapp = updates.whatsapp;
     if (updates.email    !== undefined) profileUpdate.email    = updates.email.toLowerCase();
 

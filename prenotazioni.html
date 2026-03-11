@@ -13,7 +13,7 @@
     <link rel="icon" type="image/jpeg" href="images/logo-tb---nero.jpg">
     <link rel="stylesheet" href="css/style.css?v=6">
     <link rel="stylesheet" href="css/login.css?v=4">
-    <link rel="stylesheet" href="css/prenotazioni.css?v=6">
+    <link rel="stylesheet" href="css/prenotazioni.css?v=7">
 </head>
 <body>
     <nav class="navbar">
@@ -174,7 +174,7 @@
     <script src="js/supabase-client.js?v=1"></script>
     <script src="js/ui.js?v=2"></script>
     <script src="js/data.js?v=49"></script>
-    <script src="js/auth.js?v=18"></script>
+    <script src="js/auth.js?v=20"></script>
     <script src="js/push.js?v=11"></script>
     <script>
         // ── Guard async: aspetta la sessione Supabase prima di controllare ─
@@ -378,12 +378,23 @@
             document.getElementById('prenoDebitAmount').textContent  = `€${displayDebit.toFixed(2)}`;
         }
 
+        // ── Pagination state ─────────────────────────────────────────────
+        const INITIAL_SHOW = 5;
+        const LOAD_MORE    = 20;
+        let _visibleCount  = INITIAL_SHOW;
+
         // ── Tab switch ────────────────────────────────────────────────────
         function switchPrenoTab(tab) {
             _currentTab = tab;
+            _visibleCount = INITIAL_SHOW;
             document.getElementById('tabProssime').classList.toggle('active',    tab === 'upcoming');
             document.getElementById('tabPassate').classList.toggle('active',     tab === 'past');
             document.getElementById('tabTransazioni').classList.toggle('active', tab === 'transactions');
+            renderPrenoList();
+        }
+
+        function showMore() {
+            _visibleCount += LOAD_MORE;
             renderPrenoList();
         }
 
@@ -402,7 +413,10 @@
                 return;
             }
 
-            container.innerHTML = list.map(b => buildCard(b, _currentTab === 'upcoming')).join('');
+            const visible = list.slice(0, _visibleCount);
+            const remaining = list.length - visible.length;
+            container.innerHTML = visible.map(b => buildCard(b, _currentTab === 'upcoming')).join('')
+                + (remaining > 0 ? `<button class="preno-show-more" onclick="showMore()">Mostra altro (${remaining})</button>` : '');
         }
 
         function buildCard(b, showCancel) {
@@ -579,7 +593,9 @@
             }
 
             const fmtD = d => `${String(d.getDate()).padStart(2,'0')}/${String(d.getMonth()+1).padStart(2,'0')}/${d.getFullYear()} ${String(d.getHours()).padStart(2,'0')}:${String(d.getMinutes()).padStart(2,'0')}`;
-            container.innerHTML = entries.map(e => {
+            const visible = entries.slice(0, _visibleCount);
+            const remaining = entries.length - visible.length;
+            container.innerHTML = visible.map(e => {
                 const pos = e.amount > 0;
                 const sign = e.freeLesson ? '' : (e.amount < 0 ? '-' : '+');
                 const cls  = e.freeLesson ? 'tx-neutral' : (pos ? 'tx-pos' : 'tx-neg');
@@ -594,7 +610,8 @@
                         <div class="preno-tx-date">${fmtD(e.date)}</div>
                     </div>
                 </div>`;
-            }).join('');
+            }).join('')
+                + (remaining > 0 ? `<button class="preno-show-more" onclick="showMore()">Mostra altro (${remaining})</button>` : '');
         }
 
         // ── Annullamento diretto (> 24h prima) ───────────────────────────

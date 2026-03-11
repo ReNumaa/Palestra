@@ -3585,7 +3585,7 @@ function _saveClientEditLocalProfile(index, oldWhatsapp, oldEmail, newName, newW
 }
 
 function saveClientEdit(index, oldWhatsapp, oldEmail) {
-    const newName     = document.getElementById(`cedit-name-${index}`).value.trim();
+    const newName     = document.getElementById(`cedit-name-${index}`).value.trim().replace(/\S+/g, w => w[0].toUpperCase() + w.slice(1).toLowerCase());
     const newWhatsapp = document.getElementById(`cedit-phone-${index}`).value.trim();
     const newEmail    = document.getElementById(`cedit-email-${index}`).value.trim();
     const newCert     = document.getElementById(`cedit-cert-${index}`).value;
