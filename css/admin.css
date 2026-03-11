@@ -4011,6 +4011,25 @@ canvas {
 /* ── Mobile Admin Improvements ──────────────────────────── */
 @media (max-width: 768px) {
 
+    /* -- Slot cards coloring -- */
+    .admin-slot-card.personal-training {
+        background: rgba(34, 197, 94, 0.08);
+        border-left-width: 5px;
+    }
+    .admin-slot-card.small-group {
+        background: rgba(251, 191, 36, 0.1);
+        border-left-width: 5px;
+    }
+    .admin-slot-card.group-class {
+        background: rgba(239, 68, 68, 0.08);
+        border-left-width: 5px;
+    }
+    .admin-slot-card { padding: 1rem; }
+    .admin-slot-header { margin-bottom: 0.6rem; gap: 0.3rem; }
+    .admin-slot-time { font-size: 0.9rem; }
+    .admin-slot-type { font-size: 0.82rem; }
+    .admin-slot-capacity { font-size: 0.78rem; }
+
     /* -- Clients tab -- */
     .clients-search-bar { gap: 0.4rem; margin-bottom: 0.75rem; }
     .clients-search-bar input { padding: 0.6rem 0.8rem; font-size: 0.9rem; }
