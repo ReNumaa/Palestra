@@ -644,6 +644,12 @@ function exportBackup() {
 function importBackup(input) {
     const file = input.files[0];
     if (!file) return;
+    const pw = prompt('Inserisci la password per importare il backup:');
+    if (pw !== 'Palestra123') {
+        alert('Password errata');
+        input.value = '';
+        return;
+    }
     const reader = new FileReader();
     reader.onload = e => {
         try {
@@ -663,8 +669,111 @@ function importBackup(input) {
                 }
             });
             const s = document.getElementById('backupStatus');
+            if (s) s.textContent = '⏳ Ripristino su Supabase in corso...';
+
+            // ── Push dati ripristinati su Supabase ──────────────
+            if (typeof supabaseClient !== 'undefined') {
+                try {
+                    const promises = [];
+
+                    // 1. Bookings — upsert completo
+                    const bookings = JSON.parse(backup.data.gym_bookings || '[]');
+                    if (Array.isArray(bookings) && bookings.length > 0) {
+                        const bRows = bookings
+                            .filter(b => b.id && !b.id.startsWith('demo-') && !b.id.startsWith('_avail_'))
+                            .map(b => ({
+                                local_id:                  b.id,
+                                user_id:                   b.userId || null,
+                                date:                      b.date,
+                                time:                      b.time,
+                                slot_type:                 b.slotType,
+                                name:                      b.name,
+                                email:                     b.email,
+                                whatsapp:                  b.whatsapp,
+                                notes:                     b.notes || '',
+                                status:                    b.status || 'confirmed',
+                                paid:                      b.paid || false,
+                                payment_method:            b.paymentMethod || null,
+                                paid_at:                   b.paidAt || null,
+                                credit_applied:            b.creditApplied || 0,
+                                created_at:                b.createdAt,
+                                date_display:              b.dateDisplay || '',
+                                cancellation_requested_at: b.cancellationRequestedAt || null,
+                                cancelled_at:              b.cancelledAt || null,
+                                cancelled_payment_method:  b.cancelledPaymentMethod || null,
+                                cancelled_paid_at:         b.cancelledPaidAt || null,
+                                cancelled_with_bonus:      b.cancelledWithBonus || false,
+                                cancelled_with_penalty:    b.cancelledWithPenalty || false,
+                            }));
+                        if (bRows.length > 0) {
+                            promises.push(supabaseClient.from('bookings').upsert(bRows, { onConflict: 'local_id' }));
+                        }
+                    }
+
+                    // 2. Credits
+                    const credits = JSON.parse(backup.data.gym_credits || '{}');
+                    const cRows = Object.values(credits).map(r => ({
+                        name:         r.name,
+                        whatsapp:     r.whatsapp || null,
+                        email:        (r.email || '').toLowerCase(),
+                        balance:      r.balance || 0,
+                        free_balance: r.freeBalance || 0,
+                    })).filter(r => r.email);
+                    if (cRows.length > 0) {
+                        promises.push(supabaseClient.from('credits').upsert(cRows, { onConflict: 'email' }));
+                    }
+
+                    // 3. Manual debts
+                    const debts = JSON.parse(backup.data.gym_manual_debts || '{}');
+                    const dRows = Object.values(debts).map(r => ({
+                        name:     r.name,
+                        whatsapp: r.whatsapp || null,
+                        email:    (r.email || '').toLowerCase(),
+                        balance:  r.balance || 0,
+                        history:  r.history || [],
+                    })).filter(r => r.email);
+                    if (dRows.length > 0) {
+                        promises.push(supabaseClient.from('manual_debts').upsert(dRows, { onConflict: 'email' }));
+                    }
+
+                    // 4. Bonuses
+                    const bonus = JSON.parse(backup.data.gym_bonus || '{}');
+                    const bonRows = Object.values(bonus).map(r => ({
+                        name:             r.name,
+                        whatsapp:         r.whatsapp || null,
+                        email:            (r.email || '').toLowerCase(),
+                        bonus:            r.bonus ?? 1,
+                        last_reset_month: r.lastResetMonth || null,
+                    })).filter(r => r.email);
+                    if (bonRows.length > 0) {
+                        promises.push(supabaseClient.from('bonuses').upsert(bonRows, { onConflict: 'email' }));
+                    }
+
+                    // 5. Schedule overrides
+                    const overrides = JSON.parse(backup.data.scheduleOverrides || '{}');
+                    const oRows = [];
+                    for (const [dateStr, slots] of Object.entries(overrides)) {
+                        for (const slot of (Array.isArray(slots) ? slots : [])) {
+                            oRows.push({ date: dateStr, time: slot.time, slot_type: slot.type, extras: slot.extras || [] });
+                        }
+                    }
+                    if (oRows.length > 0) {
+                        promises.push(supabaseClient.from('schedule_overrides').upsert(oRows, { onConflict: 'date,time' }));
+                    }
+
+                    const results = await Promise.allSettled(promises);
+                    const errors = results.filter(r => r.status === 'fulfilled' && r.value?.error);
+                    if (errors.length > 0) {
+                        console.warn('[Backup] Alcuni upsert con errore:', errors.map(r => r.value.error.message));
+                    }
+                    console.log('[Backup] Ripristino Supabase completato:', results.length, 'operazioni');
+                } catch (e) {
+                    console.error('[Backup] Errore ripristino Supabase:', e);
+                }
+            }
+
             if (s) s.textContent = '✅ Backup ripristinato. Ricarico...';
-            setTimeout(() => location.reload(), 800);
+            setTimeout(() => location.reload(), 1200);
         } catch (err) {
             alert('Errore durante l\'importazione: ' + err.message);
             const s = document.getElementById('backupStatus');
