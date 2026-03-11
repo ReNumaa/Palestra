@@ -30,16 +30,6 @@
         .import-area.loaded .import-icon { font-size: 1.5rem; }
         .import-area.loaded .import-info { color: #166534; font-weight: 500; }
 
-        /* ── Password gate ─────────────────────────────────── */
-        .pw-gate { background: #fff; border-radius: 16px; padding: 2.5rem 1.5rem; text-align: center; margin-bottom: 1.5rem; box-shadow: 0 1px 3px rgba(0,0,0,0.06); border: 1px solid #f3f4f6; }
-        .pw-gate h2 { font-size: 1.1rem; margin-bottom: 0.3rem; }
-        .pw-gate p { font-size: 0.82rem; color: #6b7280; margin-bottom: 1.2rem; }
-        .pw-input { padding: 0.7rem 1rem; border: 1px solid #e5e7eb; border-radius: 10px; font-size: 0.95rem; width: 220px; text-align: center; }
-        .pw-input:focus { outline: none; border-color: #2563eb; box-shadow: 0 0 0 3px rgba(37,99,235,0.1); }
-        .pw-btn { background: linear-gradient(135deg, #1a1a1a 0%, #2d2d2d 100%); color: #fff; border: none; padding: 0.7rem 1.8rem; border-radius: 10px; font-size: 0.95rem; font-weight: 600; cursor: pointer; margin-left: 0.5rem; }
-        .pw-btn:hover { opacity: 0.9; }
-        .pw-error { color: #dc2626; font-size: 0.8rem; margin-top: 0.6rem; display: none; }
-
         /* ── Search ─────────────────────────────────────────── */
         .search-wrap { position: relative; margin-bottom: 1.25rem; }
         .search-icon { position: absolute; left: 1rem; top: 50%; transform: translateY(-50%); color: #9ca3af; font-size: 1rem; pointer-events: none; }
@@ -121,17 +111,7 @@
     </header>
 
     <div class="container">
-        <div class="pw-gate" id="pwGate">
-            <h2>Accesso riservato</h2>
-            <p>Inserisci la password per accedere al viewer</p>
-            <div>
-                <input type="password" class="pw-input" id="pwInput" placeholder="Password" autofocus>
-                <button class="pw-btn" id="pwBtn">Accedi</button>
-            </div>
-            <div class="pw-error" id="pwError">Password errata</div>
-        </div>
-
-        <div class="import-area" id="importArea" style="display:none">
+        <div class="import-area" id="importArea">
             <div class="import-icon">📂</div>
             <input type="file" id="fileInput" accept=".json" style="display:none">
             <button class="import-btn" onclick="document.getElementById('fileInput').click()">Importa backup JSON</button>
@@ -149,21 +129,6 @@
     </div>
 
     <script>
-    /* ── Password gate ──────────────────────────── */
-    const PW = 'Palestra123';
-    function unlockViewer() {
-        if (document.getElementById('pwInput').value === PW) {
-            document.getElementById('pwGate').style.display = 'none';
-            document.getElementById('importArea').style.display = '';
-        } else {
-            document.getElementById('pwError').style.display = 'block';
-            document.getElementById('pwInput').value = '';
-            document.getElementById('pwInput').focus();
-        }
-    }
-    document.getElementById('pwBtn').addEventListener('click', unlockViewer);
-    document.getElementById('pwInput').addEventListener('keydown', e => { if (e.key === 'Enter') unlockViewer(); });
-
     const SLOT_PRICES = { 'personal-training': 5, 'small-group': 10, 'group-class': 30 };
     const SLOT_NAMES = { 'personal-training': 'Autonomia', 'small-group': 'Lezione di Gruppo', 'group-class': 'Slot prenotato' };
     const METHOD_LABELS = { credito: 'Credito', contanti: 'Contanti', carta: 'Carta', iban: 'Bonifico', 'lezione-gratuita': 'Gratuita' };
