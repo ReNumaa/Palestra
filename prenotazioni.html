@@ -543,7 +543,21 @@
                 });
             });
 
-            // 3. Storico debiti manuali — solo addebiti (amount > 0); i "Saldato" sono nascosti
+            // 3. Bonus utilizzati — booking annullati con bonus
+            BookingStorage.getAllBookings()
+                .filter(b => !b.id?.startsWith('demo-') && matchUser(b.whatsapp, b.email) && b.cancelledWithBonus && b.status === 'cancelled')
+                .forEach(b => {
+                    const slotName = (SLOT_NAMES && SLOT_NAMES[b.slotType]) || b.slotType || '—';
+                    const [by, bm, bd] = b.date.split('-');
+                    entries.push({
+                        date: new Date(b.cancelledAt || `${b.date}T12:00:00`),
+                        icon: '🎟️', label: `Bonus utilizzato — ${slotName}`,
+                        sub: `${bd}/${bm}/${by} · ${b.time}`,
+                        amount: 0, freeLesson: true
+                    });
+                });
+
+            // 4. Storico debiti manuali — solo addebiti (amount > 0); i "Saldato" sono nascosti
             //    perché il pagamento cash appare già come entry credito positiva
             const debtRec = ManualDebtStorage.getRecord(user.whatsapp, user.email);
             (debtRec?.history || []).filter(e => e.amount > 0).forEach(e => {
