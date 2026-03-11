@@ -162,32 +162,6 @@
     text-decoration: underline;
 }
 
-/* ===== Admin toggle ===== */
-.admin-login-toggle {
-    margin-top: 1.5rem;
-    padding-top: 1.25rem;
-    border-top: 1px solid #eee;
-    text-align: center;
-}
-
-.admin-toggle-link {
-    background: none;
-    border: none;
-    color: #aaa;
-    font-size: 0.8rem;
-    cursor: pointer;
-    transition: color 0.2s;
-}
-
-.admin-toggle-link:hover {
-    color: #555;
-}
-
-/* Admin form */
-.admin-login-form {
-    text-align: left;
-    margin-top: 0.75rem;
-}
 
 .login-error {
     color: #dc2626;

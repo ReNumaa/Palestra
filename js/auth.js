@@ -216,10 +216,14 @@ async function updateUserProfile(currentEmail, updates, newPassword) {
     if (!user) return { ok: false, error: 'Non autenticato.' };
 
     const profileUpdate = {};
+    let emailPendingConfirmation = false;
 
     if (updates.name     !== undefined) profileUpdate.name     = (updates.name || '').trim().replace(/\S+/g, w => w[0].toUpperCase() + w.slice(1).toLowerCase());
     if (updates.whatsapp !== undefined) profileUpdate.whatsapp = updates.whatsapp;
-    if (updates.email    !== undefined) profileUpdate.email    = updates.email.toLowerCase();
+    // Email: aggiorna nel profilo SOLO se non è cambiata (altrimenti aspettiamo la conferma)
+    if (updates.email !== undefined && updates.email.toLowerCase() === currentEmail.toLowerCase()) {
+        profileUpdate.email = updates.email.toLowerCase();
+    }
 
     // Certificato medico: aggiorna scadenza e mantieni storico
     if (updates.certificatoMedicoScadenza !== undefined) {
@@ -252,10 +256,11 @@ async function updateUserProfile(currentEmail, updates, newPassword) {
         if (error) return { ok: false, error: error.message };
     }
 
-    // Cambio email su Supabase Auth (richiede conferma via email)
+    // Cambio email su Supabase Auth (richiede conferma via email — NON aggiorniamo il profilo subito)
     if (updates.email && updates.email.toLowerCase() !== currentEmail.toLowerCase()) {
         const { error } = await supabaseClient.auth.updateUser({ email: updates.email });
         if (error) return { ok: false, error: error.message };
+        emailPendingConfirmation = true;
     }
 
     // Cambio password su Supabase Auth
@@ -287,7 +292,7 @@ async function updateUserProfile(currentEmail, updates, newPassword) {
         } catch {}
     }
 
-    return { ok: true };
+    return { ok: true, emailPendingConfirmation };
 }
 
 // ── Lookup per email (usato nell'OAuth callback) ──────────────────────────────

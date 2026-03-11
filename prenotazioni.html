@@ -893,7 +893,12 @@
             renderCertWarning();
             setLoading(btn, false);
             closeEditProfileModal();
-            showToast('Profilo aggiornato.', 'success');
+
+            if (result.emailPendingConfirmation) {
+                showToast('Profilo aggiornato. Controlla la tua email per confermare il cambio di indirizzo.', 'success', 6000);
+            } else {
+                showToast('Profilo aggiornato.', 'success');
+            }
         });
     </script>
     <script>

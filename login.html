@@ -95,7 +95,6 @@
                     <div id="forgotError" class="login-error" style="display:none;"></div>
                     <button type="submit" class="btn-primary" style="width:100%">Invia link di reset</button>
                 </form>
-                <button class="forgot-password-link" style="margin-top:1rem;" onclick="switchTab('accedi')">← Torna al login</button>
             </div>
 
             <!-- ===== REIMPOSTA PASSWORD ===== -->
@@ -169,22 +168,6 @@
                 </form>
             </div>
 
-            <!-- Admin link -->
-            <div class="admin-login-toggle">
-                <button class="admin-toggle-link" onclick="toggleAdminForm()">Accedi come Admin ▾</button>
-                <form id="adminLoginForm" class="admin-login-form" style="display:none; margin-top:0.75rem;">
-                    <div class="form-group">
-                        <label for="adminUser">Username</label>
-                        <input type="text" id="adminUser" placeholder="admin" autocomplete="username">
-                    </div>
-                    <div class="form-group">
-                        <label for="adminPass">Password</label>
-                        <input type="password" id="adminPass" placeholder="••••••••" autocomplete="current-password">
-                    </div>
-                    <div id="adminLoginError" class="login-error" style="display:none;">Credenziali errate.</div>
-                    <button type="submit" class="btn-primary" style="width:100%">Accedi come Admin</button>
-                </form>
-            </div>
         </div>
     </div>
 
@@ -428,33 +411,6 @@
             // Successo: mostra conferma, nascondi form
             document.getElementById('resetForm').style.display = 'none';
             document.getElementById('resetSuccess').style.display = 'block';
-        });
-
-        // ── Admin toggle ──────────────────────────────────────────────────
-        function toggleAdminForm() {
-            const form = document.getElementById('adminLoginForm');
-            form.style.display = form.style.display === 'none' ? 'block' : 'none';
-        }
-
-        const _ADMIN_SALT = 'tb-admin-2026';
-        const _ADMIN_HASH = '036f86f46401f7c2c915c266c56db12210c784961d783c8efa32532fa7fb4fe5';
-        async function _checkAdminPass(password) {
-            const buf = await crypto.subtle.digest('SHA-256',
-                new TextEncoder().encode(_ADMIN_SALT + password));
-            return [...new Uint8Array(buf)].map(b => b.toString(16).padStart(2, '0')).join('') === _ADMIN_HASH;
-        }
-
-        document.getElementById('adminLoginForm').addEventListener('submit', async e => {
-            e.preventDefault();
-            const pass = document.getElementById('adminPass').value;
-            const btn  = e.target.querySelector('button[type="submit"]');
-            if (await _checkAdminPass(pass)) {
-                setLoading(btn, true, 'Accesso...');
-                localStorage.setItem('adminAuthenticated', 'true');
-                window.location.href = 'admin.html';
-            } else {
-                document.getElementById('adminLoginError').style.display = 'block';
-            }
         });
 
         // ── OAuth callback: handle redirect back from Google ──────────────
