@@ -5588,7 +5588,8 @@ function checkWeeklyReportBanner() {
     const dismissed = localStorage.getItem(_weeklyReportKey()) === 'true';
 
     // Show banner on Monday (day=1) if not dismissed for this week
-    if (today === 1 && !dismissed) {
+    // TODO: RIMUOVERE - test temporaneo per mostrare sempre il banner
+    if (true || (today === 1 && !dismissed)) {
         const { label } = _getPreviousWeekRange();
         const periodEl = document.getElementById('weeklyReportPeriod');
         if (periodEl) periodEl.textContent = `Pagamenti carta e bonifico: ${label}`;
