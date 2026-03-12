@@ -2543,6 +2543,7 @@ function createDebtorCard(debtor, cardId) {
             <div class="debtor-pay-footer">
                 <div class="debtor-pay-total">Totale: <strong>€${debtor.totalAmount}</strong></div>
                 <select class="debt-method-select debtor-method-select">
+                    <option value="" disabled selected>Seleziona…</option>
                     <option value="contanti">💵 Contanti</option>
                     <option value="carta">💳 Carta</option>
                     <option value="iban">🏦 Bonifico</option>
@@ -2571,7 +2572,8 @@ function selectDebtorPayMethod(btn) {
 function payAllDebtsInline(whatsapp, email, name, btn) {
     const footer = btn.closest('.debtor-pay-footer');
     const methodSelect = footer.querySelector('.debtor-method-select');
-    const method = methodSelect ? methodSelect.value : 'contanti';
+    const method = methodSelect ? methodSelect.value : '';
+    if (!method) { showToast('Seleziona un metodo di pagamento', 'error'); return; }
     const methodLabels = { contanti: '💵 Contanti', carta: '💳 Carta', iban: '🏦 Bonifico' };
 
     const normW = normalizePhone(whatsapp);
@@ -2842,7 +2844,7 @@ function openManualEntryPopup(type) {
     document.getElementById('manualAmountInput').value = '';
     document.getElementById('manualNoteInput').value = '';
     const manualSelect = document.getElementById('manualMethodSelect');
-    if (manualSelect) manualSelect.value = 'contanti';
+    if (manualSelect) manualSelect.value = '';
     document.getElementById('manualMethodField').style.display = isDebt ? 'none' : '';
     document.getElementById('manualEntryOverlay').classList.add('open');
     document.getElementById('manualEntryModal').classList.add('open');
@@ -2912,7 +2914,8 @@ function saveManualEntry() {
     }
     const note = document.getElementById('manualNoteInput').value.trim();
     const manualSelect = document.getElementById('manualMethodSelect');
-    const method = manualSelect ? manualSelect.value : 'contanti';
+    const method = manualSelect ? manualSelect.value : '';
+    if (!method && _manualEntryType !== 'debt') { showToast('Seleziona un metodo di pagamento', 'error'); return; }
     const { name, whatsapp, email } = _manualEntryContact;
 
     const savedType = _manualEntryType;
@@ -3021,9 +3024,9 @@ function openDebtPopup(whatsapp, email, name) {
     if (debtBalance > 0) subtitle = subtitle ? `${subtitle} · Debito manuale: €${debtBalance.toFixed(2)}` : `Debito manuale: €${debtBalance.toFixed(2)}`;
     document.getElementById('debtPopupSubtitle').textContent = subtitle;
 
-    // Reset payment method to default
+    // Reset payment method to placeholder
     const debtSelect = document.getElementById('debtMethodSelect');
-    if (debtSelect) debtSelect.value = 'contanti';
+    if (debtSelect) debtSelect.value = '';
 
     // Reset amount input & show amount row (in case previous selection was 'gratuita')
     const amountRow = document.querySelector('#debtPopupModal .debt-payment-amount-row');
@@ -3180,7 +3183,8 @@ function paySelectedDebts() {
     if (checked.length === 0) return;
 
     const methodSelect = document.getElementById('debtMethodSelect');
-    const paymentMethod = methodSelect ? methodSelect.value : 'contanti';
+    const paymentMethod = methodSelect ? methodSelect.value : '';
+    if (!paymentMethod) { showToast('Seleziona un metodo di pagamento', 'error'); return; }
     const isFreeLesson = paymentMethod === 'lezione-gratuita';
     const amountInput = document.getElementById('debtAmountInput');
     const amountPaid = isFreeLesson ? 0 : (amountInput ? (parseFloat(amountInput.value) || 0) : 0);
