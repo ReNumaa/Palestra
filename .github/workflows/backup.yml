@@ -46,6 +46,11 @@ jobs:
             --argjson bonuses            "$(_fetch bonuses)" \
             --argjson schedule_overrides "$(_fetch schedule_overrides)" \
             --argjson settings           "$(_fetch_settings)" \
+            --argjson credit_link_clicks "$(curl -sf \
+              -H "apikey: $SUPA_KEY" \
+              -H "Authorization: Bearer $SUPA_KEY" \
+              -H "Range: 0-499999" \
+              "$SUPA_URL/rest/v1/credit_link_clicks?select=*&order=clicked_at.asc")" \
             '{
               generated_at:       $ts,
               bookings:           $bookings,
@@ -54,7 +59,8 @@ jobs:
               manual_debts:       $manual_debts,
               bonuses:            $bonuses,
               schedule_overrides: $schedule_overrides,
-              settings:           $settings
+              settings:           $settings,
+              credit_link_clicks: $credit_link_clicks
             }' > "backup_${DATE}.json"
 
           SIZE=$(du -h "backup_${DATE}.json" | cut -f1)

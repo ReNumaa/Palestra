@@ -401,12 +401,19 @@ function _injectNavLinkLast(href, label, cssClass) {
 
 function _removeDynamicNavLinks() {
     document.querySelectorAll('[data-nav-dynamic]').forEach(el => el.remove());
-    document.querySelectorAll('.nav-sidebar-logout-item').forEach(el => el.remove());
+    // Nascondi invece di rimuovere — preserva l'event listener del bottone Esci
+    document.querySelectorAll('.nav-sidebar-logout-item').forEach(el => el.style.display = 'none');
 }
 
 function _injectSidebarLogout() {
     const sidebar = document.querySelector('.nav-sidebar-links');
-    if (!sidebar || sidebar.querySelector('.nav-sidebar-logout')) return;
+    if (!sidebar) return;
+    // Riusa il bottone esistente invece di ricrearlo (evita perdita event listener)
+    const existing = sidebar.querySelector('.nav-sidebar-logout');
+    if (existing) {
+        existing.closest('.nav-sidebar-logout-item').style.display = '';
+        return;
+    }
     const li = document.createElement('li');
     li.className = 'nav-sidebar-logout-item';
     const btn = document.createElement('button');
