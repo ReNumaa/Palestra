@@ -147,6 +147,10 @@
                     <input type="tel" id="editWhatsapp" placeholder="+39 348 1234567" autocomplete="tel">
                 </div>
                 <div class="form-group">
+                    <label for="editCodiceFiscale">Codice Fiscale</label>
+                    <input type="text" id="editCodiceFiscale" placeholder="RSSMRA85M01H501Z" maxlength="16" style="text-transform:uppercase">
+                </div>
+                <div class="form-group">
                     <label for="editCertScadenza">Scadenza certificato medico</label>
                     <input type="date" id="editCertScadenza">
                 </div>
@@ -834,6 +838,7 @@
             document.getElementById('editName').value     = user.name || '';
             document.getElementById('editEmail').value    = user.email || '';
             document.getElementById('editWhatsapp').value = user.whatsapp || '';
+            document.getElementById('editCodiceFiscale').value = user.codice_fiscale || '';
             const certField = document.getElementById('editCertScadenza');
             certField.value    = user.medical_cert_expiry || '';
             certField.disabled = !CertEditableStorage.get();
@@ -859,6 +864,7 @@
             const name     = document.getElementById('editName').value.trim();
             const email    = document.getElementById('editEmail').value.trim();
             const whatsapp = document.getElementById('editWhatsapp').value.trim();
+            const codiceFiscale = document.getElementById('editCodiceFiscale').value.trim();
             const certSc   = document.getElementById('editCertScadenza').value;
             const pass     = document.getElementById('editPassword').value;
             const passConf = document.getElementById('editPasswordConfirm').value;
@@ -877,6 +883,7 @@
                 name,
                 email,
                 whatsapp: whatsapp ? normalizePhone(whatsapp) : '',
+                codiceFiscale,
                 certificatoMedicoScadenza: certSc
             }, pass || null);
 

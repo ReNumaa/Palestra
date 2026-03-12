@@ -39,7 +39,7 @@ function _authError(error) {
 async function _loadProfile(userId) {
     const { data: profile, error } = await supabaseClient
         .from('profiles')
-        .select('id, name, email, whatsapp, medical_cert_expiry, medical_cert_history, insurance_expiry, insurance_history, created_at')
+        .select('id, name, email, whatsapp, medical_cert_expiry, medical_cert_history, insurance_expiry, insurance_history, codice_fiscale, created_at')
         .eq('id', userId)
         .single();
 
@@ -171,7 +171,7 @@ function getCurrentUser() {
 // ── Register ──────────────────────────────────────────────────────────────────
 // Il profilo viene creato automaticamente dal trigger handle_new_user su auth.users.
 // Passiamo nome e whatsapp come user_metadata così il trigger li riceve.
-async function registerUser(name, email, whatsapp, password) {
+async function registerUser(name, email, whatsapp, password, codiceFiscale) {
     // Controlla se il numero WhatsApp è già usato da un altro utente
     if (whatsapp) {
         const { data: taken } = await supabaseClient.rpc('is_whatsapp_taken', { phone: whatsapp });
@@ -182,7 +182,7 @@ async function registerUser(name, email, whatsapp, password) {
     const { data, error } = await supabaseClient.auth.signUp({
         email,
         password,
-        options: { data: { full_name: capitalized, whatsapp } }
+        options: { data: { full_name: capitalized, whatsapp, codice_fiscale: (codiceFiscale || '').toUpperCase() || null } }
     });
     if (error) return { ok: false, error: _authError(error) };
     if (!data.user?.id) return { ok: false, error: 'Errore durante la registrazione.' };
@@ -236,6 +236,11 @@ async function updateUserProfile(currentEmail, updates, newPassword) {
     // Email: aggiorna nel profilo SOLO se non è cambiata (altrimenti aspettiamo la conferma)
     if (updates.email !== undefined && updates.email.toLowerCase() === currentEmail.toLowerCase()) {
         profileUpdate.email = updates.email.toLowerCase();
+    }
+
+    // Codice fiscale
+    if (updates.codiceFiscale !== undefined) {
+        profileUpdate.codice_fiscale = (updates.codiceFiscale || '').toUpperCase() || null;
     }
 
     // Certificato medico: aggiorna scadenza e mantieni storico

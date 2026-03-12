@@ -1412,14 +1412,21 @@ function _buildParticipantCard(booking) {
     const userRecord = _getUserRecord(booking.email, booking.whatsapp);
     const certScad  = userRecord?.certificatoMedicoScadenza;
     const assicScad = userRecord?.assicurazioneScadenza;
+    const hasCF     = !!userRecord?.codiceFiscale;
     const emE = (booking.email || '').replace(/'/g, "\\'");
     const waE = (booking.whatsapp || '').replace(/'/g, "\\'");
     const nmE2 = booking.name.replace(/'/g, "\\'");
     const _todayStr   = _localDateStr();
     const _today30    = new Date(); _today30.setDate(_today30.getDate() + 30);
     const _today30Str = _localDateStr(_today30);
+
+    // Cert medico + codice fiscale: combinati se entrambi mancanti
     let certBadge = '';
-    if (!certScad) {
+    const certMissing = !certScad;
+    const cfMissing   = !hasCF;
+    if (certMissing && cfMissing) {
+        certBadge = `<div class="cert-expired-badge cert-expired-badge--clickable" onclick="openCertModal(this,'${emE}','${waE}','${nmE2}')">🏥 Imposta Cert. Med + Codice Fiscale</div>`;
+    } else if (certMissing) {
         certBadge = `<div class="cert-expired-badge cert-expired-badge--clickable" onclick="openCertModal(this,'${emE}','${waE}','${nmE2}')">🏥 Imposta scadenza Cert. Med</div>`;
     } else if (certScad < _todayStr) {
         const [cy, cm, cd] = certScad.split('-');
@@ -1428,6 +1435,13 @@ function _buildParticipantCard(booking) {
         const [cy, cm, cd] = certScad.split('-');
         certBadge = `<div class="cert-expired-badge cert-expired-badge--clickable" style="background:#fffbeb;border-color:#fde68a;color:#92400e;border-left:3px solid #f59e0b" onclick="openCertModal(this,'${emE}','${waE}','${nmE2}')">⏳ Cert. Med scade il ${cd}/${cm}/${cy}</div>`;
     }
+
+    // Codice fiscale warning (solo se cert è presente ma CF manca)
+    let cfBadge = '';
+    if (cfMissing && !certMissing) {
+        cfBadge = `<div class="cert-expired-badge cert-expired-badge--clickable" style="background:#fef3c7;border-color:#fde68a;color:#92400e;border-left:3px solid #f59e0b">🏥 Imposta Codice Fiscale</div>`;
+    }
+
     let assicBadge = '';
     if (!assicScad) {
         assicBadge = `<div class="cert-expired-badge cert-expired-badge--clickable" style="background:#fef3c7;border-color:#fde68a;color:#92400e;border-left:3px solid #f59e0b" onclick="openAssicModal(this,'${emE}','${waE}','${nmE2}')">📋 Imposta Assicurazione</div>`;
@@ -1448,7 +1462,7 @@ function _buildParticipantCard(booking) {
                 <div class="participant-name">${_escHtml(booking.name)}</div>
                 <div class="participant-contact">📱 ${_escHtml(booking.whatsapp)}</div>
                 ${booking.notes ? `<div class="participant-notes">📝 ${_escHtml(booking.notes)}</div>` : ''}
-                ${cancelPendingBadge}${certBadge}${assicBadge}
+                ${cancelPendingBadge}${certBadge}${cfBadge}${assicBadge}
                 ${hasDebts ? `<div class="debt-warning" onclick="openDebtPopup('${wa}','${em}','${nm}')">⚠️ Da pagare: €${unpaidAmount}</div>` : ''}
                 ${!isCancelPending ? (isPaid
                     ? `<div class="payment-status paid">✓ Pagato</div>`

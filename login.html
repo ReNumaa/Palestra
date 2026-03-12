@@ -150,6 +150,10 @@
                         <input type="tel" id="regWhatsapp" placeholder="+39 348 1234567" autocomplete="tel">
                     </div>
                     <div class="form-group">
+                        <label for="regCodiceFiscale">Codice Fiscale *</label>
+                        <input type="text" id="regCodiceFiscale" placeholder="RSSMRA85M01H501Z" maxlength="16" style="text-transform:uppercase">
+                    </div>
+                    <div class="form-group">
                         <label for="regPassword">Password *</label>
                         <div class="password-input-wrap">
                             <input type="password" id="regPassword" placeholder="Min. 6 caratteri" autocomplete="new-password">
@@ -286,13 +290,14 @@
             const name     = document.getElementById('regName').value.trim();
             const email    = document.getElementById('regEmail').value.trim();
             const whatsapp = normalizePhone(document.getElementById('regWhatsapp').value.trim());
+            const codiceFiscale = document.getElementById('regCodiceFiscale').value.trim().toUpperCase();
             const password = document.getElementById('regPassword').value;
             const confirm  = document.getElementById('regPasswordConfirm').value;
             const errEl    = document.getElementById('registerError');
             const btn      = e.target.querySelector('button[type="submit"]');
             errEl.style.display = 'none';
 
-            if (!name || !email || !whatsapp || !password || !confirm) {
+            if (!name || !email || !whatsapp || !codiceFiscale || !password || !confirm) {
                 errEl.textContent = 'Compila tutti i campi obbligatori.';
                 errEl.style.display = 'block';
                 return;
@@ -304,6 +309,11 @@
             }
             if (!/^\+\d{10,15}$/.test(whatsapp)) {
                 errEl.textContent = 'Numero WhatsApp non valido. Usa formato: +39 348 1234567';
+                errEl.style.display = 'block';
+                return;
+            }
+            if (!/^[A-Z]{6}\d{2}[A-Z]\d{2}[A-Z]\d{3}[A-Z]$/i.test(codiceFiscale)) {
+                errEl.textContent = 'Codice Fiscale non valido. Deve essere di 16 caratteri alfanumerici.';
                 errEl.style.display = 'block';
                 return;
             }
@@ -320,7 +330,7 @@
 
             setLoading(btn, true, 'Registrazione in corso...');
             try {
-                const result = await registerUser(name, email, whatsapp, password);
+                const result = await registerUser(name, email, whatsapp, password, codiceFiscale);
                 if (result.ok) {
                     document.getElementById('registerForm').style.display = 'none';
                     document.getElementById('registerSuccess').style.display = 'block';

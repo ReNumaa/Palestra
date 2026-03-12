@@ -2090,6 +2090,7 @@ class UserStorage {
                         ? existing.assicurazioneScadenza
                         : (row.insurance_expiry ?? null),
                     assicurazioneHistory: existing.assicurazioneHistory || row.insurance_history || [],
+                    codiceFiscale: row.codice_fiscale || existing.codiceFiscale || null,
                 };
             });
 
