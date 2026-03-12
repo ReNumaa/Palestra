@@ -9,10 +9,10 @@ CREATE TABLE IF NOT EXISTS credit_link_clicks (
 
 ALTER TABLE credit_link_clicks ENABLE ROW LEVEL SECURITY;
 
--- Any authenticated user can insert their own click
+-- Anyone (authenticated or anonymous) can insert click logs
 CREATE POLICY "Anyone can insert click logs"
     ON credit_link_clicks FOR INSERT
-    TO authenticated
+    TO authenticated, anon
     WITH CHECK (true);
 
 -- Only admins can read logs
