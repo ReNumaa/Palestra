@@ -2105,8 +2105,6 @@ class UserStorage {
 
             _lsSet(this.USERS_KEY, JSON.stringify([...merged, ...localOnly]));
             console.log(`[Supabase] syncUsersFromSupabase: ${data.length} da Supabase, ${localOnly.length} solo locali`);
-            if (data.length > 0) console.log('[CF-SYNC-DEBUG] primo record raw:', JSON.stringify({ codice_fiscale: data[0].codice_fiscale, name: data[0].name }));
-            if (merged.length > 0) console.log('[CF-SYNC-DEBUG] primo merged:', JSON.stringify({ codiceFiscale: merged[0].codiceFiscale, name: merged[0].name }));
         } catch (e) {
             console.error('[Supabase] syncUsersFromSupabase exception:', e);
         }
