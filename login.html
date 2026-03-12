@@ -180,10 +180,14 @@
     <div id="completeProfileModal" class="social-modal-overlay" style="display:none;">
         <div class="social-modal-box">
             <h3>Un'ultima cosa!</h3>
-            <p class="social-modal-sub">Inserisci il tuo numero WhatsApp per ricevere conferme e promemoria delle prenotazioni.</p>
+            <p class="social-modal-sub">Completa il tuo profilo per continuare.</p>
             <div class="form-group">
                 <label for="oauthWhatsapp">Numero WhatsApp *</label>
                 <input type="tel" id="oauthWhatsapp" placeholder="+39 348 1234567" autocomplete="tel">
+            </div>
+            <div class="form-group">
+                <label for="oauthCodiceFiscale">Codice Fiscale *</label>
+                <input type="text" id="oauthCodiceFiscale" placeholder="RSSMRA85M01H501Z" maxlength="16" style="text-transform:uppercase">
             </div>
             <div id="oauthWhatsappError" class="login-error" style="display:none;">Inserisci un numero valido (min. 10 cifre).</div>
             <button class="btn-primary" style="width:100%; margin-top:0.5rem" onclick="confirmCompleteProfile()">Continua</button>
@@ -442,20 +446,23 @@
             const email  = session.user.email;
             const userId = session.user.id;
 
-            if (user && user.whatsapp) {
+            if (user && user.whatsapp && user.codice_fiscale) {
                 // Profilo completo: vai direttamente
                 window.location.replace('index.html');
                 return true;
             }
 
-            // Manca il WhatsApp: mostra il modal
+            // Manca WhatsApp o Codice Fiscale: mostra il modal
             window._pendingOAuthUser = { name, email, userId };
+            if (user?.whatsapp) document.getElementById('oauthWhatsapp').value = user.whatsapp;
+            if (user?.codice_fiscale) document.getElementById('oauthCodiceFiscale').value = user.codice_fiscale;
             document.getElementById('completeProfileModal').style.display = 'flex';
             return true;
         }
 
         async function confirmCompleteProfile() {
             const raw   = document.getElementById('oauthWhatsapp').value.trim();
+            const cfRaw = document.getElementById('oauthCodiceFiscale').value.trim().toUpperCase();
             const errEl = document.getElementById('oauthWhatsappError');
             const btn   = document.querySelector('#completeProfileModal .btn-primary');
             errEl.style.display = 'none';
@@ -463,6 +470,12 @@
             const whatsapp = normalizePhone(raw);
             if (!/^\+\d{10,15}$/.test(whatsapp)) {
                 errEl.textContent = 'Numero non valido. Usa formato: +39 348 1234567';
+                errEl.style.display = 'block';
+                return;
+            }
+
+            if (!/^[A-Z]{6}\d{2}[A-Z]\d{2}[A-Z]\d{3}[A-Z]$/i.test(cfRaw)) {
+                errEl.textContent = 'Codice Fiscale non valido (16 caratteri alfanumerici).';
                 errEl.style.display = 'block';
                 return;
             }
@@ -482,7 +495,7 @@
             // Upsert profilo su Supabase
             const { error } = await supabaseClient
                 .from('profiles')
-                .upsert({ id: userId, name, email, whatsapp });
+                .upsert({ id: userId, name, email, whatsapp, codice_fiscale: cfRaw });
 
             if (error) {
                 setLoading(btn, false);
