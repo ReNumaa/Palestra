@@ -1638,6 +1638,56 @@ body.nav-open {
     }
 }
 
+/* ─── PWA INSTALL BANNER ────────────────────────────────────────────────────── */
+
+.pwa-install-banner {
+    position: fixed;
+    bottom: 0;
+    left: 0;
+    right: 0;
+    background: var(--dark-bg, #1a1a1a);
+    color: #fff;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 0.75rem 1rem;
+    z-index: 10000;
+    box-shadow: 0 -2px 12px rgba(0,0,0,0.3);
+    transform: translateY(100%);
+    transition: transform 0.35s ease;
+}
+.pwa-install-banner.visible {
+    transform: translateY(0);
+}
+.pwa-install-banner-text {
+    font-size: 0.9rem;
+    flex: 1;
+    margin-right: 0.75rem;
+}
+.pwa-install-banner-btn {
+    background: var(--primary-cyan, #00AEEF);
+    color: #fff;
+    border: none;
+    border-radius: 8px;
+    padding: 0.5rem 1.2rem;
+    font-weight: 600;
+    font-size: 0.85rem;
+    cursor: pointer;
+    white-space: nowrap;
+}
+.pwa-install-banner-btn:active {
+    opacity: 0.8;
+}
+.pwa-install-banner-close {
+    background: none;
+    border: none;
+    color: rgba(255,255,255,0.5);
+    font-size: 1.4rem;
+    cursor: pointer;
+    padding: 0 0 0 0.75rem;
+    line-height: 1;
+}
+
 /* ─── LOADING STATE ──────────────────────────────────────────────────────────── */
 
 @keyframes btn-spin {
