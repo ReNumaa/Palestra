@@ -808,10 +808,12 @@
             if (!user || !el) return;
 
             const scad = user.medical_cert_expiry || null;
+            const hasCF = !!user.codice_fiscale;
             const certEditable = CertEditableStorage.get();
             const clickFn = certEditable ? 'openEditProfileModal()' : "showToast('Porta a Thomas il certificato medico', 'error')";
+            const cfSuffix = !hasCF ? ' + Codice Fiscale' : '';
             if (!scad) {
-                el.innerHTML = `<div class="preno-cert-warning preno-cert-expired preno-cert-clickable" onclick="${clickFn}">🏥 Imposta scadenza Cert. Medico</div>`;
+                el.innerHTML = `<div class="preno-cert-warning preno-cert-expired preno-cert-clickable" onclick="openEditProfileModal()">🏥 Imposta scadenza Cert. Medico${cfSuffix}</div>`;
                 return;
             }
 
@@ -822,13 +824,16 @@
             const [y, m, d] = scad.split('-');
             const dateLabel = `${d}/${m}/${y}`;
 
+            let html = '';
             if (diffDays <= 0) {
-                el.innerHTML = `<div class="preno-cert-warning preno-cert-expired preno-cert-clickable" onclick="${clickFn}">🏥 Cert. Medico scaduto il ${dateLabel}</div>`;
+                html += `<div class="preno-cert-warning preno-cert-expired preno-cert-clickable" onclick="${clickFn}">🏥 Cert. Medico scaduto il ${dateLabel}</div>`;
             } else if (diffDays <= 30) {
-                el.innerHTML = `<div class="preno-cert-warning preno-cert-expiring preno-cert-clickable" onclick="${clickFn}">⏳ Mancano ${diffDays} giorn${diffDays === 1 ? 'o' : 'i'} alla scadenza del tuo Cert. Medico</div>`;
-            } else {
-                el.innerHTML = '';
+                html += `<div class="preno-cert-warning preno-cert-expiring preno-cert-clickable" onclick="${clickFn}">⏳ Mancano ${diffDays} giorn${diffDays === 1 ? 'o' : 'i'} alla scadenza del tuo Cert. Medico</div>`;
             }
+            if (!hasCF) {
+                html += `<div class="preno-cert-warning preno-cert-expired preno-cert-clickable" onclick="openEditProfileModal()" style="margin-top:0.5rem">🏥 Imposta Codice Fiscale</div>`;
+            }
+            el.innerHTML = html;
         }
 
         // ── Edit profile modal ────────────────────────────────────────────
