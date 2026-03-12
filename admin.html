@@ -13,7 +13,7 @@
     <link rel="icon" type="image/jpeg" href="images/logo-tb---nero.jpg">
     <link rel="stylesheet" href="css/style.css?v=6">
     <link rel="stylesheet" href="css/login.css?v=5">
-    <link rel="stylesheet" href="css/admin.css?v=22">
+    <link rel="stylesheet" href="css/admin.css?v=23">
 </head>
 <body>
     <nav class="navbar">
@@ -47,6 +47,19 @@
 
     <div id="dashboardSection" class="dashboard-section">
         <div class="container">
+            <!-- Weekly Report Banner -->
+            <div id="weeklyReportBanner" class="weekly-report-banner" style="display:none;">
+                <div class="weekly-report-banner-content">
+                    <span class="weekly-report-banner-icon">📊</span>
+                    <div class="weekly-report-banner-text">
+                        <strong>Report settimanale disponibile</strong>
+                        <span id="weeklyReportPeriod"></span>
+                    </div>
+                    <button class="weekly-report-banner-btn" onclick="downloadWeeklyReport()">📥 Scarica report</button>
+                    <button class="weekly-report-banner-close" onclick="dismissWeeklyReport()" title="Chiudi">✕</button>
+                </div>
+            </div>
+
             <!-- Tab Navigation -->
             <div class="admin-tabs">
                 <button class="admin-tab active" data-tab="bookings">📅 Prenotazioni</button>
@@ -371,6 +384,16 @@
                         <div id="backupStatus" style="margin-top:0.6rem;font-size:0.85rem;color:#6b7280"></div>
                     </div>
                     <!-- End: backup -->
+
+                    <!-- Report settimanale -->
+                    <div class="settings-section settings-section--inline">
+                        <div class="debt-threshold-text">
+                            <h4 class="settings-section-title">📊 Report settimanale pagamenti carta e bonifico</h4>
+                            <p class="settings-section-desc">Genera il report XLSX dei pagamenti con carta e bonifico della settimana precedente (lunedì–domenica). Utile se hai già chiuso la notifica o vuoi rigenerarlo.</p>
+                        </div>
+                        <button class="btn-action" onclick="downloadWeeklyReport()" style="background:#2563eb; white-space:nowrap;">📥 Rigenera report settimanale</button>
+                    </div>
+                    <!-- End: report settimanale -->
 
                     <!-- Azioni Rapide -->
                     <div class="settings-section">

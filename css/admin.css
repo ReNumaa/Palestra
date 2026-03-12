@@ -4222,4 +4222,62 @@ canvas {
     .admin-calendar-controls { gap: 0.25rem; }
     .admin-calendar-controls h4 { font-size: 0.85rem; text-align: center; }
     .btn-control { font-size: 0.75rem; padding: 0.35rem 0.5rem; }
+
+    .weekly-report-banner-content { flex-direction: column; text-align: center; }
+    .weekly-report-banner-close { position: absolute; top: 0.5rem; right: 0.5rem; }
 }
+
+/* ── Weekly Report Banner ─────────────────────────────────────────────────── */
+.weekly-report-banner {
+    background: linear-gradient(135deg, #1e40af 0%, #2563eb 100%);
+    border-radius: 12px;
+    padding: 1rem 1.25rem;
+    margin-bottom: 1rem;
+    position: relative;
+    box-shadow: 0 2px 8px rgba(37, 99, 235, 0.25);
+    animation: bannerSlideIn 0.4s ease-out;
+}
+@keyframes bannerSlideIn {
+    from { opacity: 0; transform: translateY(-12px); }
+    to   { opacity: 1; transform: translateY(0); }
+}
+.weekly-report-banner-content {
+    display: flex;
+    align-items: center;
+    gap: 1rem;
+    color: #fff;
+}
+.weekly-report-banner-icon { font-size: 1.6rem; }
+.weekly-report-banner-text {
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    gap: 0.15rem;
+}
+.weekly-report-banner-text strong { font-size: 1rem; }
+.weekly-report-banner-text span { font-size: 0.85rem; opacity: 0.85; }
+.weekly-report-banner-btn {
+    background: #fff;
+    color: #1e40af;
+    border: none;
+    border-radius: 8px;
+    padding: 0.6rem 1.2rem;
+    font-size: 0.9rem;
+    font-weight: 600;
+    cursor: pointer;
+    white-space: nowrap;
+    transition: background 0.2s, transform 0.15s;
+}
+.weekly-report-banner-btn:hover { background: #e0e7ff; transform: scale(1.03); }
+.weekly-report-banner-btn:active { transform: scale(0.97); }
+.weekly-report-banner-close {
+    background: none;
+    border: none;
+    color: rgba(255,255,255,0.7);
+    font-size: 1.2rem;
+    cursor: pointer;
+    padding: 0.25rem;
+    line-height: 1;
+    transition: color 0.2s;
+}
+.weekly-report-banner-close:hover { color: #fff; }

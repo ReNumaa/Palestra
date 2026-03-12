@@ -249,6 +249,7 @@ function showDashboard() {
     setupScheduleManager();
     // Don't draw charts on initial load (analytics tab is hidden, canvas.offsetWidth = 0)
     updateNonChartData();
+    checkWeeklyReportBanner();
 }
 
 // Tab Management
@@ -5549,6 +5550,197 @@ function renderOccupancyDetail(panel) {
 }
 
 // ── End Statistics Detail Panel ───────────────────────────────────────────────
+
+// ── Weekly Card-Payment Report ───────────────────────────────────────────────
+
+// Returns {from: Date, to: Date, label: string} for the previous Monday–Sunday week
+function _getPreviousWeekRange() {
+    const now = new Date();
+    // JavaScript: 0=Sun, 1=Mon, …, 6=Sat
+    const day = now.getDay();
+    // Days since last Monday (if today is Monday day=1 → 7 days back to previous Mon)
+    const daysSinceMonday = day === 0 ? 6 : day - 1;
+    const thisMonday = new Date(now.getFullYear(), now.getMonth(), now.getDate() - daysSinceMonday);
+    const prevMonday = new Date(thisMonday);
+    prevMonday.setDate(prevMonday.getDate() - 7);
+    const prevSunday = new Date(prevMonday);
+    prevSunday.setDate(prevSunday.getDate() + 6);
+
+    const fmt = d => d.toLocaleDateString('it-IT', { day: '2-digit', month: '2-digit', year: 'numeric' });
+    return {
+        from: prevMonday,
+        to: prevSunday,
+        label: `${fmt(prevMonday)} – ${fmt(prevSunday)}`
+    };
+}
+
+// Key for localStorage to track dismissed banner per week
+function _weeklyReportKey() {
+    const { from } = _getPreviousWeekRange();
+    return `weeklyReportDismissed_${from.toISOString().slice(0, 10)}`;
+}
+
+function checkWeeklyReportBanner() {
+    const banner = document.getElementById('weeklyReportBanner');
+    if (!banner) return;
+
+    const today = new Date().getDay(); // 0=Sun, 1=Mon
+    const dismissed = localStorage.getItem(_weeklyReportKey()) === 'true';
+
+    // Show banner on Monday (day=1) if not dismissed for this week
+    if (today === 1 && !dismissed) {
+        const { label } = _getPreviousWeekRange();
+        const periodEl = document.getElementById('weeklyReportPeriod');
+        if (periodEl) periodEl.textContent = `Pagamenti carta e bonifico: ${label}`;
+        banner.style.display = 'block';
+    } else {
+        banner.style.display = 'none';
+    }
+}
+
+function dismissWeeklyReport() {
+    localStorage.setItem(_weeklyReportKey(), 'true');
+    const banner = document.getElementById('weeklyReportBanner');
+    if (banner) banner.style.display = 'none';
+}
+
+async function downloadWeeklyReport() {
+    const { from, to, label } = _getPreviousWeekRange();
+    const fromStr = from.toISOString().slice(0, 10);
+    const toStr   = to.toISOString().slice(0, 10);
+
+    // Show loading
+    const btn = document.querySelector('.weekly-report-banner-btn');
+    const origLabel = btn?.innerHTML;
+    if (btn) { btn.innerHTML = '⏳ Generazione...'; btn.disabled = true; }
+
+    try {
+        // Fetch bookings paid with carta or bonifico in the date range
+        const REPORT_METHODS = new Set(['carta', 'iban']);
+        const METHOD_LABEL_REPORT = { carta: 'Carta', iban: 'Bonifico' };
+        const allBookings = await BookingStorage.fetchForAdmin(fromStr, toStr);
+        const cardBookings = allBookings.filter(b =>
+            b.paid && REPORT_METHODS.has(b.paymentMethod) && b.status !== 'cancelled'
+        );
+
+        // Also check manual debts paid with carta/iban in this period
+        const allDebts = ManualDebtStorage._getAll();
+        const manualCardPayments = [];
+        Object.values(allDebts).forEach(d => {
+            (d.history || []).filter(h => {
+                if (h.amount >= 0) return false; // only payments (negative = paid)
+                if (!REPORT_METHODS.has(h.method || '')) return false;
+                const hDate = h.date ? h.date.slice(0, 10) : '';
+                return hDate >= fromStr && hDate <= toStr;
+            }).forEach(h => {
+                manualCardPayments.push({
+                    name: d.name,
+                    email: d.email,
+                    date: h.date,
+                    type: 'Saldo debito manuale',
+                    amount: Math.abs(h.amount),
+                    method: h.method,
+                    note: h.note || ''
+                });
+            });
+        });
+
+        // Build user map for codice_fiscale lookup
+        const allUsers = UserStorage.getAll();
+        const userMap = {};
+        allUsers.forEach(u => {
+            if (u.email) userMap[u.email.toLowerCase()] = u;
+        });
+
+        const SLOT_LABEL = {
+            'personal-training': 'Personal Training',
+            'small-group':       'Small Group',
+            'group-class':       'Lezione di Gruppo'
+        };
+
+        function splitName(fullName) {
+            if (!fullName) return { nome: '', cognome: '' };
+            const parts = (fullName || '').trim().split(/\s+/);
+            if (parts.length <= 1) return { nome: parts[0] || '', cognome: '' };
+            return { nome: parts[0], cognome: parts.slice(1).join(' ') };
+        }
+
+        function fmtDateTime(iso) {
+            if (!iso) return '';
+            const d = new Date(iso);
+            return isNaN(d) ? iso : d.toLocaleString('it-IT');
+        }
+
+        // Build rows
+        const rows = [];
+
+        cardBookings.forEach(b => {
+            const user = userMap[(b.email || '').toLowerCase()];
+            const { nome, cognome } = splitName(b.name);
+            rows.push({
+                nome,
+                cognome,
+                cf: user?.codiceFiscale || '',
+                data: fmtDateTime(b.paidAt || b.date + 'T12:00:00'),
+                sortKey: b.paidAt || b.date,
+                tipo: SLOT_LABEL[b.slotType] || b.slotType || '',
+                metodo: METHOD_LABEL_REPORT[b.paymentMethod] || b.paymentMethod,
+                importo: SLOT_PRICES[b.slotType] || 0
+            });
+        });
+
+        manualCardPayments.forEach(p => {
+            const user = userMap[(p.email || '').toLowerCase()];
+            const { nome, cognome } = splitName(p.name);
+            rows.push({
+                nome,
+                cognome,
+                cf: user?.codiceFiscale || '',
+                data: fmtDateTime(p.date),
+                sortKey: p.date || '',
+                tipo: p.type,
+                metodo: METHOD_LABEL_REPORT[p.method] || p.method,
+                importo: p.amount
+            });
+        });
+
+        // Sort by date ascending
+        rows.sort((a, b) => (a.sortKey || '').localeCompare(b.sortKey || ''));
+
+        // Build XLSX
+        const sheetData = [
+            ['Nome', 'Cognome', 'Codice Fiscale', 'Data e Ora Pagamento', 'Tipo di Pagamento', 'Metodo Pagamento', 'Importo (€)'],
+            ...rows.map(r => [r.nome, r.cognome, r.cf, r.data, r.tipo, r.metodo, r.importo])
+        ];
+
+        const wb = XLSX.utils.book_new();
+        const ws = XLSX.utils.aoa_to_sheet(sheetData);
+        ws['!cols'] = [
+            { wch: 18 }, { wch: 20 }, { wch: 20 }, { wch: 22 }, { wch: 22 }, { wch: 18 }, { wch: 12 }
+        ];
+        XLSX.utils.book_append_sheet(wb, ws, 'Pagamenti Carta e Bonifico');
+
+        const fromFmt = fromStr.split('-').reverse().join('-');
+        const toFmt   = toStr.split('-').reverse().join('-');
+        XLSX.writeFile(wb, `TB_Report_Carta_Bonifico_${fromFmt}_${toFmt}.xlsx`);
+
+        // Dismiss the banner after successful download
+        dismissWeeklyReport();
+
+        if (typeof showToast === 'function') {
+            showToast(`Report scaricato: ${rows.length} pagamenti carta/bonifico`, 'success');
+        }
+    } catch (err) {
+        console.error('[WeeklyReport] Error:', err);
+        if (typeof showToast === 'function') {
+            showToast('Errore durante la generazione del report', 'error');
+        }
+    } finally {
+        if (btn) { btn.disabled = false; btn.innerHTML = origLabel || '📥 Scarica report'; }
+    }
+}
+
+// ── End Weekly Report ────────────────────────────────────────────────────────
 
 if (document.readyState === 'loading') {
     document.addEventListener('DOMContentLoaded', initAdmin);
