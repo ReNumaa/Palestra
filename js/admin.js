@@ -1413,7 +1413,6 @@ function _buildParticipantCard(booking) {
     const certScad  = userRecord?.certificatoMedicoScadenza;
     const assicScad = userRecord?.assicurazioneScadenza;
     const hasCF     = !!userRecord?.codiceFiscale;
-    console.log('[CF-DEBUG]', booking.name, { userRecord: !!userRecord, cf: userRecord?.codiceFiscale, hasCF, certScad });
     const emE = (booking.email || '').replace(/'/g, "\\'");
     const waE = (booking.whatsapp || '').replace(/'/g, "\\'");
     const nmE2 = booking.name.replace(/'/g, "\\'");
@@ -5239,9 +5238,12 @@ function openCertModal(badgeEl, email, whatsapp, name) {
     const users = _getUsersFull();
     const idx   = _findUserIdx(users, email, whatsapp);
     const existing = idx !== -1 ? (users[idx].certificatoMedicoScadenza || '') : '';
+    const existingCF = idx !== -1 ? (users[idx].codiceFiscale || '') : '';
 
     document.getElementById('certModalName').textContent = name;
     document.getElementById('certModalDate').value = existing;
+    document.getElementById('certModalCF').value = existingCF;
+    document.getElementById('certModalCFError').style.display = 'none';
     document.getElementById('certModalOverlay').style.display = 'block';
     document.getElementById('certModal').style.display = 'flex';
     setTimeout(() => document.getElementById('certModalDate').focus(), 50);
@@ -5255,6 +5257,16 @@ function closeCertModal() {
 
 function saveCertDate() {
     const val = document.getElementById('certModalDate').value;
+    const cfVal = document.getElementById('certModalCF').value.trim().toUpperCase();
+    const cfErrEl = document.getElementById('certModalCFError');
+    cfErrEl.style.display = 'none';
+
+    // Valida CF se compilato
+    if (cfVal && !/^[A-Z]{6}\d{2}[A-Z]\d{2}[A-Z]\d{3}[A-Z]$/i.test(cfVal)) {
+        cfErrEl.style.display = 'block';
+        return;
+    }
+
     const users = _getUsersFull();
     let idx = _findUserIdx(users, _certModalEmail, _certModalWhatsapp);
 
@@ -5266,7 +5278,8 @@ function saveCertDate() {
             whatsapp: _certModalWhatsapp || null,
             createdAt: new Date().toISOString(),
             certificatoMedicoScadenza: val || null,
-            certificatoMedicoHistory: [{ scadenza: val || null, aggiornatoIl: new Date().toISOString() }]
+            certificatoMedicoHistory: [{ scadenza: val || null, aggiornatoIl: new Date().toISOString() }],
+            codiceFiscale: cfVal || null
         });
     } else {
         const oldCert = users[idx].certificatoMedicoScadenza || '';
@@ -5275,9 +5288,12 @@ function saveCertDate() {
             if (!users[idx].certificatoMedicoHistory) users[idx].certificatoMedicoHistory = [];
             users[idx].certificatoMedicoHistory.push({ scadenza: val || null, aggiornatoIl: new Date().toISOString() });
         }
+        users[idx].codiceFiscale = cfVal || null;
     }
     _saveUsers(users);
-    _updateSupabaseProfile(_certModalEmail, _certModalWhatsapp, { medical_cert_expiry: val || null });
+    const supaFields = { medical_cert_expiry: val || null };
+    if (cfVal || cfVal === '') supaFields.codice_fiscale = cfVal || null;
+    _updateSupabaseProfile(_certModalEmail, _certModalWhatsapp, supaFields);
 
     // Aggiorna sessione se è il cliente loggato
     const session = getCurrentUser();
@@ -5291,7 +5307,11 @@ function saveCertDate() {
     // Aggiorna il badge in-place
     if (_certModalBadgeEl) {
         const today = _localDateStr();
-        if (!val) {
+        const stillNoCF = !cfVal;
+        if (!val && stillNoCF) {
+            _certModalBadgeEl.textContent = '🏥 Imposta Cert. Med + Codice Fiscale';
+            _certModalBadgeEl.removeAttribute('style');
+        } else if (!val) {
             _certModalBadgeEl.textContent = '🏥 Imposta scadenza Cert. Med';
             _certModalBadgeEl.removeAttribute('style');
         } else if (val < today) {
