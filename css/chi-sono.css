@@ -178,12 +178,14 @@
 
 /* Services */
 .cs-services-grid {
-    display: grid;
-    grid-template-columns: repeat(3, 1fr);
+    display: flex;
+    flex-wrap: wrap;
     gap: 1.5rem;
+    justify-content: center;
 }
-
 .cs-service-card {
+    flex: 0 1 calc(33.333% - 1rem);
+    min-width: 260px;
     background: white;
     border-radius: 16px;
     padding: 2rem 1.5rem;
@@ -367,11 +369,12 @@
     }
 
     .cs-services-grid {
-        grid-template-columns: 1fr;
         gap: 1rem;
     }
 
     .cs-service-card {
+        flex: 0 1 100%;
+        min-width: 0;
         padding: 1.5rem 1.25rem;
     }
 
