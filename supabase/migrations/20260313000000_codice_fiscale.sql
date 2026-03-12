@@ -23,6 +23,7 @@ END;
 $$;
 
 -- Update get_all_profiles to include codice_fiscale
+DROP FUNCTION IF EXISTS get_all_profiles();
 CREATE OR REPLACE FUNCTION get_all_profiles()
 RETURNS TABLE (
     id                   UUID,
