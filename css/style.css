@@ -1622,6 +1622,14 @@ body.nav-open {
     padding: 0.6rem 1rem;
     letter-spacing: 0.02em;
 }
+.nav-sidebar-credit .credit-link {
+    color: rgba(255, 255, 255, 0.5);
+    text-decoration: underline;
+    text-underline-offset: 2px;
+}
+.nav-sidebar-credit .credit-link:hover {
+    color: rgba(255, 255, 255, 0.75);
+}
 
 /* On mobile: hide navbar Esci (it lives in the sidebar instead) */
 @media (max-width: 768px) {
