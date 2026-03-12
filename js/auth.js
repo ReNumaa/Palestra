@@ -411,7 +411,10 @@ function _injectSidebarLogout() {
     // Riusa il bottone esistente invece di ricrearlo (evita perdita event listener)
     const existing = sidebar.querySelector('.nav-sidebar-logout');
     if (existing) {
-        existing.closest('.nav-sidebar-logout-item').style.display = '';
+        const li = existing.closest('.nav-sidebar-logout-item');
+        li.style.display = '';
+        // Sposta in fondo per garantire che sia sempre l'ultimo elemento
+        sidebar.append(li);
         return;
     }
     const li = document.createElement('li');
