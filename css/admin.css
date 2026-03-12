@@ -2378,6 +2378,106 @@ canvas {
 .cert-modal-btn--cancel { background: #f3f4f6; color: #374151; }
 .cert-modal-btn--save   { background: #ef4444; color: #fff; }
 
+/* ===== Cancel Booking Popup ===== */
+.cancel-popup-overlay {
+    position: fixed;
+    inset: 0;
+    background: rgba(0, 0, 0, 0.55);
+    z-index: 2000;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    opacity: 0;
+    transition: opacity 0.2s;
+}
+.cancel-popup-overlay.visible { opacity: 1; }
+.cancel-popup {
+    background: #fff;
+    border-radius: 16px;
+    width: min(380px, 92vw);
+    box-shadow: 0 8px 40px rgba(0,0,0,0.2);
+    overflow: hidden;
+    transform: scale(0.95);
+    transition: transform 0.2s;
+}
+.cancel-popup-overlay.visible .cancel-popup { transform: scale(1); }
+.cancel-popup-header {
+    padding: 1rem 1.25rem;
+    font-weight: 700;
+    font-size: 1.05rem;
+    border-bottom: 1px solid #f3f4f6;
+}
+.cancel-popup-body { padding: 1rem 1.25rem 1.25rem; }
+.cancel-popup-name {
+    font-weight: 600;
+    font-size: 1rem;
+    margin: 0 0 0.15rem;
+}
+.cancel-popup-detail {
+    font-size: 0.85rem;
+    color: #6b7280;
+    margin: 0 0 1rem;
+}
+.cancel-popup-label {
+    display: block;
+    font-weight: 600;
+    font-size: 0.85rem;
+    color: #374151;
+    margin-bottom: 0.4rem;
+}
+.cancel-popup-toggle-row {
+    display: flex;
+    gap: 0.5rem;
+    margin-bottom: 0.9rem;
+}
+.cancel-toggle-btn {
+    flex: 1;
+    padding: 0.55rem 0.5rem;
+    border: 1.5px solid #e5e7eb;
+    border-radius: 8px;
+    background: #f9fafb;
+    font-size: 0.9rem;
+    font-weight: 500;
+    cursor: pointer;
+    transition: all 0.15s;
+    color: #374151;
+}
+.cancel-toggle-btn:hover:not(.disabled) { border-color: #00AEEF; }
+.cancel-toggle-btn.active {
+    background: #00AEEF;
+    border-color: #00AEEF;
+    color: #fff;
+    font-weight: 600;
+}
+.cancel-toggle-btn.disabled {
+    opacity: 0.4;
+    cursor: not-allowed;
+}
+.cancel-popup-hint {
+    font-size: 0.75rem;
+    color: #9ca3af;
+    margin: -0.5rem 0 0.9rem;
+}
+.cancel-popup-actions {
+    display: flex;
+    gap: 0.6rem;
+    margin-top: 0.75rem;
+}
+.cancel-popup-btn {
+    flex: 1;
+    padding: 0.65rem;
+    border: none;
+    border-radius: 8px;
+    font-size: 0.9rem;
+    font-weight: 600;
+    cursor: pointer;
+    transition: opacity 0.15s;
+}
+.cancel-popup-btn:hover { opacity: 0.85; }
+.cancel-popup-btn--cancel { background: #f3f4f6; color: #374151; }
+.cancel-popup-btn--confirm { background: #ef4444; color: #fff; }
+.cancel-popup-btn--confirm:disabled { opacity: 0.4; cursor: not-allowed; }
+
 /* ===== Debt Payment Popup ===== */
 .debt-popup-overlay {
     position: fixed;

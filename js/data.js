@@ -380,6 +380,7 @@ class BookingStorage {
             cancelledPaidAt:          row.cancelled_paid_at || null,
             cancelledWithBonus:       row.cancelled_with_bonus || false,
             cancelledWithPenalty:     row.cancelled_with_penalty || false,
+            cancelledRefundPct:       row.cancelled_refund_pct ?? null,
             updatedAt:                row.updated_at || null,
         };
     }
@@ -1336,6 +1337,7 @@ class BookingStorage {
                 p_cancelled_paid_at:         b.cancelledPaidAt || null,
                 p_cancelled_with_bonus:      b.cancelledWithBonus || false,
                 p_cancelled_with_penalty:    b.cancelledWithPenalty || false,
+                p_cancelled_refund_pct:      b.cancelledRefundPct ?? null,
                 p_expected_updated_at:       b.updatedAt || null,
             }).then(({ data, error }) => {
                 if (error) {

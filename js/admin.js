@@ -704,6 +704,7 @@ function importBackup(input) {
                                 cancelled_paid_at:         b.cancelledPaidAt || null,
                                 cancelled_with_bonus:      b.cancelledWithBonus || false,
                                 cancelled_with_penalty:    b.cancelledWithPenalty || false,
+                                cancelled_refund_pct:      b.cancelledRefundPct ?? null,
                             }));
                         if (bRows.length > 0) {
                             promises.push(supabaseClient.from('bookings').upsert(bRows, { onConflict: 'local_id' }));
@@ -1588,63 +1589,134 @@ function createAdminSlotCard(dateInfo, scheduledSlot) {
 
 
 function deleteBooking(bookingId, bookingName) {
-    if (!confirm(`Annullare la prenotazione di ${bookingName}?\n\nIl record resterà nello storico del cliente.`)) {
-        return;
-    }
-
     const bookings = BookingStorage.getAllBookings();
     const index = bookings.findIndex(b => b.id === bookingId);
+    if (index === -1) return;
 
-    if (index !== -1) {
-        const booking = bookings[index];
+    const booking = bookings[index];
+    const price = SLOT_PRICES[booking.slotType] || 0;
+    const hasBonus = BonusStorage.getBonus(booking.whatsapp, booking.email) > 0;
 
-        // Bonus check (solo se disponibile)
-        const hasBonus = BonusStorage.getBonus(booking.whatsapp, booking.email) > 0;
-        let useBonus = false;
-        if (hasBonus) {
-            useBonus = confirm(`🎟️ ${bookingName} ha 1 bonus annullamento disponibile.\n\nVuoi utilizzarlo per questo annullamento?`);
-        }
+    // Build cancel popup
+    const overlay = document.createElement('div');
+    overlay.className = 'cancel-popup-overlay';
+    overlay.innerHTML = `
+        <div class="cancel-popup">
+            <div class="cancel-popup-header">Annulla prenotazione</div>
+            <div class="cancel-popup-body">
+                <p class="cancel-popup-name">${bookingName}</p>
+                <p class="cancel-popup-detail">${booking.date} · ${booking.time} · €${price}</p>
+
+                <label class="cancel-popup-label">Utilizza bonus</label>
+                <div class="cancel-popup-toggle-row">
+                    <button class="cancel-toggle-btn${hasBonus ? '' : ' disabled'}" data-val="false" data-group="bonus" ${!hasBonus ? 'disabled' : ''}>No</button>
+                    <button class="cancel-toggle-btn${hasBonus ? '' : ' disabled'}" data-val="true" data-group="bonus" ${!hasBonus ? 'disabled' : ''}>Sì</button>
+                </div>
+                ${!hasBonus ? '<p class="cancel-popup-hint">Nessun bonus disponibile</p>' : ''}
+
+                <label class="cancel-popup-label">Rimborso</label>
+                <div class="cancel-popup-toggle-row">
+                    <button class="cancel-toggle-btn" data-val="0" data-group="refund">0%</button>
+                    <button class="cancel-toggle-btn" data-val="50" data-group="refund">50%</button>
+                    <button class="cancel-toggle-btn" data-val="100" data-group="refund">100%</button>
+                </div>
+
+                <div class="cancel-popup-actions">
+                    <button class="cancel-popup-btn cancel-popup-btn--cancel">Annulla</button>
+                    <button class="cancel-popup-btn cancel-popup-btn--confirm" disabled>Conferma</button>
+                </div>
+            </div>
+        </div>
+    `;
+    document.body.appendChild(overlay);
+    requestAnimationFrame(() => overlay.classList.add('visible'));
+
+    // Toggle selection logic
+    let selectedBonus = hasBonus ? null : false;  // auto-select No if no bonus available
+    let selectedRefund = null;
+
+    if (!hasBonus) {
+        // Pre-select "No" for bonus when unavailable
+        const noBonusBtn = overlay.querySelector('[data-group="bonus"][data-val="false"]');
+        if (noBonusBtn) noBonusBtn.classList.add('active');
+        selectedBonus = false;
+    }
+
+    overlay.querySelectorAll('.cancel-toggle-btn:not(.disabled)').forEach(btn => {
+        btn.addEventListener('click', () => {
+            const group = btn.dataset.group;
+            overlay.querySelectorAll(`[data-group="${group}"]`).forEach(b => b.classList.remove('active'));
+            btn.classList.add('active');
+            if (group === 'bonus') selectedBonus = btn.dataset.val === 'true';
+            if (group === 'refund') selectedRefund = parseInt(btn.dataset.val);
+            // Enable confirm when both selections made
+            const confirmBtn = overlay.querySelector('.cancel-popup-btn--confirm');
+            confirmBtn.disabled = (selectedBonus === null || selectedRefund === null);
+        });
+    });
+
+    // Close
+    const closePopup = () => {
+        overlay.classList.remove('visible');
+        setTimeout(() => overlay.remove(), 250);
+    };
+    overlay.querySelector('.cancel-popup-btn--cancel').addEventListener('click', closePopup);
+    overlay.addEventListener('click', (e) => { if (e.target === overlay) closePopup(); });
+
+    // Confirm
+    overlay.querySelector('.cancel-popup-btn--confirm').addEventListener('click', () => {
+        const useBonus = selectedBonus;
+        const refundPct = selectedRefund;
+
         if (useBonus) {
             BonusStorage.useBonus(booking.whatsapp, booking.email, booking.name);
         }
 
-        // Refund credit only if actually paid and NOT waiting for cancellation fulfillment.
-        // For cancellation_requested bookings, credit is added only by fulfillPendingCancellations
-        // when another person actually books the slot.
-        const price = SLOT_PRICES[booking.slotType] || 0;
+        // Calculate refund based on percentage
         const isCancellationPending = booking.status === 'cancellation_requested';
-        const creditToRefund = (!isCancellationPending && (booking.paid || (booking.creditApplied || 0) > 0)) ? price : 0;
+        const wasPaid = !isCancellationPending && (booking.paid || (booking.creditApplied || 0) > 0);
+        const creditToRefund = wasPaid ? Math.round(price * refundPct / 100 * 100) / 100 : 0;
+
         if (creditToRefund > 0) {
+            const refundLabel = refundPct < 100
+                ? `Rimborso ${refundPct}% lezione ${booking.date}`
+                : `Rimborso lezione ${booking.date}`;
             CreditStorage.addCredit(
                 booking.whatsapp,
                 booking.email,
                 booking.name,
                 creditToRefund,
-                `Rimborso lezione ${booking.date}`,
+                refundLabel,
                 null, false, false, null, booking.paymentMethod || ''
             );
         }
 
-        // Mark as cancelled (keep record for history) instead of deleting
+        // If partial refund (50%) and paid, add penalty debt for the remaining 50%
+        if (wasPaid && refundPct === 0) {
+            // No refund, no debt — the money is simply kept
+        }
+
+        // Mark as cancelled
         bookings[index].cancelledPaymentMethod = booking.paymentMethod;
         bookings[index].cancelledPaidAt = booking.paidAt;
         bookings[index].status = 'cancelled';
         bookings[index].cancelledAt = new Date().toISOString();
         bookings[index].cancelledWithBonus = useBonus;
+        bookings[index].cancelledRefundPct = refundPct;
         bookings[index].paid = false;
         bookings[index].paymentMethod = null;
         bookings[index].paidAt = null;
         bookings[index].creditApplied = 0;
         BookingStorage.replaceAllBookings(bookings);
 
-        // Notifica slot disponibile a tutti tranne il cliente cancellato
+        // Notifica slot disponibile
         if (typeof notifySlotAvailable === 'function') notifySlotAvailable(booking);
 
-        // Re-render the calendar view
-        if (selectedAdminDay) {
-            renderAdminDayView(selectedAdminDay);
-        }
-    }
+        // Re-render
+        if (selectedAdminDay) renderAdminDayView(selectedAdminDay);
+
+        closePopup();
+    });
 }
 
 // Schedule Manager Functions
