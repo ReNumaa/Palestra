@@ -1413,6 +1413,7 @@ function _buildParticipantCard(booking) {
     const certScad  = userRecord?.certificatoMedicoScadenza;
     const assicScad = userRecord?.assicurazioneScadenza;
     const hasCF     = !!userRecord?.codiceFiscale;
+    console.log('[CF-DEBUG]', booking.name, { userRecord: !!userRecord, cf: userRecord?.codiceFiscale, hasCF, certScad });
     const emE = (booking.email || '').replace(/'/g, "\\'");
     const waE = (booking.whatsapp || '').replace(/'/g, "\\'");
     const nmE2 = booking.name.replace(/'/g, "\\'");
