@@ -1,8 +1,8 @@
 name: Backup Supabase → Nextcloud
 
 on:
-  schedule:
-    - cron: '0 3 * * *'   # 3:00 UTC = 4:00 ora italiana (estate)
+  # schedule:
+  #   - cron: '0 3 * * *'   # 3:00 UTC = 4:00 ora italiana (estate)
   workflow_dispatch:        # trigger manuale dalla UI di GitHub
 
 jobs:
