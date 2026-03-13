@@ -79,7 +79,7 @@ BEGIN
     INSERT INTO credit_history (credit_id, amount, note, created_at)
     VALUES (v_credit_id, p_amount, p_note, v_now);
 
-    -- ── 4. Auto-paga prenotazioni non pagate FIFO ─────────────────────────────
+    -- ── 4. Auto-paga prenotazioni non pagate FIFO (solo lezioni già iniziate) ──
     IF v_balance > 0 THEN
         FOR v_booking IN
             SELECT id, slot_type, coalesce(credit_applied, 0) AS credit_applied
@@ -87,6 +87,11 @@ BEGIN
             WHERE  lower(email) = v_email
               AND  paid = false
               AND  status NOT IN ('cancelled', 'cancellation_requested')
+              AND  (
+                    date < (v_now AT TIME ZONE 'Europe/Rome')::date
+                    OR (date = (v_now AT TIME ZONE 'Europe/Rome')::date
+                        AND split_part(time, ' - ', 1)::time <= (v_now AT TIME ZONE 'Europe/Rome')::time)
+              )
             ORDER  BY date ASC, time ASC
             FOR UPDATE
         LOOP
