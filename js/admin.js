@@ -1492,15 +1492,20 @@ function renderAdminDayView(dateInfo) {
     }
 
     // Auto-apply any available credit for each unique contact with bookings on this day
-    const dayBookings = BookingStorage.getAllBookings().filter(b => b.date === dateInfo.formatted);
-    const seen = new Set();
-    dayBookings.forEach(b => {
-        const contactKey = `${b.whatsapp}|${b.email}`;
-        if (!seen.has(contactKey)) {
-            seen.add(contactKey);
-            CreditStorage.applyToUnpaidBookings(b.whatsapp, b.email, b.name);
-        }
-    });
+    // Reconcile crediti via RPC (non client-side) per evitare loop realtime
+    if (typeof supabaseClient !== 'undefined') {
+        const dayBookings = BookingStorage.getAllBookings().filter(b => b.date === dateInfo.formatted);
+        const seen = new Set();
+        const _slotPrices = { 'personal-training': 5, 'small-group': 10, 'group-class': 30 };
+        dayBookings.forEach(b => {
+            if (b.email && !seen.has(b.email.toLowerCase())) {
+                seen.add(b.email.toLowerCase());
+                supabaseClient.rpc('apply_credit_to_past_bookings', {
+                    p_email: b.email, p_slot_prices: _slotPrices
+                }).catch(() => {});
+            }
+        });
+    }
 
     scheduledSlots.forEach(scheduledSlot => {
         const slotCard = createAdminSlotCard(dateInfo, scheduledSlot);
@@ -3232,7 +3237,13 @@ function paySelectedDebts() {
             const methodLabel = { contanti: 'Contanti', carta: 'Carta', iban: 'Bonifico' }[paymentMethod] || paymentMethod;
             if (creditDelta > 0) {
                 CreditStorage.addCredit(contact.whatsapp, contact.email, contact.name, creditDelta, `Pagamento in acconto di €${amountPaid}`, amountPaid, false, false, null, paymentMethod);
-                CreditStorage.applyToUnpaidBookings(contact.whatsapp, contact.email, contact.name);
+                // Reconcile via RPC dopo aggiunta credito
+                if (typeof supabaseClient !== 'undefined' && contact.email) {
+                    supabaseClient.rpc('apply_credit_to_past_bookings', {
+                        p_email: contact.email,
+                        p_slot_prices: { 'personal-training': 5, 'small-group': 10, 'group-class': 30 }
+                    }).catch(() => {});
+                }
             } else {
                 CreditStorage.addCredit(contact.whatsapp, contact.email, contact.name, 0, `${methodLabel} ricevuto`, amountPaid, false, false, null, paymentMethod);
             }

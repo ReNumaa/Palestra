@@ -758,10 +758,19 @@
                 ManualDebtStorage.syncFromSupabase(),
                 CreditStorage.syncFromSupabase(),
             ]);
-            // Reconcile: applica credito alle lezioni passate non pagate (dopo sync)
-            CreditStorage.getAllWithBalance().forEach(c => {
-                CreditStorage.applyToUnpaidBookings(c.whatsapp, c.email, c.name);
-            });
+            // Reconcile via RPC Supabase (non client-side, per evitare loop realtime)
+            if (typeof supabaseClient !== 'undefined') {
+                const _slotPrices = { 'personal-training': 5, 'small-group': 10, 'group-class': 30 };
+                const _clients = CreditStorage.getAllWithBalance().filter(c => c.email);
+                const _rpcResults = await Promise.all(_clients.map(c =>
+                    supabaseClient.rpc('apply_credit_to_past_bookings', {
+                        p_email: c.email, p_slot_prices: _slotPrices
+                    }).then(r => r.data).catch(() => null)
+                ));
+                if (_rpcResults.some(r => r && r.bookings_paid > 0)) {
+                    await Promise.all([BookingStorage.syncFromSupabase(), CreditStorage.syncFromSupabase()]);
+                }
+            }
             if (typeof loadDashboardData === 'function') loadDashboardData();
             if (typeof renderAdminCalendar === 'function') renderAdminCalendar();
             if (typeof renderScheduleManager === 'function') renderScheduleManager();
@@ -781,9 +790,6 @@
                             CreditStorage.syncFromSupabase(),
                             BonusStorage.syncFromSupabase(),
                         ]);
-                        CreditStorage.getAllWithBalance().forEach(c => {
-                            CreditStorage.applyToUnpaidBookings(c.whatsapp, c.email, c.name);
-                        });
                         if (typeof loadDashboardData === 'function') loadDashboardData();
                         if (typeof renderAdminCalendar === 'function') renderAdminCalendar();
                         if (typeof renderAdminDayView === 'function' && typeof selectedAdminDay !== 'undefined' && selectedAdminDay) renderAdminDayView(selectedAdminDay);
