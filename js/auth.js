@@ -143,18 +143,27 @@ async function initAuth() {
         window._visibilityAuthActive = true;
         document.addEventListener('visibilitychange', async () => {
             if (document.hidden) return;
+            // Attendi che il lock Supabase si liberi prima di tentare getSession
+            await new Promise(r => setTimeout(r, 1000));
             try {
-                const { data } = await supabaseClient.auth.getSession();
+                const { data, error } = await supabaseClient.auth.getSession();
+                if (error) throw error;
                 if (data.session) {
                     await _loadProfile(data.session.user.id);
                 } else {
-                    // Tenta refresh esplicito — il token potrebbe essere appena scaduto
                     const { data: refreshed } = await supabaseClient.auth.refreshSession();
                     if (refreshed.session) {
                         await _loadProfile(refreshed.session.user.id);
                     }
                 }
-            } catch { /* rete assente — mantieni stato corrente */ }
+            } catch (e) {
+                // Lock rotto o errore di rete — riprova con refreshSession
+                console.warn('[Auth] visibilitychange recovery:', e.message);
+                try {
+                    const { data: refreshed } = await supabaseClient.auth.refreshSession();
+                    if (refreshed.session) await _loadProfile(refreshed.session.user.id);
+                } catch { /* rete assente */ }
+            }
             updateNavAuth();
         });
     }
