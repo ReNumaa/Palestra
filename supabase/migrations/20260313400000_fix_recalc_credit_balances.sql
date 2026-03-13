@@ -18,6 +18,7 @@ BEGIN
         LEFT JOIN (
             SELECT credit_id, round(sum(amount)::numeric, 2) AS total
             FROM   credit_history
+            WHERE  hidden = false
             GROUP  BY credit_id
         ) h ON h.credit_id = c.id
         WHERE  c.balance <> coalesce(h.total, 0)
