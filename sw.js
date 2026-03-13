@@ -57,7 +57,7 @@ self.addEventListener('push', event => {
     const options = {
         body: data.body || '',
         icon: '/images/logo-tb---nero.jpg',
-        badge: '/images/logo-tb---nero.jpg',
+        badge: '/images/badge-mono-96.png',
         tag: data.tag || 'tb-push',
         renotify: true,
         data: { url: data.url || '/prenotazioni.html' }
