@@ -3534,6 +3534,10 @@ function createClientCard(client, index) {
         <button class="tx-filter-btn" onclick="filterClientTx(${index}, 365, this)">1 anno</button>
     </div>`;
 
+    const wEsc  = client.whatsapp.replace(/'/g, "\\'");
+    const emEsc = (client.email || '').replace(/'/g, "\\'");
+    const nEsc  = client.name.replace(/'/g, "\\'");
+
     let creditHTML = '';
     if (txEntries.length > 0) {
         creditHTML = `<div class="client-credit-section">
@@ -3566,10 +3570,6 @@ function createClientCard(client, index) {
             </div>
         </div>`;
     }
-
-    const wEsc  = client.whatsapp.replace(/'/g, "\\'");
-    const emEsc = (client.email || '').replace(/'/g, "\\'");
-    const nEsc  = client.name.replace(/'/g, "\\'");
 
     card.innerHTML = `
         <div class="client-card-header" onclick="toggleClientCard('client-card-${index}', ${index})">
