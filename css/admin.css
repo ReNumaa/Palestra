@@ -1252,6 +1252,21 @@ canvas {
 .credit-history-amount.minus { color: #991b1b; }
 .credit-history-amount.free  { color: #9ca3af; }
 
+.btn-tx-delete {
+    background: none;
+    border: 1px solid transparent;
+    border-radius: 4px;
+    cursor: pointer;
+    font-size: 0.75rem;
+    padding: 1px 4px;
+    opacity: 0;
+    transition: opacity 0.15s, border-color 0.15s;
+    flex-shrink: 0;
+    line-height: 1;
+}
+.credit-history-row:hover .btn-tx-delete { opacity: 0.6; }
+.btn-tx-delete:hover { opacity: 1 !important; border-color: #ef4444; }
+
 @media (max-width: 768px) {
     .client-card-header  { flex-wrap: wrap; }
     .client-stats-block  { justify-content: flex-start; }

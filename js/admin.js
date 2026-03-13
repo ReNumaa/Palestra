@@ -3489,7 +3489,8 @@ function createClientCard(client, index) {
                 icon: '🏋️', label: SLOT_NAMES[b.slotType] || b.slotType,
                 sub: `${bd}/${bm}/${by} · ${txMethodMap[b.paymentMethod] || b.paymentMethod || ''}`,
                 amount: isFree ? 0 : -price,
-                freeLesson: isFree
+                freeLesson: isFree,
+                txType: 'booking', txId: b.id, txName: b.name
             });
         });
 
@@ -3503,7 +3504,8 @@ function createClientCard(client, index) {
             txEntries.push({
                 date: new Date(e.date), icon: '💳',
                 label: e.note || 'Credito aggiunto',
-                sub: '', amount: e.displayAmount !== undefined ? e.displayAmount : e.amount
+                sub: '', amount: e.displayAmount !== undefined ? e.displayAmount : e.amount,
+                txType: 'credit', txEntryDate: e.date
             });
         });
 
@@ -3516,7 +3518,8 @@ function createClientCard(client, index) {
             icon: '✏️',
             label: e.note || 'Addebito',
             sub: '',
-            amount: -e.amount
+            amount: -e.amount,
+            txType: 'debt', txEntryDate: e.date
         });
     });
 
@@ -3544,11 +3547,20 @@ function createClientCard(client, index) {
                         .replace(/^[💵💳🏦✨🎁]\s*/, '')
                         .replace(/\s+ricevuto$/i, '');
                     const eTs = e.date.getTime();
+                    let delBtn = '';
+                    if (e.txType === 'booking') {
+                        delBtn = `<button class="btn-tx-delete" onclick="event.stopPropagation(); deleteTxEntry('booking', '${e.txId.replace(/'/g, "\\'")}', '${nEsc}', ${index})" title="Elimina transazione">🗑️</button>`;
+                    } else if (e.txType === 'credit') {
+                        delBtn = `<button class="btn-tx-delete" onclick="event.stopPropagation(); deleteTxEntry('credit', '${(e.txEntryDate || '').replace(/'/g, "\\'")}', '${wEsc}', ${index}, '${emEsc}')" title="Elimina transazione">🗑️</button>`;
+                    } else if (e.txType === 'debt') {
+                        delBtn = `<button class="btn-tx-delete" onclick="event.stopPropagation(); deleteTxEntry('debt', '${(e.txEntryDate || '').replace(/'/g, "\\'")}', '${wEsc}', ${index}, '${emEsc}')" title="Elimina transazione">🗑️</button>`;
+                    }
                     return `<div class="credit-history-row" data-ts="${eTs}"${eTs < cutoff30 ? ' style="display:none"' : ''}>
                         <span class="credit-history-date">${fmtDTx(e.date)}</span>
                         <span class="credit-history-icon">${e.icon}</span>
                         <span class="credit-history-note">${_escHtml(cleanLabel)}${e.sub ? ` <small style="opacity:0.7">${_escHtml(e.sub)}</small>` : ''}</span>
                         <span class="credit-history-amount ${cls}">${sign}€${Math.abs(e.amount).toFixed(2)}</span>
+                        ${delBtn}
                     </div>`;
                 }).join('')}
             </div>
@@ -4038,6 +4050,105 @@ function deleteBookingFromClients(bookingId, bookingName) {
         bookings.splice(idx, 1);
         BookingStorage.replaceAllBookings(bookings);
         renderClientsTab();
+    }
+}
+
+// ── Elimina una singola transazione dallo storico (booking / credito / debito) ──
+async function deleteTxEntry(type, idOrDate, whatsappOrName, index, email) {
+    if (!confirm('Eliminare questa transazione?\n\nQuesta operazione non può essere annullata.')) return;
+
+    const _reopenCard = () => {
+        renderClientsTab();
+        setTimeout(() => {
+            const card = document.getElementById(`client-card-${index}`);
+            if (card) { card.classList.add('open'); card.querySelector('.client-card-body').style.display = 'block'; }
+        }, 50);
+    };
+
+    if (type === 'booking') {
+        // idOrDate = bookingId, whatsappOrName = clientName
+        const bookings = BookingStorage.getAllBookings();
+        const idx = bookings.findIndex(b => b.id === idOrDate);
+        if (idx === -1) { _reopenCard(); return; }
+        const b = bookings[idx];
+        const slotPrices = { 'personal-training': 5, 'small-group': 10, 'group-class': 30 };
+
+        if (typeof supabaseClient !== 'undefined' && b._sbId) {
+            const { data, error } = await supabaseClient.rpc('admin_delete_booking_with_refund', {
+                p_booking_id:  b._sbId,
+                p_slot_prices: slotPrices,
+            });
+            if (error) {
+                console.error('[deleteTxEntry] booking RPC error:', error.message);
+                alert('⚠️ Errore: ' + error.message);
+                return;
+            }
+            console.log('[deleteTxEntry] booking deleted:', data);
+            clearTimeout(CreditStorage._supabaseSaveTimer);
+            await Promise.all([
+                BookingStorage.syncFromSupabase(),
+                CreditStorage.syncFromSupabase(),
+            ]);
+        } else {
+            if (b.paid) {
+                CreditStorage.addCredit(b.whatsapp, b.email, b.name, SLOT_PRICES[b.slotType],
+                    `Rimborso lezione ${b.date}`, null, false, false, null, b.paymentMethod || '');
+            }
+            bookings.splice(idx, 1);
+            BookingStorage.replaceAllBookings(bookings);
+        }
+        showToast('Transazione (prenotazione) eliminata.', 'success');
+        _reopenCard();
+
+    } else if (type === 'credit') {
+        // idOrDate = entryDate ISO, whatsappOrName = whatsapp, email = email
+        if (typeof supabaseClient !== 'undefined') {
+            const { data, error } = await supabaseClient.rpc('admin_delete_credit_entry', {
+                p_email:      (email || '').toLowerCase(),
+                p_entry_date: idOrDate,
+            });
+            if (error) {
+                console.error('[deleteTxEntry] credit RPC error:', error.message);
+                alert('⚠️ Errore: ' + error.message);
+                return;
+            }
+            if (!data?.success) {
+                alert('⚠️ Voce non trovata.');
+                return;
+            }
+            console.log('[deleteTxEntry] credit entry deleted:', data);
+            await CreditStorage.syncFromSupabase();
+        } else {
+            const ok = CreditStorage.deleteCreditEntry(whatsappOrName, email, idOrDate);
+            if (!ok) { alert('⚠️ Voce non trovata.'); return; }
+        }
+        showToast('Transazione (credito) eliminata.', 'success');
+        _reopenCard();
+
+    } else if (type === 'debt') {
+        // idOrDate = entryDate ISO, whatsappOrName = whatsapp, email = email
+        if (typeof supabaseClient !== 'undefined') {
+            const { data, error } = await supabaseClient.rpc('admin_delete_debt_entry', {
+                p_email:      (email || '').toLowerCase(),
+                p_entry_date: idOrDate,
+            });
+            if (error) {
+                console.error('[deleteTxEntry] debt RPC error:', error.message);
+                alert('⚠️ Errore: ' + error.message);
+                return;
+            }
+            if (!data?.success) {
+                alert('⚠️ Voce non trovata.');
+                return;
+            }
+            console.log('[deleteTxEntry] debt entry deleted:', data);
+            await ManualDebtStorage.syncFromSupabase();
+        } else {
+            const ok = ManualDebtStorage.deleteDebtEntry(whatsappOrName, email, idOrDate);
+            if (!ok) { alert('⚠️ Voce non trovata.'); return; }
+        }
+        showToast('Transazione (debito) eliminata.', 'success');
+        _reopenCard();
     }
 }
 
