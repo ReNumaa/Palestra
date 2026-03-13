@@ -240,10 +240,7 @@ async function checkAuth() {
 
 function showDashboard() {
     document.getElementById('dashboardSection').style.display = 'block';
-    // Reconcile credits for all clients so unpaid bookings are auto-marked paid
-    CreditStorage.getAllWithBalance().forEach(c => {
-        CreditStorage.applyToUnpaidBookings(c.whatsapp, c.email, c.name);
-    });
+    // Il reconcile crediti avviene dopo il sync da Supabase (admin.html script inline)
     setupTabs();
     setupAdminCalendar();
     setupScheduleManager();

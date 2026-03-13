@@ -758,6 +758,10 @@
                 ManualDebtStorage.syncFromSupabase(),
                 CreditStorage.syncFromSupabase(),
             ]);
+            // Reconcile: applica credito alle lezioni passate non pagate (dopo sync)
+            CreditStorage.getAllWithBalance().forEach(c => {
+                CreditStorage.applyToUnpaidBookings(c.whatsapp, c.email, c.name);
+            });
             if (typeof loadDashboardData === 'function') loadDashboardData();
             if (typeof renderAdminCalendar === 'function') renderAdminCalendar();
             if (typeof renderScheduleManager === 'function') renderScheduleManager();
@@ -777,6 +781,9 @@
                             CreditStorage.syncFromSupabase(),
                             BonusStorage.syncFromSupabase(),
                         ]);
+                        CreditStorage.getAllWithBalance().forEach(c => {
+                            CreditStorage.applyToUnpaidBookings(c.whatsapp, c.email, c.name);
+                        });
                         if (typeof loadDashboardData === 'function') loadDashboardData();
                         if (typeof renderAdminCalendar === 'function') renderAdminCalendar();
                         if (typeof renderAdminDayView === 'function' && typeof selectedAdminDay !== 'undefined' && selectedAdminDay) renderAdminDayView(selectedAdminDay);
