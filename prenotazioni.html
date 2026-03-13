@@ -177,7 +177,7 @@
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.min.js"></script>
     <script src="js/supabase-client.js?v=1"></script>
     <script src="js/ui.js?v=2"></script>
-    <script src="js/data.js?v=49"></script>
+    <script src="js/data.js?v=50"></script>
     <script src="js/auth.js?v=20"></script>
     <script src="js/push.js?v=11"></script>
     <script>
@@ -304,57 +304,8 @@
                 } catch (e) {
                     console.warn('[apply_credit_to_past_bookings] exception:', e);
                 }
-            } else {
-                // Fallback client-side per offline
-                _applyCreditToPastBookingsLocal(user);
             }
-        }
-
-        function _applyCreditToPastBookingsLocal(user) {
-            const now = new Date();
-            const allBookings = BookingStorage.getAllBookings();
-            const unpaidPast = allBookings.filter(b => {
-                if (b.paid || b.status !== 'confirmed') return false;
-                const emailMatch = user.email && b.email && b.email.toLowerCase() === user.email.toLowerCase();
-                if (!emailMatch) return false;
-                const startTime = new Date(`${b.date}T${b.time.split(' - ')[0].trim()}:00`);
-                return startTime <= now;
-            }).sort((a, b) => new Date(a.date + 'T' + a.time.split(' - ')[0].trim() + ':00') - new Date(b.date + 'T' + b.time.split(' - ')[0].trim() + ':00'));
-
-            if (unpaidPast.length === 0) return;
-
-            const rawCredit = CreditStorage.getBalance(user.whatsapp, user.email);
-            const manualDebt = ManualDebtStorage.getBalance(user.whatsapp, user.email);
-            let netCredit = Math.max(0, Math.round((rawCredit - manualDebt) * 100) / 100);
-            if (netCredit <= 0) return;
-
-            for (const b of unpaidPast) {
-                const price = SLOT_PRICES[b.slotType] || 0;
-                const remain = price - (b.creditApplied || 0);
-                if (remain <= 0 || netCredit <= 0) continue;
-
-                if (netCredit >= remain) {
-                    const freeBalance = CreditStorage.getFreeBalance(user.whatsapp, user.email);
-                    const isFreeLesson = freeBalance >= remain;
-                    const stored = allBookings.find(x => x.id === b.id);
-                    if (stored) {
-                        stored.paid = true;
-                        stored.paymentMethod = isFreeLesson ? 'lezione-gratuita' : 'credito';
-                        stored.paidAt = new Date().toISOString();
-                        stored.creditApplied = 0;
-                    }
-                    CreditStorage.addCredit(user.whatsapp, user.email, user.name, -remain,
-                        `Pagamento automatico lezione ${b.date} ${b.time}`);
-                    netCredit = Math.round((netCredit - remain) * 100) / 100;
-                } else {
-                    const stored = allBookings.find(x => x.id === b.id);
-                    if (stored) stored.creditApplied = Math.round(((b.creditApplied || 0) + netCredit) * 100) / 100;
-                    CreditStorage.addCredit(user.whatsapp, user.email, user.name, -netCredit,
-                        `Credito parziale lezione ${b.date} ${b.time}`);
-                    netCredit = 0;
-                }
-            }
-            BookingStorage.replaceAllBookings(allBookings);
+            // Nessun fallback offline: il reconcile avviene solo via RPC Supabase
         }
 
         // Avvio: aspetta la sessione Supabase, poi controlla il guard e inizializza
