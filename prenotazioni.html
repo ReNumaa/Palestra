@@ -335,7 +335,7 @@
                 BonusStorage.syncFromSupabase(),
             ]);
             // Applica credito alle lezioni passate non ancora pagate
-            await _applyCreditToPastBookings();
+            try { await _applyCreditToPastBookings(); } catch (e) { console.warn('[boot] applyCreditToPastBookings failed:', e); }
             if (document.readyState === 'loading') {
                 document.addEventListener('DOMContentLoaded', _initPrenoPage);
             } else {
@@ -367,7 +367,7 @@
                 ManualDebtStorage.syncFromSupabase(),
                 BonusStorage.syncFromSupabase(),
             ]);
-            await _applyCreditToPastBookings();
+            try { await _applyCreditToPastBookings(); } catch (e) { console.warn('[pageshow] applyCreditToPastBookings failed:', e); }
             _initPrenoPage();
         });
 
