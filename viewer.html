@@ -383,7 +383,12 @@
         }
 
         for (const c of Object.values(map)) {
-            c.bookingDebt = c.bookings.filter(b => !b.paid && b.status !== 'cancelled').reduce((s, b) => s + (SLOT_PRICES[b.slotType] || 0) - (b.creditApplied || 0), 0);
+            c.bookingDebt = c.bookings.filter(b => {
+                if (b.paid || b.status === 'cancelled') return false;
+                // Solo lezioni già iniziate
+                const startTime = new Date(`${b.date}T${b.time.split(' - ')[0].trim()}:00`);
+                return startTime <= new Date();
+            }).reduce((s, b) => s + (SLOT_PRICES[b.slotType] || 0) - (b.creditApplied || 0), 0);
             c.totalDebt = c.bookingDebt + c.debtBalance;
             c.bookings.sort((a, b) => (b.date || '').localeCompare(a.date || '') || (b.time || '').localeCompare(a.time || ''));
         }

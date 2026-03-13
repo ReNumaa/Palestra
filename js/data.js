@@ -1651,12 +1651,16 @@ class CreditStorage {
         const credKey = this._findKey(whatsapp, email);
         let freeBalance = credKey ? (this._getAll()[credKey]?.freeBalance || 0) : 0;
 
+        const nowDate = new Date();
         allBookings
             .filter(b => {
                 const normB      = normalizePhone(b.whatsapp);
                 const phoneMatch = normWhatsapp && normB && normB === normWhatsapp;
                 const emailMatch = email && b.email && b.email.toLowerCase() === email.toLowerCase();
-                return (phoneMatch || emailMatch) && !b.paid && b.status !== 'cancelled' && b.status !== 'cancellation_requested';
+                if (!((phoneMatch || emailMatch) && !b.paid && b.status !== 'cancelled' && b.status !== 'cancellation_requested')) return false;
+                // Solo lezioni già iniziate (ora inizio <= now)
+                const startTime = new Date(`${b.date}T${b.time.split(' - ')[0].trim()}:00`);
+                return startTime <= nowDate;
             })
             .sort((a, b) => a.date.localeCompare(b.date) || a.time.localeCompare(b.time))
             .forEach(b => {

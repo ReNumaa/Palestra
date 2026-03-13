@@ -215,6 +215,20 @@
                 BookingStorage.syncFromSupabase(),
                 BookingStorage.syncAppSettingsFromSupabase(),
             ]);
+            // Applica credito alle lezioni passate non ancora pagate (se utente loggato)
+            const _creditUser = typeof getCurrentUser === 'function' ? getCurrentUser() : null;
+            if (_creditUser?.email && typeof supabaseClient !== 'undefined') {
+                try {
+                    await CreditStorage.syncFromSupabase();
+                    const { data: _crResult } = await supabaseClient.rpc('apply_credit_to_past_bookings', {
+                        p_email: _creditUser.email,
+                        p_slot_prices: { 'personal-training': 5, 'small-group': 10, 'group-class': 30 },
+                    });
+                    if (_crResult?.bookings_paid > 0) {
+                        await Promise.all([BookingStorage.syncFromSupabase(), CreditStorage.syncFromSupabase()]);
+                    }
+                } catch (_e) { console.warn('[apply_credit_to_past_bookings] index:', _e); }
+            }
             // Deep-link da notifica push: ?date=YYYY-MM-DD → naviga alla settimana giusta
             const _deepDate = new URLSearchParams(location.search).get('date');
             if (_deepDate && typeof currentWeekOffset !== 'undefined') {

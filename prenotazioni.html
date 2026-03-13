@@ -280,6 +280,83 @@
             if (_realtimeChannel) supabaseClient.removeChannel(_realtimeChannel);
         });
 
+        // Applica credito alle prenotazioni passate non ancora pagate
+        async function _applyCreditToPastBookings() {
+            const user = getCurrentUser();
+            if (!user || !user.email) return;
+            if (typeof supabaseClient !== 'undefined') {
+                try {
+                    const { data, error } = await supabaseClient.rpc('apply_credit_to_past_bookings', {
+                        p_email: user.email,
+                        p_slot_prices: { 'personal-training': 5, 'small-group': 10, 'group-class': 30 },
+                    });
+                    if (error) {
+                        console.warn('[apply_credit_to_past_bookings] RPC error:', error.message);
+                        return;
+                    }
+                    if (data?.bookings_paid > 0) {
+                        console.log('[apply_credit_to_past_bookings]', data);
+                        await Promise.all([
+                            BookingStorage.syncFromSupabase(),
+                            CreditStorage.syncFromSupabase(),
+                        ]);
+                    }
+                } catch (e) {
+                    console.warn('[apply_credit_to_past_bookings] exception:', e);
+                }
+            } else {
+                // Fallback client-side per offline
+                _applyCreditToPastBookingsLocal(user);
+            }
+        }
+
+        function _applyCreditToPastBookingsLocal(user) {
+            const now = new Date();
+            const allBookings = BookingStorage.getAllBookings();
+            const unpaidPast = allBookings.filter(b => {
+                if (b.paid || b.status !== 'confirmed') return false;
+                const emailMatch = user.email && b.email && b.email.toLowerCase() === user.email.toLowerCase();
+                if (!emailMatch) return false;
+                const startTime = new Date(`${b.date}T${b.time.split(' - ')[0].trim()}:00`);
+                return startTime <= now;
+            }).sort((a, b) => new Date(a.date + 'T' + a.time.split(' - ')[0].trim() + ':00') - new Date(b.date + 'T' + b.time.split(' - ')[0].trim() + ':00'));
+
+            if (unpaidPast.length === 0) return;
+
+            const rawCredit = CreditStorage.getBalance(user.whatsapp, user.email);
+            const manualDebt = ManualDebtStorage.getBalance(user.whatsapp, user.email);
+            let netCredit = Math.max(0, Math.round((rawCredit - manualDebt) * 100) / 100);
+            if (netCredit <= 0) return;
+
+            for (const b of unpaidPast) {
+                const price = SLOT_PRICES[b.slotType] || 0;
+                const remain = price - (b.creditApplied || 0);
+                if (remain <= 0 || netCredit <= 0) continue;
+
+                if (netCredit >= remain) {
+                    const freeBalance = CreditStorage.getFreeBalance(user.whatsapp, user.email);
+                    const isFreeLesson = freeBalance >= remain;
+                    const stored = allBookings.find(x => x.id === b.id);
+                    if (stored) {
+                        stored.paid = true;
+                        stored.paymentMethod = isFreeLesson ? 'lezione-gratuita' : 'credito';
+                        stored.paidAt = new Date().toISOString();
+                        stored.creditApplied = 0;
+                    }
+                    CreditStorage.addCredit(user.whatsapp, user.email, user.name, -remain,
+                        `Pagamento automatico lezione ${b.date} ${b.time}`);
+                    netCredit = Math.round((netCredit - remain) * 100) / 100;
+                } else {
+                    const stored = allBookings.find(x => x.id === b.id);
+                    if (stored) stored.creditApplied = Math.round(((b.creditApplied || 0) + netCredit) * 100) / 100;
+                    CreditStorage.addCredit(user.whatsapp, user.email, user.name, -netCredit,
+                        `Credito parziale lezione ${b.date} ${b.time}`);
+                    netCredit = 0;
+                }
+            }
+            BookingStorage.replaceAllBookings(allBookings);
+        }
+
         // Avvio: aspetta la sessione Supabase, poi controlla il guard e inizializza
         async function _boot() {
             await initAuth();
@@ -306,6 +383,8 @@
                 ManualDebtStorage.syncFromSupabase(),
                 BonusStorage.syncFromSupabase(),
             ]);
+            // Applica credito alle lezioni passate non ancora pagate
+            await _applyCreditToPastBookings();
             if (document.readyState === 'loading') {
                 document.addEventListener('DOMContentLoaded', _initPrenoPage);
             } else {
@@ -337,6 +416,7 @@
                 ManualDebtStorage.syncFromSupabase(),
                 BonusStorage.syncFromSupabase(),
             ]);
+            await _applyCreditToPastBookings();
             _initPrenoPage();
         });
 
@@ -352,6 +432,11 @@
         }
 
         // ── Credit / debit balance ────────────────────────────────────────
+        function _bookingHasStarted(b) {
+            const startTime = new Date(`${b.date}T${b.time.split(' - ')[0].trim()}:00`);
+            return startTime <= new Date();
+        }
+
         function renderCreditBalance() {
             const user = getCurrentUser();
             if (!user) return;
@@ -360,8 +445,10 @@
             const { upcoming, past } = getUserBookings();
             const allUserBookings = [...upcoming, ...past];
 
+            // Solo le lezioni GIÀ INIZIATE contano come debito
+            // (le future non hanno ancora scalato il credito)
             const bookingDebt = allUserBookings
-                .filter(b => !b.paid && b.status !== 'cancelled')
+                .filter(b => !b.paid && b.status !== 'cancelled' && _bookingHasStarted(b))
                 .reduce((sum, b) => sum + (SLOT_PRICES[b.slotType] || 0) - (b.creditApplied || 0), 0);
             const manualDebt = ManualDebtStorage.getBalance(user.whatsapp, user.email);
             const totalDebt = bookingDebt + manualDebt;
@@ -479,8 +566,8 @@
                         cancelBtn = `<button class="preno-cancel-btn preno-cancel-bonus" onclick="cancelWithBonus('${b.id}')">🎟️ Usa bonus e annulla</button>`;
                     } else {
                         const _price = SLOT_PRICES[b.slotType] || 0;
-                        const _refund = Math.round(_price * 0.5 * 100) / 100;
-                        cancelBtn = `<button class="preno-cancel-btn preno-cancel-penalty" onclick="cancelWithPenalty('${b.id}')">💸 Annulla con mora (rimborso €${_refund})</button>`;
+                        const _mora = Math.round(_price * 0.5 * 100) / 100;
+                        cancelBtn = `<button class="preno-cancel-btn preno-cancel-penalty" onclick="cancelWithPenalty('${b.id}')">💸 Annulla con mora (€${_mora})</button>`;
                     }
                 } else if (_isLocked) {
                     const _user = getCurrentUser();
@@ -678,7 +765,7 @@
             if (!booking) return;
             const msg = 'Vuoi usare il tuo bonus mensile per annullare questa prenotazione?\n\n' +
                 '• Il bonus verrà consumato (disponibile di nuovo il mese prossimo).\n' +
-                '• Il credito eventualmente pagato ti verrà rimborsato.';
+                (booking.paid ? '• Il credito pagato ti verrà rimborsato.' : '• Nessun addebito.');
             if (!confirm(msg)) return;
 
             if (typeof supabaseClient !== 'undefined' && booking._sbId) {
@@ -730,10 +817,10 @@
             const price  = SLOT_PRICES[booking.slotType] || 0;
             const refund = Math.round(price * 0.5 * 100) / 100;
             const mora   = Math.round((price - refund) * 100) / 100;
-            const msg = `Vuoi annullare con mora del 50%?\n\n` +
-                `• Rimborso credito: €${refund} (invece di €${price})\n` +
-                `• Mora trattenuta: €${mora}\n\n` +
-                `L'annullamento è immediato e definitivo.`;
+            const wasPaidPenalty = booking.paid || (booking.creditApplied || 0) > 0;
+            const msg = wasPaidPenalty
+                ? `Vuoi annullare con mora del 50%?\n\n• Rimborso credito: €${refund} (invece di €${price})\n• Mora trattenuta: €${mora}\n\nL'annullamento è immediato e definitivo.`
+                : `Vuoi annullare con mora del 50%?\n\n• Mora addebitata: €${mora}\n\nL'annullamento è immediato e definitivo.`;
             if (!confirm(msg)) return;
 
             if (typeof supabaseClient !== 'undefined' && booking._sbId) {
