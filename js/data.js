@@ -2113,16 +2113,12 @@ class UserStorage {
                     name:     row.name     || existing.name     || '',
                     email:    row.email    || existing.email    || '',
                     whatsapp: row.whatsapp || existing.whatsapp || '',
-                    // Cert/assicurazione: preferisce dati locali (admin li gestisce da admin.html)
-                    certificatoMedicoScadenza: existing.certificatoMedicoScadenza !== undefined
-                        ? existing.certificatoMedicoScadenza
-                        : (row.medical_cert_expiry ?? null),
-                    certificatoMedicoHistory: existing.certificatoMedicoHistory || row.medical_cert_history || [],
-                    assicurazioneScadenza: existing.assicurazioneScadenza !== undefined
-                        ? existing.assicurazioneScadenza
-                        : (row.insurance_expiry ?? null),
-                    assicurazioneHistory: existing.assicurazioneHistory || row.insurance_history || [],
-                    codiceFiscale: row.codice_fiscale || existing.codiceFiscale || null,
+                    // Cert/assicurazione: Supabase è source of truth
+                    certificatoMedicoScadenza: row.medical_cert_expiry ?? existing.certificatoMedicoScadenza ?? null,
+                    certificatoMedicoHistory: row.medical_cert_history || existing.certificatoMedicoHistory || [],
+                    assicurazioneScadenza: row.insurance_expiry ?? existing.assicurazioneScadenza ?? null,
+                    assicurazioneHistory: row.insurance_history || existing.assicurazioneHistory || [],
+                    codiceFiscale: row.codice_fiscale ?? existing.codiceFiscale ?? null,
                 };
             });
 
