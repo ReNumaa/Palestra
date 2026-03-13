@@ -1,9 +1,8 @@
 -- ─── ONE-TIME: rimborsa credito sulle prenotazioni future già pagate con credito ─
 -- Con la nuova logica il credito viene scalato solo all'inizio della lezione.
 -- Questa migrazione riallinea le prenotazioni future già pagate con credito:
---   1. Rimborsa il credito al saldo del cliente
+--   1. Rimborsa il credito al saldo del cliente (solo balance, nessun log visibile)
 --   2. Rimette la prenotazione come "da pagare" (paid=false)
---   3. Logga il rimborso in credit_history
 
 DO $$
 DECLARE
@@ -20,7 +19,7 @@ DECLARE
 BEGIN
     FOR v_booking IN
         SELECT b.id, b.email, b.slot_type, b.payment_method, b.date, b.time,
-               coalesce(b.credit_applied, 0) AS credit_applied, b.paid
+               coalesce(b.credit_applied, 0) AS credit_applied, b.paid, b.paid_at
         FROM   bookings b
         WHERE  b.status = 'confirmed'
           AND  (b.paid = true OR coalesce(b.credit_applied, 0) > 0)
@@ -60,14 +59,17 @@ BEGIN
             WHERE  id = v_credit_id;
         END IF;
 
-        -- Logga in credit_history
-        INSERT INTO credit_history (credit_id, amount, note, created_at)
-        VALUES (
-            v_credit_id,
-            v_refund,
-            'Riallineamento: rimborso credito prenotazione futura ' || v_booking.date || ' ' || v_booking.time,
-            v_now
-        );
+        -- Nascondi la voce originale di deduzione in credit_history
+        -- Matcha per credit_id, importo negativo, e timestamp vicino al paid_at del booking
+        IF v_booking.paid AND v_booking.paid_at IS NOT NULL THEN
+            UPDATE credit_history
+            SET    hidden = true
+            WHERE  credit_id = v_credit_id
+              AND  amount < 0
+              AND  hidden = false
+              AND  created_at BETWEEN v_booking.paid_at - interval '5 seconds'
+                                 AND v_booking.paid_at + interval '5 seconds';
+        END IF;
 
         -- Rimetti la prenotazione come "da pagare"
         UPDATE bookings
