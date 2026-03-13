@@ -3503,10 +3503,11 @@ function createClientCard(client, index) {
         });
 
     // 2. Credit entries (positive = credit loads, negative = deductions) + informational payment records (amount=0 with displayAmount)
-    //    Escludi rimborsi di cancellazione (hiddenRefund o nota corrispondente)
+    //    Escludi rimborsi di cancellazione e auto-pagamenti lezioni (già mostrati come booking al punto 1)
     const creditRec2 = CreditStorage.getRecord(client.whatsapp, client.email);
     (creditRec2?.history || [])
         .filter(e => !e.hiddenRefund && !/^Rimborso (cancellazione|annullamento) lezione/i.test(e.note || '') &&
+            !/^(Auto-pagamento|Pagamento automatico|Pagamento lezione)/i.test(e.note || '') &&
             (e.amount !== 0 || (e.displayAmount || 0) > 0))
         .forEach(e => {
             txEntries.push({
