@@ -2393,6 +2393,14 @@ function toggleCreditsList() {
     const hint = document.getElementById('creditorsToggleHint');
     if (creditsList) creditsList.style.display = creditsListVisible ? 'flex' : 'none';
     if (hint) hint.textContent = creditsListVisible ? '▲ Nascondi lista' : '▼ Mostra lista';
+    // Chiudi l'altra lista se questa viene aperta
+    if (creditsListVisible && debtorsListVisible) {
+        debtorsListVisible = false;
+        const debtorsList = document.getElementById('debtorsList');
+        const dHint = document.getElementById('debtorsToggleHint');
+        if (debtorsList) debtorsList.style.display = 'none';
+        if (dHint) dHint.textContent = '▼ Mostra lista';
+    }
 }
 
 function createCreditCard(credit, index) {
@@ -2437,8 +2445,16 @@ function toggleDebtorsList() {
     debtorsListVisible = !debtorsListVisible;
     const debtorsList = document.getElementById('debtorsList');
     const hint = document.getElementById('debtorsToggleHint');
-    debtorsList.style.display = debtorsListVisible ? 'flex' : 'none';
-    hint.textContent = debtorsListVisible ? '▲ Nascondi lista' : '▼ Mostra lista';
+    if (debtorsList) debtorsList.style.display = debtorsListVisible ? 'flex' : 'none';
+    if (hint) hint.textContent = debtorsListVisible ? '▲ Nascondi lista' : '▼ Mostra lista';
+    // Chiudi l'altra lista se questa viene aperta
+    if (debtorsListVisible && creditsListVisible) {
+        creditsListVisible = false;
+        const creditsList = document.getElementById('creditsList');
+        const cHint = document.getElementById('creditorsToggleHint');
+        if (creditsList) creditsList.style.display = 'none';
+        if (cHint) cHint.textContent = '▼ Mostra lista';
+    }
 }
 
 function getDebtors() {
