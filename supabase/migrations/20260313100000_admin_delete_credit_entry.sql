@@ -43,7 +43,7 @@ BEGIN
     FROM   credit_history
     WHERE  credit_id = v_credit_id
            AND to_char(created_at AT TIME ZONE 'UTC', 'YYYY-MM-DD"T"HH24:MI:SS.MS"Z"') = p_entry_date
-           AND (amount > 0 OR (amount = 0 AND coalesce(display_amount, 0) > 0))
+           AND (amount != 0 OR coalesce(display_amount, 0) > 0)
     ORDER BY created_at
     LIMIT 1;
 
@@ -53,7 +53,7 @@ BEGIN
         FROM   credit_history
         WHERE  credit_id = v_credit_id
                AND abs(EXTRACT(EPOCH FROM (created_at - p_entry_date::timestamptz))) < 2
-               AND (amount > 0 OR (amount = 0 AND coalesce(display_amount, 0) > 0))
+               AND (amount != 0 OR coalesce(display_amount, 0) > 0)
         ORDER BY created_at
         LIMIT 1;
     END IF;

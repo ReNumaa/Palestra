@@ -3494,16 +3494,16 @@ function createClientCard(client, index) {
             });
         });
 
-    // 2. Credit entries (positive = credit loads) + informational payment records (amount=0 with displayAmount)
+    // 2. Credit entries (positive = credit loads, negative = deductions) + informational payment records (amount=0 with displayAmount)
     //    Escludi rimborsi di cancellazione (hiddenRefund o nota corrispondente)
     const creditRec2 = CreditStorage.getRecord(client.whatsapp, client.email);
     (creditRec2?.history || [])
         .filter(e => !e.hiddenRefund && !/^Rimborso (cancellazione|annullamento) lezione/i.test(e.note || '') &&
-            (e.amount > 0 || (e.amount === 0 && (e.displayAmount || 0) > 0)))
+            (e.amount !== 0 || (e.displayAmount || 0) > 0))
         .forEach(e => {
             txEntries.push({
-                date: new Date(e.date), icon: '💳',
-                label: e.note || 'Credito aggiunto',
+                date: new Date(e.date), icon: e.amount < 0 ? '🔻' : '💳',
+                label: e.note || (e.amount < 0 ? 'Deduzione credito' : 'Credito aggiunto'),
                 sub: '', amount: e.displayAmount !== undefined ? e.displayAmount : e.amount,
                 txType: 'credit', txEntryDate: e.date
             });

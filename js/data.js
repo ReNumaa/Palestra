@@ -1613,7 +1613,7 @@ class CreditStorage {
         const key = this._findKey(whatsapp, email);
         if (!key || !all[key]) return false;
         const hist = all[key].history || [];
-        const idx = hist.findIndex(e => e.date === entryDate && (e.amount > 0 || (e.amount === 0 && (e.displayAmount || 0) > 0)));
+        const idx = hist.findIndex(e => e.date === entryDate && (e.amount !== 0 || (e.displayAmount || 0) > 0));
         if (idx === -1) return false;
         hist.splice(idx, 1);
         // Ricalcola balance dalla history rimanente
