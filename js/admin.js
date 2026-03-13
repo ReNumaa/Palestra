@@ -1502,7 +1502,7 @@ function renderAdminDayView(dateInfo) {
                 seen.add(b.email.toLowerCase());
                 supabaseClient.rpc('apply_credit_to_past_bookings', {
                     p_email: b.email, p_slot_prices: _slotPrices
-                }).catch(() => {});
+                }).then(() => {}, () => {});
             }
         });
     }
@@ -3242,7 +3242,7 @@ function paySelectedDebts() {
                     supabaseClient.rpc('apply_credit_to_past_bookings', {
                         p_email: contact.email,
                         p_slot_prices: { 'personal-training': 5, 'small-group': 10, 'group-class': 30 }
-                    }).catch(() => {});
+                    }).then(() => {}, () => {});
                 }
             } else {
                 CreditStorage.addCredit(contact.whatsapp, contact.email, contact.name, 0, `${methodLabel} ricevuto`, amountPaid, false, false, null, paymentMethod);
