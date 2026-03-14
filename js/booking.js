@@ -80,13 +80,13 @@ function openBookingModal(dateInfo, timeSlot, slotType, remainingSpots) {
         const _today     = _localDateStr();
         let blockMsg = null;
         if (!_certScad && typeof CertBookingStorage !== 'undefined' && CertBookingStorage.getBlockIfNotSet())
-            blockMsg = 'Non hai inserito la data di scadenza del certificato medico. Contatta il trainer.';
+            blockMsg = 'Non hai inserito la data di scadenza del certificato medico. Contatta Thomas.';
         else if (_certScad && _certScad < _today && typeof CertBookingStorage !== 'undefined' && CertBookingStorage.getBlockIfExpired())
-            blockMsg = 'Il tuo certificato medico è scaduto. Contatta il trainer per aggiornarlo.';
+            blockMsg = 'Il tuo certificato medico è scaduto. Contatta Thomas per aggiornarlo.';
         else if (!_assicScad && typeof AssicBookingStorage !== 'undefined' && AssicBookingStorage.getBlockIfNotSet())
-            blockMsg = 'Non hai inserito la data di scadenza dell\'assicurazione. Contatta il trainer.';
+            blockMsg = 'Non hai inserito la data di scadenza dell\'assicurazione. Contatta Thomas.';
         else if (_assicScad && _assicScad < _today && typeof AssicBookingStorage !== 'undefined' && AssicBookingStorage.getBlockIfExpired())
-            blockMsg = 'La tua assicurazione è scaduta. Contatta il trainer per aggiornarla.';
+            blockMsg = 'La tua assicurazione è scaduta. Contatta Thomas per aggiornarla.';
 
         if (blockMsg) {
             document.getElementById('bookingForm').style.display = 'none';
@@ -113,7 +113,7 @@ function openBookingModal(dateInfo, timeSlot, slotType, remainingSpots) {
                     const _bl = document.createElement('div');
                     _bl.id = 'bookingBlockMessage';
                     _bl.style.cssText = 'padding:24px;text-align:center;color:#c0392b;font-weight:600;line-height:1.5';
-                    _bl.textContent = `⚠️ Prenotazione bloccata: hai un debito di €${_pastDebt} che supera la soglia di €${_dthr}. Contatta il trainer.`;
+                    _bl.textContent = `⚠️ Prenotazione bloccata: hai un debito di €${_pastDebt} che supera la soglia di €${_dthr}. Contatta Thomas.`;
                     document.getElementById('bookingForm').parentNode.insertBefore(_bl, document.getElementById('bookingForm'));
                 }
             }
@@ -268,7 +268,7 @@ async function handleBookingSubmit(e) {
     if (_threshold > 0) {
         const _pastDebt = BookingStorage.getUnpaidPastDebt(formData.whatsapp, formData.email);
         if (_pastDebt > _threshold) {
-            showToast(`Prenotazione bloccata: hai un debito di €${_pastDebt} che supera la soglia massima di €${_threshold}. Contatta il trainer per regolarizzare.`, 'error');
+            showToast(`Prenotazione bloccata: hai un debito di €${_pastDebt} che supera la soglia massima di €${_threshold}. Contatta Thomas per regolarizzare.`, 'error');
             submitBtn.disabled = false; return;
         }
     }
@@ -278,22 +278,22 @@ async function handleBookingSubmit(e) {
     const _certScad = _certUser?.medical_cert_expiry || '';
     const _today    = _localDateStr();
     if (!_certScad && CertBookingStorage.getBlockIfNotSet()) {
-        showToast('Prenotazione bloccata: non hai inserito la data di scadenza del certificato medico. Contatta il trainer.', 'error');
+        showToast('Prenotazione bloccata: non hai inserito la data di scadenza del certificato medico. Contatta Thomas.', 'error');
         submitBtn.disabled = false; return;
     }
     if (_certScad && _certScad < _today && CertBookingStorage.getBlockIfExpired()) {
-        showToast('Prenotazione bloccata: il tuo certificato medico è scaduto. Contatta il trainer per aggiornarlo.', 'error');
+        showToast('Prenotazione bloccata: il tuo certificato medico è scaduto. Contatta Thomas per aggiornarlo.', 'error');
         submitBtn.disabled = false; return;
     }
 
     // Check assicurazione restrictions
     const _assicScad = _certUser?.insurance_expiry || '';
     if (!_assicScad && AssicBookingStorage.getBlockIfNotSet()) {
-        showToast('Prenotazione bloccata: non hai inserito la data di scadenza dell\'assicurazione. Contatta il trainer.', 'error');
+        showToast('Prenotazione bloccata: non hai inserito la data di scadenza dell\'assicurazione. Contatta Thomas.', 'error');
         submitBtn.disabled = false; return;
     }
     if (_assicScad && _assicScad < _today && AssicBookingStorage.getBlockIfExpired()) {
-        showToast('Prenotazione bloccata: la tua assicurazione è scaduta. Contatta il trainer per aggiornarla.', 'error');
+        showToast('Prenotazione bloccata: la tua assicurazione è scaduta. Contatta Thomas per aggiornarla.', 'error');
         submitBtn.disabled = false; return;
     }
 
