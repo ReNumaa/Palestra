@@ -1614,7 +1614,49 @@ function deleteBooking(bookingId, bookingName) {
     const price = SLOT_PRICES[booking.slotType] || 0;
     const hasBonus = BonusStorage.getBonus(booking.whatsapp, booking.email) > 0;
 
-    // Build cancel popup
+    // Calcola distanza dalla lezione
+    const _tp = _parseSlotTime(booking.time);
+    const [_yr, _mo, _dy] = booking.date.split('-').map(Number);
+    const lessonStart = _tp ? new Date(_yr, _mo - 1, _dy, _tp.startH, _tp.startM, 0) : null;
+    const msToLesson = lessonStart ? lessonStart - new Date() : Infinity;
+    const ONE_DAY = 24 * 60 * 60 * 1000;
+    const isWithin24h = msToLesson <= ONE_DAY;
+
+    // > 24h: semplice conferma
+    if (!isWithin24h) {
+        if (!confirm(`Confermare l'annullamento della prenotazione di ${bookingName}?`)) return;
+
+        // Rimborso completo se aveva pagato
+        const isCancellationPending = booking.status === 'cancellation_requested';
+        const wasPaid = !isCancellationPending && (booking.paid || (booking.creditApplied || 0) > 0);
+        if (wasPaid) {
+            const creditToRefund = (booking.creditApplied || 0) > 0 ? booking.creditApplied : price;
+            CreditStorage.addCredit(
+                booking.whatsapp, booking.email, booking.name,
+                creditToRefund, `Rimborso lezione ${booking.date}`,
+                null, false, false, null, booking.paymentMethod || ''
+            );
+        }
+
+        bookings[index].cancelledPaymentMethod = booking.paymentMethod;
+        bookings[index].cancelledPaidAt = booking.paidAt;
+        bookings[index].status = 'cancelled';
+        bookings[index].cancelledAt = new Date().toISOString();
+        bookings[index].cancelledWithBonus = false;
+        bookings[index].cancelledRefundPct = 100;
+        bookings[index].paid = false;
+        bookings[index].paymentMethod = null;
+        bookings[index].paidAt = null;
+        bookings[index].creditApplied = 0;
+        BookingStorage.replaceAllBookings(bookings);
+        if (typeof notifySlotAvailable === 'function') notifySlotAvailable(booking);
+        if (selectedAdminDay) renderAdminDayView(selectedAdminDay);
+        return;
+    }
+
+    // < 24h: popup con opzioni
+    const mora = Math.round(price * 0.5 * 100) / 100;
+
     const overlay = document.createElement('div');
     overlay.className = 'cancel-popup-overlay';
     overlay.innerHTML = `
@@ -1623,19 +1665,20 @@ function deleteBooking(bookingId, bookingName) {
             <div class="cancel-popup-body">
                 <p class="cancel-popup-name">${bookingName}</p>
                 <p class="cancel-popup-detail">${booking.date} · ${booking.time} · €${price}</p>
+                <p class="cancel-popup-hint" style="color:var(--danger,#e74c3c);margin-bottom:0.5rem">⚠️ Entro 24h dall'inizio della lezione</p>
 
+                ${hasBonus ? `
                 <label class="cancel-popup-label">Utilizza bonus</label>
                 <div class="cancel-popup-toggle-row">
-                    <button class="cancel-toggle-btn${hasBonus ? '' : ' disabled'}" data-val="false" data-group="bonus" ${!hasBonus ? 'disabled' : ''}>No</button>
-                    <button class="cancel-toggle-btn${hasBonus ? '' : ' disabled'}" data-val="true" data-group="bonus" ${!hasBonus ? 'disabled' : ''}>Sì</button>
+                    <button class="cancel-toggle-btn" data-val="false" data-group="bonus">No</button>
+                    <button class="cancel-toggle-btn" data-val="true" data-group="bonus">Sì</button>
                 </div>
-                ${!hasBonus ? '<p class="cancel-popup-hint">Nessun bonus disponibile</p>' : ''}
+                ` : ''}
 
-                <label class="cancel-popup-label">Rimborso</label>
+                <label class="cancel-popup-label">Modalità annullamento</label>
                 <div class="cancel-popup-toggle-row">
-                    <button class="cancel-toggle-btn" data-val="0" data-group="refund">0%</button>
-                    <button class="cancel-toggle-btn" data-val="50" data-group="refund">50%</button>
-                    <button class="cancel-toggle-btn" data-val="100" data-group="refund">100%</button>
+                    <button class="cancel-toggle-btn" data-val="mora" data-group="mode">Con mora (€${mora})</button>
+                    <button class="cancel-toggle-btn" data-val="senza" data-group="mode">Senza mora</button>
                 </div>
 
                 <div class="cancel-popup-actions">
@@ -1648,31 +1691,21 @@ function deleteBooking(bookingId, bookingName) {
     document.body.appendChild(overlay);
     requestAnimationFrame(() => overlay.classList.add('visible'));
 
-    // Toggle selection logic
-    let selectedBonus = hasBonus ? null : false;  // auto-select No if no bonus available
-    let selectedRefund = null;
+    let selectedBonus = hasBonus ? null : false;
+    let selectedMode = null;
 
-    if (!hasBonus) {
-        // Pre-select "No" for bonus when unavailable
-        const noBonusBtn = overlay.querySelector('[data-group="bonus"][data-val="false"]');
-        if (noBonusBtn) noBonusBtn.classList.add('active');
-        selectedBonus = false;
-    }
-
-    overlay.querySelectorAll('.cancel-toggle-btn:not(.disabled)').forEach(btn => {
+    overlay.querySelectorAll('.cancel-toggle-btn').forEach(btn => {
         btn.addEventListener('click', () => {
             const group = btn.dataset.group;
             overlay.querySelectorAll(`[data-group="${group}"]`).forEach(b => b.classList.remove('active'));
             btn.classList.add('active');
             if (group === 'bonus') selectedBonus = btn.dataset.val === 'true';
-            if (group === 'refund') selectedRefund = parseInt(btn.dataset.val);
-            // Enable confirm when both selections made
+            if (group === 'mode') selectedMode = btn.dataset.val;
             const confirmBtn = overlay.querySelector('.cancel-popup-btn--confirm');
-            confirmBtn.disabled = (selectedBonus === null || selectedRefund === null);
+            confirmBtn.disabled = (selectedBonus === null || selectedMode === null);
         });
     });
 
-    // Close
     const closePopup = () => {
         overlay.classList.remove('visible');
         setTimeout(() => overlay.remove(), 250);
@@ -1680,56 +1713,56 @@ function deleteBooking(bookingId, bookingName) {
     overlay.querySelector('.cancel-popup-btn--cancel').addEventListener('click', closePopup);
     overlay.addEventListener('click', (e) => { if (e.target === overlay) closePopup(); });
 
-    // Confirm
     overlay.querySelector('.cancel-popup-btn--confirm').addEventListener('click', () => {
         const useBonus = selectedBonus;
-        const refundPct = selectedRefund;
+        const withMora = selectedMode === 'mora';
 
         if (useBonus) {
             BonusStorage.useBonus(booking.whatsapp, booking.email, booking.name);
         }
 
-        // Calculate refund based on percentage
         const isCancellationPending = booking.status === 'cancellation_requested';
         const wasPaid = !isCancellationPending && (booking.paid || (booking.creditApplied || 0) > 0);
-        const creditToRefund = wasPaid ? Math.round(price * refundPct / 100 * 100) / 100 : 0;
 
-        if (creditToRefund > 0) {
-            const refundLabel = refundPct < 100
-                ? `Rimborso ${refundPct}% lezione ${booking.date}`
-                : `Rimborso lezione ${booking.date}`;
-            CreditStorage.addCredit(
-                booking.whatsapp,
-                booking.email,
-                booking.name,
-                creditToRefund,
-                refundLabel,
-                null, false, false, null, booking.paymentMethod || ''
-            );
+        if (withMora) {
+            // Con mora: rimborso 50% se pagato, oppure addebita mora se non pagato
+            if (wasPaid) {
+                const refund = Math.round(price * 0.5 * 100) / 100;
+                CreditStorage.addCredit(
+                    booking.whatsapp, booking.email, booking.name,
+                    refund, `Rimborso parziale 50% — annullamento con mora ${booking.date} ${booking.time}`,
+                    null, false, false, null, booking.paymentMethod || ''
+                );
+            } else {
+                ManualDebtStorage.add(booking.whatsapp, booking.email, booking.name,
+                    mora, `Mora 50% annullamento tardivo ${booking.date} ${booking.time}`);
+            }
+            bookings[index].cancelledRefundPct = wasPaid ? 50 : 0;
+        } else {
+            // Senza mora: rimborso completo se pagato
+            if (wasPaid) {
+                const creditToRefund = (booking.creditApplied || 0) > 0 ? booking.creditApplied : price;
+                CreditStorage.addCredit(
+                    booking.whatsapp, booking.email, booking.name,
+                    creditToRefund, `Rimborso lezione ${booking.date}`,
+                    null, false, false, null, booking.paymentMethod || ''
+                );
+            }
+            bookings[index].cancelledRefundPct = 100;
         }
 
-        // If partial refund (50%) and paid, add penalty debt for the remaining 50%
-        if (wasPaid && refundPct === 0) {
-            // No refund, no debt — the money is simply kept
-        }
-
-        // Mark as cancelled
         bookings[index].cancelledPaymentMethod = booking.paymentMethod;
         bookings[index].cancelledPaidAt = booking.paidAt;
         bookings[index].status = 'cancelled';
         bookings[index].cancelledAt = new Date().toISOString();
         bookings[index].cancelledWithBonus = useBonus;
-        bookings[index].cancelledRefundPct = refundPct;
         bookings[index].paid = false;
         bookings[index].paymentMethod = null;
         bookings[index].paidAt = null;
         bookings[index].creditApplied = 0;
         BookingStorage.replaceAllBookings(bookings);
 
-        // Notifica slot disponibile
         if (typeof notifySlotAvailable === 'function') notifySlotAvailable(booking);
-
-        // Re-render
         if (selectedAdminDay) renderAdminDayView(selectedAdminDay);
 
         closePopup();
