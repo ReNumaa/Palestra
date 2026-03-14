@@ -20,7 +20,7 @@
 }
 
 html {
-    overscroll-behavior: none;
+    overscroll-behavior-x: none;
 }
 
 body {
@@ -29,7 +29,7 @@ body {
     color: var(--text-dark);
     line-height: 1.6;
     overflow-x: hidden;
-    overscroll-behavior: none;
+    overscroll-behavior-x: none;
     min-height: 100vh;
     display: flex;
     flex-direction: column;
