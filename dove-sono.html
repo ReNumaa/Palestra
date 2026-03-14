@@ -201,10 +201,8 @@
     <script src="js/push.js?v=1"></script>
     <script>
         initAuth();
-        if ('serviceWorker' in navigator) {
-            navigator.serviceWorker.register('/sw.js', { updateViaCache: 'none' });
-        }
     </script>
+    <script src="js/sw-update.js"></script>
     <script src="js/pwa-install.js"></script>
 </body>
 </html>

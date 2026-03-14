@@ -1,4 +1,4 @@
-const CACHE_NAME = 'palestra-v42';
+const CACHE_NAME = 'palestra-v43';
 
 const APP_SHELL = [
     '/',
@@ -22,6 +22,7 @@ const APP_SHELL = [
     '/js/chart-mini.js',
     '/js/push.js',
     '/js/pwa-install.js',
+    '/js/sw-update.js',
     '/images/logo-tb---nero.jpg',
     '/manifest.json',
 ];
