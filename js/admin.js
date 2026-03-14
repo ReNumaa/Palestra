@@ -2872,17 +2872,17 @@ function normalizePhone(phone) {
     return phone.replace(/^\+39\s*/, '').replace(/^0039\s*/, '').replace(/[\s\-(). ]/g, '');
 }
 
-// Returns true if the booking's end time has already passed
+// Returns true if the booking's start time has already passed
 function bookingHasPassed(booking) {
     // time format: "HH:MM - HH:MM"
-    const endTimePart = booking.time.split(' - ')[1];
-    if (!endTimePart || !booking.date) return false;
+    const startTimePart = booking.time.split(' - ')[0];
+    if (!startTimePart || !booking.date) return false;
 
-    const [endHour, endMin] = endTimePart.trim().split(':').map(Number);
+    const [startHour, startMin] = startTimePart.trim().split(':').map(Number);
     const [year, month, day] = booking.date.split('-').map(Number);
 
-    const endDateTime = new Date(year, month - 1, day, endHour, endMin, 0);
-    return new Date() >= endDateTime;
+    const startDateTime = new Date(year, month - 1, day, startHour, startMin, 0);
+    return new Date() >= startDateTime;
 }
 
 // Get unpaid amount for a specific contact (phone OR email match), only for past bookings
