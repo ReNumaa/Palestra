@@ -198,18 +198,50 @@ async function handleBookingSubmit(e) {
     }
 
     // Check duplicate booking (same user, same date+time, not cancelled)
-    const allBookings = BookingStorage.getAllBookings();
-    const normPhone = normalizePhone(formData.whatsapp);
-    const duplicate = allBookings.find(b =>
-        b.date === selectedSlot.date &&
-        b.time === selectedSlot.time &&
-        b.status !== 'cancelled' &&
-        b.status !== 'cancellation_requested' &&
-        (
-            (b.email && b.email.toLowerCase() === formData.email.toLowerCase()) ||
-            (normPhone && normalizePhone(b.whatsapp) === normPhone)
-        )
-    );
+    // Query Supabase direttamente per evitare dati stale in localStorage
+    let duplicate = false;
+    const _dupUser = typeof getCurrentUser === 'function' ? getCurrentUser() : null;
+    if (_dupUser?.id && typeof supabaseClient !== 'undefined') {
+        try {
+            const { data: _dupRows, error: _dupErr } = await supabaseClient
+                .from('bookings')
+                .select('id')
+                .eq('user_id', _dupUser.id)
+                .eq('date', selectedSlot.date)
+                .eq('time', selectedSlot.time)
+                .not('status', 'in', '("cancelled","cancellation_requested")')
+                .limit(1);
+            if (!_dupErr && _dupRows && _dupRows.length > 0) duplicate = true;
+        } catch (_) {
+            // Fallback: controlla localStorage se Supabase non raggiungibile
+            const allBookings = BookingStorage.getAllBookings();
+            const normPhone = normalizePhone(formData.whatsapp);
+            duplicate = allBookings.some(b =>
+                b.date === selectedSlot.date &&
+                b.time === selectedSlot.time &&
+                b.status !== 'cancelled' &&
+                b.status !== 'cancellation_requested' &&
+                (
+                    (b.email && b.email.toLowerCase() === formData.email.toLowerCase()) ||
+                    (normPhone && normalizePhone(b.whatsapp) === normPhone)
+                )
+            );
+        }
+    } else {
+        // Utente non loggato o Supabase non disponibile: fallback localStorage
+        const allBookings = BookingStorage.getAllBookings();
+        const normPhone = normalizePhone(formData.whatsapp);
+        duplicate = allBookings.some(b =>
+            b.date === selectedSlot.date &&
+            b.time === selectedSlot.time &&
+            b.status !== 'cancelled' &&
+            b.status !== 'cancellation_requested' &&
+            (
+                (b.email && b.email.toLowerCase() === formData.email.toLowerCase()) ||
+                (normPhone && normalizePhone(b.whatsapp) === normPhone)
+            )
+        );
+    }
     if (duplicate) {
         showToast('Hai già una prenotazione per questo orario.', 'error');
         submitBtn.disabled = false; return;
