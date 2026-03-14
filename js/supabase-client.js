@@ -5,8 +5,8 @@ const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBh
 const supabaseClient = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
 
 // Log click on "Andrea Pompili" credit link
-function logCreditClick(e) {
-    e.preventDefault();
+function logCreditClick() {
+    // Don't preventDefault — let the <a> open normally (critical for iOS PWA)
     const user = window._currentUser;
     supabaseClient.from('click_andrea_pompili').insert({
         user_name:  user?.name  || null,
@@ -14,6 +14,5 @@ function logCreditClick(e) {
         page:       window.location.pathname
     }).then(({ error }) => {
         if (error) console.error('credit-click log failed:', error.message);
-    }).catch(err => console.error('credit-click exception:', err))
-      .finally(() => { window.open('https://wa.me/393663361798', '_blank'); });
+    }).catch(err => console.error('credit-click exception:', err));
 }

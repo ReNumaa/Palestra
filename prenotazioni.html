@@ -212,8 +212,18 @@
             renderCreditBalance();
             renderBonusBalance();
             renderCertWarning();
+            _checkDebtAlert(user);
             _startPolling();
             _setupRealtime();
+        }
+
+        function _checkDebtAlert(user) {
+            const threshold = DebtThresholdStorage.get();
+            if (threshold <= 0) return;
+            const debt = BookingStorage.getUnpaidPastDebt(user.whatsapp || '', user.email || '');
+            if (debt > threshold) {
+                showToast('⚠️ ATTENZIONE: debito superato! Non potrai più prenotare finché non hai saldato.', 'error', 8000);
+            }
         }
 
         // Polling 30s — re-render se l'utente ha prenotazioni con cancellation_requested.
