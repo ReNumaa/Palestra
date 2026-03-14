@@ -1734,7 +1734,7 @@ function deleteBooking(bookingId, bookingName) {
                     null, false, false, null, booking.paymentMethod || ''
                 );
             } else {
-                ManualDebtStorage.add(booking.whatsapp, booking.email, booking.name,
+                ManualDebtStorage.addDebt(booking.whatsapp, booking.email, booking.name,
                     mora, `Mora 50% annullamento tardivo ${booking.date} ${booking.time}`);
             }
             bookings[index].cancelledRefundPct = wasPaid ? 50 : 0;
