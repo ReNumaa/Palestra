@@ -211,9 +211,9 @@ async function loginWithPassword(email, password) {
 
 // ── Logout ────────────────────────────────────────────────────────────────────
 async function logoutUser() {
-    await supabaseClient.auth.signOut({ scope: 'local' });
+    // Pulisce stato locale PRIMA di attendere Supabase — così l'UX non si blocca
+    // se il token è scaduto o la rete è lenta
     window._currentUser = null;
-    // Pulisce sessione admin e dati utente per evitare leak tra utenti diversi sullo stesso device
     localStorage.removeItem('adminAuthenticated');
     sessionStorage.removeItem('adminAuth');
     localStorage.removeItem('gym_bookings');
@@ -221,6 +221,13 @@ async function logoutUser() {
     localStorage.removeItem('gym_manual_debts');
     localStorage.removeItem('gym_bonus');
     localStorage.removeItem('gym_registered_users');
+    // signOut con timeout: se Supabase non risponde entro 3s, procedi comunque
+    try {
+        await Promise.race([
+            supabaseClient.auth.signOut({ scope: 'local' }),
+            new Promise((_, reject) => setTimeout(() => reject(new Error('timeout')), 3000))
+        ]);
+    } catch { /* sessione locale già pulita, il token scadrà da solo */ }
 }
 
 // ── Aggiorna profilo ──────────────────────────────────────────────────────────
