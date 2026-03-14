@@ -1,6 +1,6 @@
 # TB Training — Diario di Sviluppo & Roadmap
 
-> Documento aggiornato al 11/03/2026 (sessione 30)
+> Documento aggiornato al 14/03/2026 (sessione 33)
 > Prototipo: sistema di prenotazione palestra, frontend-only con localStorage
 > Supabase CLI installato, schema SQL definito, accesso dati centralizzato
 > Supabase cloud attivo (tabelle create), Google OAuth funzionante, numeri normalizzati E.164
@@ -17,6 +17,7 @@
 > **SESSIONE 28**: hardening localStorage (quota, JSON.parse, pruning history, logout cleanup), fix processPendingCancellations non-admin, navbar admin su tutte le pagine, Realtime debounced full-sync per saldi in tempo reale
 > **SESSIONE 29**: fix bug critico crediti invisibili agli utenti — RLS policy SELECT mancante su credits/credit_history + trigger auto-link user_id + calendario desktop Lun-Dom
 > **SESSIONE 30**: viewer emergency mode completo, auto-capitalize nomi, "Mostra altro" pagination, RPC user_request_cancellation, pulsante elimina dati cliente, fix cancellazioni utente
+> **SESSIONE 33**: PWA auto-update, sticky calendar mobile+desktop, fix race condition crediti/debiti, booking modal semplificato, debiti unificati, alert debito superato
 
 ---
 
@@ -1792,6 +1793,74 @@ Regex: `.replace(/\S+/g, w => w[0].toUpperCase() + w.slice(1).toLowerCase())`
 - `js/supabase-client.js` — logCreditClick senza preventDefault
 - `css/style.css` — overscroll-behavior: none, padding footer
 - `index.html`, `chi-sono.html`, `dove-sono.html`, `login.html`, `admin.html`, `prenotazioni.html`, `viewer.html` — viewport aggiornato
+
+---
+
+### 4.45 PWA auto-update, sticky calendar, fix debiti e booking semplificato (sessione 33, mar 2026)
+
+**Contesto:** la PWA richiedeva hard refresh per aggiornamenti; il calendario mobile non fissava le date allo scroll; i debiti manuali non erano integrati nel totale "da pagare"; il form di prenotazione mostrava campi inutili per utenti loggati.
+
+**Cosa è stato fatto:**
+
+1. **PWA auto-update (`js/sw-update.js`)**
+   - Nuovo file centralizzato che sostituisce la registrazione SW inline in tutti i 6 HTML
+   - Registra il service worker con `updateViaCache: 'none'`
+   - Poll `reg.update()` ogni 60 secondi per rilevare nuove versioni
+   - Listener `updatefound` + `statechange` → reload automatico quando il nuovo SW si attiva
+   - Flag `refreshing` per prevenire loop di reload
+   - Listener `controllerchange` come fallback
+   - **Per deployare aggiornamenti:** basta bumpare `CACHE_NAME` in `sw.js`
+
+2. **Sticky calendar mobile (calendario utente)**
+   - `.mobile-week-nav` e `.mobile-day-selector` resi sticky sotto la navbar
+   - `setupMobileStickyOffsets()` in `calendar.js` calcola offset esatti da `navbar.offsetHeight` via JS
+   - `margin-top: -1px` sul day-selector per eliminare gap sub-pixel tra i due elementi
+   - Sfondo `var(--light-gray)` per coprire il contenuto che scorre sotto
+   - Aggiornamento offset su `resize`
+
+3. **Sticky calendar desktop (admin)**
+   - `.admin-calendar-controls` e `.admin-day-selector` sticky sotto la navbar (solo >768px)
+   - `setupAdminStickyOffsets()` in `admin.js` con reset `position: static` su mobile
+   - z-index 12/11 per restare sopra il contenuto
+
+4. **Fix race condition crediti/debiti**
+   - `clearTimeout(CreditStorage._supabaseSaveTimer)` e `clearTimeout(ManualDebtStorage._supabaseSaveTimer)` spostati **PRIMA** delle RPC (prima erano dopo, permettendo al debounce di sovrascrivere i dati)
+   - Aggiunto debounce 200ms a `ManualDebtStorage._save()` (prima scriveva sync a Supabase)
+   - Fix applicato a 3 flussi: `admin_add_credit`, `admin_add_debt`, `admin_pay_bookings`
+
+5. **`bookingHasPassed()` usa orario di INIZIO lezione**
+   - Cambiato da `split(' - ')[1]` (fine) a `split(' - ')[0]` (inizio)
+   - Allinea il calcolo "Da pagare" in admin con `prenotazioni.html`
+
+6. **Booking modal semplificato per utenti loggati**
+   - Campi nome/email/whatsapp wrappati in `#bookingUserFields` e nascosti con `display: none`
+   - Rimosso attributo `required` HTML (la validazione JS resta invariata)
+   - Data e ora centrate e ingrandite (`flex-direction: column`, font 1.5rem desktop / 1.3rem mobile)
+   - Badge tipo lezione e posti disponibili centrati sopra
+   - L'utente vede solo: tipo lezione + giorno/ora + posti + campo note + bottone conferma
+
+7. **Debiti unificati nella scheda clienti**
+   - "Da pagare" = booking non pagati + debiti manuali − credito (un unico numero)
+   - Rimosso footer inline "Totale / Seleziona… / Incassa tutto" dalle card debitori
+   - Debiti manuali nel popup "Da pagare" ora hanno sfondo rossiccio (`debt-popup-item--past`)
+
+8. **Alert debito superato**
+   - Toast rosso 8 secondi su apertura app (`index.html` + `prenotazioni.html`)
+   - Confronta `BookingStorage.getUnpaidPastDebt()` vs `DebtThresholdStorage.get()`
+   - Messaggio: "ATTENZIONE: debito superato! Non potrai più prenotare finché non hai saldato."
+
+**File modificati:**
+- `js/sw-update.js` — nuovo, auto-update PWA
+- `js/calendar.js` — `setupMobileStickyOffsets()`
+- `js/admin.js` — `setupAdminStickyOffsets()`, fix clearTimeout race condition, debiti unificati, `bookingHasPassed()` start time
+- `js/booking.js` — nasconde campi utente se loggato
+- `js/data.js` — debounce su `ManualDebtStorage._save()`
+- `css/style.css` — sticky mobile day selector/week nav, modal centrato
+- `css/admin.css` — sticky admin calendar controls/day selector (desktop only)
+- `index.html` — alert debito, booking modal refactored, sw-update.js
+- `prenotazioni.html` — alert debito, sw-update.js
+- `admin.html`, `login.html`, `chi-sono.html`, `dove-sono.html` — sw-update.js
+- `sw.js` — bump cache da v42 a v59
 
 ---
 
