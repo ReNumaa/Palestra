@@ -239,9 +239,10 @@ let WEEKLY_SCHEDULE_TEMPLATE = getWeeklySchedule();
 class BookingStorage {
     static BOOKINGS_KEY = 'gym_bookings';
     static STATS_KEY = 'gym_stats';
+    static _cache = [];
 
     static getAllBookings() {
-        return _lsGetJSON(this.BOOKINGS_KEY, []);
+        return this._cache;
     }
 
     // Fetches bookings from Supabase and updates the localStorage cache.
@@ -272,9 +273,9 @@ class BookingStorage {
                     return;
                 }
                 const synth = this._buildSyntheticBookings(availData, {});
-                // Mantieni booking locali non-sintetici (pending insert non ancora su Supabase)
-                const local = this.getAllBookings().filter(b => !b.id?.startsWith('_avail_'));
-                _lsSet(this.BOOKINGS_KEY, JSON.stringify([...synth, ...local]));
+                // Mantieni booking in cache non-sintetici (pending insert non ancora su Supabase)
+                const local = this._cache.filter(b => !b.id?.startsWith('_avail_'));
+                this._cache = [...synth, ...local];
                 console.log(`[Supabase] syncFromSupabase (anon): ${synth.length} slot sintetici`);
                 return;
             }
@@ -323,9 +324,9 @@ class BookingStorage {
                 synth = this._buildSyntheticBookings(availData, ownCounts);
             }
 
-            // Pending: booking locali recenti (< 30 min) non ancora confermati su Supabase
+            // Pending: booking in cache recenti (< 30 min) non ancora confermati su Supabase
             const supabaseIds = new Set(mapped.map(m => m.id));
-            const local = this.getAllBookings().filter(b => !b.id?.startsWith('_avail_'));
+            const local = this._cache.filter(b => !b.id?.startsWith('_avail_'));
             const now = Date.now();
             const dataLastCleared = localStorage.getItem('dataLastCleared') || '0';
             const pending = local.filter(b => {
@@ -336,7 +337,7 @@ class BookingStorage {
                 return true;
             });
 
-            _lsSet(this.BOOKINGS_KEY, JSON.stringify([...mapped, ...synth, ...pending]));
+            this._cache = [...mapped, ...synth, ...pending];
             console.log(`[Supabase] syncFromSupabase (${isAdmin ? 'admin' : 'user'}): ${mapped.length} da Supabase, ${synth.length} sintetici, ${pending.length} pending`);
 
             this._retryPending(pending, user);
@@ -458,54 +459,45 @@ class BookingStorage {
     }
 
     static async saveBooking(booking) {
-        const bookings = this.getAllBookings();
-        // Generate truly unique ID using timestamp + random number
         booking.id = `${Date.now()}-${Math.random().toString(36).substr(2, 9)}`;
         booking.createdAt = new Date().toISOString();
         booking.status = 'confirmed';
 
-        // Se Supabase è disponibile, la RPC è la fonte di verità.
-        // Il booking viene aggiunto al localStorage SOLO dopo conferma server.
-        if (typeof supabaseClient !== 'undefined') {
-            const user = typeof getCurrentUser === 'function' ? getCurrentUser() : null;
-            const maxCap = BookingStorage.getEffectiveCapacity(booking.date, booking.time, booking.slotType);
-            const { data, error } = await supabaseClient.rpc('book_slot_atomic', {
-                p_local_id:     booking.id,
-                p_user_id:      user?.id || null,
-                p_date:         booking.date,
-                p_time:         booking.time,
-                p_slot_type:    booking.slotType,
-                p_max_capacity: maxCap,
-                p_name:         booking.name,
-                p_email:        booking.email,
-                p_whatsapp:     booking.whatsapp,
-                p_notes:        booking.notes || '',
-                p_created_at:   booking.createdAt,
-                p_date_display: booking.dateDisplay || ''
-            });
-            if (error) {
-                console.error('[Supabase] book_slot_atomic error:', error.message);
-                return { ok: false, error: 'server_error', booking };
-            }
-            if (!data || !data.success) {
-                const reason = data?.error || 'unknown';
-                console.warn('[Supabase] book_slot_atomic rifiutato:', reason);
-                return { ok: false, error: reason, booking };
-            }
-            // RPC confermata — ora salva anche in localStorage
-            booking._sbId = data.booking_id || null;
-            bookings.push(booking);
-            _lsSet(this.BOOKINGS_KEY, JSON.stringify(bookings));
-            this.updateStats(booking);
-            console.log('[Supabase] book_slot_atomic OK — id:', booking.id);
-            return { ok: true, booking };
+        if (typeof supabaseClient === 'undefined') {
+            return { ok: false, error: 'offline', booking };
         }
 
-        // Offline/no Supabase: salva solo in localStorage (pending sync)
-        bookings.push(booking);
-        _lsSet(this.BOOKINGS_KEY, JSON.stringify(bookings));
+        const user = typeof getCurrentUser === 'function' ? getCurrentUser() : null;
+        const maxCap = BookingStorage.getEffectiveCapacity(booking.date, booking.time, booking.slotType);
+        const { data, error } = await supabaseClient.rpc('book_slot_atomic', {
+            p_local_id:     booking.id,
+            p_user_id:      user?.id || null,
+            p_date:         booking.date,
+            p_time:         booking.time,
+            p_slot_type:    booking.slotType,
+            p_max_capacity: maxCap,
+            p_name:         booking.name,
+            p_email:        booking.email,
+            p_whatsapp:     booking.whatsapp,
+            p_notes:        booking.notes || '',
+            p_created_at:   booking.createdAt,
+            p_date_display: booking.dateDisplay || ''
+        });
+        if (error) {
+            console.error('[Supabase] book_slot_atomic error:', error.message);
+            return { ok: false, error: 'server_error', booking };
+        }
+        if (!data || !data.success) {
+            const reason = data?.error || 'unknown';
+            console.warn('[Supabase] book_slot_atomic rifiutato:', reason);
+            return { ok: false, error: reason, booking };
+        }
+        // RPC confermata — aggiorna cache in memoria
+        booking._sbId = data.booking_id || null;
+        this._cache.push(booking);
         this.updateStats(booking);
-        return { ok: true, offline: true, booking };
+        console.log('[Supabase] book_slot_atomic OK — id:', booking.id);
+        return { ok: true, booking };
     }
 
     // Versione admin di saveBooking: usa clientUserId per il record Supabase
@@ -517,46 +509,41 @@ class BookingStorage {
             console.warn('[saveBookingForClient] Chiamata senza sessione admin attiva — operazione bloccata lato frontend');
             return { ok: false, error: 'not_admin', booking };
         }
-        const bookings = this.getAllBookings();
         booking.id = `${Date.now()}-${Math.random().toString(36).substr(2, 9)}`;
         booking.createdAt = new Date().toISOString();
         booking.status = 'confirmed';
 
-        if (typeof supabaseClient !== 'undefined') {
-            const maxCap = BookingStorage.getEffectiveCapacity(booking.date, booking.time, booking.slotType);
-            const { data, error } = await supabaseClient.rpc('book_slot_atomic', {
-                p_local_id:     booking.id,
-                p_user_id:      clientUserId || null,
-                p_date:         booking.date,
-                p_time:         booking.time,
-                p_slot_type:    booking.slotType,
-                p_max_capacity: maxCap,
-                p_name:         booking.name,
-                p_email:        booking.email,
-                p_whatsapp:     booking.whatsapp,
-                p_notes:        booking.notes || '',
-                p_created_at:   booking.createdAt,
-                p_date_display: booking.dateDisplay || ''
-            });
-            if (error) {
-                console.error('[Supabase] adminBook error:', error.message);
-                return { ok: false, error: 'server_error', booking };
-            }
-            if (!data || !data.success) {
-                console.warn('[Supabase] adminBook rifiutato:', data?.error);
-                return { ok: false, error: data?.error || 'unknown', booking };
-            }
-            booking._sbId = data.booking_id || null;
-            bookings.push(booking);
-            _lsSet(this.BOOKINGS_KEY, JSON.stringify(bookings));
-            this.updateStats(booking);
-            return { ok: true, booking };
+        if (typeof supabaseClient === 'undefined') {
+            return { ok: false, error: 'offline', booking };
         }
 
-        bookings.push(booking);
-        _lsSet(this.BOOKINGS_KEY, JSON.stringify(bookings));
+        const maxCap = BookingStorage.getEffectiveCapacity(booking.date, booking.time, booking.slotType);
+        const { data, error } = await supabaseClient.rpc('book_slot_atomic', {
+            p_local_id:     booking.id,
+            p_user_id:      clientUserId || null,
+            p_date:         booking.date,
+            p_time:         booking.time,
+            p_slot_type:    booking.slotType,
+            p_max_capacity: maxCap,
+            p_name:         booking.name,
+            p_email:        booking.email,
+            p_whatsapp:     booking.whatsapp,
+            p_notes:        booking.notes || '',
+            p_created_at:   booking.createdAt,
+            p_date_display: booking.dateDisplay || ''
+        });
+        if (error) {
+            console.error('[Supabase] adminBook error:', error.message);
+            return { ok: false, error: 'server_error', booking };
+        }
+        if (!data || !data.success) {
+            console.warn('[Supabase] adminBook rifiutato:', data?.error);
+            return { ok: false, error: data?.error || 'unknown', booking };
+        }
+        booking._sbId = data.booking_id || null;
+        this._cache.push(booking);
         this.updateStats(booking);
-        return { ok: true, offline: true, booking };
+        return { ok: true, booking };
     }
 
     static getBookingsForSlot(date, time) {
@@ -997,23 +984,20 @@ class BookingStorage {
         if (localStorage.getItem('dataClearedByUser') === 'true') return;
 
         // Migration check: if existing bookings use old time slot format, regenerate
-        const existing = this.getAllBookings();
+        const existing = this._cache;
         if (existing.length > 0) {
             const hasOutdatedSlots = existing.some(b => !TIME_SLOTS.includes(b.time));
             if (hasOutdatedSlots) {
-                // Keep real bookings (non-demo) even if format is outdated;
-                // only delete demo bookings which will be regenerated below.
-                const realBookings = existing.filter(b =>
+                this._cache = existing.filter(b =>
                     !b.id?.startsWith('demo-') && TIME_SLOTS.includes(b.time)
                 );
-                _lsSet(this.BOOKINGS_KEY, JSON.stringify(realBookings));
                 localStorage.removeItem(this.STATS_KEY);
             } else {
                 return; // Data is current, nothing to do
             }
         }
 
-        if (this.getAllBookings().length === 0) {
+        if (this._cache.length === 0) {
             // 30 fixed clients with consistent contact info
             const clients = [
                 { name: 'Mario Rossi',         email: 'mario.rossi@gmail.com',          whatsapp: '+39 348 1234567' },
@@ -1126,7 +1110,7 @@ class BookingStorage {
             }
 
             // Save all demo bookings in one shot (no random IDs, no Date.now())
-            _lsSet(this.BOOKINGS_KEY, JSON.stringify(demoBookings));
+            this._cache = demoBookings;
 
             // Recalculate stats from scratch
             const stats = { totalBookings: 0, totalRevenue: 0, typeDistribution: {}, dailyBookings: {} };
@@ -1220,14 +1204,14 @@ class BookingStorage {
             if (remoteClearedAt) {
                 const localClearedAt = localStorage.getItem('dataLastCleared') || '0';
                 if (remoteClearedAt > localClearedAt) {
-                    localStorage.removeItem(BookingStorage.BOOKINGS_KEY);
-                    localStorage.removeItem(CreditStorage.CREDITS_KEY);
-                    localStorage.removeItem(ManualDebtStorage.DEBTS_KEY);
-                    localStorage.removeItem(BonusStorage.BONUS_KEY);
+                    BookingStorage._cache = [];
+                    CreditStorage._cache = {};
+                    ManualDebtStorage._cache = {};
+                    BonusStorage._cache = {};
                     localStorage.removeItem('scheduleOverrides');
                     _lsSet('dataLastCleared', remoteClearedAt);
                     _lsSet('dataClearedByUser', 'true');
-                    console.log('[Supabase] clearAllData ricevuto da remoto — tutti i dati locali svuotati');
+                    console.log('[Supabase] clearAllData ricevuto da remoto — tutte le cache svuotate');
                 }
             }
 
@@ -1243,7 +1227,7 @@ class BookingStorage {
                     const key = `${c.whatsapp || ''}||${c.email}`;
                     credits[key] = { name: c.name, whatsapp: c.whatsapp || '', email: c.email, balance: c.balance, freeBalance: c.free_balance || 0, history: histMap[c.id] || [] };
                 }
-                _lsSet(CreditStorage.CREDITS_KEY, JSON.stringify(credits));
+                CreditStorage._cache = credits;
             }
 
             // 3. Manual debts
@@ -1253,7 +1237,7 @@ class BookingStorage {
                     const key = `${r.whatsapp || ''}||${r.email}`;
                     debts[key] = { name: r.name, whatsapp: r.whatsapp || '', email: r.email, balance: r.balance, history: r.history || [] };
                 }
-                _lsSet(ManualDebtStorage.DEBTS_KEY, JSON.stringify(debts));
+                ManualDebtStorage._cache = debts;
             }
 
             // 4. Bonuses
@@ -1263,7 +1247,7 @@ class BookingStorage {
                     const key = `${r.whatsapp || ''}||${r.email}`;
                     bonuses[key] = { name: r.name, whatsapp: r.whatsapp || '', email: r.email, bonus: r.bonus, lastResetMonth: r.last_reset_month || null };
                 }
-                _lsSet(BonusStorage.BONUS_KEY, JSON.stringify(bonuses));
+                BonusStorage._cache = bonuses;
             }
 
             // 5. Schedule overrides
@@ -1303,8 +1287,8 @@ class BookingStorage {
     // Sostituisce l'intero array di prenotazioni (usato dopo modifiche bulk).
     // Sincronizza su Supabase solo i booking effettivamente cambiati (diff intelligente).
     static replaceAllBookings(bookings) {
-        const prev = this.getAllBookings();
-        _lsSet(this.BOOKINGS_KEY, JSON.stringify(bookings));
+        const prev = [...this._cache];
+        this._cache = bookings;
 
         if (typeof supabaseClient === 'undefined') return;
         const prevMap = Object.fromEntries(prev.map(b => [b.id, b]));
@@ -1381,52 +1365,31 @@ class BookingStorage {
 // Credit storage — tracks per-client credit balance
 class CreditStorage {
     static CREDITS_KEY = 'gym_credits';
-    static _supabaseSaveTimer = null;
-    static MAX_HISTORY_LOCAL = 60; // max voci history per cliente in localStorage (il resto è su Supabase)
+    static _cache = {};
 
     static _getAll() {
-        try { return JSON.parse(localStorage.getItem(this.CREDITS_KEY) || '{}'); } catch { return {}; }
-    }
-
-    // Tronca le history locali per evitare che localStorage superi il limite 5MB.
-    // Mantiene le ultime MAX_HISTORY_LOCAL voci per cliente; lo storico completo resta su Supabase.
-    static _pruneHistory() {
-        const all = this._getAll();
-        let pruned = false;
-        for (const key of Object.keys(all)) {
-            if (all[key].history && all[key].history.length > this.MAX_HISTORY_LOCAL) {
-                all[key].history = all[key].history.slice(-this.MAX_HISTORY_LOCAL);
-                pruned = true;
-            }
-        }
-        if (pruned) _lsSet(this.CREDITS_KEY, JSON.stringify(all));
+        return this._cache;
     }
 
     static _save(data) {
-        _lsSet(this.CREDITS_KEY, JSON.stringify(data));
+        this._cache = data;
         if (typeof supabaseClient === 'undefined') return;
-        // Debounce Supabase upsert: rapid successive calls (e.g. addCredit + applyToUnpaidBookings)
-        // collapse into one write using the latest localStorage state, avoiding race conditions.
-        clearTimeout(CreditStorage._supabaseSaveTimer);
-        CreditStorage._supabaseSaveTimer = setTimeout(() => {
-            const latest = CreditStorage._getAll();
-            const rows = Object.values(latest).map(r => ({
-                name:         r.name,
-                whatsapp:     r.whatsapp || null,
-                email:        (r.email || '').toLowerCase(),
-                balance:      r.balance      || 0,
-                free_balance: r.freeBalance  || 0,
-            }));
-            if (rows.length === 0) return;
-            supabaseClient.from('credits')
-                .upsert(rows, { onConflict: 'email' })
-                .then(({ error }) => {
-                    if (error) {
-                        console.error('[Supabase] CreditStorage._save error:', error.message);
-                        if (typeof showToast === 'function') showToast('⚠️ Errore salvataggio crediti sul server. Ricarica la pagina.', 'error', 5000);
-                    }
-                });
-        }, 200);
+        const rows = Object.values(data).map(r => ({
+            name:         r.name,
+            whatsapp:     r.whatsapp || null,
+            email:        (r.email || '').toLowerCase(),
+            balance:      r.balance      || 0,
+            free_balance: r.freeBalance  || 0,
+        }));
+        if (rows.length === 0) return;
+        supabaseClient.from('credits')
+            .upsert(rows, { onConflict: 'email' })
+            .then(({ error }) => {
+                if (error) {
+                    console.error('[Supabase] CreditStorage._save error:', error.message);
+                    if (typeof showToast === 'function') showToast('⚠️ Errore salvataggio crediti sul server. Ricarica la pagina.', 'error', 5000);
+                }
+            });
     }
 
     static async syncFromSupabase() {
@@ -1455,8 +1418,7 @@ class CreditStorage {
                 const key = `${c.whatsapp || ''}||${c.email}`;
                 result[key] = { name: c.name, whatsapp: c.whatsapp || '', email: c.email, balance: c.balance, freeBalance: c.free_balance || 0, history: histMap[c.id] || [] };
             }
-            _lsSet(this.CREDITS_KEY, JSON.stringify(result));
-            this._pruneHistory();
+            this._cache = result;
             console.log('[Supabase] CreditStorage.sync: dati caricati');
         } catch (e) { console.error('[Supabase] CreditStorage.sync exception:', e); }
     }
@@ -1713,34 +1675,31 @@ class CreditStorage {
 // Manual debt storage — per-client debts not tied to bookings (es. lezioni private non prenotate)
 class ManualDebtStorage {
     static DEBTS_KEY = 'gym_manual_debts';
+    static _cache = {};
 
     static _getAll() {
-        try { return JSON.parse(localStorage.getItem(this.DEBTS_KEY) || '{}'); } catch { return {}; }
+        return this._cache;
     }
 
     static _save(data) {
-        _lsSet(this.DEBTS_KEY, JSON.stringify(data));
+        this._cache = data;
         if (typeof supabaseClient === 'undefined') return;
-        clearTimeout(ManualDebtStorage._supabaseSaveTimer);
-        ManualDebtStorage._supabaseSaveTimer = setTimeout(() => {
-            const latest = ManualDebtStorage._getAll();
-            const rows = Object.values(latest).map(r => ({
-                name:     r.name,
-                whatsapp: r.whatsapp || null,
-                email:    (r.email || '').toLowerCase(),
-                balance:  r.balance  || 0,
-                history:  r.history  || [],
-            }));
-            if (rows.length === 0) return;
-            supabaseClient.from('manual_debts')
-                .upsert(rows, { onConflict: 'email' })
-                .then(({ error }) => {
-                    if (error) {
-                        console.error('[Supabase] ManualDebtStorage._save error:', error.message);
-                        if (typeof showToast === 'function') showToast('⚠️ Errore salvataggio debiti sul server. Ricarica la pagina.', 'error', 5000);
-                    }
-                });
-        }, 200);
+        const rows = Object.values(data).map(r => ({
+            name:     r.name,
+            whatsapp: r.whatsapp || null,
+            email:    (r.email || '').toLowerCase(),
+            balance:  r.balance  || 0,
+            history:  r.history  || [],
+        }));
+        if (rows.length === 0) return;
+        supabaseClient.from('manual_debts')
+            .upsert(rows, { onConflict: 'email' })
+            .then(({ error }) => {
+                if (error) {
+                    console.error('[Supabase] ManualDebtStorage._save error:', error.message);
+                    if (typeof showToast === 'function') showToast('⚠️ Errore salvataggio debiti sul server. Ricarica la pagina.', 'error', 5000);
+                }
+            });
     }
 
     static async syncFromSupabase() {
@@ -1755,7 +1714,7 @@ class ManualDebtStorage {
                 const key = `${r.whatsapp || ''}||${r.email}`;
                 result[key] = { name: r.name, whatsapp: r.whatsapp || '', email: r.email, balance: r.balance, history: r.history || [] };
             }
-            _lsSet(this.DEBTS_KEY, JSON.stringify(result));
+            this._cache = result;
             console.log('[Supabase] ManualDebtStorage.sync: dati caricati');
         } catch (e) { console.error('[Supabase] ManualDebtStorage.sync exception:', e); }
     }
@@ -1855,13 +1814,14 @@ class ManualDebtStorage {
 // Bonus storage — one free cancellation bonus per client per month (non-cumulative)
 class BonusStorage {
     static BONUS_KEY = 'gym_bonus';
+    static _cache = {};
 
     static _getAll() {
-        try { return JSON.parse(localStorage.getItem(this.BONUS_KEY) || '{}'); } catch { return {}; }
+        return this._cache;
     }
 
     static _save(data) {
-        _lsSet(this.BONUS_KEY, JSON.stringify(data));
+        this._cache = data;
         if (typeof supabaseClient === 'undefined') return;
         const rows = Object.values(data).map(r => ({
             name:             r.name,
@@ -1937,7 +1897,7 @@ class BonusStorage {
                     lastResetMonth: r.last_reset_month || null,
                 };
             });
-            _lsSet(this.BONUS_KEY, JSON.stringify(all));
+            this._cache = all;
         } catch (e) { console.error('[Supabase] BonusStorage.syncFromSupabase exception:', e); }
     }
 
@@ -2025,6 +1985,7 @@ class AssicBookingStorage {
 //   then apply the same dedup logic below
 class UserStorage {
     static USERS_KEY = 'gym_users'; // managed by auth.js
+    static _cache = []; // registered users cache (synced from Supabase profiles)
 
     // Returns all known contacts: registered accounts first, then unique clients from booking history.
     // Deduplicates by email (case-insensitive) and phone (last 10 digits).
@@ -2056,17 +2017,13 @@ class UserStorage {
             result.push({ name, email: email || '', whatsapp: whatsapp || '' });
         };
 
-        // 1. Registered accounts (Google OAuth + manual) — highest priority
-        try {
-            JSON.parse(localStorage.getItem(this.USERS_KEY) || '[]').forEach(_add);
-        } catch {}
+        // 1. Registered accounts (from cache) — highest priority
+        this._cache.forEach(_add);
 
-        // 2. Unique clients from booking history — deduped against registered accounts
-        try {
-            JSON.parse(localStorage.getItem(BookingStorage.BOOKINGS_KEY) || '[]')
-                .filter(b => b.name && (b.email || b.whatsapp))
-                .forEach(_add);
-        } catch {}
+        // 2. Unique clients from booking history (from BookingStorage cache)
+        BookingStorage._cache
+            .filter(b => b.name && (b.email || b.whatsapp))
+            .forEach(_add);
 
         return result.sort((a, b) => (a.name || '').localeCompare(b.name || ''));
     }
@@ -2087,8 +2044,7 @@ class UserStorage {
             }
             if (!data?.length) return;
 
-            let local;
-            try { local = JSON.parse(localStorage.getItem(this.USERS_KEY) || '[]'); } catch { local = []; }
+            const local = this._cache;
 
             const normEmail = e => (e || '').toLowerCase().trim();
             const normPhone = p => (p || '').replace(/\D/g, '').slice(-10);
@@ -2117,7 +2073,6 @@ class UserStorage {
                     name:     row.name     || existing.name     || '',
                     email:    row.email    || existing.email    || '',
                     whatsapp: row.whatsapp || existing.whatsapp || '',
-                    // Cert/assicurazione: Supabase è source of truth
                     certificatoMedicoScadenza: row.medical_cert_expiry ?? existing.certificatoMedicoScadenza ?? null,
                     certificatoMedicoHistory: row.medical_cert_history || existing.certificatoMedicoHistory || [],
                     assicurazioneScadenza: row.insurance_expiry ?? existing.assicurazioneScadenza ?? null,
@@ -2127,15 +2082,14 @@ class UserStorage {
             });
 
             // Mantieni solo utenti mai syncati da Supabase (clienti offline senza account)
-            // Gli utenti con _fromSupabase:true che non sono più in Supabase vengono rimossi
             const localOnly = local.filter(u => {
-                if (u._fromSupabase) return false; // era su Supabase, ora eliminato → rimuovi
+                if (u._fromSupabase) return false;
                 const e = normEmail(u.email);
                 const p = normPhone(u.whatsapp);
                 return !(e && supabaseEmails.has(e)) && !(p.length >= 9 && supabasePhones.has(p));
             });
 
-            _lsSet(this.USERS_KEY, JSON.stringify([...merged, ...localOnly]));
+            this._cache = [...merged, ...localOnly];
             console.log(`[Supabase] syncUsersFromSupabase: ${data.length} da Supabase, ${localOnly.length} solo locali`);
         } catch (e) {
             console.error('[Supabase] syncUsersFromSupabase exception:', e);
@@ -2157,40 +2111,3 @@ class UserStorage {
 // processPendingCancellations() è chiamata solo da pagine admin (admin.js).
 // Il pg_cron server-side (job "process-pending-cancellations", ogni 15 min) è la fonte autorevole.
 // NON chiamare da pagine utente: replaceAllBookings usa admin_update_booking RPC che richiede is_admin().
-
-// ── Flush debounced writes prima di chiusura tab ─────────────────────────────
-// Previene perdita dati se l'utente chiude il browser entro 200ms da una modifica.
-window.addEventListener('beforeunload', () => {
-    if (CreditStorage._supabaseSaveTimer) {
-        clearTimeout(CreditStorage._supabaseSaveTimer);
-        CreditStorage._supabaseSaveTimer = null;
-        if (typeof supabaseClient !== 'undefined') {
-            const latest = CreditStorage._getAll();
-            const rows = Object.values(latest).map(r => ({
-                name:         r.name,
-                whatsapp:     r.whatsapp || null,
-                email:        (r.email || '').toLowerCase(),
-                balance:      r.balance      || 0,
-                free_balance: r.freeBalance  || 0,
-            }));
-            if (rows.length > 0) {
-                // sendBeacon non supporta upsert Supabase, usiamo fetch keepalive
-                const url = typeof SUPABASE_URL !== 'undefined' ? SUPABASE_URL : '';
-                const key = typeof SUPABASE_ANON_KEY !== 'undefined' ? SUPABASE_ANON_KEY : '';
-                if (url && key) {
-                    fetch(`${url}/rest/v1/credits?on_conflict=email`, {
-                        method: 'POST',
-                        headers: {
-                            'Content-Type':  'application/json',
-                            'apikey':        key,
-                            'Authorization': `Bearer ${key}`,
-                            'Prefer':        'resolution=merge-duplicates',
-                        },
-                        body: JSON.stringify(rows),
-                        keepalive: true,
-                    }).catch(() => {});
-                }
-            }
-        }
-    }
-});

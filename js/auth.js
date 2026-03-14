@@ -216,11 +216,12 @@ async function logoutUser() {
     window._currentUser = null;
     localStorage.removeItem('adminAuthenticated');
     sessionStorage.removeItem('adminAuth');
-    localStorage.removeItem('gym_bookings');
-    localStorage.removeItem('gym_credits');
-    localStorage.removeItem('gym_manual_debts');
-    localStorage.removeItem('gym_bonus');
-    localStorage.removeItem('gym_registered_users');
+    // Svuota cache in memoria
+    BookingStorage._cache = [];
+    CreditStorage._cache = {};
+    ManualDebtStorage._cache = {};
+    BonusStorage._cache = {};
+    UserStorage._cache = [];
     // signOut con timeout: se Supabase non risponde entro 3s, procedi comunque
     try {
         await Promise.race([
@@ -306,10 +307,10 @@ async function updateUserProfile(currentEmail, updates, newPassword) {
     // Ricarica profilo in memoria
     await _loadProfile(user.id);
 
-    // Sincronizza cert/assic in gym_users localStorage (letto da admin.js)
+    // Sincronizza cert/assic nella cache UserStorage (letto da admin.js)
     if (profileUpdate.medical_cert_expiry !== undefined || profileUpdate.insurance_expiry !== undefined) {
         try {
-            const gymUsers = JSON.parse(localStorage.getItem('gym_users') || '[]');
+            const gymUsers = UserStorage._cache;
             const email = (updates.email || user.email || '').toLowerCase();
             let idx = gymUsers.findIndex(u => u.email?.toLowerCase() === email);
             if (idx === -1 && user.whatsapp) {
@@ -321,7 +322,6 @@ async function updateUserProfile(currentEmail, updates, newPassword) {
                     gymUsers[idx].certificatoMedicoScadenza = profileUpdate.medical_cert_expiry;
                 if (profileUpdate.insurance_expiry !== undefined)
                     gymUsers[idx].assicurazioneScadenza = profileUpdate.insurance_expiry;
-                localStorage.setItem('gym_users', JSON.stringify(gymUsers));
             }
         } catch {}
     }

@@ -654,7 +654,17 @@ function exportBackup() {
         exportedAt: new Date().toISOString(),
         data: {}
     };
-    BACKUP_KEYS.forEach(key => {
+    // Dati principali dalle cache in memoria
+    backup.data['gym_bookings']      = JSON.stringify(BookingStorage._cache);
+    backup.data['gym_credits']       = JSON.stringify(CreditStorage._cache);
+    backup.data['gym_manual_debts']  = JSON.stringify(ManualDebtStorage._cache);
+    backup.data['gym_bonus']         = JSON.stringify(BonusStorage._cache);
+    backup.data['gym_users']         = JSON.stringify(UserStorage._cache);
+    // Settings e configurazione da localStorage
+    const settingsKeys = BACKUP_KEYS.filter(k =>
+        !['gym_bookings','gym_stats','gym_users','gym_credits','gym_manual_debts','gym_bonus'].includes(k)
+    );
+    settingsKeys.forEach(key => {
         const val = localStorage.getItem(key);
         if (val !== null) backup.data[key] = val;
     });
@@ -1046,11 +1056,11 @@ async function exportData() {
 
 function resetDemoData() {
     if (confirm('⚠️ ATTENZIONE: Questo cancellerà tutti i dati esistenti e genererà nuovi dati demo da Gennaio al 15 Marzo. Continuare?')) {
-        localStorage.removeItem(BookingStorage.BOOKINGS_KEY);
+        BookingStorage._cache = [];
+        CreditStorage._cache = {};
+        ManualDebtStorage._cache = {};
+        BonusStorage._cache = {};
         localStorage.removeItem(BookingStorage.STATS_KEY);
-        localStorage.removeItem(CreditStorage.CREDITS_KEY);
-        localStorage.removeItem(ManualDebtStorage.DEBTS_KEY);
-        localStorage.removeItem(BonusStorage.BONUS_KEY);
         localStorage.removeItem('scheduleOverrides');
         localStorage.removeItem('dataClearedByUser');
         BookingStorage.initializeDemoData();
@@ -1083,14 +1093,14 @@ async function clearAllData() {
         localStorage.setItem('dataLastCleared', now);
     }
 
-    // 2. Cancella localStorage DOPO che Supabase è vuoto
-    localStorage.removeItem(BookingStorage.BOOKINGS_KEY);
+    // 2. Svuota cache in memoria + localStorage settings
+    BookingStorage._cache = [];
+    CreditStorage._cache = {};
+    ManualDebtStorage._cache = {};
+    BonusStorage._cache = {};
+    UserStorage._cache = [];
     localStorage.removeItem(BookingStorage.STATS_KEY);
-    localStorage.removeItem(CreditStorage.CREDITS_KEY);
-    localStorage.removeItem(ManualDebtStorage.DEBTS_KEY);
-    localStorage.removeItem(BonusStorage.BONUS_KEY);
     localStorage.removeItem('scheduleOverrides');
-    localStorage.removeItem(UserStorage.USERS_KEY);
     localStorage.setItem('dataClearedByUser', 'true');
 
     // 3. Svuota cache PWA — previene dati fantasma dal service worker
@@ -1127,22 +1137,22 @@ function pruneOldData() {
     localStorage.setItem('dataClearedByUser', 'true');
 
     // 2. Pruning storico crediti (mantieni il saldo, rimuovi solo le voci vecchie)
-    const allCredits = JSON.parse(localStorage.getItem(CreditStorage.CREDITS_KEY) || '{}');
+    const allCredits = CreditStorage._getAll();
     Object.values(allCredits).forEach(rec => {
         if (rec.history) {
             rec.history = rec.history.filter(e => new Date(e.date) >= cutoff);
         }
     });
-    localStorage.setItem(CreditStorage.CREDITS_KEY, JSON.stringify(allCredits));
+    CreditStorage._save(allCredits);
 
     // 3. Pruning storico debiti manuali (mantieni il saldo, rimuovi solo le voci vecchie)
-    const allDebts = JSON.parse(localStorage.getItem(ManualDebtStorage.DEBTS_KEY) || '{}');
+    const allDebts = ManualDebtStorage._getAll();
     Object.values(allDebts).forEach(rec => {
         if (rec.history) {
             rec.history = rec.history.filter(e => new Date(e.date) >= cutoff);
         }
     });
-    localStorage.setItem(ManualDebtStorage.DEBTS_KEY, JSON.stringify(allDebts));
+    ManualDebtStorage._save(allDebts);
 
     alert('✅ Dati storici e demo eliminati. I saldi credito sono rimasti invariati.');
     location.reload();
@@ -3021,8 +3031,8 @@ function saveManualEntry() {
         (async () => {
             if (typeof supabaseClient !== 'undefined') {
                 // Cancella debounce pendenti PRIMA della RPC per evitare sovrascritture
-                clearTimeout(CreditStorage._supabaseSaveTimer);
-                clearTimeout(ManualDebtStorage._supabaseSaveTimer);
+
+
                 const { data, error } = await supabaseClient.rpc('admin_add_debt', {
                     p_email:      email.toLowerCase(),
                     p_whatsapp:   whatsapp || null,
@@ -3052,9 +3062,6 @@ function saveManualEntry() {
         const slotPrices = { 'personal-training': 5, 'small-group': 10, 'group-class': 30 };
 
         (async () => {
-            // Cancella debounce pendenti PRIMA della RPC per evitare sovrascritture
-            clearTimeout(CreditStorage._supabaseSaveTimer);
-            clearTimeout(ManualDebtStorage._supabaseSaveTimer);
             const { data, error } = await supabaseClient.rpc('admin_add_credit', {
                 p_email:       email.toLowerCase(),
                 p_whatsapp:    whatsapp || null,
@@ -3340,9 +3347,6 @@ function paySelectedDebts() {
     closeDebtPopup();
 
     (async () => {
-        // Cancella debounce pendenti PRIMA della RPC
-        clearTimeout(CreditStorage._supabaseSaveTimer);
-        clearTimeout(ManualDebtStorage._supabaseSaveTimer);
         const { data, error } = await supabaseClient.rpc('admin_pay_bookings', {
             p_booking_sb_ids:     sbIds,
             p_email:              contact.email.toLowerCase(),
@@ -3812,7 +3816,7 @@ function saveClientEdit(index, oldWhatsapp, oldEmail) {
                 return;
             }
             console.log('[admin_rename_client]', data);
-            clearTimeout(CreditStorage._supabaseSaveTimer);
+
             await Promise.all([
                 BookingStorage.syncFromSupabase(),
                 CreditStorage.syncFromSupabase(),
@@ -3893,7 +3897,7 @@ async function deleteClientData(index, whatsapp, email) {
         if (clientEmail && (c.email || '').toLowerCase() === clientEmail) { delete credits[key]; removedCredits = true; }
         else if (clientPhone && key === clientPhone) { delete credits[key]; removedCredits = true; }
     }
-    if (removedCredits) localStorage.setItem(CreditStorage.CREDITS_KEY, JSON.stringify(credits));
+    if (removedCredits) CreditStorage._save(credits);
 
     // 3. Elimina debiti
     const debts = ManualDebtStorage._getAll();
@@ -3903,7 +3907,7 @@ async function deleteClientData(index, whatsapp, email) {
         if (clientEmail && (d.email || '').toLowerCase() === clientEmail) { delete debts[key]; removedDebts = true; }
         else if (clientPhone && key === clientPhone) { delete debts[key]; removedDebts = true; }
     }
-    if (removedDebts) localStorage.setItem(ManualDebtStorage.DEBTS_KEY, JSON.stringify(debts));
+    if (removedDebts) ManualDebtStorage._save(debts);
 
     // 4. Elimina bonus
     const bonuses = BonusStorage._getAll();
@@ -3913,7 +3917,7 @@ async function deleteClientData(index, whatsapp, email) {
         if (clientEmail && (bn.email || '').toLowerCase() === clientEmail) { delete bonuses[key]; removedBonus = true; }
         else if (clientPhone && key === clientPhone) { delete bonuses[key]; removedBonus = true; }
     }
-    if (removedBonus) localStorage.setItem(BonusStorage.BONUS_KEY, JSON.stringify(bonuses));
+    if (removedBonus) BonusStorage._save(bonuses);
 
     // 5. Supabase: elimina dati dal DB via RPC admin
     if (typeof supabaseClient !== 'undefined' && clientEmail) {
@@ -4029,7 +4033,7 @@ function saveBookingRowEdit(bookingId, clientIndex) {
                 if (_saveBtn) _saveBtn.disabled = false;
                 return;
             }
-            clearTimeout(CreditStorage._supabaseSaveTimer);
+
             await Promise.all([BookingStorage.syncFromSupabase(), CreditStorage.syncFromSupabase(), ManualDebtStorage.syncFromSupabase()]);
             renderClientsTab();
         })();
@@ -4135,7 +4139,7 @@ function deleteBookingFromClients(bookingId, bookingName) {
                 return;
             }
             console.log('[admin_delete_booking_with_refund]', data);
-            clearTimeout(CreditStorage._supabaseSaveTimer);
+
             await Promise.all([
                 BookingStorage.syncFromSupabase(),
                 CreditStorage.syncFromSupabase(),
@@ -4186,7 +4190,7 @@ async function deleteTxEntry(type, idOrDate, whatsappOrName, index, email) {
                 return;
             }
             console.log('[deleteTxEntry] booking deleted:', data);
-            clearTimeout(CreditStorage._supabaseSaveTimer);
+
             await Promise.all([
                 BookingStorage.syncFromSupabase(),
                 CreditStorage.syncFromSupabase(),
@@ -5402,10 +5406,10 @@ let _certModalBadgeEl  = null;
 
 // ── Raw gym_users helpers (con tutti i campi, inclusi cert) ──────────────────
 function _getUsersFull() {
-    try { return JSON.parse(localStorage.getItem('gym_users') || '[]'); } catch { return []; }
+    return UserStorage._cache;
 }
 function _saveUsers(users) {
-    localStorage.setItem('gym_users', JSON.stringify(users));
+    UserStorage._cache = users;
 }
 async function _updateSupabaseProfile(email, whatsapp, fields) {
     if (typeof supabaseClient === 'undefined') return;
