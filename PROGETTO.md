@@ -1864,6 +1864,36 @@ Regex: `.replace(/\S+/g, w => w[0].toUpperCase() + w.slice(1).toLowerCase())`
 
 ---
 
+### 4.46 Fix soglia blocco debito e trigger auto-link manual_debts (sessione 34, mar 2026)
+
+**Contesto:** la soglia blocco prenotazioni (impostata a €29 nell'admin) non funzionava — utenti con debiti superiori potevano comunque prenotare. Causa principale: la tabella `manual_debts` su Supabase non aveva `user_id` popolato, quindi le RLS policies bloccavano la lettura per utenti non-admin, e il calcolo debito risultava sempre 0.
+
+**Cosa è stato fatto:**
+
+1. **Fix calcolo debito in `js/booking.js`**
+   - Rimossa la chiamata RPC `get_unpaid_past_debt` (richiedeva `is_admin()`, inutilizzabile da utenti)
+   - Rimosse le query dirette Supabase su `bookings`, `credits`, `manual_debts` che sovrascrivevano il valore localStorage con dati incompleti (manual_debts non leggibile senza user_id)
+   - Ora usa `BookingStorage.getUnpaidPastDebt()` (localStorage, già popolato dal sync) sia nel modal open che nel submit — fonte affidabile e coerente
+   - Check debito al modal open: se debito > soglia, il form viene nascosto e appare messaggio di blocco (stesso pattern di certificato/assicurazione)
+   - Check debito al submit: secondo controllo come safety net
+
+2. **Migration `20260314000000_auto_link_manual_debts_user_id.sql`**
+   - Trigger `auto_link_manual_debt_user_id`: popola automaticamente `user_id` da `profiles.email` su INSERT/UPDATE (stesso pattern di `auto_link_credit_user_id` su credits)
+   - UPDATE delle righe esistenti con `user_id` NULL → match su `lower(email)`
+   - Senza questo trigger, il sync per utenti non-admin non portava i debiti manuali in localStorage
+
+3. **Sostituito "il trainer" → "Thomas"**
+   - Tutti i messaggi di blocco in `booking.js` (certificato, assicurazione, debito) ora dicono "Contatta Thomas" invece di "Contatta il trainer"
+
+**File modificati:**
+- `js/booking.js` — fix check debito (localStorage instead of Supabase), "Thomas" nei messaggi
+- `js/auth.js` — logout con timeout 3s per evitare blocco UX se Supabase non risponde
+- `supabase/migrations/20260314000000_auto_link_manual_debts_user_id.sql` — nuovo
+- `sw.js` — bump cache
+- `index.html` — bump booking.js version
+
+---
+
 ### 4.12 Notifiche (pianificate, non ancora implementate)
 
 - Il form di prenotazione simula l'invio di un messaggio WhatsApp (solo `console.log`)
