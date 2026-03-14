@@ -1699,7 +1699,18 @@ function deleteBooking(bookingId, bookingName) {
             const group = btn.dataset.group;
             overlay.querySelectorAll(`[data-group="${group}"]`).forEach(b => b.classList.remove('active'));
             btn.classList.add('active');
-            if (group === 'bonus') selectedBonus = btn.dataset.val === 'true';
+            if (group === 'bonus') {
+                selectedBonus = btn.dataset.val === 'true';
+                // Se seleziona "Sì" al bonus → auto-seleziona "Senza mora"
+                if (selectedBonus) {
+                    const senzaBtn = overlay.querySelector('[data-group="mode"][data-val="senza"]');
+                    if (senzaBtn) {
+                        overlay.querySelectorAll('[data-group="mode"]').forEach(b => b.classList.remove('active'));
+                        senzaBtn.classList.add('active');
+                        selectedMode = 'senza';
+                    }
+                }
+            }
             if (group === 'mode') selectedMode = btn.dataset.val;
             const confirmBtn = overlay.querySelector('.cancel-popup-btn--confirm');
             confirmBtn.disabled = (selectedBonus === null || selectedMode === null);
