@@ -1261,25 +1261,28 @@ body.nav-open {
 
 .modal-slot-header {
     display: flex;
-    justify-content: space-between;
+    flex-direction: column;
     align-items: center;
-    margin-bottom: 0.4rem;
+    gap: 0.4rem;
+    margin-bottom: 0.6rem;
 }
 
 .modal-slot-day-row {
     display: flex;
-    justify-content: space-between;
-    align-items: baseline;
-    gap: 0.5rem;
+    flex-direction: column;
+    align-items: center;
+    gap: 0.2rem;
 }
 
 .modal-slot-day-row h3 {
     margin-bottom: 0;
+    font-size: 1.5rem;
 }
 
 .modal-slot-day-row .modal-slot-time {
     margin-bottom: 0;
     white-space: nowrap;
+    font-size: 1.3rem;
 }
 
 .modal-slot-badge {
@@ -1550,11 +1553,11 @@ body.nav-open {
     }
 
     .modal-slot-info h3 {
-        font-size: 0.95rem;
+        font-size: 1.3rem;
     }
 
     .modal-slot-time {
-        font-size: 0.82rem;
+        font-size: 1.15rem;
     }
 
     .modal-spots {
