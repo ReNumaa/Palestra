@@ -19,12 +19,17 @@
     box-sizing: border-box;
 }
 
+html {
+    overscroll-behavior: none;
+}
+
 body {
     font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
     background-color: var(--light-gray);
     color: var(--text-dark);
     line-height: 1.6;
     overflow-x: hidden;
+    overscroll-behavior: none;
     min-height: 100vh;
     display: flex;
     flex-direction: column;
