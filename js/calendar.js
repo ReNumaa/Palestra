@@ -241,11 +241,13 @@ function createSlot(dateInfo, timeSlot) {
     const extraTypes = [...new Set(extras.map(e => e.type).filter(t => t !== mainType))];
     const hasMixedExtras = extraTypes.length > 0;
 
-    const _tParts1 = timeSlot.split(' - ');
-    const [_eh, _em] = (_tParts1[1] || _tParts1[0] || '').trim().split(':').map(Number);
-    const lessonEnd = new Date(dateInfo.date);
-    lessonEnd.setHours(_eh, _em, 0, 0);
-    const timeOk = (lessonEnd - new Date()) >= 30 * 60 * 1000;
+    const _tp1 = _parseSlotTime(timeSlot);
+    let timeOk = false;
+    if (_tp1) {
+        const lessonEnd = new Date(dateInfo.date);
+        lessonEnd.setHours(_tp1.endH, _tp1.endM, 0, 0);
+        timeOk = (lessonEnd - new Date()) >= 30 * 60 * 1000;
+    }
 
     if (!hasMixedExtras) {
         // Vista unificata (stesso tipo o nessun extra)
@@ -387,9 +389,10 @@ function renderMobileSlots(dateInfo) {
     const thirtyMinMs = 30 * 60 * 1000;
 
     scheduledSlots.forEach(scheduledSlot => {
-        const [_eh, _em] = scheduledSlot.time.split(' - ')[1].trim().split(':').map(Number);
+        const _tp2 = _parseSlotTime(scheduledSlot.time);
+        if (!_tp2) return;
         const lessonEnd = new Date(dateInfo.date);
-        lessonEnd.setHours(_eh, _em, 0, 0);
+        lessonEnd.setHours(_tp2.endH, _tp2.endM, 0, 0);
         if ((lessonEnd - now) < thirtyMinMs) return;
 
         // Card tipo principale
@@ -438,11 +441,13 @@ function createMobileSlotCard(dateInfo, scheduledSlot) {
     `;
 
     // Allow booking if not full and the lesson ends in at least 30 minutes from now
-    const _tParts2 = timeSlot.split(' - ');
-    const [_eh, _em] = (_tParts2[1] || _tParts2[0] || '').trim().split(':').map(Number);
-    const lessonEnd = new Date(dateInfo.date);
-    lessonEnd.setHours(_eh, _em, 0, 0);
-    const bookable = !isFull && (lessonEnd - new Date()) >= 30 * 60 * 1000;
+    const _tp3 = _parseSlotTime(timeSlot);
+    let bookable = false;
+    if (_tp3) {
+        const lessonEnd = new Date(dateInfo.date);
+        lessonEnd.setHours(_tp3.endH, _tp3.endM, 0, 0);
+        bookable = !isFull && (lessonEnd - new Date()) >= 30 * 60 * 1000;
+    }
 
     if (bookable) {
         slotCard.addEventListener('click', () => {

@@ -1377,7 +1377,7 @@ async function bookForClient(slotType) {
     if (typeof supabaseClient !== 'undefined' && client.email) {
         try {
             const { data: prof } = await supabaseClient
-                .from('profiles').select('id').eq('email', client.email).maybeSingle();
+                .from('profiles').select('id').eq('email', (client.email || '').toLowerCase()).maybeSingle();
             clientUserId = prof?.id || null;
         } catch {}
     }
@@ -3987,12 +3987,16 @@ function cancelBookingRowEdit(bookingId) {
 }
 
 function saveBookingRowEdit(bookingId, clientIndex) {
+    // Previeni doppio click: disabilita il bottone salva
+    const _saveBtn = document.querySelector(`[onclick*="saveBookingRowEdit('${bookingId}'"]`);
+    if (_saveBtn) _saveBtn.disabled = true;
+
     const newPaid   = document.getElementById(`bedit-paid-${bookingId}`).value === 'true';
     const newMethod = document.getElementById(`bedit-method-${bookingId}`).value;
 
     const bookings = BookingStorage.getAllBookings();
     const booking  = bookings.find(b => b.id === bookingId);
-    if (!booking) return;
+    if (!booking) { if (_saveBtn) _saveBtn.disabled = false; return; }
 
     const oldPaid   = booking.paid;
     const oldMethod = booking.paymentMethod || '';
@@ -4018,6 +4022,7 @@ function saveBookingRowEdit(bookingId, clientIndex) {
                     console.error('[Supabase] admin_change_payment_method error:', error.message);
                     alert('⚠️ Errore: ' + error.message);
                 }
+                if (_saveBtn) _saveBtn.disabled = false;
                 return;
             }
             clearTimeout(CreditStorage._supabaseSaveTimer);
@@ -4136,7 +4141,7 @@ function deleteBookingFromClients(bookingId, bookingName) {
     } else {
         // Fallback client-side (offline)
         if (b.paid) {
-            CreditStorage.addCredit(b.whatsapp, b.email, b.name, SLOT_PRICES[b.slotType],
+            CreditStorage.addCredit(b.whatsapp, b.email, b.name, slotPrices[b.slotType] || 0,
                 `Rimborso lezione ${b.date}`,
                 null, false, false, null, b.paymentMethod || '');
         }
@@ -4184,7 +4189,7 @@ async function deleteTxEntry(type, idOrDate, whatsappOrName, index, email) {
             ]);
         } else {
             if (b.paid) {
-                CreditStorage.addCredit(b.whatsapp, b.email, b.name, SLOT_PRICES[b.slotType],
+                CreditStorage.addCredit(b.whatsapp, b.email, b.name, slotPrices[b.slotType] || 0,
                     `Rimborso lezione ${b.date}`, null, false, false, null, b.paymentMethod || '');
             }
             bookings.splice(idx, 1);
