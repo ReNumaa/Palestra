@@ -523,6 +523,12 @@ canvas {
     z-index: 12;
     background-color: white;
     padding: 0.75rem 0;
+    transition: transform 0.25s ease, opacity 0.25s ease;
+}
+.admin-calendar-controls.scroll-hidden {
+    transform: translateY(-100%);
+    opacity: 0;
+    pointer-events: none;
 }
 
 .admin-calendar-controls h4 {
