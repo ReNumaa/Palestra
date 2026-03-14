@@ -1634,6 +1634,8 @@ body.nav-open {
     color: rgba(255, 255, 255, 0.35);
     text-align: right;
     padding: 0.6rem 1rem;
+    padding-bottom: calc(0.6rem + env(safe-area-inset-bottom, 0px));
+    margin-top: auto;
     letter-spacing: 0.02em;
 }
 .nav-sidebar-credit .credit-link {

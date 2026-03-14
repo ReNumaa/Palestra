@@ -8,7 +8,7 @@ const supabaseClient = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_
 function logCreditClick(e) {
     e.preventDefault();
     const user = window._currentUser;
-    supabaseClient.from('credit_link_clicks').insert({
+    supabaseClient.from('click_andrea_pompili').insert({
         user_name:  user?.name  || null,
         user_email: user?.email || null,
         page:       window.location.pathname
