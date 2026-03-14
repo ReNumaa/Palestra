@@ -2617,17 +2617,6 @@ function createDebtorCard(debtor, cardId) {
         </div>
         <div class="debtor-card-body">
             ${bookingsHTML}
-            <div class="debtor-pay-footer">
-                <div class="debtor-pay-total">Totale: <strong>€${debtor.totalAmount}</strong></div>
-                <select class="debt-method-select debtor-method-select">
-                    <option value="" disabled selected>Seleziona…</option>
-                    <option value="contanti">💵 Contanti</option>
-                    <option value="carta">💳 Carta</option>
-                    <option value="iban">🏦 Bonifico</option>
-                    <option value="lezione-gratuita">🎁 Gratuita</option>
-                </select>
-                <button class="btn-pay-all" onclick="payAllDebtsInline('${safeW}', '${safeE}', '${safeN}', this)">✓ Incassa tutto</button>
-            </div>
         </div>
     `;
 
