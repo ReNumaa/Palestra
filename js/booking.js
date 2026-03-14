@@ -96,11 +96,13 @@ function openBookingModal(dateInfo, timeSlot, slotType, remainingSpots) {
             blockEl.textContent = '⚠️ ' + blockMsg;
             document.getElementById('bookingForm').parentNode.insertBefore(blockEl, document.getElementById('bookingForm'));
         } else {
-            // Logged in, nessun blocco statico: show form, pre-fill fields
+            // Logged in, nessun blocco statico: show form, pre-fill fields, hide user fields
             document.getElementById('bookingForm').style.display = 'flex';
             document.getElementById('name').value     = user.name     || '';
             document.getElementById('email').value    = user.email    || '';
             document.getElementById('whatsapp').value = user.whatsapp || '';
+            const userFields = document.getElementById('bookingUserFields');
+            if (userFields) userFields.style.display = 'none';
 
             // Check debito — usa localStorage (già popolato dal sync) come fonte affidabile
             const _dthr = typeof DebtThresholdStorage !== 'undefined' ? DebtThresholdStorage.get() : 0;
