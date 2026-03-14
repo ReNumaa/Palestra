@@ -102,47 +102,20 @@ function openBookingModal(dateInfo, timeSlot, slotType, remainingSpots) {
             document.getElementById('email').value    = user.email    || '';
             document.getElementById('whatsapp').value = user.whatsapp || '';
 
-            // Check debito async — se supera soglia, nascondi form e mostra blocco
+            // Check debito — usa localStorage (già popolato dal sync) come fonte affidabile
             const _dthr = typeof DebtThresholdStorage !== 'undefined' ? DebtThresholdStorage.get() : 0;
-            if (_dthr > 0 && user.id && typeof supabaseClient !== 'undefined') {
-                (async () => {
-                    try {
-                        const { data: _rows, error: _e } = await supabaseClient
-                            .from('bookings')
-                            .select('slot_type, date, time, credit_applied')
-                            .eq('user_id', user.id)
-                            .eq('paid', false)
-                            .not('status', 'in', '("cancelled","cancellation_requested")');
-                        if (_e || !_rows) return;
-                        const _now = new Date();
-                        let _debt = 0;
-                        for (const _r of _rows) {
-                            const _ep = (_r.time || '').split(' - ');
-                            if (_ep.length < 2) continue;
-                            const _ed = new Date(_r.date + 'T' + _ep[1].trim() + ':00');
-                            if (_now >= _ed) {
-                                _debt += (SLOT_PRICES[_r.slot_type] || 0) - (_r.credit_applied || 0);
-                            }
-                        }
-                        const { data: _cr } = await supabaseClient
-                            .from('credits').select('balance').eq('user_id', user.id).single();
-                        const { data: _md } = await supabaseClient
-                            .from('manual_debts').select('balance').eq('user_id', user.id).single();
-                        _debt += (_md?.balance || 0);
-                        _debt -= (_cr?.balance || 0);
-                        _debt = Math.max(0, _debt);
-                        if (_debt > _dthr) {
-                            document.getElementById('bookingForm').style.display = 'none';
-                            const _old = document.getElementById('bookingBlockMessage');
-                            if (_old) _old.remove();
-                            const _bl = document.createElement('div');
-                            _bl.id = 'bookingBlockMessage';
-                            _bl.style.cssText = 'padding:24px;text-align:center;color:#c0392b;font-weight:600;line-height:1.5';
-                            _bl.textContent = `⚠️ Prenotazione bloccata: hai un debito di €${_debt} che supera la soglia di €${_dthr}. Contatta il trainer.`;
-                            document.getElementById('bookingForm').parentNode.insertBefore(_bl, document.getElementById('bookingForm'));
-                        }
-                    } catch (_) { /* non bloccare se Supabase non raggiungibile */ }
-                })();
+            if (_dthr > 0) {
+                const _pastDebt = BookingStorage.getUnpaidPastDebt(user.whatsapp || '', user.email || '');
+                if (_pastDebt > _dthr) {
+                    document.getElementById('bookingForm').style.display = 'none';
+                    const _old = document.getElementById('bookingBlockMessage');
+                    if (_old) _old.remove();
+                    const _bl = document.createElement('div');
+                    _bl.id = 'bookingBlockMessage';
+                    _bl.style.cssText = 'padding:24px;text-align:center;color:#c0392b;font-weight:600;line-height:1.5';
+                    _bl.textContent = `⚠️ Prenotazione bloccata: hai un debito di €${_pastDebt} che supera la soglia di €${_dthr}. Contatta il trainer.`;
+                    document.getElementById('bookingForm').parentNode.insertBefore(_bl, document.getElementById('bookingForm'));
+                }
             }
         }
     }
@@ -290,43 +263,10 @@ async function handleBookingSubmit(e) {
         submitBtn.disabled = false; return;
     }
 
-    // Check debt threshold — query diretta Supabase (la RPC richiede admin, non usabile dall'utente)
+    // Check debt threshold — usa localStorage (già popolato dal sync su page load)
     const _threshold = DebtThresholdStorage.get();
     if (_threshold > 0) {
-        let _pastDebt = BookingStorage.getUnpaidPastDebt(formData.whatsapp, formData.email);
-        const _debtUser = typeof getCurrentUser === 'function' ? getCurrentUser() : null;
-        if (_debtUser?.id && typeof supabaseClient !== 'undefined') {
-            try {
-                // Fetch unpaid past bookings direttamente dalla tabella bookings
-                const { data: _unpaidRows, error: _ubErr } = await supabaseClient
-                    .from('bookings')
-                    .select('slot_type, date, time, credit_applied')
-                    .eq('user_id', _debtUser.id)
-                    .eq('paid', false)
-                    .not('status', 'in', '("cancelled","cancellation_requested")');
-                if (!_ubErr && _unpaidRows) {
-                    const _now = new Date();
-                    let _dbDebt = 0;
-                    for (const _r of _unpaidRows) {
-                        const _endParts = (_r.time || '').split(' - ');
-                        if (_endParts.length < 2) continue;
-                        const _endDt = new Date(_r.date + 'T' + _endParts[1].trim() + ':00');
-                        if (_now >= _endDt) {
-                            const _price = SLOT_PRICES[_r.slot_type] || 0;
-                            _dbDebt += _price - (_r.credit_applied || 0);
-                        }
-                    }
-                    // Aggiungi crediti e debiti manuali
-                    const { data: _credRow } = await supabaseClient
-                        .from('credits').select('balance').eq('user_id', _debtUser.id).single();
-                    const { data: _debtRow } = await supabaseClient
-                        .from('manual_debts').select('balance').eq('user_id', _debtUser.id).single();
-                    _dbDebt += (_debtRow?.balance || 0);
-                    _dbDebt -= (_credRow?.balance || 0);
-                    _pastDebt = Math.max(0, _dbDebt);
-                }
-            } catch (_) { /* fallback al valore localStorage già calcolato */ }
-        }
+        const _pastDebt = BookingStorage.getUnpaidPastDebt(formData.whatsapp, formData.email);
         if (_pastDebt > _threshold) {
             showToast(`Prenotazione bloccata: hai un debito di €${_pastDebt} che supera la soglia massima di €${_threshold}. Contatta il trainer per regolarizzare.`, 'error');
             submitBtn.disabled = false; return;
