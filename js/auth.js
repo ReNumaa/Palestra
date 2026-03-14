@@ -4,6 +4,8 @@
 
 // Utente corrente in memoria — popolato da initAuth() all'avvio di ogni pagina
 window._currentUser = null;
+// Flag per distinguere logout manuale da SIGNED_OUT spurio di Supabase (token scaduto in background PWA)
+let _isManualLogout = false;
 
 // ── Phone normalization ───────────────────────────────────────────────────────
 // Returns E.164 format (+39XXXXXXXXXX) for WhatsApp API compatibility.
@@ -130,8 +132,35 @@ async function initAuth() {
                     }
                 }
             } else if (event === 'SIGNED_OUT') {
-                window._currentUser = null;
-                sessionStorage.removeItem('adminAuth');
+                if (_isManualLogout) {
+                    // Logout esplicito: pulisci tutto
+                    window._currentUser = null;
+                    sessionStorage.removeItem('adminAuth');
+                } else {
+                    // SIGNED_OUT spurio (token refresh fallito, race condition Supabase)
+                    // NON nullificare _currentUser — tenta il recupero della sessione
+                    console.warn('[Auth] SIGNED_OUT spurio — tentativo di recupero sessione');
+                    (async () => {
+                        try {
+                            const { data: refreshed } = await supabaseClient.auth.refreshSession();
+                            if (refreshed?.session) {
+                                await _loadProfile(refreshed.session.user.id);
+                                if (refreshed.session.user.app_metadata?.role === 'admin') {
+                                    sessionStorage.setItem('adminAuth', 'true');
+                                }
+                                console.log('[Auth] Sessione recuperata dopo SIGNED_OUT spurio');
+                            } else {
+                                // Refresh fallito definitivamente — sessione realmente persa
+                                window._currentUser = null;
+                                sessionStorage.removeItem('adminAuth');
+                            }
+                        } catch {
+                            // Rete assente — mantieni lo stato corrente, riproverà al visibilitychange
+                        }
+                        updateNavAuth();
+                    })();
+                    return; // Non chiamare updateNavAuth() qui — lo fa l'async sopra
+                }
             }
             updateNavAuth();
         });
@@ -213,6 +242,7 @@ async function loginWithPassword(email, password) {
 async function logoutUser() {
     // Pulisce stato locale PRIMA di attendere Supabase — così l'UX non si blocca
     // se il token è scaduto o la rete è lenta
+    _isManualLogout = true;
     window._currentUser = null;
     localStorage.removeItem('adminAuthenticated');
     sessionStorage.removeItem('adminAuth');
