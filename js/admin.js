@@ -3494,12 +3494,16 @@ function createClientCard(client, index) {
     const certDisplay  = _mkBadge(certScad,  '🏥 Imposta scadenza certificato medico', '🏥 Cert. scaduto il', '⏳ Cert. scade il', '✅ Cert. valido fino al');
     const assicDisplay = _mkBadge(assicScad2, '📋 Imposta scadenza assicurazione',      '📋 Assic. scaduta il', '⏳ Assic. scade il', '📋 Assic. valida fino al');
 
-    const totalAllPaid = Math.round((totalPaid + credit) * 100) / 100;
+    // Unifica: "da pagare" = booking non pagati + debito manuale - credito
+    const grossDebt    = Math.round((totalUnpaid + manualDebt) * 100) / 100;
+    const displayDebt  = Math.round(Math.max(0, grossDebt - credit) * 100) / 100;
+    const displayCredit = Math.round(Math.max(0, credit - grossDebt) * 100) / 100;
+    const totalAllPaid = Math.round((totalPaid + Math.min(credit, grossDebt)) * 100) / 100;
     let statsHTML = `<span class="cstat">${totalBookings} prenotazioni</span>`;
-    if (totalAllPaid > 0) statsHTML += `<span class="cstat paid">€${totalAllPaid} pagato</span>`;
-    if (totalFree    > 0) statsHTML += `<span class="cstat free">🎁 €${totalFree} regalate</span>`;
-    if (totalUnpaid  > 0) statsHTML += `<span class="cstat unpaid">€${totalUnpaid} da pagare</span>`;
-    if (netBalance  !== 0) statsHTML += `<span class="cstat ${netBalance > 0 ? 'credit' : 'unpaid'}">💳 ${netBalance > 0 ? '+' : ''}€${netBalance}</span>`;
+    if (totalAllPaid  > 0) statsHTML += `<span class="cstat paid">€${totalAllPaid} pagato</span>`;
+    if (totalFree     > 0) statsHTML += `<span class="cstat free">🎁 €${totalFree} regalate</span>`;
+    if (displayDebt   > 0) statsHTML += `<span class="cstat unpaid">€${displayDebt} da pagare</span>`;
+    if (displayCredit > 0) statsHTML += `<span class="cstat credit">💳 +€${displayCredit}</span>`;
 
     const methodLabel = m => ({ contanti: '💵 Contanti', carta: '💳 Carta', iban: '🏦 Bonifico', credito: '✨ Credito', 'lezione-gratuita': '🎁 Gratuita' }[m] || '—');
     const fmtPaidAt = iso => {
