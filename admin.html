@@ -774,6 +774,9 @@
             if (typeof loadDashboardData === 'function') loadDashboardData();
             if (typeof renderAdminCalendar === 'function') renderAdminCalendar();
             if (typeof renderScheduleManager === 'function') renderScheduleManager();
+            // Re-render il tab attivo dopo il sync (le cache erano vuote al primo render)
+            const _activeTab = document.querySelector('.admin-tab.active');
+            if (_activeTab) switchTab(_activeTab.dataset.tab);
 
             // Supabase Realtime: un unico handler debounced che sincronizza TUTTO
             // evita race condition tra canali separati (es. bookings si aggiorna ma credits no)
