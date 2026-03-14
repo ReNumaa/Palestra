@@ -353,6 +353,8 @@ function switchTab(tabName) {
         renderSettingsTab();
     } else if (tabName === 'registro') {
         renderRegistroTab();
+    } else if (tabName === 'messaggi') {
+        renderMessaggiTab();
     }
 }
 
@@ -6018,6 +6020,108 @@ if (document.readyState === 'loading') {
     document.addEventListener('DOMContentLoaded', initAdmin);
 } else {
     initAdmin();
+}
+
+// ══════════════════════════════════════════════════════════════════════════
+// ██  TAB MESSAGGI — Invio notifiche push dall'admin
+// ══════════════════════════════════════════════════════════════════════════
+
+function renderMessaggiTab() {
+    const dateInput = document.getElementById('msgDate');
+    if (dateInput && !dateInput.value) {
+        const today = new Date();
+        dateInput.value = today.toISOString().split('T')[0];
+    }
+}
+
+function onMsgRecipientModeChange(mode) {
+    const datePicker = document.getElementById('msgDatePicker');
+    const timePicker = document.getElementById('msgTimePicker');
+    datePicker.style.display = (mode === 'giorno' || mode === 'ora') ? 'block' : 'none';
+    timePicker.style.display = mode === 'ora' ? 'block' : 'none';
+    if (mode === 'giorno' || mode === 'ora') {
+        const dateInput = document.getElementById('msgDate');
+        if (!dateInput.value) {
+            dateInput.value = new Date().toISOString().split('T')[0];
+        }
+        if (mode === 'ora') onMsgDateChange(dateInput.value);
+    }
+}
+
+function onMsgDateChange(dateStr) {
+    const select = document.getElementById('msgTimeSlot');
+    select.innerHTML = '';
+    if (!dateStr) {
+        select.innerHTML = '<option value="">Seleziona una data</option>';
+        return;
+    }
+    const d = new Date(dateStr + 'T00:00:00');
+    const dayNames = ['Domenica','Lunedì','Martedì','Mercoledì','Giovedì','Venerdì','Sabato'];
+    const dayName = dayNames[d.getDay()];
+    const formatted = dateStr; // already YYYY-MM-DD
+    const slots = getScheduleForDate(formatted, dayName);
+    if (!slots || slots.length === 0) {
+        select.innerHTML = '<option value="">Nessuno slot in questo giorno</option>';
+        return;
+    }
+    slots.forEach(slot => {
+        const opt = document.createElement('option');
+        opt.value = slot.time;
+        opt.textContent = slot.time + ' — ' + (slot.type === 'personal-training' ? 'Autonomia' : slot.type === 'small-group' ? 'Lezione di Gruppo' : 'Slot prenotato');
+        select.appendChild(opt);
+    });
+}
+
+async function sendAdminMessage() {
+    const title = document.getElementById('msgTitle').value.trim();
+    const body = document.getElementById('msgBody').value.trim();
+    const mode = document.querySelector('input[name="msgRecipientMode"]:checked')?.value || 'tutti';
+    const date = document.getElementById('msgDate')?.value || '';
+    const time = document.getElementById('msgTimeSlot')?.value || '';
+    const status = document.getElementById('msgStatus');
+
+    if (!title || !body) {
+        status.textContent = '⚠️ Inserisci titolo e messaggio.';
+        status.style.color = '#dc2626';
+        return;
+    }
+    if ((mode === 'giorno' || mode === 'ora') && !date) {
+        status.textContent = '⚠️ Seleziona una data.';
+        status.style.color = '#dc2626';
+        return;
+    }
+    if (mode === 'ora' && !time) {
+        status.textContent = '⚠️ Seleziona un orario.';
+        status.style.color = '#dc2626';
+        return;
+    }
+
+    const modeLabel = mode === 'tutti' ? 'tutti gli utenti' : mode === 'giorno' ? `iscritti del ${date}` : `iscritti ${date} alle ${time}`;
+    if (!confirm(`Inviare la notifica a ${modeLabel}?`)) return;
+
+    status.textContent = '⏳ Invio in corso...';
+    status.style.color = '#6b7280';
+
+    try {
+        const res = await fetch(`${SUPABASE_URL}/functions/v1/send-admin-message`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ title, body, mode, date, time })
+        });
+        const data = await res.json();
+        if (data.ok) {
+            status.textContent = `✅ Inviate ${data.sent} notifiche.`;
+            status.style.color = '#16a34a';
+            document.getElementById('msgTitle').value = '';
+            document.getElementById('msgBody').value = '';
+        } else {
+            status.textContent = `❌ Errore: ${data.error}`;
+            status.style.color = '#dc2626';
+        }
+    } catch (e) {
+        status.textContent = `❌ Errore di rete: ${e.message}`;
+        status.style.color = '#dc2626';
+    }
 }
 
 // Aggiorna i dati quando la pagina viene ripristinata dal bfcache (back/forward)

@@ -69,6 +69,7 @@
                 <button class="admin-tab" data-tab="analytics">📊 Statistiche & Fatturato</button>
                 <button class="admin-tab" data-tab="settings">🔧 Impostazioni</button>
                 <button class="admin-tab" data-tab="registro">📋 Registro</button>
+                <button class="admin-tab" data-tab="messaggi">📩 Messaggi</button>
                 <button class="admin-tab admin-tab--privacy" id="btnToggleSensitive" onclick="toggleSensitiveData()" title="Nascondi/mostra dati sensibili">👁 Nascondi dati</button>
             </div>
 
@@ -545,6 +546,73 @@
 
             </div>
             <!-- End Tab: Registro -->
+
+            <!-- Tab: Messaggi -->
+            <div id="tab-messaggi" class="tab-content">
+                <div class="dashboard-card settings-card">
+
+                    <div class="settings-section">
+                        <h4 class="settings-section-title">📩 Invia notifica push</h4>
+                        <p class="settings-section-desc">Invia un messaggio push a tutti gli utenti o a chi è prenotato in un giorno/orario specifico.</p>
+
+                        <div style="display:flex; flex-direction:column; gap:0.75rem; margin-top:1rem;">
+                            <div>
+                                <label class="registro-filter-label" style="display:block; margin-bottom:0.35rem; font-weight:600; font-size:0.85rem;">Titolo</label>
+                                <input type="text" id="msgTitle" maxlength="60" placeholder="Titolo notifica" style="width:100%; padding:0.5rem 0.75rem; border:1px solid #d1d5db; border-radius:8px; font-size:0.95rem;">
+                            </div>
+                            <div>
+                                <label class="registro-filter-label" style="display:block; margin-bottom:0.35rem; font-weight:600; font-size:0.85rem;">Messaggio</label>
+                                <textarea id="msgBody" rows="3" maxlength="200" placeholder="Testo del messaggio" style="width:100%; padding:0.5rem 0.75rem; border:1px solid #d1d5db; border-radius:8px; font-size:0.95rem; resize:vertical;"></textarea>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="settings-section">
+                        <h4 class="settings-section-title">👥 Destinatari</h4>
+                        <div class="settings-options" id="msgRecipientOptions">
+                            <label class="settings-option">
+                                <input type="radio" name="msgRecipientMode" value="tutti" checked onchange="onMsgRecipientModeChange(this.value)">
+                                <div class="settings-option-body">
+                                    <strong>🌐 Tutti gli utenti</strong>
+                                    <span>Invia a tutti gli utenti iscritti alle notifiche push.</span>
+                                </div>
+                            </label>
+                            <label class="settings-option">
+                                <input type="radio" name="msgRecipientMode" value="giorno" onchange="onMsgRecipientModeChange(this.value)">
+                                <div class="settings-option-body">
+                                    <strong>📅 Iscritti di un giorno</strong>
+                                    <span>Invia solo a chi ha una prenotazione in un giorno specifico.</span>
+                                </div>
+                            </label>
+                            <label class="settings-option">
+                                <input type="radio" name="msgRecipientMode" value="ora" onchange="onMsgRecipientModeChange(this.value)">
+                                <div class="settings-option-body">
+                                    <strong>🕐 Iscritti di un'ora specifica</strong>
+                                    <span>Invia solo a chi ha una prenotazione in un giorno e orario specifico.</span>
+                                </div>
+                            </label>
+                        </div>
+
+                        <div id="msgDatePicker" style="display:none; margin-top:0.75rem;">
+                            <label class="registro-filter-label" style="display:block; margin-bottom:0.35rem; font-weight:600; font-size:0.85rem;">Data</label>
+                            <input type="date" id="msgDate" onchange="onMsgDateChange(this.value)" style="padding:0.5rem 0.75rem; border:1px solid #d1d5db; border-radius:8px; font-size:0.95rem;">
+                        </div>
+                        <div id="msgTimePicker" style="display:none; margin-top:0.75rem;">
+                            <label class="registro-filter-label" style="display:block; margin-bottom:0.35rem; font-weight:600; font-size:0.85rem;">Orario</label>
+                            <select id="msgTimeSlot" style="padding:0.5rem 0.75rem; border:1px solid #d1d5db; border-radius:8px; font-size:0.95rem; min-width:200px;">
+                                <option value="">Seleziona prima una data</option>
+                            </select>
+                        </div>
+                    </div>
+
+                    <div style="margin-top:1rem; display:flex; align-items:center; gap:1rem;">
+                        <button class="btn-action" onclick="sendAdminMessage()" style="background-color:#00AEEF;">📤 Invia notifica</button>
+                        <span id="msgStatus" style="font-size:0.9rem; color:#6b7280;"></span>
+                    </div>
+
+                </div>
+            </div>
+            <!-- End Tab: Messaggi -->
 
         </div>
     </div>
