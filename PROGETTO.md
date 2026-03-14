@@ -1,6 +1,6 @@
 # TB Training — Diario di Sviluppo & Roadmap
 
-> Documento aggiornato al 14/03/2026 (sessione 33)
+> Documento aggiornato al 14/03/2026 (sessione 36)
 > Prototipo: sistema di prenotazione palestra, frontend-only con localStorage
 > Supabase CLI installato, schema SQL definito, accesso dati centralizzato
 > Supabase cloud attivo (tabelle create), Google OAuth funzionante, numeri normalizzati E.164
@@ -18,6 +18,9 @@
 > **SESSIONE 29**: fix bug critico crediti invisibili agli utenti — RLS policy SELECT mancante su credits/credit_history + trigger auto-link user_id + calendario desktop Lun-Dom
 > **SESSIONE 30**: viewer emergency mode completo, auto-capitalize nomi, "Mostra altro" pagination, RPC user_request_cancellation, pulsante elimina dati cliente, fix cancellazioni utente
 > **SESSIONE 33**: PWA auto-update, sticky calendar mobile+desktop, fix race condition crediti/debiti, booking modal semplificato, debiti unificati, alert debito superato
+> **SESSIONE 34**: fix soglia blocco debito (localStorage instead of RPC), trigger auto-link manual_debts user_id, messaggi "Contatta Thomas"
+> **SESSIONE 35**: verifica Realtime (già attivo su tutte le pagine), fix check duplicati prenotazione via Supabase (evita dati stale localStorage)
+> **SESSIONE 36**: fix getUnpaidPastDebt (startTime invece di endTime), refactoring popup annullamento admin (conferma semplice >24h, con/senza mora <24h), bonus auto-seleziona senza mora, sidebar credit PWA iPhone fix, rinomina tabella click_andrea_pompili
 
 ---
 
@@ -1891,6 +1894,75 @@ Regex: `.replace(/\S+/g, w => w[0].toUpperCase() + w.slice(1).toLowerCase())`
 - `supabase/migrations/20260314000000_auto_link_manual_debts_user_id.sql` — nuovo
 - `sw.js` — bump cache
 - `index.html` — bump booking.js version
+
+---
+
+### 4.47 Verifica Realtime e fix check duplicati prenotazione (sessione 35, mar 2026)
+
+**Contesto:** l'utente segnalava che molte cose non si aggiornavano in tempo reale e richiedevano refresh della pagina. Inoltre un utente non riusciva a ri-prenotare uno slot dopo cancellazione perché il sistema diceva "hai già una prenotazione".
+
+**Cosa è stato verificato:**
+
+1. **Supabase Realtime già attivo su tutte le pagine**
+   - `index.html` — channel `bookings-rt-calendar` + `appsettings-rt-calendar`: ri-renderizza calendario desktop e mobile
+   - `admin.html` — channel `admin-rt` debounced (600ms): sincronizza bookings, app_settings, profiles, manual_debts, credits, credit_history, bonuses → ri-renderizza dashboard, calendario admin, tab attiva
+   - `prenotazioni.html` — channel `preno-rt` debounced (600ms): sincronizza bookings, credits, credit_history, manual_debts, bonuses → ri-renderizza lista prenotazioni, saldo crediti, bonus
+   - Cleanup su `beforeunload` e `visibilitychange`
+
+2. **Configurazione Supabase Dashboard necessaria**
+   - Le tabelle devono essere aggiunte alla publication `supabase_realtime` nel Dashboard → Database → Replication
+   - Tabelle: bookings, credits, credit_history, manual_debts, bonuses, app_settings, profiles, schedule_overrides
+   - Comando SQL: `ALTER PUBLICATION supabase_realtime ADD TABLE <nome_tabella>`
+
+**Cosa è stato fatto:**
+
+3. **Fix check duplicati prenotazione (`js/booking.js`)**
+   - **Prima:** il controllo duplicati usava `BookingStorage.getAllBookings()` (localStorage) — se il localStorage aveva una prenotazione cancellata con status stale, bloccava la ri-prenotazione
+   - **Dopo:** per utenti loggati, query diretta a Supabase (`bookings` WHERE `user_id` + `date` + `time` AND status NOT IN cancelled/cancellation_requested)
+   - Fallback a localStorage se Supabase non raggiungibile o utente non loggato
+   - L'indice DB `bookings_no_duplicate_user_slot` (partial, esclude cancelled) resta come protezione server-side
+
+**File modificati:**
+- `js/booking.js` — check duplicati via Supabase per utenti loggati
+
+---
+
+### 4.48 Fix debito, popup annullamento admin, sidebar PWA (sessione 36, mar 2026)
+
+**Contesto:** diversi bug e miglioramenti UX segnalati dall'utente su annullamento prenotazioni e sidebar mobile.
+
+**Cosa è stato fatto:**
+
+1. **Fix `getUnpaidPastDebt` — ora usa ora di inizio lezione**
+   - **Prima:** il debito veniva conteggiato solo dopo la *fine* della lezione (`endDt`)
+   - **Dopo:** usa `startDt` (ora di inizio), coerente con `applyToUnpaidBookings` che scala il credito all'inizio
+   - File: `js/data.js` riga ~900
+
+2. **Refactoring popup annullamento admin (`deleteBooking` in `js/admin.js`)**
+   - **Oltre 24h dall'inizio:** semplice `confirm()` con rimborso completo automatico, niente popup complesso
+   - **Entro 24h con bonus:** scelta "Utilizza bonus Sì/No" + "Con mora / Senza mora"
+   - **Entro 24h senza bonus:** solo scelta "Con mora (€X)" o "Senza mora"
+   - "Con mora" → rimborso 50% se pagato, addebito mora (`ManualDebtStorage.addDebt`) se non pagato
+   - "Senza mora" → rimborso completo
+   - Rimossa sezione "Rimborso 0%/50%/100%" e sostituita con logica automatica
+
+3. **UX: bonus Sì auto-seleziona "Senza mora"**
+   - Quando l'admin seleziona "Utilizza bonus: Sì", la modalità "Senza mora" viene auto-selezionata e il bottone Conferma si abilita immediatamente
+
+4. **Fix sidebar "powered by" su PWA iPhone**
+   - Aggiunto `margin-top: auto` → spinge la scritta in fondo alla sidebar
+   - Aggiunto `padding-bottom: calc(1.4rem + env(safe-area-inset-bottom))` → rispetta la safe area di iPhone (barra home)
+
+5. **Rinomina tabella Supabase `credit_link_clicks` → `click_andrea_pompili`**
+   - Aggiornato `js/supabase-client.js` per usare il nuovo nome tabella
+   - Rimosso `preventDefault` dal `logCreditClick` per compatibilità iOS PWA (il link WhatsApp si apre normalmente)
+
+**File modificati:**
+- `js/data.js` — fix `getUnpaidPastDebt` startTime
+- `js/admin.js` — refactoring `deleteBooking` popup
+- `js/supabase-client.js` — rinomina tabella + fix iOS
+- `css/style.css` — sidebar credit positioning + safe area
+- Tutti i file HTML — bump cache version `style.css?v=7`, `admin.js?v=78`
 
 ---
 
