@@ -737,7 +737,14 @@ body.nav-open {
     align-items: center;
     justify-content: space-between;
     gap: 0.5rem;
-    margin-bottom: 0.75rem;
+    margin-bottom: 0;
+    position: sticky;
+    top: 0;
+    z-index: 11;
+    background-color: var(--light-gray);
+    margin-left: -1rem;
+    margin-right: -1rem;
+    padding: 0.5rem 1rem;
 }
 
 .mobile-week-btn {
@@ -781,15 +788,14 @@ body.nav-open {
 .mobile-day-selector {
     display: flex;
     gap: 0.3rem;
-    padding: 0.75rem 0.5rem;
+    padding: 0.75rem 1rem;
     margin-bottom: 1.5rem;
     position: sticky;
-    top: 84px;
+    top: 0;
     z-index: 10;
-    background-color: var(--dark-bg);
+    background-color: var(--light-gray);
     margin-left: -1rem;
     margin-right: -1rem;
-    box-shadow: 0 2px 10px rgba(0,0,0,0.3);
 }
 
 .mobile-day-card {

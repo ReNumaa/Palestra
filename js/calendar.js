@@ -13,6 +13,20 @@ function initCalendar() {
     renderCalendar();
     renderMobileCalendar();
     setupCalendarControls();
+    setupMobileStickyOffsets();
+}
+
+function setupMobileStickyOffsets() {
+    const navbar = document.querySelector('.navbar');
+    const weekNav = document.querySelector('.mobile-week-nav');
+    const daySelector = document.querySelector('.mobile-day-selector');
+    if (!navbar || !weekNav || !daySelector) return;
+
+    const navH = navbar.offsetHeight;
+    weekNav.style.top = navH + 'px';
+    const update = () => { daySelector.style.top = (navH + weekNav.offsetHeight) + 'px'; };
+    update();
+    window.addEventListener('resize', update);
 }
 
 function setupCalendarControls() {
