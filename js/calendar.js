@@ -22,7 +22,7 @@ function setupMobileStickyOffsets() {
     const daySelector = document.querySelector('.mobile-day-selector');
     if (!navbar || !weekNav || !daySelector) return;
 
-    const navH = navbar.offsetHeight - 1;
+    const navH = navbar.offsetHeight - 3;
     weekNav.style.top = navH + 'px';
     const update = () => { daySelector.style.top = (navH + weekNav.offsetHeight) + 'px'; };
     update();
