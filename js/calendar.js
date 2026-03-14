@@ -336,12 +336,8 @@ function renderMobileCalendar() {
         mobileNext.style.cursor  = nextHasSlots ? 'pointer' : 'not-allowed';
     }
 
-    // Seleziona oggi se siamo nella settimana corrente, altrimenti il primo giorno
-    const todayStr = _localDateStr();
-    const todayEntry = currentWeekOffset === 0
-        ? weekDates.find(d => d.formatted === todayStr)
-        : null;
-    selectedMobileDay = todayEntry || weekDates[0];
+    // Set selected day BEFORE rendering the selector so active class is applied correctly
+    selectedMobileDay = weekDates[0];
     renderMobileDaySelector(weekDates);
     renderMobileSlots(selectedMobileDay);
 }
@@ -420,29 +416,6 @@ function renderMobileSlots(dateInfo) {
 
     if (!slotsList.hasChildNodes()) {
         slotsList.innerHTML = '<div style="text-align: center; color: #999; padding: 2rem;">Nessuna lezione disponibile per questo giorno</div>';
-    }
-
-    // Auto-scroll al primo slot il cui orario non è ancora passato (solo per oggi)
-    if (dateInfo.formatted === _localDateStr()) {
-        _scrollToCurrentSlot(slotsList);
-    }
-}
-
-function _scrollToCurrentSlot(container) {
-    const now = new Date();
-    const nowMinutes = now.getHours() * 60 + now.getMinutes();
-    const cards = container.querySelectorAll('.mobile-slot-card, .admin-slot-card');
-    for (const card of cards) {
-        const timeEl = card.querySelector('.mobile-slot-time, .admin-slot-time');
-        if (!timeEl) continue;
-        const text = timeEl.textContent.replace('🕐', '').trim();
-        const parsed = _parseSlotTime(text);
-        if (!parsed) continue;
-        const slotEnd = parsed.endH * 60 + parsed.endM;
-        if (slotEnd > nowMinutes) {
-            setTimeout(() => card.scrollIntoView({ behavior: 'smooth', block: 'center' }), 100);
-            return;
-        }
     }
 }
 
