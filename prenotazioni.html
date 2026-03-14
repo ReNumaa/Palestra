@@ -504,30 +504,23 @@
                 if (b.status === 'cancellation_requested') {
                     cancelBtn = `<div class="preno-cancel-pending">⏳ Annullamento in attesa</div>`;
                 } else if (_canCancelDirect) {
-                    // Più di 24h (o > 3 giorni per group-class): annullamento diretto
+                    // Più di 24h (o > 3 giorni per group-class): annullamento diretto con semplice conferma
                     cancelBtn = `<button class="preno-cancel-btn" onclick="cancelDirect('${b.id}')">Annulla prenotazione</button>`;
-                } else if (_canRequestCancel) {
-                    // Ultime 24h (solo non-group-class, modalità "nuova persona")
-                    cancelBtn = `<button class="preno-cancel-btn" onclick="requestCancellation('${b.id}')">Richiedi annullamento</button>`;
-                } else if (_canCancelWithPenalty) {
-                    // Modalità "mora 50%": prima controlla se c'è il bonus disponibile
-                    const _userP = getCurrentUser();
-                    const _bonusP = _userP ? BonusStorage.getBonus(_userP.whatsapp, _userP.email) : 0;
-                    if (_bonusP > 0) {
+                } else if (_msToLesson > 0) {
+                    // Entro 24h dall'inizio della lezione
+                    const _userC = getCurrentUser();
+                    const _bonusC = _userC ? BonusStorage.getBonus(_userC.whatsapp, _userC.email) : 0;
+                    if (_bonusC > 0) {
+                        // Ha il bonus: proponi di usarlo
                         cancelBtn = `<button class="preno-cancel-btn preno-cancel-bonus" onclick="cancelWithBonus('${b.id}')">🎟️ Usa bonus e annulla</button>`;
                     } else {
+                        // Nessun bonus: mostra entrambe le opzioni — con mora e senza mora
                         const _price = SLOT_PRICES[b.slotType] || 0;
                         const _mora = Math.round(_price * 0.5 * 100) / 100;
-                        cancelBtn = `<button class="preno-cancel-btn preno-cancel-penalty" onclick="cancelWithPenalty('${b.id}')">💸 Annulla con mora (€${_mora})</button>`;
-                    }
-                } else if (_isLocked) {
-                    const _user = getCurrentUser();
-                    const _bonus = _user ? BonusStorage.getBonus(_user.whatsapp, _user.email) : 0;
-                    if (_bonus > 0) {
-                        cancelBtn = `<button class="preno-cancel-btn preno-cancel-bonus" onclick="cancelWithBonus('${b.id}')">🎟️ Usa bonus e annulla</button>`;
-                    } else {
-                        const _lockReason = _msToLesson <= TWO_HOURS_MS ? 'meno di 2 ore' : 'slot prenotato entro 3 giorni';
-                        cancelBtn = `<div class="preno-cancel-locked">🔒 Non annullabile (${_lockReason})</div>`;
+                        cancelBtn = `<div class="preno-cancel-options">` +
+                            `<button class="preno-cancel-btn preno-cancel-penalty" onclick="cancelWithPenalty('${b.id}')">Annulla con mora (€${_mora})</button>` +
+                            `<button class="preno-cancel-btn" onclick="requestCancellation('${b.id}')">Annulla senza mora</button>` +
+                            `</div>`;
                     }
                 }
             }

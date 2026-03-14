@@ -894,12 +894,12 @@ class BookingStorage {
             const phoneMatch = normW && normalizePhone(b.whatsapp) === normW;
             const emailMatch = email && b.email && b.email.toLowerCase() === email.toLowerCase();
             if (!phoneMatch && !emailMatch) return;
-            // Controlla se la lezione è già terminata
+            // Controlla se la lezione è già iniziata
             const _tp2 = _parseSlotTime(b.time);
             if (!_tp2 || !b.date) return;
             const [yr, mo, dy] = b.date.split('-').map(Number);
-            const endDt = new Date(yr, mo - 1, dy, _tp2.endH, _tp2.endM, 0);
-            if (now >= endDt) {
+            const startDt = new Date(yr, mo - 1, dy, _tp2.startH, _tp2.startM, 0);
+            if (now >= startDt) {
                 total += (SLOT_PRICES[b.slotType] || 0) - (b.creditApplied || 0);
             }
         });
