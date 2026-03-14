@@ -1,6 +1,6 @@
 # TB Training — Diario di Sviluppo & Roadmap
 
-> Documento aggiornato al 14/03/2026 (sessione 36)
+> Documento aggiornato al 14/03/2026 (sessione 37)
 > Prototipo: sistema di prenotazione palestra, frontend-only con localStorage
 > Supabase CLI installato, schema SQL definito, accesso dati centralizzato
 > Supabase cloud attivo (tabelle create), Google OAuth funzionante, numeri normalizzati E.164
@@ -21,6 +21,7 @@
 > **SESSIONE 34**: fix soglia blocco debito (localStorage instead of RPC), trigger auto-link manual_debts user_id, messaggi "Contatta Thomas"
 > **SESSIONE 35**: verifica Realtime (già attivo su tutte le pagine), fix check duplicati prenotazione via Supabase (evita dati stale localStorage)
 > **SESSIONE 36**: fix getUnpaidPastDebt (startTime invece di endTime), refactoring popup annullamento admin (conferma semplice >24h, con/senza mora <24h), bonus auto-seleziona senza mora, sidebar credit PWA iPhone fix, rinomina tabella click_andrea_pompili
+> **SESSIONE 37**: refactor Supabase-first (localStorage → cache in memoria), fix booking popup incompleto, admin tabs sticky + persistenza tab + scroll to top, fix tab vuote al refresh, fix logout spurio PWA
 
 ---
 
@@ -42,7 +43,7 @@
 
 Sistema di prenotazione online per la palestra **TB Training**. Permette ai clienti di prenotare lezioni dal sito, e al gestore di avere una dashboard admin con calendario, statistiche e fatturato.
 
-**Obiettivo finale:** sistema funzionante online, con database reale, notifiche email automatiche il giorno prima della lezione, e possibilmente notifiche WhatsApp in futuro.
+**Obiettivo finale:** sistema funzionante online, con database reale, notifiche automatiche il giorno prima della lezione, e possibilmente notifiche WhatsApp in futuro.
 
 ---
 
@@ -51,7 +52,7 @@ Sistema di prenotazione online per la palestra **TB Training**. Permette ai clie
 | Componente | Tecnologia | Note |
 |---|---|---|
 | Frontend | HTML5 + CSS3 + JavaScript vanilla | Nessuna dipendenza esterna |
-| Persistenza dati | localStorage | Solo per il prototipo |
+| Persistenza dati | Supabase (cache in memoria + sync) | localStorage solo per settings/flags |
 | Grafici | Canvas API custom (`chart-mini.js`) | Nessuna libreria esterna |
 | Autenticazione | Supabase Auth + Google OAuth | SDK via CDN (`@supabase/supabase-js@2`) |
 | Hosting | GitHub Pages | https://thomasbresciani.com (repo: ReNumaa/Thomas-Bresciani) |
@@ -108,553 +109,67 @@ Palestra-Booking-Prototype/
 
 ## 4. Cosa è stato fatto — dettaglio completo
 
-### 4.1 Pagina pubblica (index.html)
+### 4.1–4.5 Features base e UI (feb 2026)
 
-**Calendario settimanale desktop:**
-- Visualizzazione 7 giorni con colonne per ogni giorno
-- Slot colorati per tipo: Personal Training (rosso), Small Group (azzurro), Lezione di Gruppo (giallo)
-- Contatore posti disponibili con pallini colorati
-- Slot disabilitati se pieni o passati
+**Calendario pubblico (`index.html`):** settimanale desktop (7 colonne, slot colorati per tipo, contatore posti) + mobile (slider giorno, card verticali). Parte dal giorno attuale. Form prenotazione con validazione client.
 
-**Calendario mobile:**
-- Selezione giorno tramite slider orizzontale
-- Card verticali per ogni slot
-- Input ottimizzati per touch (niente zoom iOS)
+**Dashboard admin (`admin.html`):** tab Prenotazioni (calendario + partecipanti + checkbox pagamento), Gestione Orari (16 slot/giorno, override per data), Analitiche (stats card con variazione %, grafici linea/torta custom Canvas, fasce orarie popolari, filtri temporali).
 
-**Calendario parte dal giorno attuale:**
-- Precedentemente il calendario mostrava sempre la settimana da lunedì, inclusi i giorni passati
-- Ora il primo giorno disponibile è sempre **oggi**, e si può solo andare avanti
-- Il pulsante "settimana precedente" è disabilitato alla settimana corrente (opacity 0.3, cursor not-allowed)
-- I nomi dei giorni sul selettore mobile ora usano correttamente `date.getDay()` (con array domenica-primo) invece dell'indice fisso che assumeva lunedì come primo giorno
+**Dati demo (`data.js`):** ~150-200 booking casuali, flag `dataClearedByUser` blocca regen. `paymentMethod` e `paidAt` realistici.
 
-**Form prenotazione:**
-- Campi: nome, email, WhatsApp
-- Validazione lato client
-- Conferma immediata
-- Dati salvati in localStorage
+**Grafici (`chart-mini.js`):** libreria Canvas custom, fix dimensioni su tab nascosti (fallback 400×250, guard radius ≤ 0).
 
----
-
-### 4.2 Dashboard Admin (admin.html)
-
-**Accesso:**
-- Password hardcoded `admin123` (solo per demo)
-- Da sostituire con autenticazione vera in produzione
-
-**Tab 1 — Prenotazioni:**
-- Calendario settimanale con navigazione giorno per giorno
-- Per ogni slot: elenco partecipanti con nome e numero WhatsApp
-- Checkbox pagamento per ogni persona
-- Note aggiuntive se presenti
-- Contatore posti occupati/disponibili
-
-**Tab 2 — Gestione Orari:**
-- Navigazione settimana per settimana (passato e futuro)
-- Tutti i 16 time slot (06:00–22:00) sempre visibili
-- Dropdown per assegnare tipo lezione a ogni slot
-- Sistema di override: possibile personalizzare orari per date specifiche
-- Auto-save immediato delle modifiche
-- Logica intelligente: usa template settimanale se non ci sono override
-
-**Tab 3 — Analitiche:**
-- Stats card: Prenotazioni totali, Fatturato, Occupazione media, Clienti unici
-- Ogni stat mostra la variazione % rispetto al periodo precedente (badge verde/rosso)
-- Grafico a linea: trend prenotazioni (vista giornaliera per ≤60 giorni, mensile per >60)
-- Grafico a torta: distribuzione prenotazioni per tipo di lezione
-- Tabella prenotazioni recenti (ultime 15, ordinate per data)
-- Fasce orarie più popolari (bar chart orizzontale)
-
-**Filtri analytics:**
-- Questo mese
-- Mese scorso
-- Quest'anno
-- Anno scorso
-- Personalizzato (con date picker from/to e pulsante Applica)
-- Tutti i grafici e le stats si aggiornano rispettando il filtro selezionato
-
----
-
-### 4.3 Dati demo (data.js)
-
-- Genera automaticamente ~150–200 prenotazioni casuali per gli ultimi 90 giorni e i prossimi 14 giorni
-- ~3% delle prenotazioni passate risultano non pagate (simulazione realistica)
-- Prezzi: Personal Training €50, Small Group €30, Lezione di Gruppo €20
-- Sistema di flag `dataClearedByUser` in localStorage: se l'admin ha cancellato i dati manualmente, i dati demo non vengono rigenerati automaticamente al prossimo accesso
-
----
-
-### 4.4 Grafici (chart-mini.js)
-
-Libreria Canvas custom, nessuna dipendenza esterna.
-
-**Bug risolti:**
-- Quando il tab analytics era nascosto, `offsetWidth/offsetHeight` valevano 0, il che causava un radius negativo nel grafico a torta → `ctx.arc()` lanciava `IndexSizeError` → l'intera funzione `loadDashboardData` si bloccava, lasciando vuoti anche tabella e fasce orarie
-- Fix 1: costruttore usa dimensioni fallback (400×250) quando offset è 0
-- Fix 2: guard `if (radius <= 0) return` in `drawPieChart`
-- Fix 3: `switchTab('analytics')` usa `setTimeout(50ms)` per aspettare che il browser calcoli il layout prima di leggere `offsetWidth`
-- Fix 4: all'avvio, la dashboard chiama `updateNonChartData()` invece di `loadDashboardData()`, evitando di disegnare grafici su tab nascosti
-
----
-
-### 4.5 Miglioramenti UI e nuove pagine (feb 2026)
-
-**Grafici Statistiche (chart-mini.js + admin.js):**
-- Fix canvas: costruttore usa `getBoundingClientRect()` per la larghezza reale post-CSS; `canvas { width: 100% !important }`
-- Aggiunto titoli h3 alle card grafici ("Prenotazioni nel tempo", "Distribuzione per tipo")
-- Fix grafico torta: la % "Slot Prenotato" (GROUP_CLASS) era sempre 0% perché si leggevano le prenotazioni invece degli slot nel calendario. Ora `countGroupClassSlots()` itera i giorni usando `scheduleOverrides` con fallback a `DEFAULT_WEEKLY_SCHEDULE`
-- Aggiunto due card sotto i grafici: **Fasce Orarie Popolari** (top 5, cyan) e **Fasce Orarie Non Popolari** (bottom 5, grigio, ordine inverso). Ogni card usa il proprio massimo locale per lo scaling delle barre
-
-**Pagamenti e debiti (admin.js):**
-- Fix debiti residui: `getUnpaidAmountForContact` ora viene sempre chiamata indipendentemente da `isPaid`, così le card mostrano l'avviso di debito residuo anche su prenotazioni parzialmente pagate
-
-**Dati demo (data.js):**
-- I booking demo includono ora `paymentMethod` (60% contanti / 25% carta / 15% iban) e `paidAt` (ISO timestamp entro 72h dalla fine della lezione)
-- `initializeDemoData()` pre-popola 3 settimane di `scheduleOverrides` dalla settimana corrente, così il calendario non risulta vuoto su un browser mai usato prima
-
-**Login admin (admin.css + admin.html):**
-- Rimosso lucchetto e sottotitolo dalla pagina di accesso
-- Logo aumentato da 60px a 80px
-- Box di login spostato in alto: `padding-bottom: 12vh` desktop, `28vh` mobile
-- Rimosso il pulsante "Cerca" dalla ricerca pagamenti (era inutile e confondeva su mobile)
-
-**Pagina "Dove Sono" (dove-sono.html + css/dove-sono.css):**
-- Hero con icona 📍 animata, indirizzo, due CTA (Google Maps + WhatsApp)
-- Mappa Google Maps embed (`Via San Rocco 1, Sabbio Chiese BS`)
-- 4 info card: 🚗 In auto, 🅿️ Parcheggio, 🚌 Con i mezzi, 🚶 A piedi
-- Sezione contatti & orari settimanali su sfondo scuro
-- CTA con link al calendario
+**Pagina "Dove Sono":** mappa embed, info card trasporti, contatti & orari.
 
 ---
 
 ### 4.6 Preparazione e attivazione Supabase (feb 2026)
 
-**Supabase CLI installato su Windows.**
-
-**Schema SQL definito in `supabase/migrations/20260225000000_init.sql`:**
-- Tabella `bookings`: id, date, time, slot_type, name, email, whatsapp, notes, paid, payment_method, paid_at
-- Tabella `schedule_overrides`: id, date, time, slot_type (unique su date+time)
-- Tabella `credits`: id, name, whatsapp, email, balance
-- Tabella `credit_history`: id, credit_id (FK), amount, note
-- RLS abilitato su tutte le tabelle con policy pubbliche per lettura e inserimento prenotazioni
-
-**Accesso dati centralizzato in `data.js`:**
-- Aggiunti metodi statici a `BookingStorage`:
-  - `getScheduleOverrides()` — lettura centralizzata degli override orari
-  - `saveScheduleOverrides(obj)` — scrittura centralizzata degli override orari
-  - `replaceAllBookings(arr)` — sovrascrittura bulk array prenotazioni
-- Rimossi tutti i `localStorage.getItem('scheduleOverrides')` e `localStorage.setItem(BOOKINGS_KEY, ...)` sparsi in `calendar.js`, `booking.js`, `admin.js`, `data.js`
-- Tutto l'accesso ai dati passa ora esclusivamente da `BookingStorage` e `CreditStorage`
-- **Il comportamento del sito è invariato** — è solo un refactoring interno
-- Quando si migra a Supabase: si cambia solo l'interno di questi metodi + si aggiunge async/await in un unico passaggio
-
-**Progetto Supabase cloud attivato:**
-- Progetto creato su supabase.com: `Thomas Bresciani` (free tier)
-- URL: `https://ppymuuyoveyyoswcimck.supabase.co`
-- Collegamento locale: `supabase link --project-ref ppymuuyoveyyoswcimck`
-- Schema applicato al cloud: `supabase db push` → tabelle `bookings`, `schedule_overrides`, `credits`, `credit_history` create e visibili nel Table Editor
-- Le migrazioni sono versionabili in git — ogni modifica futura al DB è un file `.sql` in `supabase/migrations/`
+Schema SQL (`bookings`, `schedule_overrides`, `credits`, `credit_history`), RLS, accesso dati centralizzato in `BookingStorage`/`CreditStorage`. Progetto cloud: `ppymuuyoveyyoswcimck` (Frankfurt, free tier).
 
 ---
 
-### 4.7 Autenticazione utenti con Google OAuth (feb 2026)
+### 4.7–4.9 Auth, OAuth e normalizzazione telefono (feb 2026)
 
-**Obiettivo:** sostituire il login social mock (che chiedeva nome/email manualmente) con OAuth reale tramite Supabase Auth.
-
-**File creato: `js/supabase-client.js`**
-- Inizializza il client Supabase con URL e anon key
-- Esporta `supabaseClient` come variabile globale usata da `login.html`
-- Caricato via CDN: `@supabase/supabase-js@2` (UMD build da jsDelivr)
-
-**Configurazione Google Cloud Console:**
-- Creato progetto OAuth "Thomas Bresciani" su console.cloud.google.com
-- Tipo applicazione: Web
-- Origini JavaScript autorizzate: `https://renumaa.github.io`
-- URI di reindirizzamento autorizzato: `https://ppymuuyoveyyoswcimck.supabase.co/auth/v1/callback`
-- Ottenuti Client ID e Client Secret
-
-**Configurazione Supabase Auth:**
-- Provider Google abilitato con Client ID e Client Secret di Google
-- Site URL: `https://renumaa.github.io/Palestra`
-- Redirect URL: `https://renumaa.github.io/Palestra/login.html`
-
-**Flusso OAuth implementato in `login.html`:**
-1. Utente clicca "Continua con Google" → `supabaseClient.auth.signInWithOAuth({ provider: 'google', redirectTo: login.html })`
-2. Google autentica → redirect a Supabase callback → redirect a `login.html?code=...`
-3. `handleOAuthReturn()` rileva il parametro `code` (o `access_token`) nell'URL
-4. `supabaseClient.auth.getSession()` scambia il codice per una sessione
-5. Estrazione dati utente: `user_metadata.full_name`, `user_metadata.name`, `user.email`
-6. Bridge al sistema localStorage esistente tramite `loginUser({ name, email, provider })`
-7. Redirect a `index.html`
-
-**Rimozione login mock:**
-- Eliminato il `socialModal` HTML (che chiedeva nome/email manualmente)
-- Eliminati `pendingProvider`, `startSocialLogin` mock, `closeSocialModal`, `confirmSocialLogin`
-- Il pulsante Apple mostra alert "non ancora disponibile" (richiede Apple Developer account a pagamento)
-- Facebook: infrastruttura pronta, richiede configurazione app Facebook Developers
-
-**Compatibilità mantenuta:**
-- Il resto del sito (calendario, prenotazioni, admin) continua a usare `getCurrentUser()` da localStorage — invariato
-- Quando si migra a Supabase full, l'auth è già collegata; si aggiornerà solo il bridge
+**Google OAuth** via Supabase Auth (`supabase-client.js`). Flusso: `signInWithOAuth` → callback → `getSession()` → `_loadProfile()`. Modal "Completa profilo" chiede WhatsApp al primo OAuth. **`normalizePhone()`** in `auth.js` → formato E.164 (`+39XXXXXXXXXX`).
 
 ---
 
-### 4.8 Modal "Completa il profilo" dopo OAuth (feb 2026)
+### 4.10–4.11 Annullamento prenotazioni e consistenza dati (feb 2026)
 
-**Problema:** Google OAuth fornisce solo nome ed email — non il numero WhatsApp, necessario per i promemoria.
-
-**Soluzione implementata:**
-- Dopo il login OAuth, prima di redirectare a `index.html`, il codice controlla se l'utente ha già un numero WhatsApp in `gym_users` (localStorage)
-- **Prima volta:** mostra il modal "Un'ultima cosa!" con campo WhatsApp obbligatorio — non si può procedere senza compilarlo
-- **Accessi successivi:** se il numero è già salvato, redirect diretto senza mostrare il modal
-
-**Dettaglio tecnico:**
-- `getUserByEmail(email)` controlla la lista `gym_users` in localStorage
-- Se non trovato o senza WhatsApp → `window._pendingOAuthUser = { name, email, provider }` + mostra modal
-- `confirmCompleteProfile()`: valida il numero, lo normalizza, salva in `gym_users` tramite `_getAllUsers()` / `_saveUsers()`, poi chiama `loginUser()` e redirect
-- Il numero viene salvato in formato E.164 (vedi sezione 4.9)
+**Flusso annullamento:** `requestCancellation()` → `cancellation_requested` → se qualcuno prenota, `fulfillPendingCancellations()` cancella FIFO + rimborso credito → se nessuno entro 2h, `processPendingCancellations()` ripristina `confirmed`. Badge colorati in prenotazioni.html e admin. `applyToUnpaidBookings()` salta cancelled/cancellation_requested. Verifica doppia prenotazione. `processPendingCancellations` eseguita su ogni pagina via DOMContentLoaded.
 
 ---
 
-### 4.9 Normalizzazione numeri WhatsApp in E.164 (feb 2026)
+### 4.13–4.14 Fix annullamento, slot prenotato con cliente, gestione orari (feb 2026)
 
-**Obiettivo:** salvare tutti i numeri di telefono in formato standard E.164 (`+39XXXXXXXXXX`) per compatibilità futura con le API WhatsApp Business.
+**Fix flusso annullamento:** `processPendingCancellations` non cancella più `cancellationRequestedAt` al ripristino. `fulfillPendingCancellations` cerca anche `confirmed` con `cancellationRequestedAt`. Blocco prenotazioni entro 2h. `CreditStorage.clearRecord()`.
 
-**Funzione `normalizePhone(raw)` aggiunta in `auth.js`:**
-```js
-// Gestisce tutti i formati comuni italiani:
-// "348 123 4567"      → "+39348123456"
-// "0348 123 4567"     → "+39348123456"
-// "0039 348 123 4567" → "+39348123456"
-// "+39 348 123 4567"  → "+39348123456"
-```
-- Rimuove spazi, trattini, parentesi
-- Gestisce prefissi: `0039`, `39`, `0`, nessun prefisso → aggiunge `+39`
-- Validazione finale con regex `^\+\d{10,15}$`
-
-**Applicata a:**
-- Modal OAuth "Completa profilo" (`confirmCompleteProfile` in `login.html`)
-- Form di registrazione manuale (`registerForm` in `login.html`)
-- Messaggio di errore chiaro: "Numero non valido. Usa formato: +39 348 1234567"
-
-**Nota:** il form di prenotazione (`booking.js`) accetta ancora numeri non normalizzati — da allineare in futuro quando si migra a Supabase (validazione server-side).
-
----
-
-### 4.10 Sistema di annullamento prenotazioni (feb 2026)
-
-**Flusso implementato:**
-1. Utente clicca "Richiedi annullamento" → `status = 'cancellation_requested'`, timestamp `cancellationRequestedAt`
-2. Lo slot torna disponibile sul calendario (conta come posto libero)
-3. Se qualcun altro prenota → `fulfillPendingCancellations()` cancella la prenotazione più vecchia in attesa (FIFO), rimborsa il credito se pagato con credito, azzera `paid/paymentMethod/paidAt`
-4. Se nessuno prenota entro 2h dall'inizio lezione → `processPendingCancellations()` ripristina `status = 'confirmed'`, l'utente deve presentarsi e pagare
-
-**File modificati:**
-- `js/data.js`: aggiunti `requestCancellation()`, `fulfillPendingCancellations()`, `processPendingCancellations()`; `getBookingsForSlot` e `getRemainingSpots` escludono `cancelled`
-- `js/booking.js`: chiama `fulfillPendingCancellations()` dopo ogni nuova prenotazione
-- `prenotazioni.html`: UI con badge "⏳ Annullamento in attesa" / "✕ Annullata", polling ogni 3s, `processPendingCancellations()` al caricamento
-- `css/prenotazioni.css`: badge `preno-badge-cancelled` (grigio) e `preno-cancel-pending` (ambra)
-- `js/admin.js`: participant card con badge ambra per `cancellation_requested`; `css/admin.css`: `.admin-participant-card.cancel-pending`
-
-**Rimborso credito:** `fulfillPendingCancellations` azzera `paid`, `paymentMethod`, `paidAt` sulla prenotazione cancellata e aggiunge il credito tramite `CreditStorage.addCredit(+price)`
-
----
-
-### 4.11 Miglioramenti admin e consistenza dati (feb 2026)
-
-**Prenotazioni annullate visibili nello storico Clienti:**
-- `getAllClients()` include prenotazioni `cancelled` (prima le escludeva)
-- Riga in tabella: testo barrato + grigio (`.row-cancelled`), badge "✕ Annullata", colonne metodo/data con `—`, nessun pulsante ✏️ (solo 🗑️)
-- Contatori `totalBookings`, `totalPaid`, `totalUnpaid` calcolati solo su `activeBookings` (esclude `cancelled`)
-
-**Badge stato in tabella Statistiche & Fatturato:**
-- Mappati tutti e 4 gli stati: `confirmed` → verde "Confermata", `cancellation_requested` → ambra "Richiesta annullamento", `cancelled` → grigio "Annullata", altro → giallo "In attesa"
-- Aggiunto CSS `.status-badge.cancellation_requested` e `.status-badge.cancelled`
-
-**Verifica doppia prenotazione:**
-- `booking.js`: prima di salvare, controlla se esiste già una prenotazione attiva (non `cancelled`) per la stessa email o numero WhatsApp, stessa data e ora
-- Mostra alert "Hai già una prenotazione per questo orario."
-
-**Fix credito e statistiche:**
-- `applyToUnpaidBookings()`: salta prenotazioni `cancelled` e `cancellation_requested` per non spendere credito su lezioni annullate
-- `getFilteredBookings()` (admin Statistiche): esclude `cancelled` da fatturato, conteggio totale, grafici e tasso di occupazione
-
-**processPendingCancellations su ogni pagina:**
-- Aggiunta chiamata in `DOMContentLoaded` dentro `data.js` → eseguita su ogni pagina che carica lo script
-- Aggiunta anche in `renderCalendar()`, `renderAdminDayView()`, `loadDashboardData()` per sicurezza aggiuntiva
-- Limitazione nota: se nessuno apre il sito nelle 2h prima della lezione, il ripristino avviene alla prima apertura successiva (qualunque pagina)
-
----
-
-### 4.13 Fix annullamento e blocco prenotazioni tardive (feb 2026)
-
-**Bug fix — flusso annullamento con utente diverso:**
-- Problema: se `processPendingCancellations` girava prima della prenotazione di un secondo utente (via `DOMContentLoaded`), la richiesta di annullamento veniva revertita a `confirmed` e `cancellationRequestedAt` veniva cancellato. Quando il secondo utente prenotava, `fulfillPendingCancellations` non trovava più la richiesta pendente e la prenotazione originale rimaneva `confirmed`.
-- Fix in `data.js`:
-  - `processPendingCancellations`: non cancella più il campo `cancellationRequestedAt` al ripristino — il campo resta come traccia dell'intenzione
-  - `fulfillPendingCancellations`: ora cerca anche prenotazioni `confirmed` con `cancellationRequestedAt` impostato (oltre a `cancellation_requested`)
-
-**Nascondere bottone annullamento per lezioni già passate:**
-- `buildCard` in `prenotazioni.html` calcola la data+ora reale di inizio lezione
-- Se l'orario è già passato (`lessonStart <= new Date()`), il bottone "Richiedi annullamento" non viene renderizzato — evita il ciclo richiesta → revert immediato da `processPendingCancellations`
-
-**Blocco prenotazioni entro 2h dall'inizio:**
-- `createSlot` (desktop) e `createMobileSlotCard` (mobile) in `calendar.js`: lo slot è cliccabile solo se `lessonStart - now > 2h`; altrimenti cursore `not-allowed`
-- `renderMobileSlots` in `calendar.js`: gli slot entro 2h non vengono proprio renderizzati su mobile (invece di mostrarsi come disabilitati). Se non rimangono slot disponibili per il giorno selezionato, mostra "Nessuna lezione disponibile per questo giorno"
-- `handleBookingSubmit` in `booking.js`: validazione aggiuntiva lato submit — se la lezione inizia entro 2h, mostra alert e chiude il modal
-
-**Ripristino credito nel reset dati:**
-- `resetDemoData` e `clearAllData` in `admin.js` ora rimuovono anche `gym_credits` da localStorage — in precedenza il saldo crediti sopravviveva al reset
-
-**Elimina storico credito per singolo cliente:**
-- Aggiunto `CreditStorage.clearRecord(whatsapp, email)` in `data.js`: rimuove completamente il record crediti di un cliente
-- Admin tab Clienti: bottone 🗑️ "Elimina storico" nell'header dello storico credito di ogni cliente, con richiesta di conferma
-- CSS: `.btn-clear-credit` (bordo rosso, stile inline)
-
----
-
-### 4.14 Gestione Orari — Slot prenotato con cliente associato (feb 2026)
-
-**Obiettivo:** quando l'admin assegna il tipo "Slot prenotato" (group-class) in Gestione Orari, deve obbligatoriamente associare un cliente registrato. La selezione crea una prenotazione reale visibile in tutte le tab admin e in "Le mie prenotazioni".
-
-**`UserStorage` in `data.js`:**
-- Nuova classe che aggrega account registrati (`gym_users`) + clienti unici dallo storico prenotazioni (`gym_bookings`)
-- Deduplicazione per email (case-insensitive) e telefono (ultimi 10 cifre); account registrati hanno priorità
-- Risultato ordinato alfabeticamente per nome
-- Supabase migration: sostituire i due `localStorage.getItem` con query su `profiles` + `bookings`, stessa logica di dedup
-
-**Client picker in Gestione Orari (`admin.js` + `admin.css`):**
-- `renderAllTimeSlots()`: gli slot `group-class` usano un layout a colonna con pannello client picker sotto il dropdown
-- Autocomplete per nome, email o telefono (min 2 caratteri) — risultati da `UserStorage.search()`
-- Badge verde se cliente assegnato; avviso arancione "⚠️ Cliente obbligatorio" se mancante
-- Bottone ✕ per rimuovere il cliente
-- Nuove funzioni: `sanitizeSlotId()`, `searchClientsForSlot()`, `selectSlotClient()`, `clearSlotClient()`, `formatAdminBookingDate()`
-
-**Prenotazione reale automatica:**
-- `selectSlotClient()`: crea una vera prenotazione in `gym_bookings` e salva il `bookingId` nell'override
-- Lo slot prenotato è visibile in: Prenotazioni, Clienti, Pagamenti, Statistiche, "Le mie prenotazioni"
-- Se l'admin cambia cliente: elimina la prenotazione precedente e ne crea una nuova
-- Se l'admin rimuove il cliente, cambia tipo slot o svuota lo slot: la prenotazione viene eliminata (`BookingStorage.removeBookingById()`)
-- Nuovo metodo `BookingStorage.removeBookingById(id)` in `data.js`
-
-**Annullamento slot prenotato con regola 3 giorni (`prenotazioni.html` + `data.js`):**
-- Per slot `group-class` in "Le mie prenotazioni":
-  - ≥ 3 giorni prima → bottone **"Annulla prenotazione"**: cancellazione immediata + slot convertito in Lezione di Gruppo
-  - < 3 giorni prima → badge grigio 🔒 "Non annullabile (meno di 3 giorni)"
-  - Lezione già passata → nessun controllo (come per tutti gli altri tipi)
-- Nuovo metodo `BookingStorage.cancelAndConvertSlot(id)`:
-  - Imposta `status = 'cancelled'` direttamente (nessuno stato intermedio `cancellation_requested`)
-  - Converte lo slot in Gestione Orari da `group-class` a `small-group`, rimuove `client` e `bookingId`
-- Per tutti gli altri tipi di slot: comportamento invariato (blocco 2h, flusso pending)
-- CSS: `.preno-cancel-locked` in `prenotazioni.css`
-
-**Fix evidenziazione giorno in Gestione Orari:**
-- Bug: `selectedScheduleDate` veniva impostato DOPO la generazione HTML dei tab → la classe `active` non veniva mai applicata al cambio settimana
-- Fix: la logica di default viene eseguita PRIMA di costruire il markup; aggiunto reset se la data selezionata appartiene a una settimana diversa
-
-**Formato data uniforme in "Le mie prenotazioni":**
-- Aggiunta `formatBookingDate(dateStr)` in `prenotazioni.html`
-- Tutte le card mostrano il formato esteso "Lunedì 2 Marzo 2026" invece del formato breve "Giovedì 26/2" che arrivava dal campo `dateDisplay` del calendario pubblico
+**Slot prenotato con cliente (`UserStorage`):** autocomplete clienti in Gestione Orari, `selectSlotClient()` crea booking reale. Annullamento slot prenotato con regola 3 giorni (slot prenotato) vs 3 ore (lezione di gruppo). `cancelAndConvertSlot()`.
 
 ---
 
 ### 4.15 Sistema transazioni, pagamenti e storico credito (feb 2026)
 
-**Prenotazioni in corso prenotabili (`calendar.js` + `booking.js`):**
-- Rimossa la regola "non prenotabile se la lezione inizia tra meno di 2h"
-- Nuova regola: prenotabile se **la lezione finisce tra almeno 30 minuti** (utile per lezioni già iniziate)
-- Fix in `calendar.js` in 3 punti (slot desktop, lista mobile, card mobile): legge l'orario di FINE dalla stringa slot (`"14:00 - 15:30".split(' - ')[1]`) invece dell'orario di inizio
-- Fix parallelo in `booking.js`: stessa logica nella validazione al submit
-
-**Eccedenza di pagamento — `displayAmount` (`admin.js` + `data.js` + `prenotazioni.html`):**
-- Quando un pagamento in contanti/carta/iban supera il costo della lezione, lo storico ora mostra il totale pagato (es. +€50) invece del solo credito aggiunto (es. +€45)
-- `CreditStorage.addCredit()`: aggiunto 6° parametro opzionale `displayAmount` — se presente viene salvato sull'entry storico
-- Nota rinominata: `"Pagamento con credito di €X (metodo)"` con `displayAmount = amountPaid`
-- `renderTransazioni` sezione 2: usa `e.displayAmount ?? e.amount`
-
-**"Da pagare" include prenotazioni passate (`prenotazioni.html`):**
-- `renderCreditBalance()` considerava solo le prenotazioni future per calcolare il debito
-- Fix: usa `[...upcoming, ...past]` — le prenotazioni passate non pagate ora compaiono nel totale
-
-**Annullamenti nello storico transazioni — niente più `splice` (`data.js` + `admin.js` + `prenotazioni.html`):**
-- Le prenotazioni cancellate non vengono più eliminate fisicamente: si preserva lo storico
-- `BookingStorage.removeBookingById()`: cambiato da `splice` a `status='cancelled'` + azzera `paid/paymentMethod/paidAt/creditApplied`
-- `admin.js deleteBooking()`: stessa logica — marca `cancelled` invece di eliminare
-- `prenotazioni.html renderTransazioni` **sezione 4** (nuova): mostra voci `cancelled` con icona ✕, `-€prezzo` (costo reale, non €0) e flag `cancelled: true` per forzare il segno negativo nel display
-- Il dialog di conferma annullamento admin: testo aggiornato da "non può essere annullata" a "Il record resterà nello storico del cliente"
-
-**Rimborso credito su annullamento admin (`admin.js`):**
-- Prima: rimborsava solo se `paymentMethod === 'credito'`
-- Fix: rimborsa il prezzo pieno per QUALSIASI metodo di pagamento (`booking.paid || creditApplied > 0`)
-- Fix rimborso parziale: se booking aveva `creditApplied=15` e `paid=false`, il rimborso era €15 invece di €30 (prezzo pieno). Ora `creditToRefund = price` sempre
-
-**`getDebtors()` — filtro prenotazioni annullate (`admin.js`):**
-- Il calcolo dei debitori non filtrava le prenotazioni `cancelled`
-- Fix: aggiunto `&& booking.status !== 'cancelled'` nel loop
-
-**Badge metodo pagamento in "Le mie prenotazioni" (`prenotazioni.html`):**
-- `buildCard` ora mostra il metodo con etichetta completa: `💳 Pagata con Credito`, `💵 Pagata con Contanti`, `💳 Pagata con Carta`, `🏦 Pagata con IBAN`
-
-**Storico transazioni nella card cliente admin (`admin.js` + `admin.css`):**
-- Sostituito il vecchio "Storico credito" con una vista transazioni identica a "Le mie prenotazioni"
-- Include le stesse 4 sezioni: storico crediti, prenotazioni non pagate, debiti manuali, prenotazioni annullate
-- Filtri data a pill: **Settimana / Mese / 6 mesi / 1 anno** (basati su attributo `data-ts` sulle righe)
-- Rimosso il pulsante 🗑️ "Elimina storico"
-- Aggiunta funzione globale `filterClientTx(listId, days, btn)` per filtraggio client-side
-- Aggiunti stili `.tx-filter-bar`, `.tx-filter-btn`, `.tx-filter-btn.active` in `admin.css`
-
-**Netting crediti/debiti in "Pagamenti" (`admin.js`):**
-- Un cliente con sia credito che debito manuale appariva in entrambe le liste (debitori e creditori)
-- `getDebtors()`: sottrae il saldo `CreditStorage` dal debito totale; filtra se `totalAmount <= 0`
-- Lista creditori in `renderPaymentsTab()`: sottrae debiti da prenotazioni non pagate + debiti manuali dal saldo credito; filtra se `netBalance <= 0`
-
-**Rimozione metodo pagamento dai debiti manuali (`prenotazioni.html` + `admin.js`):**
-- Le voci ✏️ mostravano "💵 Contanti" ecc. — rimosso
-- Fix: `sub: ''` in entrambe le sezioni 3 (prenotazioni.html e createClientCard in admin.js)
-
-**Saldo netto nella card cliente admin — header storico (`admin.js`):**
-- L'header "saldo credito: €65" non sottraeva i debiti manuali (es. €171 di debiti → saldo reale -€106)
-- Fix: `netBalance = CreditStorage.getBalance() - ManualDebtStorage.getBalance()`
-- Visualizzazione: "saldo: +€X" se positivo, "saldo: -€X" se negativo
-
-**Saldo netto nella barra nome cliente (`admin.js`):**
-- Il badge 💳 nella barra del nome mostrava ancora `credit` grezzo (€65) invece di `netBalance` (-€106)
-- Fix: usa `netBalance` anche nel badge della barra — verde `+€X` se positivo, rosso `-€X` se negativo, assente se zero
-
-**Totale "pagato" nella barra nome cliente (`admin.js`):**
-- Il badge "pagato" mostrava solo le prenotazioni pagate, senza considerare il credito disponibile
-- Fix: `totalAllPaid = totalPaid + credit` (credito disponibile = saldo CreditStorage)
-- I debiti manuali non sono inclusi perché non sono ancora stati pagati
+Prenotazioni in corso prenotabili (≥30min dalla fine). `displayAmount` per eccedenza pagamento. "Da pagare" include passate. Annullamenti preservati (no `splice`, marca `cancelled`). Rimborso credito per qualsiasi metodo pagamento. Netting crediti/debiti in Pagamenti. Storico transazioni con filtri data (Settimana/Mese/6m/1a). Badge "Segna pagato" cliccabile. Prezzi aggiornati: Autonomia €5, Lezione di Gruppo €10, Slot prenotato €50.
 
 ---
 
 ### 4.16 Profilo utente, certificato medico e fix UI mobile (feb 2026)
 
-**Badge credito parziale — wrap su mobile (`css/prenotazioni.css`):**
-- Il badge "💳 Credito parziale — €X da pagare" usciva dal div su schermi piccoli
-- Fix: `white-space: normal; text-align: center` su `.preno-badge-partial`
-- Stesso fix applicato a `.preno-cancel-locked` ("🔒 Non annullabile...") per lo stesso motivo
-
-**Prenotazioni "Passate" per orario di fine (`js/auth.js`):**
-- `getUserBookings()` confrontava solo la data (`b.date >= today`): una lezione di oggi restava in "Prossime" anche dopo la sua fine
-- Fix: se `b.date === today`, controlla l'orario di fine dalla stringa `b.time` (`"6:40 - 8:00".split(' - ')[1]`)
-- La prenotazione passa in "Passate" all'orario esatto di fine, non a mezzanotte
-
-**Cutoff annullamenti corretti (`prenotazioni.html`):**
-- Regole precedenti erano invertite; corrette con i criteri definitivi:
-  - **Slot prenotato** (PT / Small Group): pulsante "Annulla prenotazione" attivo solo con ≥ 3 giorni di anticipo; altrimenti 🔒 "Non annullabile (meno di 3 giorni)"
-  - **Lezione di gruppo**: pulsante "Richiedi annullamento" attivo solo con ≥ 3 ore di anticipo; altrimenti 🔒 "Non annullabile (meno di 3 ore)"
-- Costanti `THREE_DAYS_MS` e `THREE_HOURS_MS` calcolate da `_msToLesson = _lessonStart - new Date()`
-
-**Modifica profilo utente (`prenotazioni.html` + `js/auth.js` + `css/prenotazioni.css`):**
-- Bottone "✏️ Modifica profilo" affiancato al nome nella barra header (`.preno-header-top`)
-- Modale con campi: Nome, Email, WhatsApp, Scadenza certificato medico (date picker), Nuova password + conferma
-- Sezione password nascosta automaticamente per utenti autenticati con Google (`user.provider === 'google'`)
-- Nuova funzione `updateUserProfile(currentEmail, updates, newPassword)` in `auth.js`:
-  - Aggiorna `gym_users` in localStorage
-  - Controlla unicità email; se cambia, aggiorna anche tutte le prenotazioni collegate (`gym_bookings`)
-  - Aggiorna la sessione `currentUser` senza logout
-  - Ritorna `{ ok, error }`
-- Header (nome, email, avatar) e navbar si aggiornano in real-time dopo il salvataggio
-
-**Certificato medico — struttura dati (`js/auth.js`):**
-- Nuovo campo `certificatoMedicoScadenza` (stringa `YYYY-MM-DD` o `null`) nell'oggetto utente in `gym_users`
-- Nuovo campo `certificatoMedicoHistory`: array di oggetti `{ scadenza, aggiornatoIl }` — ogni modifica alla scadenza aggiunge una voce; lo storico completo viene mantenuto anche dopo aggiornamenti successivi
-- Aggiornato solo se il valore cambia rispetto a quello salvato
-
-**Warning certificato medico — profilo (`prenotazioni.html` + `css/prenotazioni.css`):**
-- `renderCertWarning()` chiamata al caricamento e subito dopo ogni salvataggio del profilo
-- Se il certificato **non è impostato**: banner rosso `🏥 Imposta scadenza Cert. Medico (qui)` — "(qui)" apre il modale di modifica profilo
-- Se il certificato è **scaduto**: banner rosso `🏥 Cert. Medico scaduto il DD/MM/YYYY` (nessun link)
-- Se mancano **≤ 30 giorni**: banner giallo `⏳ Mancano X giorni alla scadenza del tuo Cert. Medico (porta a Thomas quello nuovo)` (nessun link)
-- Nessun banner se la scadenza è oltre 30 giorni
-
-**Warning certificato medico — admin prenotazioni (`js/admin.js` + `css/admin.css`):**
-- In `createAdminSlotCard`, per ogni partecipante: lookup `getUserByEmail(booking.email)` → controlla `certificatoMedicoScadenza`
-- Se **non impostato**: badge rosso `🏥 Imposta scadenza certificato medico` nella card partecipante e nella scheda cliente
-- Se **scaduto**: badge rosso `🏥 Cert. scaduto il DD/MM/YY` nella card partecipante
-- Nella scheda cliente (tab Clienti): `🏥 Imposta scadenza...` (rosso), `⏳ Cert. scade il...` (giallo, ≤30gg), `✅ Cert. valido fino al...` (verde)
-
-**Decisione — recupero password e conflitto Google/email:**
-- Un utente che si registra con email/password non ha modo di recuperare la password in autonomia
-- Un utente che usa prima Google e poi prova email/password con la stessa email riceve messaggi d'errore non chiari
-- **Decisione:** non gestire questi casi ora — Supabase Auth li risolve nativamente (reset via email, account linking). Rimandato alla migrazione Supabase.
+Modifica profilo utente (modale con nome, email, WhatsApp, cert. medico, password). `certificatoMedicoScadenza` + `certificatoMedicoHistory` in profilo. Warning banner su prenotazioni.html (rosso se scaduto/mancante, giallo se <30gg). Badge cert. medico in admin su card partecipante e scheda cliente. Prenotazioni "Passate" calcolate per orario di fine. Cutoff annullamenti corretti (3 giorni slot prenotato, 3 ore lezioni di gruppo).
 
 ---
 
 ### 4.17 Fix pagamenti, transazioni, ordinamento e prezzi (feb 2026)
 
-**Export dati — file .xlsx unico con SheetJS (`admin.js` + `admin.html`):**
-- Sostituiti i 6 CSV separati con un singolo file `.xlsx` (`TB_Training_export_YYYY-MM-DD.xlsx`)
-- Libreria SheetJS (`xlsx@0.18.5`) caricata via CDN in `admin.html`
-- 6 fogli: Clienti, Prenotazioni, Pagamenti, Crediti, Debiti Manuali, Gestione Orari
-- Larghezze colonne auto-calcolate (`ws['!cols']`)
-
-**Fix transazioni: pagamento carta/contanti/iban mancante (`data.js` + `admin.js` + `prenotazioni.html`):**
-- Quando si pagava un debito con carta/contanti/iban, lo storico transazioni mostrava solo le voci negative (es. -30€ e -5€ per le lezioni) senza la corrispondente voce positiva (+35€ incassato)
-- `CreditStorage.addCredit()`: rimosso il `return` immediato su `amount === 0` — le voci con importo zero sono ora ammesse come log informativi (non modificano il saldo)
-- `paySelectedDebts()`: quando `paymentMethod !== 'credito'` e `creditDelta <= 0`, aggiunge una voce `{ amount: 0, displayAmount: amountPaid, note: "💳 Carta ricevuto" }` nel registro crediti
-- Filtro sezione 2 della transaction view (entrambe le pagine): `e.amount > 0 || (e.amount === 0 && e.displayAmount > 0)` — include le voci informative
-
-**Badge "Segna pagato" cliccabile in Prenotazioni admin (`admin.js` + `admin.css`):**
-- Il badge "Non pagato" era solo testo; ora è "⊕ Segna pagato", cliccabile, colore ambra con hover
-- Click → apre `openDebtPopup()` direttamente dalla card prenotazione, anche per lezioni future
-- `openDebtPopup()` modificato: rimosso il filtro `bookingHasPassed(b)` → ora mostra **tutte** le prenotazioni non pagate (passate e future)
-- Subtitle aggiornato: "3 lezioni non pagate (1 passata, 2 future)"
-
-**Fix cutoff annullamento (`prenotazioni.html`):**
-- La variabile `_isGroupClass` controllava `b.slotType === 'group-class'` che è lo **Slot prenotato** (rosso), non la Lezione di Gruppo
-- Fix: `_isGroupClass = b.slotType !== 'group-class'` — solo lo Slot prenotato (rosso) ha cutoff 3 giorni; Lezione di Gruppo e Autonomia usano 3 ore
-- Secondo fix: il controllo `b.status === 'cancellation_requested'` era solo nel ramo `else`, mai raggiunto per i tipi con `_isGroupClass = true` → il bottone riappariva dopo la richiesta. Aggiunto il check anche dentro il ramo `if (_isGroupClass)`
-
-**Prezzi lezioni aggiornati (`data.js`):**
-- `personal-training` (Autonomia, verde): €5 (invariato)
-- `small-group` (Lezione di Gruppo, giallo): €10 (era €30)
-- `group-class` (Slot prenotato, rosso): €50 (era €10)
-
-**Ordinamento prenotazioni per orario (`js/auth.js`):**
-- `upcoming`: ordinato per `date ASC, time ASC` (la più vicina in cima) — prima usava solo `date`
-- `past`: ordinato per `date DESC, time DESC` (la più recente in cima) — prima usava solo `date`
-
-**Fix paidAt nell'export e nel form di modifica (`admin.js`):**
-- Foglio "Pagamenti": le righe prenotazione usavano `fmtDate` (solo data) invece di `fmtDateTime` (data+ora) → ora tutte le righe mostrano data e orario come le voci credito
-- Form modifica pagamento in admin Clienti: campo `type="date"` → `type="datetime-local"` per preservare l'orario esatto
-- Valore pre-compilato: `booking.paidAt.slice(0, 16)` (formato `YYYY-MM-DDTHH:MM` per datetime-local)
-- Save: rimosso il suffisso artificiale `+ 'T12:00:00'`; usa `new Date(newPaidAtRaw).toISOString()` direttamente
+Export .xlsx unico con SheetJS (6 fogli). Fix voci pagamento mancanti nello storico (amount=0 come log informativo). Badge "Segna pagato" cliccabile in admin. Fix cutoff annullamento invertito. Ordinamento prenotazioni per data+ora. Fix paidAt datetime-local.
 
 ---
 
 ### 4.18 PWA miglioramenti e infrastruttura push notification (feb 2026)
 
-**Rinomina app: "TB Training" → "Palestra"**
-- `manifest.json`: `name` e `short_name` aggiornati a "Palestra"
-- Tutti e 6 gli HTML: `apple-mobile-web-app-title` → "Palestra", `manifest.json?v=3`
-- `sw.js`: cache rinominata `palestra-v1` (forza refresh service worker su tutti i dispositivi)
-
-**Fix icona PWA troppo zoomata**
-- `manifest.json`: rimosso `"maskable"` dal campo `purpose` → ora solo `"any"`
-- Con `maskable` Android riempiva il cerchio con il logo senza padding, risultando molto zoomato
-- Con `any` Chrome aggiunge automaticamente padding bianco e il logo appare proporzionato
-- Effettivo dopo disinstallazione e reinstallazione della PWA
-
-**Notifica locale alla conferma prenotazione**
-- `booking.js`: `notificaPrenotazione(savedBooking)` chiamata dopo `showConfirmation()`
-- Richiede permesso notifiche al primo utilizzo (dentro il click handler — gesto utente)
-- Mostra notifica tramite `serviceWorker.showNotification()` con tipo, data e orario
-- `sw.js`: `notificationclick` handler — tap sulla notifica porta in primo piano la finestra app o apre `prenotazioni.html`
-
-**Infrastruttura push notification pronta per Supabase**
-- Generata coppia di chiavi VAPID P-256 (una volta sola):
-  - Public key: hardcoded in `js/push.js` (appartiene al frontend)
-  - Private key: salvata in `.vapid-keys.txt` (ignorato da git via `.gitignore`)
-- `js/push.js` (nuovo file):
-  - `registerPushSubscription()`: ottiene o crea la subscription con `pushManager.subscribe()`
-  - `savePushSubscription()`: salva endpoint + chiavi p256dh/auth in localStorage in formato già compatibile con schema Supabase
-  - Auto-registrazione silenziosa se permesso già concesso (ad ogni apertura)
-  - Codice TODO commentato con il `supabase.upsert()` sostitutivo + schema tabella `push_subscriptions`
-- `booking.js`: dopo il permesso notifiche concesso, chiama `registerPushSubscription()`
-- `sw.js`: aggiunto handler `push` — riceve notifiche dal server (Supabase Edge Function) e le mostra
-- `js/push.js` caricato in tutti e 6 gli HTML dopo `auth.js`
-- `.gitignore` creato: esclude `.vapid-keys.txt`, `.env`, `.claude/`
+Rinomina "TB Training" → "Palestra". Fix icona PWA (rimosso maskable). Notifica locale alla conferma prenotazione. Infrastruttura push notification: chiavi VAPID, `js/push.js`, handler `push` in sw.js. `.gitignore`.
 
 **Quando si migra a Supabase (3 passi):**
 1. Crea tabella `push_subscriptions` (schema già scritto in `push.js`)
@@ -665,231 +180,39 @@ Libreria Canvas custom, nessuna dipendenza esterna.
 
 ### 4.19 UX mobile e layout (feb 2026)
 
-**Footer sempre al fondo (`css/style.css`):**
-- Quando non ci sono lezioni disponibili, il footer non raggiungeva il fondo della pagina lasciando spazio bianco
-- Fix: `body { display: flex; flex-direction: column; min-height: 100vh }` + `flex: 1` sulle sezioni principali (`.calendar-section`, `.login-page`, `.preno-page`, `.dashboard-section`)
-- Il calendario mobile mantiene un'altezza minima pari allo schermo quando non ci sono slot
-
-**"powered by Andrea Pompili" nella sidebar mobile (`css/style.css` + tutti gli HTML):**
-- Aggiunta riga `.nav-sidebar-credit` in fondo alla sidebar mobile: `font-size: 0.65rem; color: rgba(255,255,255,0.35); text-align: right; padding: 0.6rem 1rem`
-- Markup aggiunto in tutti e 6 gli HTML dentro `.nav-sidebar`
-
-**Calendario avanza automaticamente dopo le 20:30 (`js/calendar.js`):**
-- Dopo le 20:30 non ci sono più lezioni disponibili per oggi: `getWeekDates()` controlla `minutesNow >= 20*60+30` con `offset === 0` e imposta `today = domani`
-- Il calendario su offset 0 mostra già il giorno successivo, senza dover mostrare una giornata vuota
-
-**Swipe orizzontale sul selettore giorni mobile (`js/calendar.js`):**
-- Aggiunti `touchstart` / `touchend` su `#mobileDaySelector` in `setupCalendarControls()`
-- Swipe sinistra (dx < −50px) → settimana successiva (solo se ha slot configurati)
-- Swipe destra (dx > +50px) → settimana precedente (solo se `currentWeekOffset > 0`)
-- Listener `passive: true` per non bloccare lo scroll verticale della pagina
+Footer flex min-height 100vh. Credit "powered by" in sidebar. Calendario avanza auto dopo 20:30. Swipe orizzontale su selettore giorni mobile.
 
 ---
 
-### 4.20 Posti extra per slot, login gate, fix bfcache e aggiornamento mobile (mar 2026)
+### 4.20 Posti extra, login gate, bfcache fix (mar 2026)
 
-**Posti extra per slot — admin Prenotazioni (`js/admin.js`, `js/data.js`, `js/calendar.js`, `css/admin.css`, `css/style.css`):**
-- Bottone "＋" nell'header di ogni slot admin → apre picker con i tipi disponibili ("Aggiungi 1 posto: [Autonomia] [Lezione di Gruppo]")
-- Click su un tipo → aggiunge esattamente **1 posto extra** a quello slot tramite `BookingStorage.addExtraSpot(date, time, extraType)`
-- Extra rimossi con il bottone "−" nella barra badge, solo se il posto non è già prenotato (`BookingStorage.removeExtraSpot`)
-- Struttura dati: ogni slot in `schedule_overrides` può avere `extras: [{type}]` — uno per ogni posto extra aggiunto
-- `getEffectiveCapacity(date, time, slotType)`: restituisce `SLOT_MAX_CAPACITY[slotType] + count(extras of same type)` se il tipo è quello principale dello slot; altrimenti restituisce solo `count(extras of that type)` (base = 0) → **fix critico**: evita che aggiungere 1 posto di Lezione di Gruppo a uno slot Autonomia mostrasse 6 posti disponibili invece di 1
-- `getRemainingSpots`: filtra le prenotazioni per `slotType` e usa `getEffectiveCapacity` per calcolare i posti liberi
+**Posti extra:** bottone "+" in admin per aggiungere posti extra con tipo diverso. `getEffectiveCapacity()`. Vista split slot (desktop + mobile). `removeExtraSpot`.
 
-**Vista split slot calendario desktop e mobile:**
-- Se gli extra hanno un tipo diverso dal tipo principale → lo slot nel calendario desktop si divide in due metà affiancate (`.split-slot-half`), ciascuna con colore e contaposti del proprio tipo
-- Fix CSS: `.calendar-slot.split-slot` ora ha `flex-direction: row` e `align-items: stretch` — prima ereditava `flex-direction: column` dalla classe base e le due metà si impillavano con spazio bianco
+**Login gate:** `openBookingModal()` controlla `getCurrentUser()`, mostra prompt login se non loggato.
 
-**Vista split in admin Prenotazioni:**
-- Se lo slot ha extra di tipo diverso → card divisa in colonne (`.admin-slot-split`), una per tipo, con titolo e partecipanti separati per tipo
-
-**Login gate per utenti non loggati (`js/booking.js`, `index.html`):**
-- Prima di aprire il form di prenotazione, `openBookingModal()` controlla `getCurrentUser()`
-- Se non loggato: mostra il div `#loginPrompt` con bottone "Accedi / Registrati" (link a `login.html`) e nasconde il form
-- Se loggato: mostra il form e pre-compila nome, email e WhatsApp dai dati dell'utente
-
-**Fix aggiornamento posti su mobile dopo prenotazione (`js/booking.js`):**
-- `handleBookingSubmit`: dopo `renderCalendar()` (solo desktop), ora chiama anche `renderMobileSlots(selectedMobileDay)` se disponibile → i contatori dei posti si aggiornano immediatamente anche su mobile senza refresh
-
-**Fix bfcache — navigazione tra pagine senza Ctrl+R (`js/calendar.js`, `js/admin.js`):**
-- Problema: il browser restaura la pagina dal Back/Forward Cache (`bfcache`) senza rieseguire `DOMContentLoaded` → i dati rimanevano quelli al momento della navigazione
-- Fix: aggiunto listener `pageshow` in `calendar.js` → se `event.persisted === true`, richiama `renderCalendar()` e `renderMobileCalendar()`
-- Fix parallelo in `admin.js` → rileva il tab attivo (`.admin-tab.active`) e richiama `switchTab()` per re-renderizzare i dati senza riattaccare i listener
-- Entrambi i listener si attivano solo su restore da bfcache (`event.persisted`), non ad ogni caricamento normale
-
-**Service worker cache bump (`sw.js`):**
-- `CACHE_NAME` aggiornato da `palestra-v1` a `palestra-v2`
-- Forza il browser a scartare la cache precedente e scaricare le versioni aggiornate di `data.js`, `calendar.js`, `admin.js`, `booking.js` e CSS
-- **Regola di sviluppo:** incrementare il numero di versione ogni volta che si modificano file JS o CSS significativi
+**bfcache fix:** listener `pageshow` con `event.persisted` su calendar.js e admin.js.
 
 ---
 
-### 4.21 Lezione Gratuita e fix rimborso credito su annullamento pendente (mar 2026)
+### 4.21–4.24 Lezione gratuita, dark mode fix, refactor phone (mar 2026)
 
-**Metodo di pagamento "Lezione Gratuita" (`js/admin.js`, `js/data.js`, `js/booking.js`, `admin.html`, `css/admin.css`, `prenotazioni.html`):**
-- Nuovo bottone "🎁 Lezione Gratuita" nel popup "Aggiungi Credito Manuale" (verde, distinto dagli altri metodi)
-- Il credito aggiunto con questo metodo viene tracciato separatamente nel campo `freeBalance` del record credito, oltre al normale `balance`
-- `CreditStorage.addCredit(..., freeLesson=true)`: incrementa sia `balance` che `freeBalance`; aggiunge entry con flag `freeLesson: true`
-- Nuovo metodo `CreditStorage.getFreeBalance(whatsapp, email)`: restituisce il saldo disponibile da lezioni gratuite
-- `applyToUnpaidBookings()`: usa prima il `freeBalance`; le prenotazioni pagate con credito gratuito ricevono `paymentMethod = 'lezione-gratuita'`; il `freeBalance` viene decrementato manualmente dopo l'applicazione
-- `booking.js`: al momento della prenotazione, se l'utente ha `freeBalance >= price`, usa il credito gratuito e imposta `paymentMethod = 'lezione-gratuita'`
-- **Esclusione da statistiche/fatturato**: `filteredBookings.filter(b => b.paymentMethod !== 'lezione-gratuita')` prima di sommare i ricavi in admin Statistiche — le lezioni gratuite non compaiono nel fatturato né nel confronto periodi
-- Label display: `'lezione-gratuita': '🎁 Gratuita'` in admin, `'lezione-gratuita': '🎁 Lezione Gratuita'` in prenotazioni.html
+**Lezione Gratuita:** `freeBalance` separato, `paymentMethod = 'lezione-gratuita'`, esclusa da fatturato. Fix rimborso su annullamento pendente.
 
-**Bug fix — rimborso credito non dovuto su annullamento pendente (`js/admin.js`):**
-- Problema: quando l'admin cliccava ✕ su una prenotazione con `status = 'cancellation_requested'`, `deleteBooking` rimborsava immediatamente il credito, anche se la cancellazione non era ancora stata completata da un'altra prenotazione
-- Regola corretta: il rimborso deve avvenire **solo** tramite `fulfillPendingCancellations` (quando un'altra persona prenota effettivamente lo slot); se l'admin elimina manualmente una prenotazione in attesa di cancellazione, nessun credito viene aggiunto automaticamente (il PT può farlo manualmente se necessario)
-- Fix: aggiunto controllo `isCancellationPending = booking.status === 'cancellation_requested'`; il rimborso viene saltato se vero
+**Dark mode:** `color-scheme: light` su tutti gli elementi logo.
 
-**Service worker cache bump (`sw.js`):**
-- `CACHE_NAME` aggiornato da `palestra-v3` a `palestra-v4` per forzare reload dei file aggiornati
+**Tab giorno rosso** se slot prenotato senza cliente in Gestione Orari.
+
+**Unificazione `normalizePhone`:** rimossi duplicati, tutto usa `normalizePhone()` di auth.js. Fix XSS in `showConfirmation()`.
 
 ---
 
-### 4.22 Evidenziazione giorni con slot prenotato senza cliente e fix logo dark mode (mar 2026)
+### 4.25–4.27 Tab Registro, annullamento diretto, fix rimborsi (sessioni 10-12, mar 2026)
 
-**Tab giorno rosso se manca il cliente associato (`js/admin.js` + `css/admin.css`):**
-- In `renderScheduleManager()`, il loop dei tab giornalieri calcola `hasMissingClient`: verifica se almeno uno slot del giorno ha `type === 'group-class'` senza proprietà `client`
-- Se vero, il button del tab riceve la classe CSS `missing-client`
-- `.schedule-day-tab.missing-client`: sfondo rosso chiaro `#fee2e2`, bordo `#fca5a5`
-- `.schedule-day-tab.missing-client.active`: quando il tab è anche selezionato, il gradiente cyan torna a prevalere per non perdere la visibilità del tab attivo
-- Il controllo usa `overrides[dateInfo.formatted]` già disponibile nel rendering, senza query aggiuntive
+**Tab Registro:** event sourcing con 7 tipi evento, filtri multipli, paginazione 50/pagina, export Excel, summary incassato (esclude lezione-gratuita). Formula fatturato: `booking_paid` (no credito/gratuita) + `credit_added` (no freeLesson).
 
-**Fix logo in modalità notturna (`css/style.css`, `css/login.css`, `css/admin.css`, `css/chi-sono.css`):**
-- In dark mode (OS o browser force-dark), il browser applicava una trasformazione automatica al logo `logo-tb---nero.jpg` rendendolo bianco
-- Fix: aggiunta proprietà `color-scheme: light` su tutte le classi che contengono il logo:
-  - `.nav-logo` e `.nav-sidebar-logo` in `style.css`
-  - `.login-logo` in `login.css`
-  - `.login-admin-logo` in `admin.css`
-  - `.cs-hero-photo` e `.cs-about-photo-placeholder img` in `chi-sono.css`
-- `color-scheme: light` comunica al browser che quell'elemento è già progettato per il tema chiaro e non deve essere alterato automaticamente
+**Annullamento diretto:** >24h → annullamento immediato; ≤24h >2h → richiesta con sostituzione; ≤2h → bloccato. Debiti manuali nel popup admin (selezionabili + pagabili insieme).
 
----
-
-### 4.23 UI hero e nome PWA (mar 2026)
-
-**Titolo hero in maiuscolo (`index.html`):**
-- `<h1 class="hero-name">` aggiornato da `Thomas Bresciani` a `THOMAS BRESCIANI`
-
-**Rinomina app PWA da "Palestra" a "Gym":**
-- `manifest.json`: `name` e `short_name` → `"Gym"`
-- `index.html`: meta `apple-mobile-web-app-title` → `"Gym"`
-
----
-
-
-### 4.24 Refactor phone, fix bug e warning certificato (mar 2026)
-
-**Aggiornamenti warning certificato medico (`prenotazioni.html` + `js/admin.js`):**
-- Tre stati distinti con testi ufficiali:
-  - Non impostato: `🏥 Imposta scadenza Cert. Medico (qui)` — "(qui)" apre il modale modifica profilo
-  - Scaduto: `🏥 Cert. Medico scaduto il DD/MM/YYYY` — nessun link
-  - Imminente (≤ 30 giorni): `⏳ Mancano X giorni alla scadenza del tuo Cert. Medico (porta a Thomas quello nuovo)` — nessun link
-- Soglia avviso imminente portata da 15 a 30 giorni
-- Admin — card partecipante: badge `🏥 Imposta scadenza certificato medico` se non impostato (oltre al già esistente badge scaduto)
-- Admin — scheda cliente: badge rosso se non impostato, giallo se ≤30gg, verde se valido
-
-**Unificazione `normalizePhone` (`js/data.js` + `prenotazioni.html`):**
-- Rimosso `static _normalizePhone()` da `CreditStorage` e `ManualDebtStorage` (erano duplicati con logica diversa)
-- Rimossa funzione locale `normPhone()` da `prenotazioni.html`
-- Tutti i confronti numeri WhatsApp usano ora `normalizePhone()` di `auth.js` (E.164 `+39XXXXXXXXXX`)
-- Zero impatto visivo; elimina rischio di mismatch durante la migrazione dati a Supabase
-- Rimane solo `_normPhone` locale in `getAllClients()` (scopo diverso: dedup visivo, ultimi 10 cifre)
-
-**Fix bug concreti:**
-- `booking.js` + `calendar.js`: parsing orario `split(' - ')` con fallback sicuro — nessun crash se formato orario anomalo
-- `booking.js`: eliminato XSS in `showConfirmation()` — `JSON.stringify(booking)` dentro `onclick` sostituito con variabile globale `_confirmedBooking`
-- `auth.js`: `u.email?.toLowerCase()` con optional chaining — nessun crash se un record utente è privo di email
-
----
-
-### 4.25 Tab Registro — log unificato di tutte le attività (mar 2026)
-
-**Nuova tab `📋 Registro`** posizionata accanto a `📊 Statistiche & Fatturato` nell'admin panel.
-
-**Funzionalità:**
-- Aggregazione in un unico stream di eventi ordinati per timestamp decrescente (event sourcing pattern):
-  - `booking_created` — nuova prenotazione
-  - `booking_paid` — pagamento registrato
-  - `booking_cancellation_req` — richiesta di annullamento
-  - `booking_cancelled` — annullamento confermato
-  - `credit_added` — credito aggiunto manualmente o come acconto
-  - `manual_debt` — debito manuale registrato
-  - `manual_debt_paid` — debito manuale saldato
-- Filtri: periodo (7gg / 30gg / 90gg / tutto / range custom), tipo evento, tipo lezione, metodo pagamento, stato, ricerca cliente
-- Ordinamento cliccabile su qualsiasi colonna
-- Paginazione 50 righe per pagina
-- Scheda summary con: totale eventi, incassato, nuove prenotazioni
-- Export Excel (SheetJS, filename `TB_Registro_YYYY-MM-DD.xlsx`, 13 colonne)
-- XSS prevention con `_escHtml()` su tutti i dati utente
-- Badge colorati (pastello) per tipo evento e stato, coerenti con il design system esistente
-- "Bubble to top" naturale: la modifica di una prenotazione genera un nuovo evento con timestamp corrente
-
-**Fix progressivi durante la sessione:**
-- CSS riscritto in light-mode (testo scuro su sfondo bianco) dopo errore iniziale con colori dark-mode invisibili
-- Rimossi eventi `credit_used` (ridondanti: il consumo di credito è già visibile come `booking_paid` con metodo credito)
-- `Incassato` esclude lezioni gratuite (`paymentMethod !== 'lezione-gratuita'`)
-
-**Fix metodo pagamento e fatturato crediti (sessione 10):**
-- `CreditStorage.addCredit` in `data.js`: aggiunto parametro `method`, salvato come `entry.method` nel record storico
-- `saveManualEntry`: nota semplificata (non contiene più il metodo tra parentesi), metodo passato come campo separato
-- `paySelectedDebts`: metodo passato ad `addCredit` in entrambe le chiamate (log pagamento + acconto)
-- `buildRegistroEntries`: crediti usano `h.amount` (non `displayAmount`) e espongono flag `freeLesson`
-- `_updateRegistroSummary` — formula fatturato aggiornata:
-  - `booking_paid` dove metodo ≠ `credito` AND ≠ `lezione-gratuita`
-  - PLUS `credit_added` dove `freeLesson = false`
-  - Evita doppio conteggio: la stessa somma non compare sia come `credit_added` che come `booking_paid (credito)`
-
----
-
-### 4.26 Annullamento diretto, debiti nel popup e fix transazioni (sessione 11, mar 2026)
-
-**Annullamento diretto entro 24h prima della lezione:**
-- Finestra temporale distinta:
-  - **> 24h prima:** bottone "Annulla" diretto → annullamento immediato (già funzionante)
-  - **≤ 24h prima e > 2h prima:** bottone "Richiedi annullamento" → flow con sostituzione cliente
-  - **≤ 2h prima:** nessun bottone (né annullamento né richiesta)
-- Revisione della logica `BookingStorage.cancelDirectly()` e del render in `prenotazioni.html`
-
-**Debiti manuali visibili e pagabili nel popup prenotazioni (admin calendar):**
-- Il popup "⚠️ Da pagare" / "⊕ Segna pagato" mostra ora anche i debiti manuali del cliente (oltre alle prenotazioni non pagate)
-- I debiti manuali sono selezionabili come checkbox e vengono saldati insieme alle prenotazioni
-- Ordinamento cronologico dal più vecchio al più nuovo (backlog prima)
-- Fix data visualizzata: usa `debtRec.history[i].date` (ISO string) invece del campo `date` del record aggregate
-
-**Fix formato prezzi nel popup:**
-- `€5,00` e `€10,00` mostrati uniformi con `.toFixed(2).replace('.', ',')`
-
-**Fix voce "+€" mancante in Transazioni su pagamento carta/contanti/iban:**
-- **Problema:** `paySelectedDebts()` (popup dal calendario) marcava le prenotazioni come pagate ma non aggiungeva alcuna voce al credit history — il cliente vedeva solo `-€X` (addebito lezione) senza il corrispondente `+€X` (incasso ricevuto)
-- **Root cause:** la funzione gestiva solo il caso di sovrapagamento (`creditDelta > 0`) ma non il pagamento esatto (`creditDelta = 0`) né il pagamento parziale
-- **Fix:** aggiunta branch `else` che chiama `CreditStorage.addCredit(..., 0, 'Carta ricevuto', amountPaid, ...)` con `amount=0` e `displayAmount=amountPaid` — coerente con quanto già faceva `saveBookingEdit()` dalla tab Clienti
-- **Fix cache:** bump `admin.js?v=7` → `v=8` in `admin.html` per forzare il reload del browser (il fix era in produzione ma il browser serviva la versione cachata)
-
----
-
-### 4.27 Fix Registro: rimborsi e storico annullamenti (sessione 12, mar 2026)
-
-**Problema:** il 🔄 Rimborso non appariva nel Registro dopo l'annullamento di una prenotazione pagata.
-
-**Root cause (tre livelli):**
-1. **SW cache stale:** `admin.js?v=7/8` ancora in cache durante l'annullamento → il vecchio codice creava i rimborsi con `hiddenRefund=true`, rendendoli invisibili
-2. **Filtro `hiddenRefund` in `buildRegistroEntries`:** il Registro filtrava le entry con `hiddenRefund=true`, nascondendo i rimborsi storici salvati col vecchio codice
-3. **`booking_paid` assente per prenotazioni annullate:** dopo l'annullamento `booking.paid = false` e `booking.paidAt = null`, quindi `buildRegistroEntries` non generava la riga ✅ Pagamento
-
-**Fix applicati:**
-
-- **SW cache:** bump `palestra-v4` → `palestra-v5` per forzare il reload di tutti i file JS
-- **`buildRegistroEntries` — `booking_paid` per annullati:** usa `cancelledPaidAt` / `cancelledPaymentMethod` (salvati da `deleteBooking`) per ricostruire la riga ✅ Pagamento anche dopo l'annullamento; analogamente `booking_created` mostra `cancelledPaymentMethod` e `bookingPaid=true` se era pagata prima della cancellazione
-- **Rimosso filtro `hiddenRefund` da `buildRegistroEntries`:** il Registro è la vista admin completa e deve mostrare tutti i rimborsi, inclusi quelli storici salvati con `hiddenRefund=true`; il filtro rimane solo nel pannello storico transazioni del singolo cliente
-
-**Risultato:** per ogni prenotazione pagata e poi annullata il Registro mostra correttamente tutte e 4 le righe in sequenza:
-
-```
-📅 Prenotazione   →  ✅ Pagamento  →  ❌ Annullamento  →  🔄 Rimborso
-```
-
-**File modificati:** `js/admin.js` (v=10), `admin.html`, `sw.js`
+**Fix Registro rimborsi:** `cancelledPaidAt`/`cancelledPaymentMethod` preservati in `deleteBooking` per ricostruire la sequenza Prenotazione → Pagamento → Annullamento → Rimborso. Rimosso filtro `hiddenRefund`.
 
 ---
 
@@ -1966,6 +1289,56 @@ Regex: `.replace(/\S+/g, w => w[0].toUpperCase() + w.slice(1).toLowerCase())`
 
 ---
 
+### 4.49 Refactor Supabase-first, admin UX e fix logout PWA (sessione 37, mar 2026)
+
+**Contesto:** completamento della migrazione dati da localStorage a Supabase come fonte di verità, con cache in memoria come intermediario. Correzione di bug UX nell'admin e fix critico per logout spurio nella PWA.
+
+**Cosa è stato fatto:**
+
+1. **Refactor Supabase-first — localStorage → cache in memoria**
+   - Ogni classe Storage ora ha `static _cache = []` o `{}` come source of truth in sessione
+   - `_getAll()` ritorna la cache; `syncFromSupabase()` popola la cache; le scritture aggiornano cache + upsert Supabase immediato
+   - Rimosso debounce 200ms su `CreditStorage._save()` e `ManualDebtStorage._save()` — scritture immediate
+   - Rimosso handler `beforeunload` flush (~35 righe)
+   - Rimosso fallback offline in `saveBooking()`/`saveBookingForClient()` — ritornano `{ ok: false, error: 'offline' }`
+   - `logoutUser()` svuota tutte le cache
+   - `exportBackup()`, `resetDemoData()`, `clearAllData()`, `deleteClientData` — tutti aggiornati per usare cache
+   - Rimossi tutti i 12+ `clearTimeout(CreditStorage._supabaseSaveTimer)` e `clearTimeout(ManualDebtStorage._supabaseSaveTimer)`
+   - localStorage mantenuto solo per: settings, scheduleOverrides, flags (dataClearedByUser, etc.)
+
+2. **Fix popup conferma prenotazione incompleto**
+   - `showConfirmation()` nascondeva `#modalSlotInfo` senza ripristinarlo
+   - Fix: `document.getElementById('modalSlotInfo').style.display = ''` in `openBookingModal()` e `closeBookingModal()`
+
+3. **Admin tabs sticky + persistenza tab**
+   - `.admin-tabs` reso sticky sotto navbar (z-index 13, background white)
+   - `setupAdminStickyOffsets()` aggiornato: navbar → tabs → controls → day-selector (desktop only)
+   - Tab attiva salvata in `sessionStorage('adminActiveTab')`
+   - `showDashboard()` ripristina il tab salvato
+   - Cambio tab scorre in alto (tranne Prenotazioni)
+
+4. **Auto-scroll all'orario corrente in admin**
+   - `_scrollToCurrentAdminSlot(container)`: scorre al primo slot con endTime > now
+
+5. **Fix tab Pagamenti/Clienti vuote al refresh**
+   - Le cache sono vuote al boot; sync popola async; il tab renderizzato prima del sync mostrava dati vuoti
+   - Fix in `admin.html`: dopo sync completato, `switchTab()` ri-renderizza il tab attivo
+
+6. **Fix logout spurio nella PWA**
+   - **Causa:** il refactor Supabase-first genera più chiamate API → più possibilità di token expiry → `SIGNED_OUT` spurio da Supabase → `_currentUser = null`
+   - **Fix:** flag `_isManualLogout` settato solo in `logoutUser()`. Il handler `SIGNED_OUT` in `onAuthStateChange`: se manuale → pulisci tutto; se spurio → tenta `refreshSession()` per recuperare la sessione, se rete assente mantieni lo stato corrente
+
+**File modificati:**
+- `js/data.js` — cache in memoria, rimosso debounce/beforeunload/offline fallback
+- `js/admin.js` — cache, sticky tabs, tab persistence, auto-scroll, rimossi clearTimeout
+- `js/auth.js` — cache clear in logout, fix SIGNED_OUT spurio con `_isManualLogout`
+- `js/booking.js` — fix popup #modalSlotInfo
+- `css/admin.css` — sticky admin-tabs
+- `admin.html` — re-render tab dopo sync
+- `sw.js` — bump cache da v61 a v70
+
+---
+
 ### 4.12 Notifiche (pianificate, non ancora implementate)
 
 - Il form di prenotazione simula l'invio di un messaggio WhatsApp (solo `console.log`)
@@ -2198,16 +1571,13 @@ Regex: `.replace(/\S+/g, w => w[0].toUpperCase() + w.slice(1).toLowerCase())`
   - ~~**Tabella `profiles` su Supabase + trigger auto-creazione profilo**~~ ✅ (sessione 19)
   - ~~**RLS configurata su tutte le 7 tabelle**~~ ✅ (sessione 19)
   - ~~**Brevo SMTP + email di conferma registrazione**~~ ✅ (sessione 19)
-  - **Fase 3:** Sostituire `BookingStorage` (localStorage) con chiamate Supabase API in `data.js`
-  - **Fase 4:** Sostituire `CreditStorage`, `ManualDebtStorage`, `BonusStorage`, `DebtThresholdStorage` con Supabase
-  - **Fase 5:** Sostituire `schedule_overrides` localStorage con tabella Supabase
-  - Aggiungere `async/await` a tutti i caller (già strutturati per farlo)
-  - Gestire loading states nell'UI durante le query async
-
-  **⚠️ Problemi da risolvere durante la migrazione data (vedi analisi completa sezione 10):**
-  - Le operazioni multi-step (prenota+scala credito, annulla+rimborsa) devono diventare SQL RPC atomiche
-  - `processPendingCancellations` va spostato in Supabase Edge Function schedulata (cron)
-  - Il netting credito/debito va spostato in SQL view per evitare N+1 query
+  - ~~**Fase 3-5:** Refactor Supabase-first — cache in memoria + sync da Supabase~~ ✅ (sessione 37)
+    - BookingStorage, CreditStorage, ManualDebtStorage, BonusStorage, UserStorage ora usano `_cache` in memoria
+    - Scritture immediate a Supabase (no debounce), letture dalla cache
+    - localStorage mantenuto solo per settings e flags
+  - ~~Operazioni multi-step migrate a SQL RPC atomiche~~ ✅ (sessione 25)
+  - `processPendingCancellations` → da spostare in Supabase Edge Function schedulata (cron)
+  - Il netting credito/debito → da spostare in SQL view per evitare N+1 query
 
 - [ ] **Autenticazione admin sicura**
   - ~~Supabase Auth installata e funzionante per utenti (email+password + Google OAuth)~~ ✅
@@ -2353,48 +1723,19 @@ Regex: `.replace(/\S+/g, w => w[0].toUpperCase() + w.slice(1).toLowerCase())`
 
 ---
 
-### Fase 3 — Migrazione dati `bookings` ⬅️ prossimo step
+### Fase 3–5 — Migrazione dati Supabase ✅ completata (sessione 37)
 
-- [ ] Sostituire `BookingStorage` in `data.js`: lettura/scrittura prenotazioni da Supabase `bookings`
-- [ ] Aggiungere `user_id` alle prenotazioni (collega booking a `profiles.id`)
-- [ ] `async/await` in `booking.js` e `calendar.js` per lettura slot e creazione prenotazione
-- [ ] `getRemainingSpots()` → query Supabase `COUNT(*)` invece di array in memoria
-- [ ] `getBookingsForSlot()` → query Supabase con filtri `date` + `time`
-- [ ] `getUserBookings()` in `auth.js` → query Supabase invece di localStorage
-- [ ] Gestire loading states nell'UI (spinner durante le query)
-- [ ] Verificare che il **login gate** (prenotazione richiede login) funzioni con dati Supabase
-- [ ] **Operazioni atomiche con RPC:**
-  - `book_slot_with_credit(...)` — prenota + scala credito in una transazione
-  - `cancel_booking_with_refund(...)` — cancella + rimborsa credito atomicamente
-  - `fulfill_pending_cancellation(...)` — sostituisce cliente su annullamento pendente
+**Architettura Supabase-first implementata:**
+- Cache in memoria (`_cache`) come source of truth in sessione
+- Supabase come source of truth persistente (sync al boot, scritture immediate)
+- localStorage mantenuto solo per settings e flags
+- RPC atomiche già attive (sessione 25)
+- Realtime subscriptions già attive su tutte le pagine (sessione 35)
 
----
-
-### Fase 4 — Migrazione dati finanziari (crediti, debiti, bonus, impostazioni)
-
-- [ ] `CreditStorage` → tabella `credits` Supabase (saldo) + `credit_history` (storico)
-- [ ] `ManualDebtStorage` → tabella `manual_debts` Supabase
-- [ ] `BonusStorage` → tabella `bonuses` Supabase (RPC `get_or_reset_bonus` già scritta)
-- [ ] `DebtThresholdStorage`, `CertBlockStorage`, `AssicBookingStorage`, `CertEditableStorage` → tabella `settings` Supabase (già popolata con valori default)
-- [ ] SQL view `v_client_balances` per netting credito/debito senza N+1 query
-- [ ] `getUnpaidPastDebt` → RPC Supabase `get_unpaid_past_debt` (già scritta nel migration)
-
----
-
-### Fase 5 — Migrazione schedule_overrides e admin
-
-- [ ] `BookingStorage.getScheduleOverrides()` → query Supabase `schedule_overrides`
-- [ ] `BookingStorage.saveScheduleOverrides()` → upsert Supabase
-- [ ] Admin panel: lettura e scrittura dati da Supabase invece di localStorage
-- [ ] `UserStorage` → query su `profiles` + `bookings` (già pianificato in 4.14)
-- [ ] `processPendingCancellations` → Supabase Edge Function cron (ogni 10-15 min)
-- [ ] Sostituire polling 3s con **Supabase Realtime** subscriptions su `bookings`
-- [ ] **Credenziali admin sicure**: Supabase Auth con ruolo `admin` o JWT custom claim
-- [ ] `push_subscriptions` → upsert Supabase (codice commentato già pronto in `push.js`)
-
----
-
-### Fase 6 — Notifiche email automatiche
+**Rimane da fare:**
+- [ ] `processPendingCancellations` → Edge Function cron (attualmente client-side su ogni pagina)
+- [ ] SQL view `v_client_balances` per netting credito/debito
+- [ ] `push_subscriptions` → upsert Supabase (codice commentato pronto in `push.js`)
 
 ---
 
