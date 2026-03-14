@@ -180,8 +180,33 @@ function applyCustomFilter() {
     loadDashboardData();
 }
 
+function setupAdminStickyOffsets() {
+    const navbar = document.querySelector('.navbar');
+    const controls = document.querySelector('.admin-calendar-controls');
+    const daySelector = document.querySelector('.admin-day-selector');
+    if (!navbar || !controls || !daySelector) return;
+    // Solo desktop (>768px)
+    if (window.innerWidth <= 768) return;
+
+    const navH = navbar.offsetHeight - 1;
+    controls.style.top = navH + 'px';
+    const update = () => { daySelector.style.top = (navH + controls.offsetHeight) + 'px'; };
+    update();
+    window.addEventListener('resize', () => {
+        if (window.innerWidth <= 768) {
+            controls.style.top = '';
+            daySelector.style.top = '';
+        } else {
+            const h = navbar.offsetHeight - 1;
+            controls.style.top = h + 'px';
+            daySelector.style.top = (h + controls.offsetHeight) + 'px';
+        }
+    });
+}
+
 function initAdmin() {
     showDashboard();
+    setupAdminStickyOffsets();
 
     // Close search dropdown when clicking outside
     document.addEventListener('click', (e) => {

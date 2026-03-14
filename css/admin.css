@@ -512,8 +512,13 @@ canvas {
     display: flex;
     justify-content: space-between;
     align-items: center;
-    margin-bottom: 1.5rem;
+    margin-bottom: 0;
     gap: 1rem;
+    position: sticky;
+    top: 0;
+    z-index: 12;
+    background-color: white;
+    padding: 0.75rem 0;
 }
 
 .admin-calendar-controls h4 {
@@ -530,6 +535,10 @@ canvas {
     margin-bottom: 1rem;
     justify-content: center;
     flex-wrap: wrap;
+    position: sticky;
+    top: 0;
+    z-index: 11;
+    background-color: white;
 }
 
 .admin-day-card {
@@ -2908,6 +2917,11 @@ canvas {
     /* Calendar controls */
     .admin-calendar-controls {
         gap: 0.4rem;
+        position: static;
+    }
+
+    .admin-day-selector {
+        position: static;
     }
 
     .admin-calendar-controls .btn-control {
