@@ -1721,22 +1721,26 @@ class ManualDebtStorage {
     static _save(data) {
         _lsSet(this.DEBTS_KEY, JSON.stringify(data));
         if (typeof supabaseClient === 'undefined') return;
-        const rows = Object.values(data).map(r => ({
-            name:     r.name,
-            whatsapp: r.whatsapp || null,
-            email:    (r.email || '').toLowerCase(),
-            balance:  r.balance  || 0,
-            history:  r.history  || [],
-        }));
-        if (rows.length === 0) return;
-        supabaseClient.from('manual_debts')
-            .upsert(rows, { onConflict: 'email' })
-            .then(({ error }) => {
-                if (error) {
-                    console.error('[Supabase] ManualDebtStorage._save error:', error.message);
-                    if (typeof showToast === 'function') showToast('⚠️ Errore salvataggio debiti sul server. Ricarica la pagina.', 'error', 5000);
-                }
-            });
+        clearTimeout(ManualDebtStorage._supabaseSaveTimer);
+        ManualDebtStorage._supabaseSaveTimer = setTimeout(() => {
+            const latest = ManualDebtStorage._getAll();
+            const rows = Object.values(latest).map(r => ({
+                name:     r.name,
+                whatsapp: r.whatsapp || null,
+                email:    (r.email || '').toLowerCase(),
+                balance:  r.balance  || 0,
+                history:  r.history  || [],
+            }));
+            if (rows.length === 0) return;
+            supabaseClient.from('manual_debts')
+                .upsert(rows, { onConflict: 'email' })
+                .then(({ error }) => {
+                    if (error) {
+                        console.error('[Supabase] ManualDebtStorage._save error:', error.message);
+                        if (typeof showToast === 'function') showToast('⚠️ Errore salvataggio debiti sul server. Ricarica la pagina.', 'error', 5000);
+                    }
+                });
+        }, 200);
     }
 
     static async syncFromSupabase() {

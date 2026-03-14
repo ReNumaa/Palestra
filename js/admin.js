@@ -3002,6 +3002,9 @@ function saveManualEntry() {
         // Debito: operazione atomica server-side via RPC
         (async () => {
             if (typeof supabaseClient !== 'undefined') {
+                // Cancella debounce pendenti PRIMA della RPC per evitare sovrascritture
+                clearTimeout(CreditStorage._supabaseSaveTimer);
+                clearTimeout(ManualDebtStorage._supabaseSaveTimer);
                 const { data, error } = await supabaseClient.rpc('admin_add_debt', {
                     p_email:      email.toLowerCase(),
                     p_whatsapp:   whatsapp || null,
@@ -3031,6 +3034,9 @@ function saveManualEntry() {
         const slotPrices = { 'personal-training': 5, 'small-group': 10, 'group-class': 30 };
 
         (async () => {
+            // Cancella debounce pendenti PRIMA della RPC per evitare sovrascritture
+            clearTimeout(CreditStorage._supabaseSaveTimer);
+            clearTimeout(ManualDebtStorage._supabaseSaveTimer);
             const { data, error } = await supabaseClient.rpc('admin_add_credit', {
                 p_email:       email.toLowerCase(),
                 p_whatsapp:    whatsapp || null,
@@ -3049,9 +3055,6 @@ function saveManualEntry() {
             }
 
             console.log('[admin_add_credit]', data);
-
-            // Cancella il debounce pendente (RPC ha già scritto i dati corretti)
-            clearTimeout(CreditStorage._supabaseSaveTimer);
 
             // Risincronizza tutto da Supabase
             await Promise.all([
@@ -3318,6 +3321,9 @@ function paySelectedDebts() {
     closeDebtPopup();
 
     (async () => {
+        // Cancella debounce pendenti PRIMA della RPC
+        clearTimeout(CreditStorage._supabaseSaveTimer);
+        clearTimeout(ManualDebtStorage._supabaseSaveTimer);
         const { data, error } = await supabaseClient.rpc('admin_pay_bookings', {
             p_booking_sb_ids:     sbIds,
             p_email:              contact.email.toLowerCase(),
@@ -3334,7 +3340,6 @@ function paySelectedDebts() {
             return;
         }
         console.log('[admin_pay_bookings]', data);
-        clearTimeout(CreditStorage._supabaseSaveTimer);
         await Promise.all([BookingStorage.syncFromSupabase(), CreditStorage.syncFromSupabase(), ManualDebtStorage.syncFromSupabase()]);
         if (selectedAdminDay) renderAdminDayView(selectedAdminDay);
         const activeTab = document.querySelector('.admin-tab.active');
