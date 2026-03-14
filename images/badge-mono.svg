@@ -1,19 +1,22 @@
 <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 96 96" width="96" height="96">
-  <!-- Bilanciere stilizzato con T centrale - monocromatico bianco su trasparente -->
+  <!-- Dumbbell outline - monocromatico bianco su trasparente -->
 
-  <!-- Barra orizzontale centrale del bilanciere -->
-  <rect x="8" y="40" width="80" height="8" rx="2" fill="white"/>
+  <!-- Barra centrale (impugnatura) -->
+  <rect x="30" y="43" width="36" height="10" rx="5" fill="none" stroke="white" stroke-width="4"/>
 
-  <!-- Dischi sinistri (ultima = più esterna, più corta) -->
-  <rect x="10" y="28" width="6" height="32" rx="2" fill="white"/>
-  <rect x="19" y="20" width="6" height="48" rx="2" fill="white"/>
-  <rect x="28" y="20" width="6" height="48" rx="2" fill="white"/>
+  <!-- Peso sinistro esterno -->
+  <rect x="6" y="28" width="12" height="40" rx="3" fill="none" stroke="white" stroke-width="4"/>
 
-  <!-- Dischi destri (ultima = più esterna, più corta) -->
-  <rect x="62" y="20" width="6" height="48" rx="2" fill="white"/>
-  <rect x="71" y="20" width="6" height="48" rx="2" fill="white"/>
-  <rect x="80" y="28" width="6" height="32" rx="2" fill="white"/>
+  <!-- Peso sinistro interno -->
+  <rect x="20" y="33" width="10" height="30" rx="3" fill="none" stroke="white" stroke-width="4"/>
 
-  <!-- Gambo verticale della T (sotto la barra) -->
-  <rect x="44" y="40" width="8" height="28" rx="2" fill="white"/>
+  <!-- Peso destro interno -->
+  <rect x="66" y="33" width="10" height="30" rx="3" fill="none" stroke="white" stroke-width="4"/>
+
+  <!-- Peso destro esterno -->
+  <rect x="78" y="28" width="12" height="40" rx="3" fill="none" stroke="white" stroke-width="4"/>
+
+  <!-- Connettori tra pesi e barra -->
+  <rect x="18" y="45" width="2" height="6" fill="white"/>
+  <rect x="76" y="45" width="2" height="6" fill="white"/>
 </svg>
