@@ -1550,6 +1550,29 @@ function renderAdminDayView(dateInfo) {
         const slotCard = createAdminSlotCard(dateInfo, scheduledSlot);
         dayView.appendChild(slotCard);
     });
+
+    // Auto-scroll al primo slot non ancora terminato (solo per oggi)
+    if (dateInfo.formatted === _localDateStr()) {
+        _scrollToCurrentAdminSlot(dayView);
+    }
+}
+
+function _scrollToCurrentAdminSlot(container) {
+    const now = new Date();
+    const nowMinutes = now.getHours() * 60 + now.getMinutes();
+    const cards = container.querySelectorAll('.admin-slot-card');
+    for (const card of cards) {
+        const timeEl = card.querySelector('.admin-slot-time');
+        if (!timeEl) continue;
+        const text = timeEl.textContent.replace('🕐', '').trim();
+        const parsed = _parseSlotTime(text);
+        if (!parsed) continue;
+        const slotEnd = parsed.endH * 60 + parsed.endM;
+        if (slotEnd > nowMinutes) {
+            setTimeout(() => card.scrollIntoView({ behavior: 'smooth', block: 'center' }), 100);
+            return;
+        }
+    }
 }
 
 function createAdminSlotCard(dateInfo, scheduledSlot) {
