@@ -55,9 +55,10 @@ function openBookingModal(dateInfo, timeSlot, slotType, remainingSpots) {
     spotsEl.textContent = `${remainingSpots} ${remainingSpots === 1 ? 'disponibile' : 'disponibili'}`;
     spotsEl.className = `modal-spots ${spotsColorClass(remainingSpots)}`;
 
-    // Reset form and hide confirmation
+    // Reset form and hide confirmation, restore slot info
     document.getElementById('bookingForm').reset();
     document.getElementById('confirmationMessage').style.display = 'none';
+    document.getElementById('modalSlotInfo').style.display = '';
 
     // Check login
     const user = typeof getCurrentUser === 'function' ? getCurrentUser() : null;
@@ -132,6 +133,7 @@ function closeBookingModal() {
     box.style.transform = '';
     box.style.transition = '';
     document.getElementById('bookingModal').style.display = 'none';
+    document.getElementById('modalSlotInfo').style.display = '';
     document.body.style.overflow = '';
     selectedSlot = null;
     // Reset iOS Safari auto-zoom that may have triggered on input focus
