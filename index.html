@@ -243,6 +243,19 @@
             if (typeof renderCalendar === 'function') renderCalendar();
             if (typeof renderMobileCalendar === 'function') renderMobileCalendar();
 
+            // Alert debito superato
+            const _debtUser = typeof getCurrentUser === 'function' ? getCurrentUser() : null;
+            if (_debtUser) {
+                await Promise.all([CreditStorage.syncFromSupabase(), ManualDebtStorage.syncFromSupabase()]);
+                const _dthr = DebtThresholdStorage.get();
+                if (_dthr > 0) {
+                    const _debt = BookingStorage.getUnpaidPastDebt(_debtUser.whatsapp || '', _debtUser.email || '');
+                    if (_debt > _dthr) {
+                        showToast('⚠️ ATTENZIONE: debito superato! Non potrai più prenotare finché non hai saldato.', 'error', 8000);
+                    }
+                }
+            }
+
             // Mostra banner notifiche push (solo se loggato e solo la prima volta)
             if (typeof promptPushPermission === 'function' && getCurrentUser()) {
                 setTimeout(promptPushPermission, 1500);
