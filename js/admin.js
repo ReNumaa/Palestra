@@ -309,6 +309,11 @@ function switchTab(tabName) {
     });
     document.getElementById(`tab-${tabName}`).classList.add('active');
 
+    // Scroll to top per tutti i tab tranne Prenotazioni (che ha l'auto-scroll allo slot corrente)
+    if (tabName !== 'bookings') {
+        window.scrollTo({ top: 0 });
+    }
+
     // Load specific data based on tab
     if (tabName === 'analytics') {
         // Delay so browser can layout the tab (canvas needs offsetWidth > 0)
