@@ -267,13 +267,16 @@ async function checkAuth() {
 
 function showDashboard() {
     document.getElementById('dashboardSection').style.display = 'block';
-    // Il reconcile crediti avviene dopo il sync da Supabase (admin.html script inline)
     setupTabs();
     setupAdminCalendar();
     setupScheduleManager();
-    // Don't draw charts on initial load (analytics tab is hidden, canvas.offsetWidth = 0)
     updateNonChartData();
     checkWeeklyReportBanner();
+    // Ripristina il tab attivo dal refresh (default: bookings)
+    const savedTab = sessionStorage.getItem('adminActiveTab');
+    if (savedTab && document.getElementById(`tab-${savedTab}`)) {
+        switchTab(savedTab);
+    }
 }
 
 // Tab Management
@@ -289,6 +292,9 @@ function setupTabs() {
 }
 
 function switchTab(tabName) {
+    // Persisti il tab attivo per il refresh
+    try { sessionStorage.setItem('adminActiveTab', tabName); } catch {}
+
     // Update tab buttons
     document.querySelectorAll('.admin-tab').forEach(tab => {
         tab.classList.remove('active');
