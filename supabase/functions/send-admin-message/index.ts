@@ -43,14 +43,12 @@ Deno.serve(async (req) => {
         let subs: any[] = [];
 
         if (mode === "tutti") {
-            // Tutte le subscription push
             const { data, error } = await supabase
                 .from("push_subscriptions")
-                .select("endpoint, p256dh, auth");
+                .select("endpoint, p256dh, auth, user_id");
             if (error) throw error;
             subs = data ?? [];
         } else {
-            // Filtra per bookings del giorno (e opzionalmente ora)
             let query = supabase
                 .from("bookings")
                 .select("user_id")
@@ -68,17 +66,30 @@ Deno.serve(async (req) => {
             const userIds = [...new Set((bookings ?? []).map((b: any) => b.user_id).filter(Boolean))];
 
             if (userIds.length === 0) {
-                return new Response(JSON.stringify({ ok: true, sent: 0 }), {
+                return new Response(JSON.stringify({ ok: true, sent: 0, recipients: [] }), {
                     headers: { ...corsHeaders, "Content-Type": "application/json" },
                 });
             }
 
             const { data, error } = await supabase
                 .from("push_subscriptions")
-                .select("endpoint, p256dh, auth")
+                .select("endpoint, p256dh, auth, user_id")
                 .in("user_id", userIds);
             if (error) throw error;
             subs = data ?? [];
+        }
+
+        // Recupera nomi dai profili
+        const userIds = [...new Set(subs.map((s: any) => s.user_id).filter(Boolean))];
+        let nameMap: Record<string, string> = {};
+        if (userIds.length > 0) {
+            const { data: profiles } = await supabase
+                .from("profiles")
+                .select("id, name")
+                .in("id", userIds);
+            for (const p of profiles ?? []) {
+                nameMap[p.id] = p.name || "Senza nome";
+            }
         }
 
         const payload = JSON.stringify({
@@ -89,6 +100,8 @@ Deno.serve(async (req) => {
         });
 
         let sent = 0;
+        const sentUserIds = new Set<string>();
+        const failedUserIds = new Set<string>();
         for (const sub of subs) {
             try {
                 await webpush.sendNotification(
@@ -96,16 +109,23 @@ Deno.serve(async (req) => {
                     payload,
                 );
                 sent++;
+                if (sub.user_id) sentUserIds.add(sub.user_id);
             } catch (e: any) {
                 console.error(`[Push] Errore ${sub.endpoint.slice(-30)}:`, e.message);
                 if (e.statusCode === 410 || e.statusCode === 404) {
                     await supabase.from("push_subscriptions").delete().eq("endpoint", sub.endpoint);
                 }
+                if (sub.user_id) failedUserIds.add(sub.user_id);
             }
         }
 
+        // Nomi di chi ha ricevuto con successo
+        const recipients = [...sentUserIds].map(id => nameMap[id] || "Sconosciuto");
+        // Nomi di chi ha fallito (e non ha ricevuto su nessun device)
+        const failed = [...failedUserIds].filter(id => !sentUserIds.has(id)).map(id => nameMap[id] || "Sconosciuto");
+
         console.log(`[send-admin-message] ${sent}/${subs.length} notifiche inviate (mode=${mode})`);
-        return new Response(JSON.stringify({ ok: true, sent }), {
+        return new Response(JSON.stringify({ ok: true, sent, recipients, failed }), {
             headers: { ...corsHeaders, "Content-Type": "application/json" },
         });
     } catch (e: any) {

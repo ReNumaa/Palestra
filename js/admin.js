@@ -6110,7 +6110,14 @@ async function sendAdminMessage() {
         });
         const data = await res.json();
         if (data.ok) {
-            status.textContent = `✅ Inviate ${data.sent} notifiche.`;
+            let msg = `✅ Inviate ${data.sent} notifiche`;
+            if (data.recipients && data.recipients.length > 0) {
+                msg += ` a: ${data.recipients.join(', ')}`;
+            }
+            if (data.failed && data.failed.length > 0) {
+                msg += ` | ❌ Non recapitate: ${data.failed.join(', ')}`;
+            }
+            status.textContent = msg;
             status.style.color = '#16a34a';
             document.getElementById('msgTitle').value = '';
             document.getElementById('msgBody').value = '';
