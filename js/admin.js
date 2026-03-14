@@ -3161,6 +3161,7 @@ function renderDebtPopupList(unpaid, debtInfo = null) {
                 </label>`;
         } else {
             const { balance, date } = it.debtInfo;
+            el.classList.add('debt-popup-item--past');
             const dateDisplay = date
                 ? (() => { const dt = new Date(date); return `${dt.getDate()}/${dt.getMonth()+1}/${dt.getFullYear()}`; })()
                 : '—';
