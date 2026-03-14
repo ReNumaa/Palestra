@@ -176,6 +176,10 @@
     border-bottom: 2px solid #ddd;
     flex-wrap: wrap;
     justify-content: center;
+    position: sticky;
+    top: 0;
+    z-index: 13;
+    background-color: white;
 }
 
 .admin-tab {

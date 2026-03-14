@@ -183,28 +183,26 @@ function applyCustomFilter() {
 let _adminStickyResizeHandler = null;
 function setupAdminStickyOffsets() {
     const navbar = document.querySelector('.navbar');
+    const tabs = document.querySelector('.admin-tabs');
     const controls = document.querySelector('.admin-calendar-controls');
     const daySelector = document.querySelector('.admin-day-selector');
-    if (!navbar || !controls || !daySelector) return;
-    // Solo desktop (>768px)
-    if (window.innerWidth <= 768) return;
+    if (!navbar || !tabs) return;
 
-    const navH = navbar.offsetHeight - 1;
-    controls.style.top = navH + 'px';
-    const update = () => { daySelector.style.top = (navH + controls.offsetHeight) + 'px'; };
-    update();
-    // Rimuovi listener precedente per evitare accumulo
-    if (_adminStickyResizeHandler) window.removeEventListener('resize', _adminStickyResizeHandler);
-    _adminStickyResizeHandler = () => {
+    const _apply = () => {
+        const navH = navbar.offsetHeight - 1;
+        tabs.style.top = navH + 'px';
         if (window.innerWidth <= 768) {
-            controls.style.top = '';
-            daySelector.style.top = '';
+            if (controls) controls.style.top = '';
+            if (daySelector) daySelector.style.top = '';
         } else {
-            const h = navbar.offsetHeight - 1;
-            controls.style.top = h + 'px';
-            daySelector.style.top = (h + controls.offsetHeight) + 'px';
+            const tabsBottom = navH + tabs.offsetHeight;
+            if (controls) controls.style.top = tabsBottom + 'px';
+            if (daySelector && controls) daySelector.style.top = (tabsBottom + controls.offsetHeight) + 'px';
         }
     };
+    _apply();
+    if (_adminStickyResizeHandler) window.removeEventListener('resize', _adminStickyResizeHandler);
+    _adminStickyResizeHandler = _apply;
     window.addEventListener('resize', _adminStickyResizeHandler);
 }
 
