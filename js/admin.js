@@ -180,6 +180,7 @@ function applyCustomFilter() {
     loadDashboardData();
 }
 
+let _adminStickyResizeHandler = null;
 function setupAdminStickyOffsets() {
     const navbar = document.querySelector('.navbar');
     const controls = document.querySelector('.admin-calendar-controls');
@@ -192,7 +193,9 @@ function setupAdminStickyOffsets() {
     controls.style.top = navH + 'px';
     const update = () => { daySelector.style.top = (navH + controls.offsetHeight) + 'px'; };
     update();
-    window.addEventListener('resize', () => {
+    // Rimuovi listener precedente per evitare accumulo
+    if (_adminStickyResizeHandler) window.removeEventListener('resize', _adminStickyResizeHandler);
+    _adminStickyResizeHandler = () => {
         if (window.innerWidth <= 768) {
             controls.style.top = '';
             daySelector.style.top = '';
@@ -201,7 +204,8 @@ function setupAdminStickyOffsets() {
             controls.style.top = h + 'px';
             daySelector.style.top = (h + controls.offsetHeight) + 'px';
         }
-    });
+    };
+    window.addEventListener('resize', _adminStickyResizeHandler);
 }
 
 function initAdmin() {

@@ -16,6 +16,7 @@ function initCalendar() {
     setupMobileStickyOffsets();
 }
 
+let _mobileStickyResizeHandler = null;
 function setupMobileStickyOffsets() {
     const navbar = document.querySelector('.navbar');
     const weekNav = document.querySelector('.mobile-week-nav');
@@ -24,9 +25,10 @@ function setupMobileStickyOffsets() {
 
     const navH = navbar.offsetHeight - 3;
     weekNav.style.top = navH + 'px';
-    const update = () => { daySelector.style.top = (navH + weekNav.offsetHeight) + 'px'; };
-    update();
-    window.addEventListener('resize', update);
+    if (_mobileStickyResizeHandler) window.removeEventListener('resize', _mobileStickyResizeHandler);
+    _mobileStickyResizeHandler = () => { daySelector.style.top = (navH + weekNav.offsetHeight) + 'px'; };
+    _mobileStickyResizeHandler();
+    window.addEventListener('resize', _mobileStickyResizeHandler);
 }
 
 function setupCalendarControls() {
