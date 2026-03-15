@@ -2460,6 +2460,26 @@ function renderAllTimeSlots() {
 function updateSlotType(timeSlot, newType) {
     if (!selectedScheduleDate) return;
 
+    const dateFormatted = selectedScheduleDate.formatted;
+
+    // Check if there are existing bookings in this slot
+    const existingBookings = BookingStorage.getBookingsForSlot(dateFormatted, timeSlot);
+    // Filter to only confirmed / cancellation_requested (getBookingsForSlot already excludes cancelled)
+    const activeBookings = existingBookings.filter(b => b.status === 'confirmed' || b.status === 'cancellation_requested');
+
+    if (activeBookings.length > 0) {
+        // Show confirmation popup with booked people
+        _showSlotChangePopup(timeSlot, newType, activeBookings);
+    } else {
+        // No bookings — apply change directly
+        _applySlotTypeChange(timeSlot, newType);
+    }
+}
+
+// Actually applies the slot type change (called directly or after popup confirmation)
+function _applySlotTypeChange(timeSlot, newType) {
+    if (!selectedScheduleDate) return;
+
     // Get current slots for this date
     let daySlots = getScheduleForDate(selectedScheduleDate.formatted, selectedScheduleDate.dayName);
 
@@ -2509,6 +2529,188 @@ function updateSlotType(timeSlot, newType) {
     renderAllTimeSlots();
 
     console.log(`Slot ${timeSlot} per ${selectedScheduleDate.formatted} aggiornato: ${newType || 'rimosso'}`);
+}
+
+// ── Slot Change Confirmation Popup ────────────────────────────────────────────
+// Shows a popup when admin tries to change/remove a slot that has active bookings.
+// Lists the booked people, allows sending a notification, and confirms cancellation.
+
+function _showSlotChangePopup(timeSlot, newType, bookings) {
+    // Remove any previous popup
+    const old = document.getElementById('slotChangeOverlay');
+    if (old) old.remove();
+    const oldPopup = document.getElementById('slotChangePopup');
+    if (oldPopup) oldPopup.remove();
+
+    const dateDisplay = `${selectedScheduleDate.dayName} ${selectedScheduleDate.date.getDate()}/${selectedScheduleDate.date.getMonth() + 1}/${selectedScheduleDate.date.getFullYear()}`;
+    const changeLabel = newType ? SLOT_NAMES[newType] : 'Nessuna lezione';
+
+    // Build people list HTML
+    let peopleHtml = '';
+    bookings.forEach(b => {
+        peopleHtml += `
+            <div style="display:flex; align-items:center; gap:0.5rem; padding:0.5rem 0.75rem; background:#fef2f2; border-radius:8px; margin-bottom:0.4rem;">
+                <span style="font-size:1.1rem;">👤</span>
+                <div style="flex:1; min-width:0;">
+                    <div style="font-weight:600; font-size:0.95rem;">${_escHtml(b.name)}</div>
+                    <div style="font-size:0.8rem; color:#666;">${_escHtml(b.whatsapp || b.email || '')}</div>
+                </div>
+                <span style="font-size:0.75rem; color:#dc2626; font-weight:500;">${b.status === 'cancellation_requested' ? 'Annullamento richiesto' : 'Confermata'}</span>
+            </div>`;
+    });
+
+    const defaultMsg = `La lezione di ${dateDisplay} alle ${timeSlot} è stata annullata. Ci scusiamo per il disagio.`;
+
+    const overlay = document.createElement('div');
+    overlay.id = 'slotChangeOverlay';
+    overlay.style.cssText = 'position:fixed;inset:0;background:rgba(0,0,0,0.5);z-index:9998;';
+
+    const popup = document.createElement('div');
+    popup.id = 'slotChangePopup';
+    popup.style.cssText = 'position:fixed;top:50%;left:50%;transform:translate(-50%,-50%);background:#fff;border-radius:16px;padding:0;max-width:460px;width:92%;max-height:85vh;overflow:hidden;z-index:9999;box-shadow:0 20px 60px rgba(0,0,0,0.3);display:flex;flex-direction:column;';
+
+    popup.innerHTML = `
+        <div style="padding:1.25rem 1.5rem; border-bottom:1px solid #e5e7eb; display:flex; justify-content:space-between; align-items:center;">
+            <div>
+                <h3 style="margin:0; font-size:1.1rem; color:#dc2626;">⚠️ Prenotazioni attive</h3>
+                <p style="margin:0.25rem 0 0; font-size:0.85rem; color:#666;">Slot ${timeSlot} — ${dateDisplay}</p>
+            </div>
+            <button id="slotChangeClose" style="background:none;border:none;font-size:1.3rem;cursor:pointer;padding:0.25rem;color:#666;">✕</button>
+        </div>
+        <div style="padding:1rem 1.5rem; overflow-y:auto; flex:1;">
+            <p style="margin:0 0 0.75rem; font-size:0.9rem; color:#374151;">
+                Ci sono <strong>${bookings.length} persona/e</strong> prenotate in questo slot.
+                Cambiando in <strong>"${_escHtml(changeLabel)}"</strong>, le prenotazioni verranno annullate.
+            </p>
+            <div style="margin-bottom:1rem;">
+                ${peopleHtml}
+            </div>
+            <div style="margin-bottom:0.75rem;">
+                <label style="display:flex; align-items:center; gap:0.5rem; font-size:0.9rem; font-weight:500; color:#374151; cursor:pointer;">
+                    <input type="checkbox" id="slotChangeSendNotify" checked style="width:18px; height:18px; accent-color:#2563eb;">
+                    Invia notifica push ai prenotati
+                </label>
+            </div>
+            <div id="slotChangeMsgContainer">
+                <label style="font-size:0.85rem; font-weight:600; color:#374151; display:block; margin-bottom:0.4rem;">Messaggio:</label>
+                <textarea id="slotChangeMsgText" rows="3" style="width:100%; box-sizing:border-box; padding:0.6rem 0.75rem; border:1px solid #d1d5db; border-radius:8px; font-size:0.9rem; resize:vertical; font-family:inherit;">${_escHtml(defaultMsg)}</textarea>
+            </div>
+            <div id="slotChangeResult" style="margin-top:0.75rem;"></div>
+        </div>
+        <div style="padding:1rem 1.5rem; border-top:1px solid #e5e7eb; display:flex; gap:0.75rem; justify-content:flex-end;">
+            <button id="slotChangeCancelBtn" style="padding:0.6rem 1.2rem; border:1px solid #d1d5db; border-radius:8px; background:#fff; font-size:0.9rem; cursor:pointer; color:#374151;">Annulla</button>
+            <button id="slotChangeConfirmBtn" style="padding:0.6rem 1.2rem; border:none; border-radius:8px; background:#dc2626; color:#fff; font-size:0.9rem; cursor:pointer; font-weight:600;">Conferma annullamento</button>
+        </div>
+    `;
+
+    document.body.appendChild(overlay);
+    document.body.appendChild(popup);
+
+    // Toggle message field visibility based on checkbox
+    const notifyCheckbox = document.getElementById('slotChangeSendNotify');
+    const msgContainer = document.getElementById('slotChangeMsgContainer');
+    notifyCheckbox.addEventListener('change', () => {
+        msgContainer.style.display = notifyCheckbox.checked ? 'block' : 'none';
+    });
+
+    // Close handlers
+    const closePopup = () => {
+        overlay.remove();
+        popup.remove();
+        // Reset the select dropdown since we're cancelling
+        renderAllTimeSlots();
+    };
+
+    document.getElementById('slotChangeClose').addEventListener('click', closePopup);
+    document.getElementById('slotChangeCancelBtn').addEventListener('click', closePopup);
+    overlay.addEventListener('click', closePopup);
+
+    // Confirm handler
+    document.getElementById('slotChangeConfirmBtn').addEventListener('click', async () => {
+        const confirmBtn = document.getElementById('slotChangeConfirmBtn');
+        const resultDiv = document.getElementById('slotChangeResult');
+        const sendNotify = document.getElementById('slotChangeSendNotify').checked;
+        const msgText = document.getElementById('slotChangeMsgText').value.trim();
+
+        confirmBtn.disabled = true;
+        confirmBtn.textContent = '⏳ Elaborazione...';
+
+        try {
+            // Step 1: Send notifications if checked
+            if (sendNotify && msgText) {
+                resultDiv.innerHTML = '<div style="color:#6b7280; font-size:0.85rem;">⏳ Invio notifiche in corso...</div>';
+
+                const res = await fetch(`${SUPABASE_URL}/functions/v1/send-admin-message`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                        title: '📢 Lezione annullata',
+                        body: msgText,
+                        mode: 'ora',
+                        date: selectedScheduleDate.formatted,
+                        time: timeSlot
+                    })
+                });
+                const data = await res.json();
+
+                let notifyHtml = '';
+                if (data.ok) {
+                    if ((data.recipients || []).length > 0) {
+                        notifyHtml += `<div style="color:#16a34a; font-size:0.85rem; margin-bottom:0.3rem;">✅ Notifica inviata a (${data.recipients.length}):</div>`;
+                        notifyHtml += '<ul style="margin:0 0 0.5rem; padding-left:1.2rem; list-style:none;">';
+                        (data.recipients || []).forEach(name => {
+                            notifyHtml += `<li style="font-size:0.85rem; padding:0.15rem 0;">👤 ${_escHtml(name)}</li>`;
+                        });
+                        notifyHtml += '</ul>';
+                    }
+                    if ((data.failed || []).length > 0) {
+                        notifyHtml += `<div style="color:#dc2626; font-size:0.85rem; margin-bottom:0.3rem;">❌ Non recapitate (${data.failed.length}):</div>`;
+                        notifyHtml += '<ul style="margin:0 0 0.5rem; padding-left:1.2rem; list-style:none;">';
+                        (data.failed || []).forEach(name => {
+                            notifyHtml += `<li style="font-size:0.85rem; padding:0.15rem 0;">👤 ${_escHtml(name)}</li>`;
+                        });
+                        notifyHtml += '</ul>';
+                    }
+                    if ((data.recipients || []).length === 0 && (data.failed || []).length === 0) {
+                        notifyHtml = '<div style="color:#f59e0b; font-size:0.85rem;">⚠️ Nessun destinatario con notifiche push attive.</div>';
+                    }
+                } else {
+                    notifyHtml = `<div style="color:#dc2626; font-size:0.85rem;">❌ Errore invio notifiche: ${_escHtml(data.error || 'sconosciuto')}</div>`;
+                }
+
+                resultDiv.innerHTML = notifyHtml;
+            }
+
+            // Step 2: Cancel all bookings in this slot
+            bookings.forEach(b => {
+                BookingStorage.removeBookingById(b.id);
+            });
+
+            // Step 3: Apply the slot type change
+            _applySlotTypeChange(timeSlot, newType);
+
+            // Update button to show success
+            confirmBtn.textContent = '✅ Fatto';
+            confirmBtn.style.background = '#16a34a';
+
+            // Add final message
+            const doneMsg = document.createElement('div');
+            doneMsg.style.cssText = 'color:#16a34a; font-size:0.85rem; font-weight:600; margin-top:0.5rem;';
+            doneMsg.textContent = `✅ ${bookings.length} prenotazione/i annullata/e. Slot aggiornato.`;
+            resultDiv.appendChild(doneMsg);
+
+            // Auto-close after a short delay
+            setTimeout(() => {
+                overlay.remove();
+                popup.remove();
+            }, 2500);
+
+        } catch (e) {
+            resultDiv.innerHTML = `<div style="color:#dc2626; font-size:0.85rem;">❌ Errore: ${_escHtml(e.message)}</div>`;
+            confirmBtn.disabled = false;
+            confirmBtn.textContent = 'Conferma annullamento';
+        }
+    });
 }
 
 // ── Client Picker for "Slot prenotato" ────────────────────────────────────────
