@@ -3300,7 +3300,7 @@ function selectManualMethod(btn) {
     btn.classList.add('active');
 }
 
-function saveManualEntry() {
+async function saveManualEntry() {
     if (!_manualEntryContact) {
         alert('Seleziona un cliente dalla lista');
         document.getElementById('manualClientInput').focus();
@@ -3317,6 +3317,12 @@ function saveManualEntry() {
     const method = manualSelect ? manualSelect.value : '';
     if (!method && _manualEntryType !== 'debt') { showToast('Seleziona un metodo di pagamento', 'error'); return; }
     const { name, whatsapp, email } = _manualEntryContact;
+
+    // Controllo dati per carta/bonifico
+    if (method === 'carta' || method === 'iban') {
+        try { await ensureClientDataForCardPayment(email, whatsapp, name, method); }
+        catch { return; }
+    }
 
     const savedType = _manualEntryType;
     closeManualEntryPopup();
@@ -3579,13 +3585,23 @@ function onPaymentMethodChange(select) {
     updateCreditPreview();
 }
 
-function paySelectedDebts() {
+async function paySelectedDebts() {
     const checked = document.querySelectorAll('.debt-item-check:checked');
     if (checked.length === 0) return;
 
     const methodSelect = document.getElementById('debtMethodSelect');
     const paymentMethod = methodSelect ? methodSelect.value : '';
     if (!paymentMethod) { showToast('Seleziona un metodo di pagamento', 'error'); return; }
+
+    // Controllo dati per carta/bonifico
+    if (paymentMethod === 'carta' || paymentMethod === 'iban') {
+        const contact = currentDebtContact;
+        if (contact) {
+            try { await ensureClientDataForCardPayment(contact.email, contact.whatsapp, contact.name, paymentMethod); }
+            catch { return; }
+        }
+    }
+
     const isFreeLesson = paymentMethod === 'lezione-gratuita';
     const amountInput = document.getElementById('debtAmountInput');
     const amountPaid = isFreeLesson ? 0 : (amountInput ? (parseFloat(amountInput.value) || 0) : 0);
@@ -4289,7 +4305,7 @@ function cancelBookingRowEdit(bookingId) {
     delete row._origClass;
 }
 
-function saveBookingRowEdit(bookingId, clientIndex) {
+async function saveBookingRowEdit(bookingId, clientIndex) {
     // Previeni doppio click: disabilita il bottone salva
     const _saveBtn = document.querySelector(`[onclick*="saveBookingRowEdit('${bookingId}'"]`);
     if (_saveBtn) _saveBtn.disabled = true;
@@ -4300,6 +4316,12 @@ function saveBookingRowEdit(bookingId, clientIndex) {
     const bookings = BookingStorage.getAllBookings();
     const booking  = bookings.find(b => b.id === bookingId);
     if (!booking) { if (_saveBtn) _saveBtn.disabled = false; return; }
+
+    // Controllo dati per carta/bonifico (solo se il metodo sta cambiando a carta/iban)
+    if ((newMethod === 'carta' || newMethod === 'iban') && newPaid) {
+        try { await ensureClientDataForCardPayment(booking.email, booking.whatsapp, booking.name, newMethod); }
+        catch { if (_saveBtn) _saveBtn.disabled = false; return; }
+    }
 
     const oldPaid   = booking.paid;
     const oldMethod = booking.paymentMethod || '';
@@ -5726,6 +5748,109 @@ function _getUserRecord(email, whatsapp) {
     const users = _getUsersFull();
     const idx = _findUserIdx(users, email, whatsapp);
     return idx !== -1 ? users[idx] : null;
+}
+
+// ── Controllo dati obbligatori per pagamento carta/bonifico ─────────────────
+// Restituisce una Promise: resolve() se i dati sono completi (o appena salvati),
+// reject() se l'utente annulla il popup.
+let _missingDataResolve = null;
+let _missingDataReject  = null;
+let _missingDataEmail   = '';
+let _missingDataWhatsapp = '';
+
+function ensureClientDataForCardPayment(email, whatsapp, name) {
+    const method = arguments[3]; // payment method passed as 4th arg
+    if (method !== 'carta' && method !== 'iban') return Promise.resolve();
+
+    const user = _getUserRecord(email, whatsapp);
+    const hasCF   = !!user?.codiceFiscale;
+    const hasVia  = !!user?.indirizzoVia;
+    const hasPaese= !!user?.indirizzoPaese;
+    const hasCap  = !!user?.indirizzoCap;
+
+    if (hasCF && hasVia && hasPaese && hasCap) return Promise.resolve();
+
+    // Apri popup per completare i dati
+    return new Promise((resolve, reject) => {
+        _missingDataResolve  = resolve;
+        _missingDataReject   = reject;
+        _missingDataEmail    = email;
+        _missingDataWhatsapp = whatsapp;
+
+        const overlay = document.getElementById('missingDataOverlay');
+        document.getElementById('missingDataTitle').textContent = `⚠️ Dati mancanti — ${name || email}`;
+        document.getElementById('mdCodiceFiscale').value = user?.codiceFiscale || '';
+        document.getElementById('mdVia').value   = user?.indirizzoVia || '';
+        document.getElementById('mdPaese').value = user?.indirizzoPaese || '';
+        document.getElementById('mdCAP').value   = user?.indirizzoCap || '';
+        document.getElementById('mdError').style.display = 'none';
+
+        // Mostra solo i campi mancanti
+        document.getElementById('mdCfField').style.display       = hasCF    ? 'none' : '';
+        document.getElementById('mdViaField').style.display      = hasVia   ? 'none' : '';
+        document.getElementById('mdPaeseCapField').style.display = (hasPaese && hasCap) ? 'none' : '';
+
+        overlay.classList.add('open');
+    });
+}
+
+function closeMissingDataPopup() {
+    document.getElementById('missingDataOverlay').classList.remove('open');
+    if (_missingDataReject) { _missingDataReject('cancelled'); _missingDataReject = null; }
+    _missingDataResolve = null;
+}
+
+async function saveMissingData() {
+    const cf    = document.getElementById('mdCodiceFiscale').value.trim().toUpperCase();
+    const via   = document.getElementById('mdVia').value.trim();
+    const paese = document.getElementById('mdPaese').value.trim();
+    const cap   = document.getElementById('mdCAP').value.trim();
+    const errEl = document.getElementById('mdError');
+
+    // Valida solo i campi visibili (quelli che mancavano)
+    const cfField = document.getElementById('mdCfField');
+    if (cfField.style.display !== 'none' && cf) {
+        if (!/^[A-Z]{6}\d{2}[A-Z]\d{2}[A-Z]\d{3}[A-Z]$/i.test(cf)) {
+            errEl.textContent = 'Codice Fiscale non valido.';
+            errEl.style.display = 'block';
+            return;
+        }
+    }
+    if (cfField.style.display !== 'none' && !cf) {
+        errEl.textContent = 'Il Codice Fiscale è obbligatorio.';
+        errEl.style.display = 'block';
+        return;
+    }
+
+    const viaField = document.getElementById('mdViaField');
+    if (viaField.style.display !== 'none' && !via) {
+        errEl.textContent = 'La via è obbligatoria.';
+        errEl.style.display = 'block';
+        return;
+    }
+
+    const paeseCapField = document.getElementById('mdPaeseCapField');
+    if (paeseCapField.style.display !== 'none') {
+        if (!paese) { errEl.textContent = 'Il paese è obbligatorio.'; errEl.style.display = 'block'; return; }
+        if (!/^\d{5}$/.test(cap)) { errEl.textContent = 'CAP non valido (5 cifre).'; errEl.style.display = 'block'; return; }
+    }
+
+    // Salva nel profilo (cache locale + Supabase)
+    const users = _getUsersFull();
+    const idx = _findUserIdx(users, _missingDataEmail, _missingDataWhatsapp);
+    const fields = {};
+    if (cf)    { fields.codice_fiscale = cf;   if (idx !== -1) users[idx].codiceFiscale = cf; }
+    if (via)   { fields.indirizzo_via = via;   if (idx !== -1) users[idx].indirizzoVia = via; }
+    if (paese) { fields.indirizzo_paese = paese; if (idx !== -1) users[idx].indirizzoPaese = paese; }
+    if (cap)   { fields.indirizzo_cap = cap;   if (idx !== -1) users[idx].indirizzoCap = cap; }
+
+    if (Object.keys(fields).length > 0) {
+        await _updateSupabaseProfile(_missingDataEmail, _missingDataWhatsapp, fields);
+    }
+
+    document.getElementById('missingDataOverlay').classList.remove('open');
+    if (_missingDataResolve) { _missingDataResolve(); _missingDataResolve = null; }
+    _missingDataReject = null;
 }
 
 function _findUserIdx(users, email, whatsapp) {

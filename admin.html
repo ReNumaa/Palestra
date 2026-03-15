@@ -767,6 +767,44 @@
         </div>
     </div>
 
+    <!-- Modal: dati mancanti per pagamento carta/bonifico -->
+    <div id="missingDataOverlay" class="debt-popup-overlay" onclick="if(event.target===this)closeMissingDataPopup()">
+        <div class="debt-popup" style="max-width:420px;">
+            <div class="debt-popup-header">
+                <h3 id="missingDataTitle">⚠️ Dati mancanti per pagamento</h3>
+                <button class="debt-popup-close" onclick="closeMissingDataPopup()">✕</button>
+            </div>
+            <div class="debt-popup-body" style="padding:1rem 1.25rem;">
+                <p style="color:#555; font-size:0.9rem; margin-bottom:1rem;" id="missingDataDesc">
+                    Per i pagamenti con carta o bonifico servono Codice Fiscale e indirizzo di residenza.
+                </p>
+                <div class="manual-entry-field" id="mdCfField">
+                    <span class="debt-field-label">Codice Fiscale</span>
+                    <input type="text" id="mdCodiceFiscale" placeholder="RSSMRA85M01H501Z" maxlength="16" style="text-transform:uppercase" class="manual-note-input">
+                </div>
+                <div class="manual-entry-field" id="mdViaField">
+                    <span class="debt-field-label">Via / Indirizzo</span>
+                    <input type="text" id="mdVia" placeholder="Via Roma 1" class="manual-note-input">
+                </div>
+                <div class="manual-entry-field" style="display:flex; gap:0.75rem;" id="mdPaeseCapField">
+                    <div style="flex:2">
+                        <span class="debt-field-label">Paese / Città</span>
+                        <input type="text" id="mdPaese" placeholder="Milano" class="manual-note-input">
+                    </div>
+                    <div style="flex:1">
+                        <span class="debt-field-label">CAP</span>
+                        <input type="text" id="mdCAP" placeholder="20100" maxlength="5" inputmode="numeric" class="manual-note-input">
+                    </div>
+                </div>
+                <div id="mdError" class="login-error" style="display:none; margin-top:0.5rem;"></div>
+            </div>
+            <div class="debt-popup-footer" style="justify-content:flex-end; gap:0.75rem;">
+                <button class="btn-clear-search" onclick="closeMissingDataPopup()">Annulla</button>
+                <button class="debt-popup-pay-btn" id="mdSaveBtn" onclick="saveMissingData()">✓ Salva e continua</button>
+            </div>
+        </div>
+    </div>
+
     <!-- Sidebar -->
     <div class="nav-sidebar-overlay" id="navSidebarOverlay" onclick="toggleNavMenu()"></div>
     <nav class="nav-sidebar" id="navSidebar">
