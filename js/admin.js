@@ -2644,7 +2644,7 @@ function _showSlotChangePopup(timeSlot, newType, bookings) {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
                     body: JSON.stringify({
-                        title: '📢 Lezione annullata',
+                        title: `📢 Lezione annullata del ${dateDisplay} alle ${timeSlot.split(' - ')[0]}`,
                         body: msgText,
                         mode: 'ora',
                         date: selectedScheduleDate.formatted,
