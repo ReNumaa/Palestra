@@ -154,6 +154,20 @@
                         <input type="text" id="regCodiceFiscale" placeholder="RSSMRA85M01H501Z" maxlength="16" style="text-transform:uppercase">
                     </div>
                     <div class="form-group">
+                        <label for="regVia">Via / Indirizzo *</label>
+                        <input type="text" id="regVia" placeholder="Via Roma 1" autocomplete="street-address">
+                    </div>
+                    <div class="form-group" style="display:flex; gap:0.75rem;">
+                        <div style="flex:2">
+                            <label for="regPaese">Paese / Città *</label>
+                            <input type="text" id="regPaese" placeholder="Milano" autocomplete="address-level2">
+                        </div>
+                        <div style="flex:1">
+                            <label for="regCAP">CAP *</label>
+                            <input type="text" id="regCAP" placeholder="20100" maxlength="5" inputmode="numeric" autocomplete="postal-code">
+                        </div>
+                    </div>
+                    <div class="form-group">
                         <label for="regPassword">Password *</label>
                         <div class="password-input-wrap">
                             <input type="password" id="regPassword" placeholder="Min. 6 caratteri" autocomplete="new-password">
@@ -188,6 +202,20 @@
             <div class="form-group">
                 <label for="oauthCodiceFiscale">Codice Fiscale *</label>
                 <input type="text" id="oauthCodiceFiscale" placeholder="RSSMRA85M01H501Z" maxlength="16" style="text-transform:uppercase">
+            </div>
+            <div class="form-group">
+                <label for="oauthVia">Via / Indirizzo *</label>
+                <input type="text" id="oauthVia" placeholder="Via Roma 1" autocomplete="street-address">
+            </div>
+            <div class="form-group" style="display:flex; gap:0.75rem;">
+                <div style="flex:2">
+                    <label for="oauthPaese">Paese / Città *</label>
+                    <input type="text" id="oauthPaese" placeholder="Milano" autocomplete="address-level2">
+                </div>
+                <div style="flex:1">
+                    <label for="oauthCAP">CAP *</label>
+                    <input type="text" id="oauthCAP" placeholder="20100" maxlength="5" inputmode="numeric" autocomplete="postal-code">
+                </div>
             </div>
             <div id="oauthWhatsappError" class="login-error" style="display:none;">Inserisci un numero valido (min. 10 cifre).</div>
             <button class="btn-primary" style="width:100%; margin-top:0.5rem" onclick="confirmCompleteProfile()">Continua</button>
@@ -295,13 +323,16 @@
             const email    = document.getElementById('regEmail').value.trim();
             const whatsapp = normalizePhone(document.getElementById('regWhatsapp').value.trim());
             const codiceFiscale = document.getElementById('regCodiceFiscale').value.trim().toUpperCase();
+            const via      = document.getElementById('regVia').value.trim();
+            const paese    = document.getElementById('regPaese').value.trim();
+            const cap      = document.getElementById('regCAP').value.trim();
             const password = document.getElementById('regPassword').value;
             const confirm  = document.getElementById('regPasswordConfirm').value;
             const errEl    = document.getElementById('registerError');
             const btn      = e.target.querySelector('button[type="submit"]');
             errEl.style.display = 'none';
 
-            if (!name || !email || !whatsapp || !codiceFiscale || !password || !confirm) {
+            if (!name || !email || !whatsapp || !codiceFiscale || !via || !paese || !cap || !password || !confirm) {
                 errEl.textContent = 'Compila tutti i campi obbligatori.';
                 errEl.style.display = 'block';
                 return;
@@ -321,6 +352,11 @@
                 errEl.style.display = 'block';
                 return;
             }
+            if (!/^\d{5}$/.test(cap)) {
+                errEl.textContent = 'CAP non valido. Deve essere di 5 cifre.';
+                errEl.style.display = 'block';
+                return;
+            }
             if (password.length < 6) {
                 errEl.textContent = 'La password deve essere di almeno 6 caratteri.';
                 errEl.style.display = 'block';
@@ -334,7 +370,7 @@
 
             setLoading(btn, true, 'Registrazione in corso...');
             try {
-                const result = await registerUser(name, email, whatsapp, password, codiceFiscale);
+                const result = await registerUser(name, email, whatsapp, password, codiceFiscale, { via, paese, cap });
                 if (result.ok) {
                     document.getElementById('registerForm').style.display = 'none';
                     document.getElementById('registerSuccess').style.display = 'block';
@@ -463,6 +499,9 @@
         async function confirmCompleteProfile() {
             const raw   = document.getElementById('oauthWhatsapp').value.trim();
             const cfRaw = document.getElementById('oauthCodiceFiscale').value.trim().toUpperCase();
+            const via   = document.getElementById('oauthVia').value.trim();
+            const paese = document.getElementById('oauthPaese').value.trim();
+            const cap   = document.getElementById('oauthCAP').value.trim();
             const errEl = document.getElementById('oauthWhatsappError');
             const btn   = document.querySelector('#completeProfileModal .btn-primary');
             errEl.style.display = 'none';
@@ -476,6 +515,17 @@
 
             if (!/^[A-Z]{6}\d{2}[A-Z]\d{2}[A-Z]\d{3}[A-Z]$/i.test(cfRaw)) {
                 errEl.textContent = 'Codice Fiscale non valido (16 caratteri alfanumerici).';
+                errEl.style.display = 'block';
+                return;
+            }
+
+            if (!via || !paese) {
+                errEl.textContent = 'Compila via e paese di residenza.';
+                errEl.style.display = 'block';
+                return;
+            }
+            if (!/^\d{5}$/.test(cap)) {
+                errEl.textContent = 'CAP non valido. Deve essere di 5 cifre.';
                 errEl.style.display = 'block';
                 return;
             }
@@ -495,7 +545,7 @@
             // Upsert profilo su Supabase
             const { error } = await supabaseClient
                 .from('profiles')
-                .upsert({ id: userId, name, email, whatsapp, codice_fiscale: cfRaw });
+                .upsert({ id: userId, name, email, whatsapp, codice_fiscale: cfRaw, indirizzo_via: via, indirizzo_paese: paese, indirizzo_cap: cap });
 
             if (error) {
                 setLoading(btn, false);

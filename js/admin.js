@@ -788,6 +788,9 @@ function _convertCronToAdminFormat(cron) {
             assicurazioneScadenza: p.insurance_expiry || null,
             insuranceHistory: p.insurance_history || [],
             codiceFiscale: p.codice_fiscale || null,
+            indirizzoVia: p.indirizzo_via || null,
+            indirizzoPaese: p.indirizzo_paese || null,
+            indirizzoCap: p.indirizzo_cap || null,
         })));
     }
     // Tabelle raw per Supabase restore diretto
@@ -1050,6 +1053,9 @@ function importBackup(input) {
                                     insurance_expiry: p.insurance_expiry || null,
                                     insurance_history: p.insurance_history || [],
                                     codice_fiscale: p.codice_fiscale || null,
+                                    indirizzo_via: p.indirizzo_via || null,
+                                    indirizzo_paese: p.indirizzo_paese || null,
+                                    indirizzo_cap: p.indirizzo_cap || null,
                                 }).eq('email', (p.email || '').toLowerCase()));
                             }
                         }
@@ -6183,10 +6189,12 @@ async function downloadWeeklyReport() {
         cardBookings.forEach(b => {
             const user = userMap[(b.email || '').toLowerCase()];
             const { nome, cognome } = splitName(b.name);
+            const addr = [user?.indirizzoVia, user?.indirizzoPaese, user?.indirizzoCap].filter(Boolean).join(', ');
             rows.push({
                 nome,
                 cognome,
                 cf: user?.codiceFiscale || '',
+                indirizzo: addr,
                 data: fmtDateTime(b.paidAt || b.date + 'T12:00:00'),
                 sortKey: b.paidAt || b.date,
                 tipo: SLOT_LABEL[b.slotType] || b.slotType || '',
@@ -6198,10 +6206,12 @@ async function downloadWeeklyReport() {
         manualCardPayments.forEach(p => {
             const user = userMap[(p.email || '').toLowerCase()];
             const { nome, cognome } = splitName(p.name);
+            const addr = [user?.indirizzoVia, user?.indirizzoPaese, user?.indirizzoCap].filter(Boolean).join(', ');
             rows.push({
                 nome,
                 cognome,
                 cf: user?.codiceFiscale || '',
+                indirizzo: addr,
                 data: fmtDateTime(p.date),
                 sortKey: p.date || '',
                 tipo: p.type,
@@ -6215,14 +6225,14 @@ async function downloadWeeklyReport() {
 
         // Build XLSX
         const sheetData = [
-            ['Nome', 'Cognome', 'Codice Fiscale', 'Data e Ora Pagamento', 'Tipo di Pagamento', 'Metodo Pagamento', 'Importo (€)'],
-            ...rows.map(r => [r.nome, r.cognome, r.cf, r.data, r.tipo, r.metodo, r.importo])
+            ['Nome', 'Cognome', 'Codice Fiscale', 'Indirizzo', 'Data e Ora Pagamento', 'Tipo di Pagamento', 'Metodo Pagamento', 'Importo (€)'],
+            ...rows.map(r => [r.nome, r.cognome, r.cf, r.indirizzo, r.data, r.tipo, r.metodo, r.importo])
         ];
 
         const wb = XLSX.utils.book_new();
         const ws = XLSX.utils.aoa_to_sheet(sheetData);
         ws['!cols'] = [
-            { wch: 18 }, { wch: 20 }, { wch: 20 }, { wch: 22 }, { wch: 22 }, { wch: 18 }, { wch: 12 }
+            { wch: 18 }, { wch: 20 }, { wch: 20 }, { wch: 35 }, { wch: 22 }, { wch: 22 }, { wch: 18 }, { wch: 12 }
         ];
         XLSX.utils.book_append_sheet(wb, ws, 'Pagamenti Carta e Bonifico');
 

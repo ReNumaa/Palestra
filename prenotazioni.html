@@ -151,6 +151,20 @@
                     <input type="text" id="editCodiceFiscale" placeholder="RSSMRA85M01H501Z" maxlength="16" style="text-transform:uppercase">
                 </div>
                 <div class="form-group">
+                    <label for="editVia">Via / Indirizzo</label>
+                    <input type="text" id="editVia" placeholder="Via Roma 1" autocomplete="street-address">
+                </div>
+                <div class="form-group" style="display:flex; gap:0.75rem;">
+                    <div style="flex:2">
+                        <label for="editPaese">Paese / Città</label>
+                        <input type="text" id="editPaese" placeholder="Milano" autocomplete="address-level2">
+                    </div>
+                    <div style="flex:1">
+                        <label for="editCAP">CAP</label>
+                        <input type="text" id="editCAP" placeholder="20100" maxlength="5" inputmode="numeric" autocomplete="postal-code">
+                    </div>
+                </div>
+                <div class="form-group">
                     <label for="editCertScadenza">Scadenza certificato medico</label>
                     <input type="date" id="editCertScadenza">
                 </div>
@@ -892,6 +906,9 @@
             document.getElementById('editEmail').value    = user.email || '';
             document.getElementById('editWhatsapp').value = user.whatsapp || '';
             document.getElementById('editCodiceFiscale').value = user.codice_fiscale || '';
+            document.getElementById('editVia').value   = user.indirizzo_via || '';
+            document.getElementById('editPaese').value = user.indirizzo_paese || '';
+            document.getElementById('editCAP').value   = user.indirizzo_cap || '';
             const certField = document.getElementById('editCertScadenza');
             certField.value    = user.medical_cert_expiry || '';
             certField.disabled = !CertEditableStorage.get();
@@ -918,6 +935,9 @@
             const email    = document.getElementById('editEmail').value.trim();
             const whatsapp = document.getElementById('editWhatsapp').value.trim();
             const codiceFiscale = document.getElementById('editCodiceFiscale').value.trim();
+            const via      = document.getElementById('editVia').value.trim();
+            const paese    = document.getElementById('editPaese').value.trim();
+            const cap      = document.getElementById('editCAP').value.trim();
             const certSc   = document.getElementById('editCertScadenza').value;
             const pass     = document.getElementById('editPassword').value;
             const passConf = document.getElementById('editPasswordConfirm').value;
@@ -932,11 +952,16 @@
             if (pass && pass !== passConf) return showErr('Le password non coincidono.');
 
             setLoading(btn, true, 'Salvataggio...');
+            if (cap && !/^\d{5}$/.test(cap)) return showErr('CAP non valido. Deve essere di 5 cifre.');
+
             const result = await updateUserProfile(user.email, {
                 name,
                 email,
                 whatsapp: whatsapp ? normalizePhone(whatsapp) : '',
                 codiceFiscale,
+                indirizzoVia: via,
+                indirizzoPaese: paese,
+                indirizzoCap: cap,
                 certificatoMedicoScadenza: certSc
             }, pass || null);
 

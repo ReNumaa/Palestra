@@ -2078,6 +2078,9 @@ class UserStorage {
                     assicurazioneScadenza: row.insurance_expiry ?? existing.assicurazioneScadenza ?? null,
                     assicurazioneHistory: row.insurance_history || existing.assicurazioneHistory || [],
                     codiceFiscale: row.codice_fiscale ?? existing.codiceFiscale ?? null,
+                    indirizzoVia: row.indirizzo_via ?? existing.indirizzoVia ?? null,
+                    indirizzoPaese: row.indirizzo_paese ?? existing.indirizzoPaese ?? null,
+                    indirizzoCap: row.indirizzo_cap ?? existing.indirizzoCap ?? null,
                 };
             });
 

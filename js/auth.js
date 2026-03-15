@@ -41,7 +41,7 @@ function _authError(error) {
 async function _loadProfile(userId) {
     const { data: profile, error } = await supabaseClient
         .from('profiles')
-        .select('id, name, email, whatsapp, medical_cert_expiry, medical_cert_history, insurance_expiry, insurance_history, codice_fiscale, created_at')
+        .select('id, name, email, whatsapp, medical_cert_expiry, medical_cert_history, insurance_expiry, insurance_history, codice_fiscale, indirizzo_via, indirizzo_paese, indirizzo_cap, created_at')
         .eq('id', userId)
         .single();
 
@@ -209,7 +209,7 @@ function getCurrentUser() {
 // ── Register ──────────────────────────────────────────────────────────────────
 // Il profilo viene creato automaticamente dal trigger handle_new_user su auth.users.
 // Passiamo nome e whatsapp come user_metadata così il trigger li riceve.
-async function registerUser(name, email, whatsapp, password, codiceFiscale) {
+async function registerUser(name, email, whatsapp, password, codiceFiscale, indirizzo) {
     // Controlla se il numero WhatsApp è già usato da un altro utente
     if (whatsapp) {
         const { data: taken } = await supabaseClient.rpc('is_whatsapp_taken', { phone: whatsapp });
@@ -217,10 +217,18 @@ async function registerUser(name, email, whatsapp, password, codiceFiscale) {
     }
 
     const capitalized = (name || '').trim().replace(/\S+/g, w => w[0].toUpperCase() + w.slice(1).toLowerCase());
+    const addr = indirizzo || {};
     const { data, error } = await supabaseClient.auth.signUp({
         email,
         password,
-        options: { data: { full_name: capitalized, whatsapp, codice_fiscale: (codiceFiscale || '').toUpperCase() || null } }
+        options: { data: {
+            full_name: capitalized,
+            whatsapp,
+            codice_fiscale: (codiceFiscale || '').toUpperCase() || null,
+            indirizzo_via: addr.via || null,
+            indirizzo_paese: addr.paese || null,
+            indirizzo_cap: addr.cap || null,
+        } }
     });
     if (error) return { ok: false, error: _authError(error) };
     if (!data.user?.id) return { ok: false, error: 'Errore durante la registrazione.' };
@@ -289,6 +297,11 @@ async function updateUserProfile(currentEmail, updates, newPassword) {
     if (updates.codiceFiscale !== undefined) {
         profileUpdate.codice_fiscale = (updates.codiceFiscale || '').toUpperCase() || null;
     }
+
+    // Indirizzo di residenza
+    if (updates.indirizzoVia !== undefined)   profileUpdate.indirizzo_via   = updates.indirizzoVia || null;
+    if (updates.indirizzoPaese !== undefined) profileUpdate.indirizzo_paese = updates.indirizzoPaese || null;
+    if (updates.indirizzoCap !== undefined)   profileUpdate.indirizzo_cap   = updates.indirizzoCap || null;
 
     // Certificato medico: aggiorna scadenza e mantieni storico
     if (updates.certificatoMedicoScadenza !== undefined) {
