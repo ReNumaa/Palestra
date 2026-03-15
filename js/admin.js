@@ -879,11 +879,19 @@ function importBackup(input) {
         try {
             let backup = JSON.parse(e.target.result);
             console.log('[Backup] Chiavi trovate nel file:', Object.keys(backup));
-            console.log('[Backup] Ha .data?', !!backup.data, '| Ha .bookings?', !!backup.bookings, '| Ha .generated_at?', !!backup.generated_at);
 
             // ── Rileva e normalizza formato Nextcloud/cron ──────────────
-            // Formato cron: { generated_at, bookings: [...], credits: [...], ... }
+            // Formato A: { generated_at, bookings: [...], credits: [...], ... }
+            // Formato B: { exportedAt, source, tables: { bookings: [...], ... } }
             // Formato admin: { version, exportedAt, data: { gym_bookings: "...", ... } }
+
+            // Formato B (tables wrapper): appiattisci in formato A
+            if (!backup.data && backup.tables && typeof backup.tables === 'object') {
+                const flat = { generated_at: backup.exportedAt || backup.generated_at, ...backup.tables };
+                console.log('[Backup] Rilevato formato Nextcloud con tables wrapper, appiattisco...');
+                backup = flat;
+            }
+
             if (!backup.data && (backup.bookings || backup.credits || backup.generated_at)) {
                 console.log('[Backup] Rilevato formato Nextcloud/cron, converto...');
                 backup = _convertCronToAdminFormat(backup);
