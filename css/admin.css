@@ -2528,6 +2528,9 @@ canvas {
     pointer-events: all;
 }
 
+#missingDataOverlay { z-index: 2200; }
+#missingDataModal   { z-index: 2300; }
+
 .debt-popup-modal {
     position: fixed;
     top: 50%;
