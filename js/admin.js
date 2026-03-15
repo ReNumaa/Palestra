@@ -5791,11 +5791,13 @@ function ensureClientDataForCardPayment(email, whatsapp, name) {
         document.getElementById('mdPaeseCapField').style.display = (hasPaese && hasCap) ? 'none' : '';
 
         overlay.classList.add('open');
+        document.getElementById('missingDataModal').classList.add('open');
     });
 }
 
 function closeMissingDataPopup() {
     document.getElementById('missingDataOverlay').classList.remove('open');
+    document.getElementById('missingDataModal').classList.remove('open');
     if (_missingDataReject) { _missingDataReject('cancelled'); _missingDataReject = null; }
     _missingDataResolve = null;
 }
@@ -5849,6 +5851,7 @@ async function saveMissingData() {
     }
 
     document.getElementById('missingDataOverlay').classList.remove('open');
+    document.getElementById('missingDataModal').classList.remove('open');
     if (_missingDataResolve) { _missingDataResolve(); _missingDataResolve = null; }
     _missingDataReject = null;
 }
