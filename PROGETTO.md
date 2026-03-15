@@ -1,6 +1,6 @@
 # TB Training — Diario di Sviluppo & Roadmap
 
-> Documento aggiornato al 14/03/2026 (sessione 37)
+> Documento aggiornato al 15/03/2026 (sessione 39)
 > Prototipo: sistema di prenotazione palestra, frontend-only con localStorage
 > Supabase CLI installato, schema SQL definito, accesso dati centralizzato
 > Supabase cloud attivo (tabelle create), Google OAuth funzionante, numeri normalizzati E.164
@@ -22,6 +22,8 @@
 > **SESSIONE 35**: verifica Realtime (già attivo su tutte le pagine), fix check duplicati prenotazione via Supabase (evita dati stale localStorage)
 > **SESSIONE 36**: fix getUnpaidPastDebt (startTime invece di endTime), refactoring popup annullamento admin (conferma semplice >24h, con/senza mora <24h), bonus auto-seleziona senza mora, sidebar credit PWA iPhone fix, rinomina tabella click_andrea_pompili
 > **SESSIONE 37**: refactor Supabase-first (localStorage → cache in memoria), fix booking popup incompleto, admin tabs sticky + persistenza tab + scroll to top, fix tab vuote al refresh, fix logout spurio PWA
+> **SESSIONE 38**: badge notifica dumbbell, rotazione VAPID keys, tab admin "Messaggi" per invio push personalizzate
+> **SESSIONE 39**: indirizzo residenza, controllo dati carta/bonifico, fix Google OAuth, schema hardening (FK/audit/locking), fix import backup Nextcloud, export CSV
 
 ---
 
@@ -1336,6 +1338,130 @@ Regex: `.replace(/\S+/g, w => w[0].toUpperCase() + w.slice(1).toLowerCase())`
 - `css/admin.css` — sticky admin-tabs
 - `admin.html` — re-render tab dopo sync
 - `sw.js` — bump cache da v61 a v70
+
+---
+
+### 4.50 Badge notifica dumbbell, rotazione VAPID e tab Messaggi admin (sessione 38, mar 2026)
+
+**Contesto:** miglioramento UX notifiche push e aggiunta funzionalità admin per invio notifiche personalizzate.
+
+**Cosa è stato fatto:**
+
+1. **Badge notifica dumbbell**
+   - Sostituito il vecchio badge (bilanciere + T) con icona dumbbell outline bold
+   - Sorgente: `images/dumbbell.png` (512x512, nero su bianco, da Icons8/Flaticon)
+   - Dilatazione bordi via sharp (radius 8px) → `images/dumbbell-bold.png`
+   - Conversione automatica: dark→white, light→transparent, crop+resize 96x96 → `images/badge-mono-96.png`
+   - Badge bianco su trasparente (requisito Android per monocromaticità)
+
+2. **Rotazione VAPID keys**
+   - La chiave privata VAPID originale era irrecuperabile (Supabase dashboard mostra solo hash/digest)
+   - Generata nuova coppia VAPID con `web-push generate-vapid-keys`
+   - Aggiornata public key in `js/push.js`
+   - Aggiornati secrets Supabase (`VAPID_PUBLIC_KEY`, `VAPID_PRIVATE_KEY`) via `supabase secrets set`
+   - Svuotata tabella `push_subscriptions` (vecchie subscription incompatibili)
+   - `registerPushSubscription()` gestisce automaticamente il mismatch: unsubscribe + ri-crea
+
+3. **Tab admin "Messaggi" — invio notifiche push personalizzate**
+   - Nuovo tab `📩 Messaggi` nella dashboard admin (`admin.html`)
+   - Form con titolo (max 60 char) e messaggio (max 200 char)
+   - Selettore destinatari con 3 modalità:
+     - `🌐 Tutti gli utenti` — tutte le push_subscriptions
+     - `📅 Iscritti di un giorno` — filtro per data (JOIN bookings)
+     - `🕐 Iscritti di un'ora specifica` — filtro per data + time slot
+   - Date picker + select orario (popolato da `getScheduleForDate()`)
+   - Conferma prima dell'invio con indicazione scope
+   - Popup risultato con lista nomi destinatari (✅ inviata / ❌ non recapitata)
+
+4. **Edge Function `send-admin-message`**
+   - Nuovo file: `supabase/functions/send-admin-message/index.ts`
+   - Pattern identico a `notify-slot-available` (web-push, CORS, cleanup 410/404)
+   - Modalità `tutti`: query diretta su `push_subscriptions`
+   - Modalità `giorno`/`ora`: JOIN `bookings` → `push_subscriptions` (status confirmed/cancellation_requested)
+   - JOIN con `profiles` per recuperare i nomi dei destinatari
+   - Risposta include `recipients` (nomi ok) e `failed` (nomi non recapitati)
+   - Deploy con `--no-verify-jwt` (accesso senza token, come le altre Edge Functions)
+   - Tag notifica: `admin-msg-{timestamp}` per evitare deduplicazione
+
+**File modificati/creati:**
+- `images/badge-mono-96.png` — nuovo badge dumbbell bold bianco
+- `images/badge-mono.svg` — aggiornato (non più usato, PNG è il riferimento)
+- `images/dumbbell.png` — sorgente icona originale
+- `images/dumbbell-bold.png` — versione con bordi ispessiti
+- `js/push.js` — nuova VAPID public key
+- `js/admin.js` — funzioni `showMsgResultPopup()`, `renderMessaggiTab()`, `onMsgRecipientModeChange()`, `onMsgDateChange()`, `sendAdminMessage()` + case in `switchTab()`
+- `admin.html` — tab button + `#tab-messaggi` con form completo
+- `supabase/functions/send-admin-message/index.ts` — nuova Edge Function
+- `sw.js` — bump cache da v71 a v77
+
+---
+
+### 4.51 Indirizzo residenza, controllo dati, fix OAuth, schema hardening, backup (sessione 39, mar 2026)
+
+**Contesto:** completamento dati anagrafici per clienti che pagano con carta/bonifico, hardening schema DB, fix backup Nextcloud.
+
+**Cosa è stato fatto:**
+
+1. **Indirizzo di residenza (Via, Paese, CAP)**
+   - Migration `20260315000000_indirizzo_residenza.sql`: 3 nuove colonne su `profiles`
+   - `handle_new_user()` aggiornata con EXCEPTION WHEN OTHERS + ON CONFLICT DO UPDATE SET
+   - `get_all_profiles()` aggiornata per restituire i campi indirizzo
+   - **Registrazione** (`login.html`): 3 nuovi campi dopo Codice Fiscale
+   - **OAuth completion modal** (`login.html`): stessi 3 campi, pre-fill se già presenti
+   - **Modifica profilo** (`prenotazioni.html`): campi indirizzo modificabili con validazione CAP
+   - `registerUser()` in `auth.js`: passa indirizzo come user_metadata
+   - `_loadProfile()` e `updateUserProfile()`: gestione campi indirizzo
+   - `syncUsersFromSupabase()` in `data.js`: mapping indirizzo nel cache utenti
+   - Report settimanale XLSX: colonna "Indirizzo" aggiunta
+
+2. **Controllo dati per pagamento carta/bonifico**
+   - `ensureClientDataForCardPayment()`: verifica CF + indirizzo prima di accettare carta/iban
+   - Popup modale `#missingDataOverlay` per inserire i dati mancanti (z-index 2200/2300, sopra popup debiti 2000/2100)
+   - `saveMissingData()`: salva CF e indirizzo su Supabase e aggiorna cache locale
+   - Integrato in `paySelectedDebts()`, `saveManualEntry()`, `saveBookingRowEdit()`
+
+3. **Fix Google OAuth "Database error saving new user"**
+   - Causa: `handle_new_user` con ON CONFLICT DO NOTHING non gestiva conflitti sulla UNIQUE(email)
+   - Fix: ON CONFLICT (id) DO UPDATE SET + wrapper EXCEPTION WHEN OTHERS per evitare che errori nel trigger blocchino il login
+   - Eliminati account orfani (ik2yyo@gmail.com, spamrenuma@protonmail.com) da auth.users
+
+4. **Schema hardening — migration `20260315100000_schema_hardening.sql`**
+   - **bonuses FK CASCADE → SET NULL**: il bonus resta (con user_id NULL) se si cancella un profilo
+   - **credit_history.booking_id**: nuova colonna nullable per tracciare contesto prenotazione
+   - **updated_at + trigger su credits e manual_debts**: infrastruttura per optimistic locking (come bookings)
+   - **Audit triggers su credits, manual_debts, bonuses**: ogni modifica admin viene loggata in admin_audit_log, come già avveniva per bookings via `_trg_audit_booking_change`
+   - NON aggiunto CHECK >= 0 su credits.balance (romperebbe il flusso admin_add_credit con importo negativo)
+
+5. **Fix import backup Nextcloud**
+   - Il backup Nextcloud aveva formato `{ exportedAt, source, tables: { bookings, ... } }` (wrapper `tables`)
+   - La detection cercava `backup.bookings` (piatto) o `backup.generated_at` — entrambi assenti
+   - Fix: aggiunto rilevamento formato `tables` wrapper → appiattimento prima della conversione
+   - Aggiunto logging diagnostico `[Backup]` in console per debug futuri
+
+6. **Export CSV manuale**
+   - Due bottoni nella sezione Backup: "📤 Esporta JSON" (reimportabile) e "📤 Esporta CSV" (Excel)
+   - Export JSON invariato (reimportabile)
+   - Export CSV: fetch diretto da Supabase di tutte le 12 tabelle, CSV unico con intestazioni per tabella
+   - BOM UTF-8 per corretta visualizzazione accenti in Excel
+   - `_exportBackupCSV()`: converte array di oggetti in CSV con escape virgole/doppie virgolette
+
+7. **Backup Nextcloud auto-discovery**
+   - Workflow `.github/workflows/backup.yml` riscritto con auto-discovery PostgREST
+   - Scopre tutte le tabelle pubbliche automaticamente (fallback a lista hardcoded di 12)
+   - Ordinamento specifico per tabella, pulizia backup vecchi (mantiene ultimi 60)
+
+**File modificati/creati:**
+- `login.html` — campi indirizzo in registrazione + OAuth modal
+- `prenotazioni.html` — campi indirizzo in modifica profilo
+- `admin.html` — popup dati mancanti + bottoni export JSON/CSV
+- `js/auth.js` — registerUser con indirizzo, _loadProfile, updateUserProfile
+- `js/data.js` — syncUsersFromSupabase con mapping indirizzo
+- `js/admin.js` — ensureClientDataForCardPayment, saveMissingData, _exportBackupCSV, fix _convertCronToAdminFormat (tables wrapper), debug logging import
+- `css/admin.css` — z-index popup dati mancanti
+- `supabase/migrations/20260315000000_indirizzo_residenza.sql` — nuova migration
+- `supabase/migrations/20260315100000_schema_hardening.sql` — nuova migration
+- `.github/workflows/backup.yml` — riscritto con auto-discovery
+- `sw.js` — bump cache da v77 a v85
 
 ---
 
