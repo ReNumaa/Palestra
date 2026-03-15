@@ -808,16 +808,60 @@ function _convertCronToAdminFormat(cron) {
     };
 }
 
-async function exportBackup() {
+async function exportBackup(format = 'json') {
     const s = document.getElementById('backupStatus');
     if (s) s.textContent = '⏳ Esportazione in corso...';
 
+    // ── Raccogli dati grezzi da Supabase ─────────────────────────────────────
+    const tables = {};
+    if (typeof supabaseClient !== 'undefined') {
+        try {
+            const [bookingsRes, creditsRes, creditHistRes, debtsRes, bonusesRes,
+                   overridesRes, profilesRes, settingsRes, pushSubsRes,
+                   auditRes, clicksRes, appSettingsRes] = await Promise.all([
+                supabaseClient.from('bookings').select('*').order('created_at', { ascending: true }),
+                supabaseClient.from('credits').select('*').order('created_at', { ascending: true }),
+                supabaseClient.from('credit_history').select('*').order('created_at', { ascending: true }),
+                supabaseClient.from('manual_debts').select('*').order('created_at', { ascending: true }),
+                supabaseClient.from('bonuses').select('*').order('created_at', { ascending: true }),
+                supabaseClient.from('schedule_overrides').select('*').order('date', { ascending: true }),
+                supabaseClient.rpc('get_all_profiles'),
+                supabaseClient.from('settings').select('*'),
+                supabaseClient.from('push_subscriptions').select('*'),
+                supabaseClient.from('admin_audit_log').select('*').order('created_at', { ascending: true }),
+                supabaseClient.from('credit_link_clicks').select('*'),
+                supabaseClient.from('app_settings').select('*'),
+            ]);
+            if (bookingsRes.data)    tables.bookings            = bookingsRes.data;
+            if (creditsRes.data)     tables.credits             = creditsRes.data;
+            if (creditHistRes.data)  tables.credit_history      = creditHistRes.data;
+            if (debtsRes.data)       tables.manual_debts        = debtsRes.data;
+            if (bonusesRes.data)     tables.bonuses             = bonusesRes.data;
+            if (overridesRes.data)   tables.schedule_overrides  = overridesRes.data;
+            if (profilesRes.data)    tables.profiles            = profilesRes.data;
+            if (settingsRes.data)    tables.settings            = settingsRes.data;
+            if (pushSubsRes.data)    tables.push_subscriptions  = pushSubsRes.data;
+            if (auditRes.data)       tables.admin_audit_log     = auditRes.data;
+            if (clicksRes.data)      tables.credit_link_clicks  = clicksRes.data;
+            if (appSettingsRes.data) tables.app_settings        = appSettingsRes.data;
+        } catch (e) {
+            console.warn('[Backup] Errore fetch Supabase:', e.message);
+        }
+    }
+
+    if (format === 'csv') {
+        // ── Export CSV (uno ZIP con un CSV per tabella) ───────────────────────
+        _exportBackupCSV(tables, s);
+        return;
+    }
+
+    // ── Export JSON (reimportabile) ──────────────────────────────────────────
     const backup = {
         version: 2,
         exportedAt: new Date().toISOString(),
         data: {}
     };
-    // Dati principali dalle cache in memoria
+    // Dati principali dalle cache in memoria (formato locale per reimport)
     backup.data['gym_bookings']      = JSON.stringify(BookingStorage._cache);
     backup.data['gym_credits']       = JSON.stringify(CreditStorage._cache);
     backup.data['gym_manual_debts']  = JSON.stringify(ManualDebtStorage._cache);
@@ -831,30 +875,14 @@ async function exportBackup() {
         const val = localStorage.getItem(key);
         if (val !== null) backup.data[key] = val;
     });
-
-    // Tabelle Supabase aggiuntive (non presenti nelle cache locali)
-    if (typeof supabaseClient !== 'undefined') {
-        try {
-            const [profilesRes, creditHistRes, settingsRes, pushSubsRes, auditRes, clicksRes, appSettingsRes] = await Promise.all([
-                supabaseClient.rpc('get_all_profiles'),
-                supabaseClient.from('credit_history').select('*').order('created_at', { ascending: true }),
-                supabaseClient.from('settings').select('*'),
-                supabaseClient.from('push_subscriptions').select('*'),
-                supabaseClient.from('admin_audit_log').select('*').order('created_at', { ascending: true }),
-                supabaseClient.from('credit_link_clicks').select('*'),
-                supabaseClient.from('app_settings').select('*'),
-            ]);
-            if (profilesRes.data)     backup.data['_profiles']           = JSON.stringify(profilesRes.data);
-            if (creditHistRes.data)    backup.data['_credit_history']     = JSON.stringify(creditHistRes.data);
-            if (settingsRes.data)      backup.data['_settings']           = JSON.stringify(settingsRes.data);
-            if (pushSubsRes.data)      backup.data['_push_subscriptions'] = JSON.stringify(pushSubsRes.data);
-            if (auditRes.data)         backup.data['_admin_audit_log']    = JSON.stringify(auditRes.data);
-            if (clicksRes.data)        backup.data['_credit_link_clicks'] = JSON.stringify(clicksRes.data);
-            if (appSettingsRes.data)   backup.data['_app_settings']       = JSON.stringify(appSettingsRes.data);
-        } catch (e) {
-            console.warn('[Backup] Alcune tabelle Supabase non accessibili:', e.message);
-        }
-    }
+    // Tabelle Supabase raw per restore diretto
+    if (tables.profiles)           backup.data['_profiles']           = JSON.stringify(tables.profiles);
+    if (tables.credit_history)     backup.data['_credit_history']     = JSON.stringify(tables.credit_history);
+    if (tables.settings)           backup.data['_settings']           = JSON.stringify(tables.settings);
+    if (tables.push_subscriptions) backup.data['_push_subscriptions'] = JSON.stringify(tables.push_subscriptions);
+    if (tables.admin_audit_log)    backup.data['_admin_audit_log']    = JSON.stringify(tables.admin_audit_log);
+    if (tables.credit_link_clicks) backup.data['_credit_link_clicks'] = JSON.stringify(tables.credit_link_clicks);
+    if (tables.app_settings)       backup.data['_app_settings']       = JSON.stringify(tables.app_settings);
 
     const blob = new Blob([JSON.stringify(backup, null, 2)], { type: 'application/json' });
     const a = document.createElement('a');
@@ -862,7 +890,46 @@ async function exportBackup() {
     a.download = `gym-backup-${_localDateStr()}.json`;
     a.click();
     URL.revokeObjectURL(a.href);
-    if (s) s.textContent = `✅ Backup esportato il ${new Date().toLocaleString('it-IT')}`;
+    if (s) s.textContent = `✅ Backup JSON esportato il ${new Date().toLocaleString('it-IT')}`;
+}
+
+function _exportBackupCSV(tables, statusEl) {
+    const dateStr = _localDateStr();
+
+    // Converte un array di oggetti in stringa CSV
+    function toCsv(rows) {
+        if (!rows || rows.length === 0) return '';
+        const headers = Object.keys(rows[0]);
+        const escape = v => {
+            if (v == null) return '';
+            const s = typeof v === 'object' ? JSON.stringify(v) : String(v);
+            return s.includes(',') || s.includes('"') || s.includes('\n')
+                ? '"' + s.replace(/"/g, '""') + '"' : s;
+        };
+        return [headers.join(','), ...rows.map(r => headers.map(h => escape(r[h])).join(','))].join('\n');
+    }
+
+    // Genera un CSV per ogni tabella e scarica come file singoli in uno ZIP
+    // Senza librerie ZIP, scarichiamo un singolo CSV multi-foglio separato da intestazioni
+    const sections = [];
+    for (const [name, rows] of Object.entries(tables)) {
+        if (!Array.isArray(rows) || rows.length === 0) continue;
+        sections.push(`\n### TABELLA: ${name.toUpperCase()} (${rows.length} righe) ###\n` + toCsv(rows));
+    }
+
+    if (sections.length === 0) {
+        if (statusEl) statusEl.textContent = '❌ Nessun dato da esportare';
+        return;
+    }
+
+    const content = `# Backup TB Training — ${dateStr}\n# Generato il ${new Date().toLocaleString('it-IT')}\n` + sections.join('\n\n');
+    const blob = new Blob(['\uFEFF' + content], { type: 'text/csv;charset=utf-8' });
+    const a = document.createElement('a');
+    a.href = URL.createObjectURL(blob);
+    a.download = `gym-backup-${dateStr}.csv`;
+    a.click();
+    URL.revokeObjectURL(a.href);
+    if (statusEl) statusEl.textContent = `✅ Backup CSV esportato il ${new Date().toLocaleString('it-IT')}`;
 }
 
 function importBackup(input) {
