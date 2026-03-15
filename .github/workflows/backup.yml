@@ -22,50 +22,62 @@ jobs:
 
           # Fetch una tabella intera (fino a 500k righe — abbondantemente sufficiente)
           _fetch() {
+            local table="$1"
+            local order="${2:-created_at.asc}"
             curl -sf \
               -H "apikey: $SUPA_KEY" \
               -H "Authorization: Bearer $SUPA_KEY" \
               -H "Range: 0-499999" \
-              "$SUPA_URL/rest/v1/$1?select=*&order=created_at.asc"
+              "$SUPA_URL/rest/v1/$table?select=*&order=$order" 2>/dev/null || echo "[]"
           }
 
-          # settings non ha created_at — ordina per key
-          _fetch_settings() {
-            curl -sf \
-              -H "apikey: $SUPA_KEY" \
-              -H "Authorization: Bearer $SUPA_KEY" \
-              "$SUPA_URL/rest/v1/settings?select=*&order=key.asc"
-          }
+          # Scopri tutte le tabelle pubbliche (auto-discovery)
+          ALL_TABLES=$(curl -sf \
+            -H "apikey: $SUPA_KEY" \
+            -H "Authorization: Bearer $SUPA_KEY" \
+            "$SUPA_URL/rest/v1/" 2>/dev/null \
+            | jq -r '.[].name // empty' 2>/dev/null | sort || echo "")
 
-          jq -n \
-            --arg ts "$(date -u +%Y-%m-%dT%H:%M:%SZ)" \
-            --argjson bookings           "$(_fetch bookings)" \
-            --argjson credits            "$(_fetch credits)" \
-            --argjson credit_history     "$(_fetch credit_history)" \
-            --argjson manual_debts       "$(_fetch manual_debts)" \
-            --argjson bonuses            "$(_fetch bonuses)" \
-            --argjson schedule_overrides "$(_fetch schedule_overrides)" \
-            --argjson settings           "$(_fetch_settings)" \
-            --argjson credit_link_clicks "$(curl -sf \
-              -H "apikey: $SUPA_KEY" \
-              -H "Authorization: Bearer $SUPA_KEY" \
-              -H "Range: 0-499999" \
-              "$SUPA_URL/rest/v1/credit_link_clicks?select=*&order=clicked_at.asc")" \
-            '{
-              generated_at:       $ts,
-              bookings:           $bookings,
-              credits:            $credits,
-              credit_history:     $credit_history,
-              manual_debts:       $manual_debts,
-              bonuses:            $bonuses,
-              schedule_overrides: $schedule_overrides,
-              settings:           $settings,
-              credit_link_clicks: $credit_link_clicks
-            }' > "backup_${DATE}.json"
+          echo "Tabelle trovate: $ALL_TABLES"
+
+          # Tabelle note con ordinamento specifico
+          declare -A ORDER_MAP=(
+            [bookings]="created_at.asc"
+            [credits]="created_at.asc"
+            [credit_history]="created_at.asc"
+            [manual_debts]="created_at.asc"
+            [bonuses]="created_at.asc"
+            [schedule_overrides]="date.asc,time.asc"
+            [settings]="key.asc"
+            [profiles]="created_at.asc"
+            [push_subscriptions]="created_at.asc"
+            [admin_audit_log]="created_at.asc"
+            [app_settings]="key.asc"
+            [credit_link_clicks]="clicked_at.asc"
+          )
+
+          # Se auto-discovery ha funzionato usa quella lista, altrimenti fallback
+          if [ -z "$ALL_TABLES" ]; then
+            ALL_TABLES="bookings credits credit_history manual_debts bonuses schedule_overrides settings profiles push_subscriptions admin_audit_log app_settings credit_link_clicks"
+          fi
+
+          # Costruisci il JSON con jq — una chiave per tabella
+          BACKUP="{\"generated_at\": \"$(date -u +%Y-%m-%dT%H:%M:%SZ)\"}"
+
+          for table in $ALL_TABLES; do
+            order="${ORDER_MAP[$table]:-created_at.asc}"
+            echo "Fetching $table (order: $order)..."
+            TABLE_DATA=$(_fetch "$table" "$order")
+            BACKUP=$(echo "$BACKUP" | jq --arg t "$table" --argjson d "$TABLE_DATA" '. + {($t): $d}')
+          done
+
+          echo "$BACKUP" | jq '.' > "backup_${DATE}.json"
 
           SIZE=$(du -h "backup_${DATE}.json" | cut -f1)
           echo "SIZE=${SIZE}" >> $GITHUB_ENV
-          echo "✅ Backup creato: backup_${DATE}.json (${SIZE})"
+
+          TABLE_COUNT=$(echo "$BACKUP" | jq 'keys | length')
+          echo "✅ Backup creato: backup_${DATE}.json (${SIZE}) — ${TABLE_COUNT} tabelle"
 
       # ── 2. Upload su Nextcloud via WebDAV ────────────────────────────────────
       - name: Upload su Nextcloud

@@ -682,9 +682,132 @@ const BACKUP_KEYS = [
     'dataLastCleared'
 ];
 
-function exportBackup() {
+// Converte il formato backup Nextcloud/cron (tabelle Supabase raw) nel formato admin
+function _convertCronToAdminFormat(cron) {
+    const data = {};
+    // Bookings: array Supabase → array locale
+    if (Array.isArray(cron.bookings)) {
+        data['gym_bookings'] = JSON.stringify(cron.bookings.map(b => ({
+            id: b.local_id || b.id,
+            userId: b.user_id,
+            date: b.date,
+            time: b.time,
+            slotType: b.slot_type,
+            name: b.name,
+            email: b.email,
+            whatsapp: b.whatsapp,
+            notes: b.notes || '',
+            status: b.status || 'confirmed',
+            paid: b.paid || false,
+            paymentMethod: b.payment_method || null,
+            paidAt: b.paid_at || null,
+            creditApplied: b.credit_applied || 0,
+            createdAt: b.created_at,
+            dateDisplay: b.date_display || '',
+            cancellationRequestedAt: b.cancellation_requested_at || null,
+            cancelledAt: b.cancelled_at || null,
+            cancelledPaymentMethod: b.cancelled_payment_method || null,
+            cancelledPaidAt: b.cancelled_paid_at || null,
+            cancelledWithBonus: b.cancelled_with_bonus || false,
+            cancelledWithPenalty: b.cancelled_with_penalty || false,
+            cancelledRefundPct: b.cancelled_refund_pct ?? null,
+        })));
+    }
+    // Credits: array Supabase → oggetto keyed
+    if (Array.isArray(cron.credits)) {
+        const credits = {};
+        for (const c of cron.credits) {
+            const key = `${c.whatsapp || ''}||${c.email}`;
+            credits[key] = { name: c.name, whatsapp: c.whatsapp || '', email: c.email, balance: c.balance, freeBalance: c.free_balance || 0, history: [] };
+        }
+        // Unisci credit_history se presente
+        if (Array.isArray(cron.credit_history)) {
+            const idToKey = {};
+            for (const c of cron.credits) idToKey[c.id] = `${c.whatsapp || ''}||${c.email}`;
+            for (const h of cron.credit_history) {
+                const key = idToKey[h.credit_id];
+                if (key && credits[key]) {
+                    credits[key].history.push({ date: h.created_at, amount: h.amount, note: h.note || '' });
+                }
+            }
+        }
+        data['gym_credits'] = JSON.stringify(credits);
+    }
+    // Manual debts
+    if (Array.isArray(cron.manual_debts)) {
+        const debts = {};
+        for (const r of cron.manual_debts) {
+            const key = `${r.whatsapp || ''}||${r.email}`;
+            debts[key] = { name: r.name, whatsapp: r.whatsapp || '', email: r.email, balance: r.balance, history: r.history || [] };
+        }
+        data['gym_manual_debts'] = JSON.stringify(debts);
+    }
+    // Bonuses
+    if (Array.isArray(cron.bonuses)) {
+        const bonuses = {};
+        for (const r of cron.bonuses) {
+            const key = `${r.whatsapp || ''}||${r.email}`;
+            bonuses[key] = { name: r.name, whatsapp: r.whatsapp || '', email: r.email, bonus: r.bonus, lastResetMonth: r.last_reset_month || null };
+        }
+        data['gym_bonus'] = JSON.stringify(bonuses);
+    }
+    // Schedule overrides: array → oggetto per data
+    if (Array.isArray(cron.schedule_overrides)) {
+        const overrides = {};
+        for (const r of cron.schedule_overrides) {
+            if (!overrides[r.date]) overrides[r.date] = [];
+            const slot = { time: r.time, type: r.slot_type };
+            if (r.extras?.length) slot.extras = r.extras;
+            overrides[r.date].push(slot);
+        }
+        data['scheduleOverrides'] = JSON.stringify(overrides);
+    }
+    // Settings: array {key, value} → chiavi localStorage
+    if (Array.isArray(cron.settings)) {
+        const sMap = Object.fromEntries(cron.settings.map(r => [r.key, r.value]));
+        const mapping = {
+            'debt_threshold': 'gym_debt_threshold',
+            'cancellation_mode': 'gym_cancellation_mode',
+            'cert_scadenza_editable': 'gym_cert_scadenza_editable',
+            'cert_block_expired': 'gym_cert_block_expired',
+            'cert_block_not_set': 'gym_cert_block_not_set',
+            'assic_block_expired': 'gym_assic_block_expired',
+            'assic_block_not_set': 'gym_assic_block_not_set',
+        };
+        for (const [dbKey, lsKey] of Object.entries(mapping)) {
+            if (sMap[dbKey] != null) data[lsKey] = String(sMap[dbKey]);
+        }
+    }
+    // Profiles → gym_users
+    if (Array.isArray(cron.profiles)) {
+        data['gym_users'] = JSON.stringify(cron.profiles.map(p => ({
+            name: p.name, email: p.email, whatsapp: p.whatsapp || '',
+            provider: p.provider || 'email', role: p.role || 'user',
+            certificatoMedicoScadenza: p.certificato_medico_scadenza || null,
+            assicurazioneScadenza: p.assicurazione_scadenza || null,
+        })));
+    }
+    // Tabelle raw per Supabase restore diretto
+    if (Array.isArray(cron.credit_history))     data['_credit_history']     = JSON.stringify(cron.credit_history);
+    if (Array.isArray(cron.push_subscriptions)) data['_push_subscriptions'] = JSON.stringify(cron.push_subscriptions);
+    if (Array.isArray(cron.admin_audit_log))    data['_admin_audit_log']    = JSON.stringify(cron.admin_audit_log);
+    if (Array.isArray(cron.credit_link_clicks)) data['_credit_link_clicks'] = JSON.stringify(cron.credit_link_clicks);
+    if (Array.isArray(cron.profiles))           data['_profiles']           = JSON.stringify(cron.profiles);
+    if (Array.isArray(cron.app_settings))       data['_app_settings']       = JSON.stringify(cron.app_settings);
+
+    return {
+        version: 2,
+        exportedAt: cron.generated_at || new Date().toISOString(),
+        data
+    };
+}
+
+async function exportBackup() {
+    const s = document.getElementById('backupStatus');
+    if (s) s.textContent = '⏳ Esportazione in corso...';
+
     const backup = {
-        version: 1,
+        version: 2,
         exportedAt: new Date().toISOString(),
         data: {}
     };
@@ -702,13 +825,35 @@ function exportBackup() {
         const val = localStorage.getItem(key);
         if (val !== null) backup.data[key] = val;
     });
+
+    // Tabelle Supabase aggiuntive (non presenti nelle cache locali)
+    if (typeof supabaseClient !== 'undefined') {
+        try {
+            const [profilesRes, creditHistRes, settingsRes, pushSubsRes, auditRes, clicksRes] = await Promise.all([
+                supabaseClient.rpc('get_all_profiles'),
+                supabaseClient.from('credit_history').select('*').order('created_at', { ascending: true }),
+                supabaseClient.from('settings').select('*'),
+                supabaseClient.from('push_subscriptions').select('*'),
+                supabaseClient.from('admin_audit_log').select('*').order('created_at', { ascending: true }),
+                supabaseClient.from('credit_link_clicks').select('*'),
+            ]);
+            if (profilesRes.data)   backup.data['_profiles']           = JSON.stringify(profilesRes.data);
+            if (creditHistRes.data)  backup.data['_credit_history']     = JSON.stringify(creditHistRes.data);
+            if (settingsRes.data)    backup.data['_settings']           = JSON.stringify(settingsRes.data);
+            if (pushSubsRes.data)    backup.data['_push_subscriptions'] = JSON.stringify(pushSubsRes.data);
+            if (auditRes.data)       backup.data['_admin_audit_log']    = JSON.stringify(auditRes.data);
+            if (clicksRes.data)      backup.data['_credit_link_clicks'] = JSON.stringify(clicksRes.data);
+        } catch (e) {
+            console.warn('[Backup] Alcune tabelle Supabase non accessibili:', e.message);
+        }
+    }
+
     const blob = new Blob([JSON.stringify(backup, null, 2)], { type: 'application/json' });
     const a = document.createElement('a');
     a.href = URL.createObjectURL(blob);
     a.download = `gym-backup-${_localDateStr()}.json`;
     a.click();
     URL.revokeObjectURL(a.href);
-    const s = document.getElementById('backupStatus');
     if (s) s.textContent = `✅ Backup esportato il ${new Date().toLocaleString('it-IT')}`;
 }
 
@@ -724,11 +869,19 @@ function importBackup(input) {
     const reader = new FileReader();
     reader.onload = async e => {
         try {
-            const backup = JSON.parse(e.target.result);
+            let backup = JSON.parse(e.target.result);
+
+            // ── Rileva e normalizza formato Nextcloud/cron ──────────────
+            // Formato cron: { generated_at, bookings: [...], credits: [...], ... }
+            // Formato admin: { version, exportedAt, data: { gym_bookings: "...", ... } }
+            if (!backup.data && (backup.bookings || backup.credits || backup.generated_at)) {
+                backup = _convertCronToAdminFormat(backup);
+            }
+
             if (!backup?.data || typeof backup.data !== 'object') throw new Error('Formato non valido');
             const keyCount = Object.keys(backup.data).length;
-            const exportDate = backup.exportedAt
-                ? new Date(backup.exportedAt).toLocaleString('it-IT')
+            const exportDate = (backup.exportedAt || backup.generated_at)
+                ? new Date(backup.exportedAt || backup.generated_at).toLocaleString('it-IT')
                 : 'data sconosciuta';
             if (!confirm(`Ripristinare il backup del ${exportDate}?\n\nConterrà ${keyCount} sezioni di dati.\n\n⚠️ ATTENZIONE: tutti i dati attuali verranno sovrascritti.`)) {
                 input.value = '';
@@ -833,27 +986,40 @@ function importBackup(input) {
                         promises.push(supabaseClient.from('schedule_overrides').upsert(oRows, { onConflict: 'date,time' }));
                     }
 
-                    // 6. Credit history (only offline-added entries from viewer emergency export)
+                    // 6. Credit history — ripristino completo
                     if (backup.data._credit_history) {
                         const chRows = JSON.parse(backup.data._credit_history || '[]');
                         if (chRows.length > 0) {
                             // Wait for credits upsert to complete first so IDs exist
                             await Promise.allSettled(promises);
                             promises.length = 0;
-                            // Link to credit IDs
                             const creditsRes = await supabaseClient.from('credits').select('id,email');
                             const emailToId = {};
                             if (creditsRes.data) creditsRes.data.forEach(c => { emailToId[c.email] = c.id; });
-                            const histRows = chRows.filter(h => emailToId[h.email]).map(h => ({
-                                credit_id: emailToId[h.email],
-                                amount: h.amount || 0,
-                                display_amount: h.display_amount ?? h.amount,
-                                note: h.note || '',
-                                created_at: h.created_at,
-                            }));
+                            const histRows = chRows
+                                .filter(h => h.credit_id ? true : emailToId[h.email])
+                                .map(h => ({
+                                    credit_id: h.credit_id || emailToId[h.email],
+                                    amount: h.amount || 0,
+                                    display_amount: h.display_amount ?? h.amount,
+                                    note: h.note || '',
+                                    created_at: h.created_at,
+                                    booking_ref: h.booking_ref || null,
+                                    hidden: h.hidden || false,
+                                }));
                             if (histRows.length > 0) {
+                                // Cancella storico esistente e re-inserisci per evitare duplicati
+                                await supabaseClient.from('credit_history').delete().neq('id', 0);
                                 promises.push(supabaseClient.from('credit_history').insert(histRows));
                             }
+                        }
+                    }
+
+                    // 7. Settings (tabella Supabase)
+                    if (backup.data._settings) {
+                        const sRows = JSON.parse(backup.data._settings || '[]');
+                        if (sRows.length > 0) {
+                            promises.push(supabaseClient.from('settings').upsert(sRows, { onConflict: 'key' }));
                         }
                     }
 
