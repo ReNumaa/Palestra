@@ -1946,7 +1946,7 @@ class DebtThresholdStorage {
 // Cancellation mode — global setting: how the restricted cancellation window is handled
 class CancellationModeStorage {
     static KEY = 'gym_cancellation_mode';
-    static get() { return localStorage.getItem(this.KEY) || 'new-person'; }
+    static get() { return localStorage.getItem(this.KEY) || 'penalty-50'; }
     static set(mode) { _lsSet(this.KEY, mode); _upsertSetting(this.KEY, mode); }
 }
 

@@ -249,37 +249,6 @@
             <div id="tab-settings" class="tab-content">
                 <div class="dashboard-card settings-card">
 
-                    <!-- Tipo annullamento in finestra ristretta -->
-                    <div class="settings-section">
-                        <h4 class="settings-section-title">Tipo di annullamento in finestra ristretta</h4>
-                        <p class="settings-section-desc">
-                            Comportamento quando un cliente vuole annullare una prenotazione nella finestra
-                            in cui l'annullamento diretto non è più consentito
-                            (ultime 24h per Autonomia/Lezione di Gruppo — ultimi 3 giorni per Slot prenotato).
-                        </p>
-                        <div class="settings-options" id="cancellationModeOptions">
-
-                            <label class="settings-option" id="optNewPerson">
-                                <input type="radio" name="cancellationMode" value="new-person"
-                                       onchange="saveCancellationMode(this.value)">
-                                <div class="settings-option-body">
-                                    <strong>👤 Annullamento con nuova persona</strong>
-                                    <span>Il cliente richiede l'annullamento. La prenotazione viene annullata solo se qualcun altro prende il suo posto prima delle 2h dalla lezione. Se nessuno si fa avanti, l'annullamento viene negato.</span>
-                                </div>
-                            </label>
-
-                            <label class="settings-option" id="optPenalty50">
-                                <input type="radio" name="cancellationMode" value="penalty-50"
-                                       onchange="saveCancellationMode(this.value)">
-                                <div class="settings-option-body">
-                                    <strong>💸 Mora del 50%</strong>
-                                    <span>Il cliente può annullare immediatamente, ma riceve solo il 50% del costo come rimborso credito. Es.: lezione da €10 → rimborso €5, mora €5.</span>
-                                </div>
-                            </label>
-
-                        </div>
-                    </div>
-
                     <!-- Soglia blocco prenotazioni -->
                     <div class="settings-section settings-section--inline">
                         <div class="debt-threshold-text">
@@ -396,15 +365,6 @@
                     </div>
                     <!-- End: report settimanale -->
 
-                    <!-- Azioni Rapide -->
-                    <div class="settings-section">
-                        <h4 class="settings-section-title">⚡ Azioni Rapide</h4>
-                        <div class="dashboard-card actions-card" style="box-shadow:none; padding: 0;">
-                            <button class="btn-action" onclick="resetDemoData()" style="background-color: #dc3545;">🔄 Reset Dati Demo</button>
-                            <button class="btn-action" onclick="clearAllData()" style="background-color: #6c0000;">🗑️ Elimina Tutti i Dati</button>
-                        </div>
-                    </div>
-                    <!-- End: azioni rapide -->
 
                 </div>
             </div>
