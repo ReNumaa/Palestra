@@ -2559,7 +2559,7 @@ function _showSlotChangePopup(timeSlot, newType, bookings) {
             </div>`;
     });
 
-    const defaultMsg = `La lezione di ${dateDisplay} alle ${timeSlot} è stata annullata. Ci scusiamo per il disagio.`;
+    const defaultMsg = '';
 
     const overlay = document.createElement('div');
     overlay.id = 'slotChangeOverlay';
@@ -2593,7 +2593,7 @@ function _showSlotChangePopup(timeSlot, newType, bookings) {
             </div>
             <div id="slotChangeMsgContainer">
                 <label style="font-size:0.85rem; font-weight:600; color:#374151; display:block; margin-bottom:0.4rem;">Messaggio:</label>
-                <textarea id="slotChangeMsgText" rows="3" style="width:100%; box-sizing:border-box; padding:0.6rem 0.75rem; border:1px solid #d1d5db; border-radius:8px; font-size:0.9rem; resize:vertical; font-family:inherit;">${_escHtml(defaultMsg)}</textarea>
+                <textarea id="slotChangeMsgText" rows="3" placeholder="Scrivi il messaggio da inviare ai prenotati..." style="width:100%; box-sizing:border-box; padding:0.6rem 0.75rem; border:1px solid #d1d5db; border-radius:8px; font-size:0.9rem; resize:vertical; font-family:inherit;"></textarea>
             </div>
             <div id="slotChangeResult" style="margin-top:0.75rem;"></div>
         </div>
