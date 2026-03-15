@@ -878,15 +878,22 @@ function importBackup(input) {
     reader.onload = async e => {
         try {
             let backup = JSON.parse(e.target.result);
+            console.log('[Backup] Chiavi trovate nel file:', Object.keys(backup));
+            console.log('[Backup] Ha .data?', !!backup.data, '| Ha .bookings?', !!backup.bookings, '| Ha .generated_at?', !!backup.generated_at);
 
             // ── Rileva e normalizza formato Nextcloud/cron ──────────────
             // Formato cron: { generated_at, bookings: [...], credits: [...], ... }
             // Formato admin: { version, exportedAt, data: { gym_bookings: "...", ... } }
             if (!backup.data && (backup.bookings || backup.credits || backup.generated_at)) {
+                console.log('[Backup] Rilevato formato Nextcloud/cron, converto...');
                 backup = _convertCronToAdminFormat(backup);
+                console.log('[Backup] Conversione completata, chiavi data:', Object.keys(backup.data || {}));
             }
 
-            if (!backup?.data || typeof backup.data !== 'object') throw new Error('Formato non valido');
+            if (!backup?.data || typeof backup.data !== 'object') {
+                console.error('[Backup] Formato non riconosciuto. Struttura:', JSON.stringify(backup).substring(0, 500));
+                throw new Error('Formato non valido');
+            }
             const keyCount = Object.keys(backup.data).length;
             const exportDate = (backup.exportedAt || backup.generated_at)
                 ? new Date(backup.exportedAt || backup.generated_at).toLocaleString('it-IT')
