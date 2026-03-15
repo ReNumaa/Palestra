@@ -2681,10 +2681,66 @@ function _showSlotChangePopup(timeSlot, newType, bookings) {
                 resultDiv.innerHTML = notifyHtml;
             }
 
-            // Step 2: Cancel all bookings in this slot
-            bookings.forEach(b => {
-                BookingStorage.removeBookingById(b.id);
-            });
+            // Step 2: Cancel all bookings in this slot (with await on Supabase)
+            if (!sendNotify || !msgText) {
+                resultDiv.innerHTML = '<div style="color:#6b7280; font-size:0.85rem;">⏳ Annullamento prenotazioni...</div>';
+            } else {
+                resultDiv.innerHTML += '<div style="color:#6b7280; font-size:0.85rem; margin-top:0.5rem;">⏳ Annullamento prenotazioni...</div>';
+            }
+
+            let cancelledCount = 0;
+            let cancelErrors = [];
+            for (const b of bookings) {
+                // Update local cache
+                const all = BookingStorage.getAllBookings();
+                const idx = all.findIndex(bk => bk.id === b.id);
+                if (idx === -1) continue;
+                const bk = all[idx];
+                bk.status = 'cancelled';
+                bk.cancelledAt = new Date().toISOString();
+                bk.paid = false;
+                bk.paymentMethod = null;
+                bk.paidAt = null;
+                bk.creditApplied = 0;
+
+                // Sync to Supabase with await
+                if (typeof supabaseClient !== 'undefined' && bk._sbId) {
+                    try {
+                        const { data: rpcData, error: rpcErr } = await supabaseClient.rpc('admin_update_booking', {
+                            p_booking_id:                bk._sbId,
+                            p_status:                    'cancelled',
+                            p_paid:                      false,
+                            p_payment_method:            null,
+                            p_paid_at:                   null,
+                            p_credit_applied:            0,
+                            p_cancellation_requested_at: bk.cancellationRequestedAt || null,
+                            p_cancelled_at:              bk.cancelledAt,
+                            p_cancelled_payment_method:  null,
+                            p_cancelled_paid_at:         null,
+                            p_cancelled_with_bonus:      false,
+                            p_cancelled_with_penalty:    false,
+                            p_cancelled_refund_pct:      null,
+                            p_expected_updated_at:       bk.updatedAt || null,
+                        });
+                        if (rpcErr) {
+                            console.error('[SlotChange] admin_update_booking error:', rpcErr.message);
+                            cancelErrors.push(b.name);
+                        } else if (rpcData && !rpcData.success && rpcData.error === 'stale_data') {
+                            console.warn('[SlotChange] stale_data per', bk._sbId);
+                            cancelErrors.push(b.name);
+                        } else {
+                            cancelledCount++;
+                        }
+                    } catch (e) {
+                        console.error('[SlotChange] RPC exception:', e);
+                        cancelErrors.push(b.name);
+                    }
+                } else {
+                    cancelledCount++;
+                }
+            }
+            // Commit local cache (single write)
+            BookingStorage.replaceAllBookings(BookingStorage.getAllBookings());
 
             // Step 3: Apply the slot type change
             _applySlotTypeChange(timeSlot, newType);
@@ -2694,10 +2750,11 @@ function _showSlotChangePopup(timeSlot, newType, bookings) {
             confirmBtn.style.background = '#16a34a';
 
             // Add final message
-            const doneMsg = document.createElement('div');
-            doneMsg.style.cssText = 'color:#16a34a; font-size:0.85rem; font-weight:600; margin-top:0.5rem;';
-            doneMsg.textContent = `✅ ${bookings.length} prenotazione/i annullata/e. Slot aggiornato.`;
-            resultDiv.appendChild(doneMsg);
+            let doneHtml = `<div style="color:#16a34a; font-size:0.85rem; font-weight:600; margin-top:0.5rem;">✅ ${cancelledCount} prenotazione/i annullata/e. Slot aggiornato.</div>`;
+            if (cancelErrors.length > 0) {
+                doneHtml += `<div style="color:#dc2626; font-size:0.85rem; margin-top:0.3rem;">⚠️ Errore annullamento per: ${cancelErrors.map(n => _escHtml(n)).join(', ')}</div>`;
+            }
+            resultDiv.innerHTML += doneHtml;
 
             // Auto-close after a short delay
             setTimeout(() => {
