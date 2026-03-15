@@ -783,8 +783,11 @@ function _convertCronToAdminFormat(cron) {
         data['gym_users'] = JSON.stringify(cron.profiles.map(p => ({
             name: p.name, email: p.email, whatsapp: p.whatsapp || '',
             provider: p.provider || 'email', role: p.role || 'user',
-            certificatoMedicoScadenza: p.certificato_medico_scadenza || null,
-            assicurazioneScadenza: p.assicurazione_scadenza || null,
+            certificatoMedicoScadenza: p.medical_cert_expiry || null,
+            medicalCertHistory: p.medical_cert_history || [],
+            assicurazioneScadenza: p.insurance_expiry || null,
+            insuranceHistory: p.insurance_history || [],
+            codiceFiscale: p.codice_fiscale || null,
         })));
     }
     // Tabelle raw per Supabase restore diretto
