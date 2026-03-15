@@ -482,16 +482,19 @@
             const email  = session.user.email;
             const userId = session.user.id;
 
-            if (user && user.whatsapp && user.codice_fiscale) {
+            if (user && user.whatsapp && user.codice_fiscale && user.indirizzo_via && user.indirizzo_paese && user.indirizzo_cap) {
                 // Profilo completo: vai direttamente
                 window.location.replace('index.html');
                 return true;
             }
 
-            // Manca WhatsApp o Codice Fiscale: mostra il modal
+            // Mancano dati obbligatori: mostra il modal
             window._pendingOAuthUser = { name, email, userId };
             if (user?.whatsapp) document.getElementById('oauthWhatsapp').value = user.whatsapp;
             if (user?.codice_fiscale) document.getElementById('oauthCodiceFiscale').value = user.codice_fiscale;
+            if (user?.indirizzo_via) document.getElementById('oauthVia').value = user.indirizzo_via;
+            if (user?.indirizzo_paese) document.getElementById('oauthPaese').value = user.indirizzo_paese;
+            if (user?.indirizzo_cap) document.getElementById('oauthCAP').value = user.indirizzo_cap;
             document.getElementById('completeProfileModal').style.display = 'flex';
             return true;
         }
