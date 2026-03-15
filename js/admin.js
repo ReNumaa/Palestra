@@ -832,20 +832,22 @@ async function exportBackup() {
     // Tabelle Supabase aggiuntive (non presenti nelle cache locali)
     if (typeof supabaseClient !== 'undefined') {
         try {
-            const [profilesRes, creditHistRes, settingsRes, pushSubsRes, auditRes, clicksRes] = await Promise.all([
+            const [profilesRes, creditHistRes, settingsRes, pushSubsRes, auditRes, clicksRes, appSettingsRes] = await Promise.all([
                 supabaseClient.rpc('get_all_profiles'),
                 supabaseClient.from('credit_history').select('*').order('created_at', { ascending: true }),
                 supabaseClient.from('settings').select('*'),
                 supabaseClient.from('push_subscriptions').select('*'),
                 supabaseClient.from('admin_audit_log').select('*').order('created_at', { ascending: true }),
                 supabaseClient.from('credit_link_clicks').select('*'),
+                supabaseClient.from('app_settings').select('*'),
             ]);
-            if (profilesRes.data)   backup.data['_profiles']           = JSON.stringify(profilesRes.data);
-            if (creditHistRes.data)  backup.data['_credit_history']     = JSON.stringify(creditHistRes.data);
-            if (settingsRes.data)    backup.data['_settings']           = JSON.stringify(settingsRes.data);
-            if (pushSubsRes.data)    backup.data['_push_subscriptions'] = JSON.stringify(pushSubsRes.data);
-            if (auditRes.data)       backup.data['_admin_audit_log']    = JSON.stringify(auditRes.data);
-            if (clicksRes.data)      backup.data['_credit_link_clicks'] = JSON.stringify(clicksRes.data);
+            if (profilesRes.data)     backup.data['_profiles']           = JSON.stringify(profilesRes.data);
+            if (creditHistRes.data)    backup.data['_credit_history']     = JSON.stringify(creditHistRes.data);
+            if (settingsRes.data)      backup.data['_settings']           = JSON.stringify(settingsRes.data);
+            if (pushSubsRes.data)      backup.data['_push_subscriptions'] = JSON.stringify(pushSubsRes.data);
+            if (auditRes.data)         backup.data['_admin_audit_log']    = JSON.stringify(auditRes.data);
+            if (clicksRes.data)        backup.data['_credit_link_clicks'] = JSON.stringify(clicksRes.data);
+            if (appSettingsRes.data)   backup.data['_app_settings']       = JSON.stringify(appSettingsRes.data);
         } catch (e) {
             console.warn('[Backup] Alcune tabelle Supabase non accessibili:', e.message);
         }
@@ -1012,7 +1014,7 @@ function importBackup(input) {
                                 }));
                             if (histRows.length > 0) {
                                 // Cancella storico esistente e re-inserisci per evitare duplicati
-                                await supabaseClient.from('credit_history').delete().neq('id', 0);
+                                await supabaseClient.from('credit_history').delete().neq('id', '00000000-0000-0000-0000-000000000000');
                                 promises.push(supabaseClient.from('credit_history').insert(histRows));
                             }
                         }
@@ -1023,6 +1025,67 @@ function importBackup(input) {
                         const sRows = JSON.parse(backup.data._settings || '[]');
                         if (sRows.length > 0) {
                             promises.push(supabaseClient.from('settings').upsert(sRows, { onConflict: 'key' }));
+                        }
+                    }
+
+                    // 8. App settings
+                    if (backup.data._app_settings) {
+                        const asRows = JSON.parse(backup.data._app_settings || '[]');
+                        if (asRows.length > 0) {
+                            promises.push(supabaseClient.from('app_settings').upsert(asRows, { onConflict: 'key' }));
+                        }
+                    }
+
+                    // 9. Profiles — ripristino su Supabase
+                    if (backup.data._profiles) {
+                        const pRows = JSON.parse(backup.data._profiles || '[]');
+                        if (pRows.length > 0) {
+                            for (const p of pRows) {
+                                // Update solo campi dati (non toccare id/auth)
+                                promises.push(supabaseClient.from('profiles').update({
+                                    name: p.name,
+                                    whatsapp: p.whatsapp || null,
+                                    medical_cert_expiry: p.medical_cert_expiry || null,
+                                    medical_cert_history: p.medical_cert_history || [],
+                                    insurance_expiry: p.insurance_expiry || null,
+                                    insurance_history: p.insurance_history || [],
+                                    codice_fiscale: p.codice_fiscale || null,
+                                }).eq('email', (p.email || '').toLowerCase()));
+                            }
+                        }
+                    }
+
+                    // 10. Push subscriptions
+                    if (backup.data._push_subscriptions) {
+                        const psRows = JSON.parse(backup.data._push_subscriptions || '[]');
+                        if (psRows.length > 0) {
+                            for (const ps of psRows) {
+                                promises.push(supabaseClient.from('push_subscriptions').upsert({
+                                    user_id: ps.user_id,
+                                    endpoint: ps.endpoint,
+                                    p256dh: ps.p256dh,
+                                    auth: ps.auth,
+                                }, { onConflict: 'endpoint' }));
+                            }
+                        }
+                    }
+
+                    // 11. Admin audit log
+                    if (backup.data._admin_audit_log) {
+                        const alRows = JSON.parse(backup.data._admin_audit_log || '[]');
+                        if (alRows.length > 0) {
+                            // Cancella e re-inserisci per evitare duplicati
+                            await supabaseClient.from('admin_audit_log').delete().neq('id', '00000000-0000-0000-0000-000000000000');
+                            promises.push(supabaseClient.from('admin_audit_log').insert(alRows));
+                        }
+                    }
+
+                    // 12. Credit link clicks
+                    if (backup.data._credit_link_clicks) {
+                        const clRows = JSON.parse(backup.data._credit_link_clicks || '[]');
+                        if (clRows.length > 0) {
+                            await supabaseClient.from('credit_link_clicks').delete().neq('id', '00000000-0000-0000-0000-000000000000');
+                            promises.push(supabaseClient.from('credit_link_clicks').insert(clRows));
                         }
                     }
 
