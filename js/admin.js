@@ -4327,7 +4327,7 @@ function createClientCard(client, index) {
     card.innerHTML = `
         <div class="client-card-header" onclick="toggleClientCard('client-card-${index}', ${index})">
             <div class="client-info-block">
-                <div class="client-name">${_escHtml(client.name)}</div>
+                <div class="client-name">${_escHtml(client.name)} <button class="btn-edit-contact-icon" onclick="event.stopPropagation(); openEditClientPopup(${index}, '${wEsc}', '${emEsc}', '${nEsc}')" title="Modifica contatto">✏️</button></div>
                 <div class="client-contacts">
                     <span>📱 ${_escHtml(client.whatsapp)}</span>
                     ${client.email ? `<span>✉️ ${_escHtml(client.email)}</span>` : ''}
@@ -4339,12 +4339,6 @@ function createClientCard(client, index) {
         </div>
         <div class="client-card-body">
             ${filterBarHTML}
-            <div class="client-contact-edit" id="cedit-section-${index}">
-                <div class="client-view-mode">
-                    <button class="btn-edit-contact" onclick="event.stopPropagation(); openEditClientPopup(${index}, '${wEsc}', '${emEsc}', '${nEsc}')">✏️ Modifica contatto</button>
-                    <button class="btn-delete-client" onclick="event.stopPropagation(); deleteClientData(${index}, '${wEsc}', '${emEsc}')" title="Elimina tutti i dati del cliente">🗑️</button>
-                </div>
-            </div>
             <div class="client-bookings-section">
                 <table class="client-bookings-table">
                     <thead><tr>

@@ -1049,6 +1049,14 @@ canvas {
 
 .client-view-mode { display: flex; align-items: center; }
 
+.btn-edit-contact-icon {
+    background: none; border: none; cursor: pointer;
+    font-size: 0.85rem; padding: 0 0.25rem;
+    opacity: 0.5; transition: opacity 0.15s;
+    vertical-align: middle;
+}
+.btn-edit-contact-icon:hover { opacity: 1; }
+
 .btn-edit-contact {
     background: none;
     border: 1px solid #e5e7eb;
