@@ -2045,6 +2045,8 @@ class UserStorage {
                 return;
             }
             if (!data?.length) return;
+            const sampleRow = data.find(r => r.email && r.email.includes('pompili'));
+            if (sampleRow) console.log('[Supabase] RPC get_all_profiles sample:', JSON.stringify(sampleRow));
 
             const local = this._cache;
 
