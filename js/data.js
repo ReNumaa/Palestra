@@ -2012,11 +2012,12 @@ class UserStorage {
             if (p.length >= 9) seenPhones.add(p);
         };
 
-        const _add = ({ name, email, whatsapp }) => {
+        const _add = (user) => {
+            const { name, email, whatsapp } = user;
             if (!name || (!email && !whatsapp)) return;
             if (_isDup(email, whatsapp)) return;
             _mark(email, whatsapp);
-            result.push({ name, email: email || '', whatsapp: whatsapp || '' });
+            result.push({ ...user, email: email || '', whatsapp: whatsapp || '' });
         };
 
         // 1. Registered accounts (from cache) — highest priority
