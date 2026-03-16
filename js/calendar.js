@@ -246,9 +246,9 @@ function createSlot(dateInfo, timeSlot) {
     const _tp1 = _parseSlotTime(timeSlot);
     let timeOk = false;
     if (_tp1) {
-        const lessonEnd = new Date(dateInfo.date);
-        lessonEnd.setHours(_tp1.endH, _tp1.endM, 0, 0);
-        timeOk = (lessonEnd - new Date()) >= 30 * 60 * 1000;
+        const lessonStart = new Date(dateInfo.date);
+        lessonStart.setHours(_tp1.startH, _tp1.startM, 0, 0);
+        timeOk = (new Date() - lessonStart) <= 30 * 60 * 1000;
     }
 
     if (!hasMixedExtras) {
@@ -393,9 +393,9 @@ function renderMobileSlots(dateInfo) {
     scheduledSlots.forEach(scheduledSlot => {
         const _tp2 = _parseSlotTime(scheduledSlot.time);
         if (!_tp2) return;
-        const lessonEnd = new Date(dateInfo.date);
-        lessonEnd.setHours(_tp2.endH, _tp2.endM, 0, 0);
-        if ((lessonEnd - now) < thirtyMinMs) return;
+        const lessonStart = new Date(dateInfo.date);
+        lessonStart.setHours(_tp2.startH, _tp2.startM, 0, 0);
+        if ((now - lessonStart) > thirtyMinMs) return;
 
         // Card tipo principale
         const mainRemaining = BookingStorage.getRemainingSpots(dateInfo.formatted, scheduledSlot.time, scheduledSlot.type);
@@ -442,13 +442,13 @@ function createMobileSlotCard(dateInfo, scheduledSlot) {
         <div class="mobile-slot-type">${SLOT_NAMES[slotType]}</div>
     `;
 
-    // Allow booking if not full and the lesson ends in at least 30 minutes from now
+    // Allow booking if not full and less than 30 min have passed since lesson start
     const _tp3 = _parseSlotTime(timeSlot);
     let bookable = false;
     if (_tp3) {
-        const lessonEnd = new Date(dateInfo.date);
-        lessonEnd.setHours(_tp3.endH, _tp3.endM, 0, 0);
-        bookable = !isFull && (lessonEnd - new Date()) >= 30 * 60 * 1000;
+        const lessonStart = new Date(dateInfo.date);
+        lessonStart.setHours(_tp3.startH, _tp3.startM, 0, 0);
+        bookable = !isFull && (new Date() - lessonStart) <= 30 * 60 * 1000;
     }
 
     if (bookable) {
