@@ -1192,7 +1192,7 @@ class BookingStorage {
             ] = await Promise.all([
                 supabaseClient.from('app_settings').select('value').eq('key', 'data_cleared_at').maybeSingle(),
                 supabaseClient.from('credits').select('id, name, whatsapp, email, balance, free_balance'),
-                supabaseClient.from('credit_history').select('credit_id, amount, note, created_at').order('created_at', { ascending: true }),
+                supabaseClient.from('credit_history').select('credit_id, amount, note, created_at, method').order('created_at', { ascending: true }),
                 supabaseClient.from('manual_debts').select('name, whatsapp, email, balance, history'),
                 supabaseClient.from('bonuses').select('name, whatsapp, email, bonus, last_reset_month'),
                 supabaseClient.from('schedule_overrides').select('date, time, slot_type, extras').order('date').order('time'),
@@ -1220,7 +1220,7 @@ class BookingStorage {
                 const histMap = {};
                 for (const h of histData || []) {
                     if (!histMap[h.credit_id]) histMap[h.credit_id] = [];
-                    histMap[h.credit_id].push({ date: h.created_at, amount: h.amount, note: h.note || '' });
+                    histMap[h.credit_id].push({ date: h.created_at, amount: h.amount, note: h.note || '', method: h.method || '' });
                 }
                 const credits = {};
                 for (const c of creditsData) {
@@ -1397,7 +1397,7 @@ class CreditStorage {
         try {
             const [{ data: creditsData, error: e1 }, { data: histData }] = await Promise.all([
                 supabaseClient.from('credits').select('id, name, whatsapp, email, balance, free_balance'),
-                supabaseClient.from('credit_history').select('credit_id, amount, note, created_at, display_amount, booking_ref, hidden').eq('hidden', false).order('created_at', { ascending: true }),
+                supabaseClient.from('credit_history').select('credit_id, amount, note, created_at, display_amount, booking_ref, hidden, method').eq('hidden', false).order('created_at', { ascending: true }),
             ]);
             if (e1) { console.error('[Supabase] CreditStorage.sync error:', e1.message); return; }
             if (!creditsData?.length) return;
@@ -1409,6 +1409,7 @@ class CreditStorage {
                     date: h.created_at,
                     amount: h.amount,
                     note: h.note || '',
+                    method: h.method || '',
                     ...(h.display_amount != null && { displayAmount: h.display_amount }),
                     ...(h.booking_ref && { bookingRef: h.booking_ref }),
                 });
@@ -1454,6 +1455,7 @@ class CreditStorage {
                 amount:     entry.amount,
                 note:       entry.note,
                 created_at: entry.date,
+                method:     entry.method || '',
             });
             if (res?.error) console.error('[Supabase] credit_history insert error:', res.error.message);
         } catch (e) {
