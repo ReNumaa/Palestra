@@ -1167,14 +1167,16 @@ canvas {
     font-size: 16px;
     outline: none;
     transition: border-color 0.15s;
+    box-sizing: border-box;
+    width: 100%;
 }
 .edit-client-popup-section input:focus { border-color: var(--primary-cyan); }
 
 .edit-client-popup-row {
     display: flex; gap: 0.65rem;
 }
-.edit-client-popup-flex1 { flex: 1; }
-.edit-client-popup-flex2 { flex: 2; }
+.edit-client-popup-flex1 { flex: 1; min-width: 0; }
+.edit-client-popup-flex2 { flex: 2; min-width: 0; }
 
 .edit-client-popup-actions {
     display: flex; gap: 0.5rem;
