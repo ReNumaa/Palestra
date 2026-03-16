@@ -2889,6 +2889,7 @@ let openClientIndex = null;
 let clientsSearchQuery = '';
 let clientCertFilter  = false;
 let clientAssicFilter = false;
+let clientAnagFilter  = false;
 
 function clientHasCertIssue(client) {
     const userRecord = _getUserRecord(client.email, client.whatsapp);
@@ -2904,19 +2905,40 @@ function clientHasAssicIssue(client) {
     return assicScad < _localDateStr();
 }
 
+function _syncFilterButtons() {
+    document.getElementById('certFilterBtn')?.classList.toggle('active', clientCertFilter);
+    document.getElementById('assicFilterBtn')?.classList.toggle('active', clientAssicFilter);
+    document.getElementById('anagFilterBtn')?.classList.toggle('active', clientAnagFilter);
+}
+
 function toggleCertFilter() {
     clientCertFilter = !clientCertFilter;
-    if (clientCertFilter) clientAssicFilter = false;
-    document.getElementById('certFilterBtn')?.classList.toggle('active', clientCertFilter);
-    document.getElementById('assicFilterBtn')?.classList.toggle('active', false);
+    if (clientCertFilter) { clientAssicFilter = false; clientAnagFilter = false; }
+    _syncFilterButtons();
     renderClientsTab();
 }
 
 function toggleAssicFilter() {
     clientAssicFilter = !clientAssicFilter;
-    if (clientAssicFilter) clientCertFilter = false;
-    document.getElementById('assicFilterBtn')?.classList.toggle('active', clientAssicFilter);
-    document.getElementById('certFilterBtn')?.classList.toggle('active', false);
+    if (clientAssicFilter) { clientCertFilter = false; clientAnagFilter = false; }
+    _syncFilterButtons();
+    renderClientsTab();
+}
+
+function clientHasAnagIssue(client) {
+    const userRecord = _getUserRecord(client.email, client.whatsapp);
+    if (!userRecord) return true;
+    const cf   = userRecord.codiceFiscale || '';
+    const via  = userRecord.indirizzoVia || '';
+    const paese = userRecord.indirizzoPaese || '';
+    const cap  = userRecord.indirizzoCap || '';
+    return !cf || !via || !paese || !cap;
+}
+
+function toggleAnagFilter() {
+    clientAnagFilter = !clientAnagFilter;
+    if (clientAnagFilter) { clientCertFilter = false; clientAssicFilter = false; }
+    _syncFilterButtons();
     renderClientsTab();
 }
 
@@ -4108,6 +4130,7 @@ function renderClientsTab() {
         : allClients;
     if (clientCertFilter)  filtered = filtered.filter(clientHasCertIssue);
     if (clientAssicFilter) filtered = filtered.filter(clientHasAssicIssue);
+    if (clientAnagFilter)  filtered = filtered.filter(clientHasAnagIssue);
 
     const container = document.getElementById('clientsList');
     container.innerHTML = '';
