@@ -165,13 +165,13 @@ async function handleBookingSubmit(e) {
         return;
     }
 
-    // Reject if the lesson ends in less than 30 minutes from now
+    // Reject if more than 30 minutes have passed since lesson start
     const _slotTp = _parseSlotTime(selectedSlot.time);
-    const [_eh, _em] = _slotTp ? [_slotTp.endH, _slotTp.endM] : [23, 59]; // fallback non-bloccante
-    const _lessonEnd = new Date(selectedSlot.date);
-    _lessonEnd.setHours(_eh, _em, 0, 0);
-    if ((_lessonEnd - new Date()) < 30 * 60 * 1000) {
-        showToast('Non è possibile prenotare: la lezione termina tra meno di 30 minuti.', 'error');
+    const [_sh, _sm] = _slotTp ? [_slotTp.startH, _slotTp.startM] : [0, 0];
+    const _lessonStart = new Date(selectedSlot.date);
+    _lessonStart.setHours(_sh, _sm, 0, 0);
+    if ((new Date() - _lessonStart) > 30 * 60 * 1000) {
+        showToast('Non è possibile prenotare: sono passati più di 30 minuti dall\'inizio della lezione.', 'error');
         closeBookingModal();
         return;
     }
@@ -321,6 +321,9 @@ async function handleBookingSubmit(e) {
             showToast('Slot non più disponibile. Qualcun altro ha prenotato prima di te.', 'error');
             renderCalendar();
             if (typeof renderMobileSlots === 'function' && selectedMobileDay) renderMobileSlots(selectedMobileDay);
+        } else if (result.error === 'too_late') {
+            showToast('Non è possibile prenotare: sono passati più di 30 minuti dall\'inizio della lezione.', 'error');
+            closeBookingModal();
         } else if (result.error === 'server_error' && !navigator.onLine) {
             showToast('Sei offline. Connettiti a internet per prenotare.', 'error');
         } else {
