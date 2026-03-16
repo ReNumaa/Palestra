@@ -1041,6 +1041,72 @@ canvas {
 
 .client-card.open .client-card-body { display: flex; }
 
+/* Clients summary view */
+.clients-summary-view {
+    display: flex; gap: 1rem;
+    padding: 0;
+}
+
+.clients-summary-card {
+    flex: 1;
+    background: #fff;
+    border-radius: 14px;
+    padding: 1.5rem;
+    text-align: center;
+    cursor: pointer;
+    border: 1px solid #e5e7eb;
+    transition: all 0.15s;
+}
+.clients-summary-card:hover {
+    border-color: var(--primary-cyan);
+    box-shadow: 0 4px 16px rgba(0,0,0,0.08);
+}
+
+.clients-summary-number {
+    font-size: 2.5rem;
+    font-weight: 800;
+    color: var(--primary-cyan);
+    line-height: 1.1;
+}
+
+.clients-summary-label {
+    font-size: 1rem;
+    font-weight: 600;
+    color: #333;
+    margin-top: 0.3rem;
+}
+
+.clients-summary-sub {
+    font-size: 0.78rem;
+    color: #999;
+    margin-top: 0.15rem;
+}
+
+.clients-list-header {
+    display: flex;
+    align-items: center;
+    gap: 0.75rem;
+    margin-bottom: 0.75rem;
+}
+
+.clients-list-title {
+    font-size: 1.05rem;
+    font-weight: 700;
+    flex: 1;
+}
+
+.clients-back-btn {
+    background: none;
+    border: 1px solid #e5e7eb;
+    border-radius: 8px;
+    padding: 0.35rem 0.75rem;
+    font-size: 0.88rem;
+    cursor: pointer;
+    color: #666;
+    transition: all 0.15s;
+}
+.clients-back-btn:hover { border-color: var(--primary-cyan); color: var(--primary-cyan); }
+
 /* Contact edit */
 .client-contact-edit {
     padding-bottom: 0.75rem;

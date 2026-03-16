@@ -4111,6 +4111,57 @@ function filterClientTx(cardIndex, days, btn) {
     btn.classList.add('active');
 }
 
+let clientsListMode = null; // null = summary, 'total' | 'active'
+
+function getActiveClients() {
+    const allClients = getAllClients();
+    const bookings = BookingStorage.getAllBookings();
+    const now = new Date();
+    const twoMonthsAgo = new Date(now.getFullYear(), now.getMonth() - 2, now.getDate());
+    const oneMonthAhead = new Date(now.getFullYear(), now.getMonth() + 1, now.getDate());
+    const cutoffFrom = twoMonthsAgo.toISOString().slice(0, 10);
+    const cutoffTo   = oneMonthAhead.toISOString().slice(0, 10);
+
+    const activeEmails = new Set();
+    const activePhones = new Set();
+    bookings.forEach(b => {
+        if (b.status === 'cancelled') return;
+        const d = b.date;
+        if (d >= cutoffFrom && d <= cutoffTo) {
+            if (b.email) activeEmails.add(b.email.toLowerCase());
+            if (b.whatsapp) activePhones.add(normalizePhone(b.whatsapp));
+        }
+    });
+
+    return allClients.filter(c => {
+        if (c.email && activeEmails.has(c.email.toLowerCase())) return true;
+        if (c.whatsapp && activePhones.has(normalizePhone(c.whatsapp))) return true;
+        return false;
+    });
+}
+
+function renderClientsSummary() {
+    const allClients = getAllClients();
+    const activeClients = getActiveClients();
+    document.getElementById('clientsTotalCount').textContent = allClients.length;
+    document.getElementById('clientsActiveCount').textContent = activeClients.length;
+}
+
+function showClientsList(mode) {
+    clientsListMode = mode;
+    document.getElementById('clientsSummaryView').style.display = 'none';
+    document.getElementById('clientsListView').style.display = '';
+    document.getElementById('clientsListTitle').textContent = mode === 'active' ? 'Clienti attivi' : 'Clienti totali';
+    renderClientsTab();
+}
+
+function hideClientsList() {
+    clientsListMode = null;
+    document.getElementById('clientsSummaryView').style.display = '';
+    document.getElementById('clientsListView').style.display = 'none';
+    renderClientsSummary();
+}
+
 async function refreshClients() {
     const btn = document.getElementById('refreshClientsBtn');
     if (btn) { btn.textContent = '↻ Caricamento...'; btn.disabled = true; }
@@ -4120,14 +4171,16 @@ async function refreshClients() {
 }
 
 function renderClientsTab() {
-    const allClients = getAllClients();
+    renderClientsSummary();
+    if (!clientsListMode) return;
+    const baseClients = clientsListMode === 'active' ? getActiveClients() : getAllClients();
     const query = clientsSearchQuery.trim().toLowerCase();
     let filtered = query
-        ? allClients.filter(c =>
+        ? baseClients.filter(c =>
             c.name.toLowerCase().includes(query) ||
             c.whatsapp.toLowerCase().includes(query) ||
             (c.email && c.email.toLowerCase().includes(query)))
-        : allClients;
+        : baseClients;
     if (clientCertFilter)  filtered = filtered.filter(clientHasCertIssue);
     if (clientAssicFilter) filtered = filtered.filter(clientHasAssicIssue);
     if (clientAnagFilter)  filtered = filtered.filter(clientHasAnagIssue);

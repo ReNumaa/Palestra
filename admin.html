@@ -13,7 +13,7 @@
     <link rel="icon" type="image/jpeg" href="images/logo-tb---nero.jpg">
     <link rel="stylesheet" href="css/style.css?v=7">
     <link rel="stylesheet" href="css/login.css?v=5">
-    <link rel="stylesheet" href="css/admin.css?v=25">
+    <link rel="stylesheet" href="css/admin.css?v=26">
 </head>
 <body>
     <nav class="navbar">
@@ -158,7 +158,23 @@
 
             <!-- Tab: Clients -->
             <div id="tab-clients" class="tab-content">
-                <div class="dashboard-card">
+                <div id="clientsSummaryView" class="clients-summary-view">
+                    <div class="clients-summary-card" onclick="showClientsList('total')">
+                        <div class="clients-summary-number" id="clientsTotalCount">0</div>
+                        <div class="clients-summary-label">Clienti totali</div>
+                    </div>
+                    <div class="clients-summary-card" onclick="showClientsList('active')">
+                        <div class="clients-summary-number" id="clientsActiveCount">0</div>
+                        <div class="clients-summary-label">Clienti attivi</div>
+                        <div class="clients-summary-sub">ultimi 2 mesi + prossimo mese</div>
+                    </div>
+                </div>
+                <div id="clientsListView" class="dashboard-card" style="display:none;">
+                    <div class="clients-list-header">
+                        <button class="clients-back-btn" onclick="hideClientsList()">← Indietro</button>
+                        <span class="clients-list-title" id="clientsListTitle">Clienti</span>
+                        <button class="btn-action" id="refreshClientsBtn" onclick="refreshClients()" style="font-size:0.85rem;padding:0.3rem 0.7rem;">↻ Ricarica</button>
+                    </div>
                     <div class="clients-search-bar">
                         <input type="text" id="clientSearchInput"
                                placeholder="Cerca per nome, telefono o email..."
@@ -816,7 +832,7 @@
     <script src="js/auth.js?v=21"></script>
     <script src="js/push.js?v=11"></script>
     <script src="js/chart-mini.js?v=12"></script>
-    <script src="js/admin.js?v=87"></script>
+    <script src="js/admin.js?v=88"></script>
     <script>
         // Avvia auth, sincronizza i booking da Supabase, poi aggiorna la dashboard
         (async function () {
