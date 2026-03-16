@@ -206,25 +206,21 @@ function setupAdminStickyOffsets() {
     _adminStickyResizeHandler = _apply;
     window.addEventListener('resize', _adminStickyResizeHandler);
 
-    // Hide week nav on scroll down, show on scroll up
+    // Hide week nav once scrolled past threshold, show only at top
     if (_adminScrollHandler) window.removeEventListener('scroll', _adminScrollHandler);
-    let _lastScrollY = 0;
     _adminScrollHandler = () => {
         if (!controls) return;
         const sy = window.scrollY;
-        const isHidden = controls.classList.contains('scroll-hidden');
-        if (sy > _lastScrollY && sy > 120 && !isHidden) {
+        if (sy > 120 && !controls.classList.contains('scroll-hidden')) {
             controls.classList.add('scroll-hidden');
-            // Move day-selector up to fill the gap
             if (daySelector && window.innerWidth > 768) {
                 const tabsBottom = (navbar.offsetHeight - 1) + tabs.offsetHeight;
                 daySelector.style.top = tabsBottom + 'px';
             }
-        } else if (sy < _lastScrollY && isHidden) {
+        } else if (sy <= 10 && controls.classList.contains('scroll-hidden')) {
             controls.classList.remove('scroll-hidden');
             _apply();
         }
-        _lastScrollY = sy;
     };
     window.addEventListener('scroll', _adminScrollHandler, { passive: true });
 }
