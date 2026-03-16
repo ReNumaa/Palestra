@@ -6602,6 +6602,7 @@ async function downloadWeeklyReport() {
         await Promise.all([
             ManualDebtStorage.syncFromSupabase(),
             CreditStorage.syncFromSupabase(),
+            UserStorage.syncUsersFromSupabase(),
         ]);
 
         // Fetch bookings paid with carta or bonifico in the date range
@@ -6668,6 +6669,7 @@ async function downloadWeeklyReport() {
         allUsers.forEach(u => {
             if (u.email) userMap[u.email.toLowerCase()] = u;
         });
+        console.log('[WeeklyReport] userMap keys:', Object.keys(userMap).length, 'sample:', allUsers.slice(0, 2).map(u => ({ email: u.email, cf: u.codiceFiscale, via: u.indirizzoVia })));
 
         const SLOT_LABEL = {
             'personal-training': 'Personal Training',
