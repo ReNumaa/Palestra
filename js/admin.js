@@ -3127,6 +3127,37 @@ function deleteManualDebtEntry(whatsapp, email, entryDate) {
     }
 }
 
+function deleteCreditEntryFromCard(whatsapp, email, entryDate) {
+    if (!confirm('Eliminare questa voce di credito?')) return;
+    if (typeof supabaseClient !== 'undefined') {
+        (async () => {
+            const { data, error } = await supabaseClient.rpc('admin_delete_credit_entry', {
+                p_email:      (email || '').toLowerCase(),
+                p_entry_date: entryDate,
+            });
+            if (error) {
+                console.error('[Supabase] admin_delete_credit_entry error:', error.message);
+                alert('⚠️ Errore: ' + error.message);
+                return;
+            }
+            if (!data?.success) {
+                alert('⚠️ Voce non trovata.');
+                return;
+            }
+            console.log('[admin_delete_credit_entry]', data);
+            await CreditStorage.syncFromSupabase();
+            renderPaymentsTab();
+            showToast('Voce di credito eliminata.', 'success');
+        })();
+    } else {
+        const ok = CreditStorage.deleteCreditEntry(whatsapp, email, entryDate);
+        if (ok) {
+            renderPaymentsTab();
+            showToast('Voce di credito eliminata.', 'success');
+        }
+    }
+}
+
 function toggleCreditsList() {
     if (_sensitiveHidden) return;
     creditsListVisible = !creditsListVisible;
@@ -3149,6 +3180,10 @@ function createCreditCard(credit, index) {
     card.className = 'debtor-card credit-client-card';
     card.id = `credit-card-${index}`;
 
+    const safeW = (credit.whatsapp || '').replace(/'/g, "\\'");
+    const safeE = (credit.email || '').replace(/'/g, "\\'");
+    const safeN = (credit.name || '').replace(/'/g, "\\'");
+
     const recentHistory = [...(credit.history || [])].reverse().slice(0, 5);
     let historyHTML = '<div class="debtor-bookings" style="margin-top:0.75rem;">';
     recentHistory.forEach(entry => {
@@ -3156,10 +3191,14 @@ function createCreditCard(credit, index) {
         const dateStr = `${d.getDate()}/${d.getMonth() + 1}/${d.getFullYear()}`;
         const sign = entry.amount >= 0 ? '+' : '';
         const color = entry.amount >= 0 ? '#22c55e' : '#ef4444';
+        const safeDate = (entry.date || '').replace(/'/g, "\\'");
         historyHTML += `
             <div class="debtor-booking-item">
                 <div class="debtor-booking-details">📅 ${dateStr} — ${_escHtml(entry.note || 'Movimento credito')}</div>
-                <div class="debtor-booking-price" style="color:${color}">${sign}€${Math.abs(entry.amount)}</div>
+                <div style="display:flex;align-items:center;gap:0.5rem;">
+                    <div class="debtor-booking-price" style="color:${color}">${sign}€${Math.abs(entry.amount)}</div>
+                    <button class="debt-entry-delete-btn" onclick="deleteCreditEntryFromCard('${safeW}','${safeE}','${safeDate}')" title="Elimina questa voce">✕</button>
+                </div>
             </div>`;
     });
     historyHTML += '</div>';
@@ -3176,7 +3215,12 @@ function createCreditCard(credit, index) {
             <div class="debtor-amount credit-amount">Credito: €${credit.balance}</div>
             <div class="debtor-toggle">▼</div>
         </div>
-        <div class="debtor-card-body">${historyHTML}</div>
+        <div class="debtor-card-body">
+            ${historyHTML}
+            <div class="debtor-pay-footer" style="margin-top:0.75rem;display:flex;gap:0.5rem;flex-wrap:wrap;">
+                <button class="debtor-pay-btn" style="background:#0ea5e9;" onclick="openManualEntryPopup('credit','${safeE}','${safeN}','${safeW}')">+ Aggiungi credito</button>
+            </div>
+        </div>
     `;
     return card;
 }
@@ -3615,7 +3659,7 @@ function getUnpaidAmountForContact(whatsapp, email) {
 let _manualEntryType = 'debt';
 let _manualEntryContact = null;
 
-function openManualEntryPopup(type) {
+function openManualEntryPopup(type, prefillEmail, prefillName, prefillWhatsapp) {
     _manualEntryType = type;
     _manualEntryContact = null;
     const isDebt = type === 'debt';
@@ -3633,7 +3677,12 @@ function openManualEntryPopup(type) {
     document.getElementById('manualMethodField').style.display = isDebt ? 'none' : '';
     document.getElementById('manualEntryOverlay').classList.add('open');
     document.getElementById('manualEntryModal').classList.add('open');
-    setTimeout(() => document.getElementById('manualClientInput').focus(), 100);
+
+    if (prefillName && prefillEmail) {
+        selectManualClient(prefillName, prefillWhatsapp || '', prefillEmail);
+    } else {
+        setTimeout(() => document.getElementById('manualClientInput').focus(), 100);
+    }
 }
 
 function closeManualEntryPopup() {
