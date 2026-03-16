@@ -6637,12 +6637,8 @@ async function downloadWeeklyReport() {
 
         // Also check manual credits (CreditStorage) paid with carta/iban in this period
         const allCredits = CreditStorage._getAll();
-        console.log('[WeeklyReport] CreditStorage entries:', Object.keys(allCredits).length);
         const manualCreditPayments = [];
         Object.values(allCredits).forEach(c => {
-            (c.history || []).forEach(h => {
-                console.log('[WeeklyReport] credit entry:', c.name, h.date?.slice(0,10), 'amount:', h.amount, 'method:', JSON.stringify(h.method), 'note:', h.note);
-            });
             (c.history || []).filter(h => {
                 if (h.amount <= 0) return false;              // only positive credits (money received)
                 if (h.hiddenRefund) return false;              // skip hidden refunds
@@ -6669,8 +6665,6 @@ async function downloadWeeklyReport() {
         allUsers.forEach(u => {
             if (u.email) userMap[u.email.toLowerCase()] = u;
         });
-        console.log('[WeeklyReport] userMap keys:', Object.keys(userMap).length, 'sample:', allUsers.slice(0, 2).map(u => ({ email: u.email, cf: u.codiceFiscale, via: u.indirizzoVia })));
-
         const SLOT_LABEL = {
             'personal-training': 'Personal Training',
             'small-group':       'Small Group',
@@ -6743,9 +6737,6 @@ async function downloadWeeklyReport() {
                 importo: p.amount
             });
         });
-
-        console.log('[WeeklyReport] cardBookings:', cardBookings.length, 'manualCardPayments:', manualCardPayments.length, 'manualCreditPayments:', manualCreditPayments.length, 'total rows:', rows.length);
-        if (manualCreditPayments.length > 0) console.log('[WeeklyReport] manualCreditPayments:', JSON.stringify(manualCreditPayments));
 
         // Sort by date ascending
         rows.sort((a, b) => (a.sortKey || '').localeCompare(b.sortKey || ''));
