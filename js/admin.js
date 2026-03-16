@@ -4157,28 +4157,17 @@ function selectClientFromDropdown(index) {
     if (!matches || !matches[index]) return;
     const client = matches[index];
 
-    // Open the total list and scroll to the matching card
-    if (!clientsListMode) {
-        clientsListMode = 'total';
-        _updateClientsHints();
-    }
-    clientsSearchQuery = '';
-    renderClientsTab();
-
-    // Find the card by name and open it
+    // Show only the selected client's card
     const container = document.getElementById('clientsList');
-    const cards = container.querySelectorAll('.client-card');
-    for (const card of cards) {
-        const nameEl = card.querySelector('.client-name');
-        if (nameEl && nameEl.textContent.trim() === client.name) {
-            card.classList.add('open');
-            card.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
-            break;
-        }
-    }
+    container.innerHTML = '';
+    const card = createClientCard(client, 0);
+    card.classList.add('open');
+    container.appendChild(card);
+    container.style.display = '';
 
     closeClientsSearchDropdown();
     document.getElementById('clientSearchInput').value = client.name;
+    card.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
 }
 
 function filterClientTx(cardIndex, days, btn) {
