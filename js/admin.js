@@ -5875,7 +5875,7 @@ function toggleStatDetail(type) {
         default:
             panel.innerHTML = `<div class="stat-detail-header"><h3>Dettaglio ${type}</h3></div><p style="color:#9ca3af;text-align:center;padding:1.5rem 0">Prossimamente</p>`;
     }
-    panel.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+    card.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
 }
 
 function renderFatturatoDetail(panel) {
