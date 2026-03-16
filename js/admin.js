@@ -3436,7 +3436,27 @@ function _searchAllContacts(query) {
         ))
         .map(c => ({ type: 'credit', data: c }));
 
-    return [...debtorMatches, ...creditMatches];
+    // Also search all clients (show as credit card with €0 balance)
+    const allClients = UserStorage.getAll();
+    const alreadyFound = new Set();
+    [...debtorMatches, ...creditMatches].forEach(m => {
+        if (m.data.email) alreadyFound.add(m.data.email.toLowerCase());
+        if (m.data.whatsapp) alreadyFound.add(normalizePhone(m.data.whatsapp));
+    });
+    const clientMatches = allClients
+        .filter(c =>
+            c.name.toLowerCase().includes(q) ||
+            (c.whatsapp || '').toLowerCase().includes(q) ||
+            (c.email || '').toLowerCase().includes(q)
+        )
+        .filter(c => {
+            if (c.email && alreadyFound.has(c.email.toLowerCase())) return false;
+            if (c.whatsapp && alreadyFound.has(normalizePhone(c.whatsapp))) return false;
+            return true;
+        })
+        .map(c => ({ type: 'client', data: { name: c.name, email: c.email || '', whatsapp: c.whatsapp || '', balance: 0, history: [] } }));
+
+    return [...debtorMatches, ...creditMatches, ...clientMatches];
 }
 
 function searchDebtor() {
@@ -3495,6 +3515,8 @@ function liveSearchDebtor() {
             const name = r.data.name;
             const badge = r.type === 'debtor'
                 ? `<span class="dropdown-item-debt">Da pagare: €${r.data.totalAmount}</span>`
+                : r.type === 'client'
+                ? `<span class="dropdown-item-client" style="color:#888;font-size:12px">👤 Cliente</span>`
                 : `<span class="dropdown-item-credit">💳 €${r.data.balance}</span>`;
             return `<div class="dropdown-item" onclick="selectDebtorFromDropdown(${i})">
                 <span class="dropdown-item-name">${name}</span>
@@ -3519,7 +3541,7 @@ function selectDebtorFromDropdown(index) {
     resultsList.innerHTML = '';
     const card = r.type === 'debtor'
         ? createDebtorCard(r.data, 'search-sel')
-        : createCreditCard(r.data, 'search-sel');
+        : createCreditCard(r.data, 'search-sel');  // works for 'credit' and 'client' types
     card.classList.add('open');
     resultsList.appendChild(card);
 
@@ -4179,13 +4201,13 @@ async function refreshClients() {
 function renderClientsTab() {
     renderClientsSummary();
     const listEl = document.getElementById('clientsList');
-    if (!clientsListMode) {
+    const query = clientsSearchQuery.trim().toLowerCase();
+    if (!clientsListMode && !query) {
         if (listEl) listEl.style.display = 'none';
         return;
     }
     if (listEl) listEl.style.display = '';
-    const baseClients = clientsListMode === 'active' ? getActiveClients() : getAllClients();
-    const query = clientsSearchQuery.trim().toLowerCase();
+    const baseClients = query ? getAllClients() : (clientsListMode === 'active' ? getActiveClients() : getAllClients());
     let filtered = query
         ? baseClients.filter(c =>
             c.name.toLowerCase().includes(query) ||
