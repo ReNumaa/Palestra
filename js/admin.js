@@ -6596,6 +6596,12 @@ async function downloadWeeklyReport() {
     if (btn) { btn.innerHTML = '⏳ Generazione...'; btn.disabled = true; }
 
     try {
+        // Sync fresh data from Supabase before generating the report
+        await Promise.all([
+            ManualDebtStorage.syncFromSupabase(),
+            CreditStorage.syncFromSupabase(),
+        ]);
+
         // Fetch bookings paid with carta or bonifico in the date range
         const REPORT_METHODS = new Set(['carta', 'iban']);
         const METHOD_LABEL_REPORT = { carta: 'Carta', iban: 'Bonifico' };
@@ -6620,6 +6626,30 @@ async function downloadWeeklyReport() {
                     date: h.date,
                     type: 'Saldo debito manuale',
                     amount: Math.abs(h.amount),
+                    method: h.method,
+                    note: h.note || ''
+                });
+            });
+        });
+
+        // Also check manual credits (CreditStorage) paid with carta/iban in this period
+        const allCredits = CreditStorage._getAll();
+        const manualCreditPayments = [];
+        Object.values(allCredits).forEach(c => {
+            (c.history || []).filter(h => {
+                if (h.amount <= 0) return false;              // only positive credits (money received)
+                if (h.hiddenRefund) return false;              // skip hidden refunds
+                if ((h.note || '').startsWith('Rimborso')) return false; // skip refunds
+                if (!REPORT_METHODS.has(h.method || '')) return false;
+                const hDate = h.date ? h.date.slice(0, 10) : '';
+                return hDate >= fromStr && hDate <= toStr;
+            }).forEach(h => {
+                manualCreditPayments.push({
+                    name: c.name,
+                    email: c.email,
+                    date: h.date,
+                    type: 'Credito manuale',
+                    amount: h.amount,
                     method: h.method,
                     note: h.note || ''
                 });
@@ -6673,6 +6703,23 @@ async function downloadWeeklyReport() {
         });
 
         manualCardPayments.forEach(p => {
+            const user = userMap[(p.email || '').toLowerCase()];
+            const { nome, cognome } = splitName(p.name);
+            const addr = [user?.indirizzoVia, user?.indirizzoPaese, user?.indirizzoCap].filter(Boolean).join(', ');
+            rows.push({
+                nome,
+                cognome,
+                cf: user?.codiceFiscale || '',
+                indirizzo: addr,
+                data: fmtDateTime(p.date),
+                sortKey: p.date || '',
+                tipo: p.type,
+                metodo: METHOD_LABEL_REPORT[p.method] || p.method,
+                importo: p.amount
+            });
+        });
+
+        manualCreditPayments.forEach(p => {
             const user = userMap[(p.email || '').toLowerCase()];
             const { nome, cognome } = splitName(p.name);
             const addr = [user?.indirizzoVia, user?.indirizzoPaese, user?.indirizzoCap].filter(Boolean).join(', ');
