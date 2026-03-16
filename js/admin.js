@@ -3217,8 +3217,9 @@ function createCreditCard(credit, index) {
         </div>
         <div class="debtor-card-body">
             ${historyHTML}
-            <div class="debtor-pay-footer" style="margin-top:0.75rem;display:flex;gap:0.5rem;flex-wrap:wrap;">
-                <button class="debtor-pay-btn" style="background:#0ea5e9;" onclick="openManualEntryPopup('credit','${safeE}','${safeN}','${safeW}')">+ Aggiungi credito</button>
+            <div class="credit-card-actions">
+                <button class="credit-action-btn credit-action-btn--credit" onclick="openManualEntryPopup('credit','${safeE}','${safeN}','${safeW}')">+ Credito</button>
+                <button class="credit-action-btn credit-action-btn--debt" onclick="openManualEntryPopup('debt','${safeE}','${safeN}','${safeW}')">+ Debito</button>
             </div>
         </div>
     `;

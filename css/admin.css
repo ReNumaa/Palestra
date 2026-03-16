@@ -2303,6 +2303,35 @@ canvas {
     color: #ef4444;
 }
 
+.credit-card-actions {
+    display: flex;
+    gap: 0.5rem;
+    margin-top: 0.85rem;
+    padding-top: 0.85rem;
+    border-top: 1px solid #f3f4f6;
+}
+
+.credit-action-btn {
+    flex: 1;
+    padding: 0.5rem 0.75rem;
+    border: none;
+    border-radius: 8px;
+    font-size: 0.82rem;
+    font-weight: 600;
+    cursor: pointer;
+    transition: opacity 0.15s;
+}
+.credit-action-btn:hover { opacity: 0.85; }
+
+.credit-action-btn--credit {
+    background: rgba(0,174,239,0.12);
+    color: #0369a1;
+}
+.credit-action-btn--debt {
+    background: rgba(239,68,68,0.12);
+    color: #ef4444;
+}
+
 .debtor-pay-footer {
     display: flex;
     align-items: center;
