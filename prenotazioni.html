@@ -869,10 +869,20 @@
             const el   = document.getElementById('prenoCertWarning');
             if (!user || !el) return;
 
-            const scad = user.medical_cert_expiry || null;
-            const hasCF = !!user.codice_fiscale;
             const certEditable = CertEditableStorage.get();
-            const clickFn = certEditable ? 'openEditProfileModal()' : "showToast('Porta a Thomas il certificato medico', 'error')";
+            const hasCF = !!user.codice_fiscale;
+
+            // Se il cert non è modificabile dall'utente, mostra solo il warning CF
+            if (!certEditable) {
+                if (!hasCF) {
+                    el.innerHTML = `<div class="preno-cert-warning preno-cert-expired preno-cert-clickable" onclick="openEditProfileModal()">🏥 Imposta Codice Fiscale</div>`;
+                } else {
+                    el.innerHTML = '';
+                }
+                return;
+            }
+
+            const scad = user.medical_cert_expiry || null;
             const cfSuffix = !hasCF ? ' + Codice Fiscale' : '';
             if (!scad) {
                 el.innerHTML = `<div class="preno-cert-warning preno-cert-expired preno-cert-clickable" onclick="openEditProfileModal()">🏥 Imposta scadenza Cert. Medico${cfSuffix}</div>`;
@@ -888,9 +898,9 @@
 
             let html = '';
             if (diffDays <= 0) {
-                html += `<div class="preno-cert-warning preno-cert-expired preno-cert-clickable" onclick="${clickFn}">🏥 Cert. Medico scaduto il ${dateLabel}</div>`;
+                html += `<div class="preno-cert-warning preno-cert-expired preno-cert-clickable" onclick="openEditProfileModal()">🏥 Cert. Medico scaduto il ${dateLabel}</div>`;
             } else if (diffDays <= 30) {
-                html += `<div class="preno-cert-warning preno-cert-expiring preno-cert-clickable" onclick="${clickFn}">⏳ Mancano ${diffDays} giorn${diffDays === 1 ? 'o' : 'i'} alla scadenza del tuo Cert. Medico</div>`;
+                html += `<div class="preno-cert-warning preno-cert-expiring preno-cert-clickable" onclick="openEditProfileModal()">⏳ Mancano ${diffDays} giorn${diffDays === 1 ? 'o' : 'i'} alla scadenza del tuo Cert. Medico</div>`;
             }
             if (!hasCF) {
                 html += `<div class="preno-cert-warning preno-cert-expired preno-cert-clickable" onclick="openEditProfileModal()" style="margin-top:0.5rem">🏥 Imposta Codice Fiscale</div>`;
