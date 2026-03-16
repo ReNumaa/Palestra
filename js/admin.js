@@ -6634,8 +6634,12 @@ async function downloadWeeklyReport() {
 
         // Also check manual credits (CreditStorage) paid with carta/iban in this period
         const allCredits = CreditStorage._getAll();
+        console.log('[WeeklyReport] CreditStorage entries:', Object.keys(allCredits).length);
         const manualCreditPayments = [];
         Object.values(allCredits).forEach(c => {
+            (c.history || []).forEach(h => {
+                console.log('[WeeklyReport] credit entry:', c.name, h.date?.slice(0,10), 'amount:', h.amount, 'method:', JSON.stringify(h.method), 'note:', h.note);
+            });
             (c.history || []).filter(h => {
                 if (h.amount <= 0) return false;              // only positive credits (money received)
                 if (h.hiddenRefund) return false;              // skip hidden refunds
