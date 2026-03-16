@@ -3127,6 +3127,102 @@ function deleteManualDebtEntry(whatsapp, email, entryDate) {
     }
 }
 
+// ── Edit entry popup ────────────────────────────────────────────────────────
+let _editEntryState = {};
+
+function openEditEntryPopup(type, email, entryDate, amount, note, method) {
+    _editEntryState = { type, email, entryDate };
+
+    // Remove existing popup if any
+    let overlay = document.getElementById('editEntryOverlay');
+    if (overlay) overlay.remove();
+
+    overlay = document.createElement('div');
+    overlay.id = 'editEntryOverlay';
+    overlay.className = 'edit-entry-overlay';
+    overlay.onclick = (e) => { if (e.target === overlay) closeEditEntryPopup(); };
+
+    const isCredit = type === 'credit';
+    overlay.innerHTML = `
+        <div class="edit-entry-popup">
+            <div class="edit-entry-popup-header">
+                <h3>Modifica ${isCredit ? 'Credito' : 'Debito'}</h3>
+                <button onclick="closeEditEntryPopup()" style="background:none;border:none;font-size:1.3rem;cursor:pointer;color:#999">✕</button>
+            </div>
+            <div class="edit-entry-popup-body">
+                <label>Importo (€)</label>
+                <input type="number" id="editEntryAmount" value="${Math.abs(amount)}" step="0.01" min="0">
+                <label>Nota</label>
+                <input type="text" id="editEntryNote" value="${note}">
+                ${isCredit ? `<label>Metodo</label>
+                <select id="editEntryMethod">
+                    <option value="">-- Nessuno --</option>
+                    <option value="contanti" ${method==='contanti'?'selected':''}>💵 Contanti</option>
+                    <option value="carta" ${method==='carta'?'selected':''}>💳 Carta</option>
+                    <option value="iban" ${method==='iban'?'selected':''}>🏦 Bonifico</option>
+                </select>` : ''}
+            </div>
+            <div class="edit-entry-popup-actions">
+                <button class="credit-action-btn credit-action-btn--debt" onclick="closeEditEntryPopup()">Annulla</button>
+                <button class="credit-action-btn credit-action-btn--credit" onclick="saveEditEntry()">Salva</button>
+            </div>
+        </div>`;
+    document.body.appendChild(overlay);
+    setTimeout(() => overlay.classList.add('open'), 10);
+}
+
+function closeEditEntryPopup() {
+    const overlay = document.getElementById('editEntryOverlay');
+    if (overlay) {
+        overlay.classList.remove('open');
+        setTimeout(() => overlay.remove(), 200);
+    }
+}
+
+async function saveEditEntry() {
+    const { type, email, entryDate } = _editEntryState;
+    const newAmount = parseFloat(document.getElementById('editEntryAmount').value);
+    const newNote = document.getElementById('editEntryNote').value.trim();
+    const methodEl = document.getElementById('editEntryMethod');
+    const newMethod = methodEl ? methodEl.value : '';
+
+    if (isNaN(newAmount) || newAmount < 0) { showToast('Importo non valido', 'error'); return; }
+
+    if (typeof supabaseClient !== 'undefined') {
+        const rpcName = type === 'credit' ? 'admin_edit_credit_entry' : 'admin_edit_debt_entry';
+        const params = {
+            p_email: (email || '').toLowerCase(),
+            p_entry_date: entryDate,
+            p_new_amount: newAmount,
+            p_new_note: newNote,
+        };
+        if (type === 'credit') params.p_new_method = newMethod;
+
+        const { data, error } = await supabaseClient.rpc(rpcName, params);
+        if (error) {
+            console.error(`[${rpcName}] error:`, error.message);
+            alert('⚠️ Errore: ' + error.message);
+            return;
+        }
+        if (!data?.success) {
+            alert('⚠️ Voce non trovata.');
+            return;
+        }
+        await Promise.all([CreditStorage.syncFromSupabase(), ManualDebtStorage.syncFromSupabase()]);
+    } else {
+        // Fallback locale (senza Supabase)
+        if (type === 'credit') {
+            CreditStorage.editCreditEntry(email, entryDate, newAmount, newNote, newMethod);
+        } else {
+            ManualDebtStorage.editDebtEntry(email, entryDate, newAmount, newNote);
+        }
+    }
+
+    closeEditEntryPopup();
+    renderPaymentsTab();
+    showToast('Voce modificata.', 'success');
+}
+
 function deleteCreditEntryFromCard(whatsapp, email, entryDate) {
     if (!confirm('Eliminare questa voce di credito?')) return;
     if (typeof supabaseClient !== 'undefined') {
@@ -3192,12 +3288,15 @@ function createCreditCard(credit, index) {
         const sign = entry.amount >= 0 ? '+' : '';
         const color = entry.amount >= 0 ? '#22c55e' : '#ef4444';
         const safeDate = (entry.date || '').replace(/'/g, "\\'");
+        const safeNote = _escHtml((entry.note || '').replace(/'/g, "\\'"));
+        const safeMethod = _escHtml((entry.method || '').replace(/'/g, "\\'"));
         historyHTML += `
             <div class="debtor-booking-item">
                 <div class="debtor-booking-details">📅 ${dateStr} — ${_escHtml(entry.note || 'Movimento credito')}</div>
-                <div style="display:flex;align-items:center;gap:0.5rem;">
+                <div style="display:flex;align-items:center;gap:0.35rem;">
                     <div class="debtor-booking-price" style="color:${color}">${sign}€${Math.abs(entry.amount)}</div>
-                    <button class="debt-entry-delete-btn" onclick="deleteCreditEntryFromCard('${safeW}','${safeE}','${safeDate}')" title="Elimina questa voce">✕</button>
+                    <button class="debt-entry-edit-btn" onclick="openEditEntryPopup('credit','${safeE}','${safeDate}',${entry.amount},'${safeNote}','${safeMethod}')" title="Modifica">✏️</button>
+                    <button class="debt-entry-delete-btn" onclick="deleteCreditEntryFromCard('${safeW}','${safeE}','${safeDate}')" title="Elimina">✕</button>
                 </div>
             </div>`;
     });
@@ -3206,7 +3305,10 @@ function createCreditCard(credit, index) {
     card.innerHTML = `
         <div class="debtor-card-header" onclick="toggleDebtorCard('credit-card-${index}')">
             <div class="debtor-info">
-                <div class="debtor-name">${_escHtml(credit.name)}</div>
+                <div class="debtor-name">${_escHtml(credit.name)}
+                    <button class="credit-action-btn credit-action-btn--credit credit-action-btn--header" onclick="event.stopPropagation();openManualEntryPopup('credit','${safeE}','${safeN}','${safeW}')">+ Credito</button>
+                    <button class="credit-action-btn credit-action-btn--debt credit-action-btn--header" onclick="event.stopPropagation();openManualEntryPopup('debt','${safeE}','${safeN}','${safeW}')">+ Debito</button>
+                </div>
                 <div class="debtor-contact">
                     <span>📱 ${_escHtml(credit.whatsapp)}</span>
                     <span>✉️ ${_escHtml(credit.email)}</span>
@@ -3217,10 +3319,6 @@ function createCreditCard(credit, index) {
         </div>
         <div class="debtor-card-body">
             ${historyHTML}
-            <div class="credit-card-actions">
-                <button class="credit-action-btn credit-action-btn--credit" onclick="openManualEntryPopup('credit','${safeE}','${safeN}','${safeW}')">+ Credito</button>
-                <button class="credit-action-btn credit-action-btn--debt" onclick="openManualEntryPopup('debt','${safeE}','${safeN}','${safeW}')">+ Debito</button>
-            </div>
         </div>
     `;
     return card;
@@ -3333,12 +3431,15 @@ function createDebtorCard(debtor, cardId) {
             const d = new Date(entry.date);
             const dateStr = `${d.getDate()}/${d.getMonth()+1}/${d.getFullYear()}`;
             const safeDate = entry.date.replace(/'/g, "\\'");
+            const safeDebtNote = _escHtml((entry.note || '').replace(/'/g, "\\'"));
+            const safeDebtMethod = _escHtml((entry.method || '').replace(/'/g, "\\'"));
             bookingsHTML += `
                 <div class="debtor-booking-item debtor-booking-manual">
                     <div class="debtor-booking-details">✏️ ${dateStr} &nbsp;·&nbsp; ${_escHtml(entry.note || 'Debito manuale')}</div>
-                    <div style="display:flex;align-items:center;gap:0.5rem;">
+                    <div style="display:flex;align-items:center;gap:0.35rem;">
                         <div class="debtor-booking-price">€${entry.amount}</div>
-                        <button class="debt-entry-delete-btn" onclick="deleteManualDebtEntry('${safeW}','${safeE}','${safeDate}')" title="Elimina questa voce">✕</button>
+                        <button class="debt-entry-edit-btn" onclick="openEditEntryPopup('debt','${safeE}','${safeDate}',${entry.amount},'${safeDebtNote}','${safeDebtMethod}')" title="Modifica">✏️</button>
+                        <button class="debt-entry-delete-btn" onclick="deleteManualDebtEntry('${safeW}','${safeE}','${safeDate}')" title="Elimina">✕</button>
                     </div>
                 </div>`;
         });

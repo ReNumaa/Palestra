@@ -2128,6 +2128,19 @@ canvas {
 .debtor-booking-manual { background: #fffbf0; }
 .debtor-booking-manual .debtor-booking-price { color: #d97706; }
 
+.debt-entry-edit-btn {
+    background: none;
+    border: 1px solid #93c5fd;
+    color: #3b82f6;
+    border-radius: 4px;
+    padding: 0.05rem 0.3rem;
+    font-size: 0.7rem;
+    cursor: pointer;
+    line-height: 1.4;
+    transition: background 0.15s;
+}
+.debt-entry-edit-btn:hover { background: #dbeafe; }
+
 .debt-entry-delete-btn {
     background: none;
     border: 1px solid #fca5a5;
@@ -2331,6 +2344,64 @@ canvas {
     background: rgba(239,68,68,0.12);
     color: #ef4444;
 }
+
+.credit-action-btn--header {
+    flex: none;
+    padding: 0.2rem 0.55rem;
+    font-size: 0.72rem;
+    border-radius: 6px;
+    margin-left: 0.3rem;
+    vertical-align: middle;
+}
+
+/* Edit entry popup */
+.edit-entry-overlay {
+    position: fixed; inset: 0;
+    background: rgba(0,0,0,0.4);
+    z-index: 10000;
+    display: flex; align-items: center; justify-content: center;
+    opacity: 0; transition: opacity 0.2s;
+    pointer-events: none;
+}
+.edit-entry-overlay.open { opacity: 1; pointer-events: auto; }
+
+.edit-entry-popup {
+    background: #fff;
+    border-radius: 14px;
+    width: min(92vw, 380px);
+    box-shadow: 0 12px 40px rgba(0,0,0,0.18);
+    overflow: hidden;
+}
+.edit-entry-popup-header {
+    display: flex; justify-content: space-between; align-items: center;
+    padding: 1rem 1.25rem;
+    border-bottom: 1px solid #f0f0f0;
+}
+.edit-entry-popup-header h3 { margin: 0; font-size: 1.05rem; }
+.edit-entry-popup-body {
+    padding: 1rem 1.25rem;
+    display: flex; flex-direction: column; gap: 0.6rem;
+}
+.edit-entry-popup-body label {
+    font-size: 0.82rem; font-weight: 600; color: #555;
+}
+.edit-entry-popup-body input,
+.edit-entry-popup-body select {
+    padding: 0.55rem 0.75rem;
+    border: 1.5px solid #e0e0e0;
+    border-radius: 8px;
+    font-size: 0.95rem;
+    outline: none;
+}
+.edit-entry-popup-body input:focus,
+.edit-entry-popup-body select:focus {
+    border-color: var(--primary-cyan);
+}
+.edit-entry-popup-actions {
+    display: flex; gap: 0.5rem;
+    padding: 0.75rem 1.25rem 1rem;
+}
+.edit-entry-popup-actions .credit-action-btn { flex: 1; padding: 0.55rem; }
 
 .debtor-pay-footer {
     display: flex;
