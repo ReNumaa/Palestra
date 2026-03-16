@@ -6587,8 +6587,10 @@ function dismissWeeklyReport() {
 
 async function downloadWeeklyReport() {
     const { from, to, label } = _getPreviousWeekRange();
-    const fromStr = from.toISOString().slice(0, 10);
-    const toStr   = to.toISOString().slice(0, 10);
+    const pad = n => String(n).padStart(2, '0');
+    const localDate = d => `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}`;
+    const fromStr = localDate(from);
+    const toStr   = localDate(to);
 
     // Show loading
     const btn = document.querySelector('.weekly-report-banner-btn');
