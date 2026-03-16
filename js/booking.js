@@ -481,8 +481,8 @@ async function notificaPrenotazione(booking) {
     const reg = await navigator.serviceWorker.ready;
     reg.showNotification('Prenotazione confermata', {
         body: `${SLOT_NAMES[booking.slotType]} · ${booking.dateDisplay} · ${booking.time}`,
-        icon: '/Palestra/images/logo-tb---nero.jpg',
-        badge: '/Palestra/images/badge-mono-96.png',
+        icon: '/images/logo-tb---nero.jpg',
+        badge: '/images/badge-mono-96.png',
         tag: 'prenotazione-' + booking.id,
         renotify: false
     });
