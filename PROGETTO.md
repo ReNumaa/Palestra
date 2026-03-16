@@ -1,6 +1,6 @@
 # TB Training — Diario di Sviluppo & Roadmap
 
-> Documento aggiornato al 15/03/2026 (sessione 39)
+> Documento aggiornato al 16/03/2026 (sessione 40)
 > Prototipo: sistema di prenotazione palestra, frontend-only con localStorage
 > Supabase CLI installato, schema SQL definito, accesso dati centralizzato
 > Supabase cloud attivo (tabelle create), Google OAuth funzionante, numeri normalizzati E.164
@@ -24,6 +24,7 @@
 > **SESSIONE 37**: refactor Supabase-first (localStorage → cache in memoria), fix booking popup incompleto, admin tabs sticky + persistenza tab + scroll to top, fix tab vuote al refresh, fix logout spurio PWA
 > **SESSIONE 38**: badge notifica dumbbell, rotazione VAPID keys, tab admin "Messaggi" per invio push personalizzate
 > **SESSIONE 39**: indirizzo residenza, controllo dati carta/bonifico, fix Google OAuth, schema hardening (FK/audit/locking), fix import backup Nextcloud, export CSV
+> **SESSIONE 40**: report settimanale (fix timezone, crediti manuali, method in credit_history), popup modifica cliente, restyling tab Clienti (stat cards, filtro anagrafica), ricerca unificata dropdown, modifica/elimina crediti e debiti in Pagamenti, navigazione settimana auto-hide
 
 ---
 
@@ -1462,6 +1463,70 @@ Regex: `.replace(/\S+/g, w => w[0].toUpperCase() + w.slice(1).toLowerCase())`
 - `supabase/migrations/20260315100000_schema_hardening.sql` — nuova migration
 - `.github/workflows/backup.yml` — riscritto con auto-discovery
 - `sw.js` — bump cache da v77 a v85
+
+---
+
+### 4.52 Report, ricerca unificata, modifica crediti/debiti, restyling Clienti (sessione 40, mar 2026)
+
+**Contesto:** fix report settimanale XLSX (crediti manuali mancanti, bug timezone), restyling completo tab Clienti, ricerca unificata con dropdown in entrambe le tab, possibilità di modificare/eliminare voci credito e debito dalla tab Pagamenti.
+
+**Cosa è stato fatto:**
+
+1. **Fix report settimanale XLSX**
+   - **Crediti manuali mancanti**: il report non includeva i crediti manuali pagati con carta/bonifico — aggiunto scan di `CreditStorage` con filtro su `REPORT_METHODS`
+   - **Colonna `method` in `credit_history`**: migration `20260316000000_credit_history_method.sql` aggiunge colonna `method TEXT NOT NULL DEFAULT ''`
+   - **RPC `admin_add_credit` aggiornata**: salva `p_method` nella INSERT di credit_history
+   - **`_insertCreditHistory()` in `data.js`**: passa `method` a Supabase
+   - **Sync crediti**: SELECT e mapping aggiornati per includere `method`
+   - **Bug timezone**: `toISOString()` converte in UTC, spostando le date indietro di 1 giorno in CET — fix con formattazione data locale (`localDate()`)
+   - **Sync prima del report**: aggiunto `await Promise.all([ManualDebtStorage.syncFromSupabase(), CreditStorage.syncFromSupabase(), UserStorage.syncUsersFromSupabase()])` prima della generazione
+   - **Fix `UserStorage.getAll()`**: il destructuring `_add({ name, email, whatsapp })` perdeva tutti i campi extra (CF, indirizzo) — fix con spread `{ ...user }`
+
+2. **Popup modifica cliente (tab Clienti)**
+   - `openEditClientPopup()`: popup modale con sezioni dati personali, codice fiscale, indirizzo (via, comune, CAP), documenti (cert medico, assicurazione)
+   - Sostituisce il vecchio form inline di modifica contatto
+   - Icona ✏️ posizionata accanto al nome del cliente nella card
+   - `_saveClientEditLocalProfile()` aggiornata per accettare `extraFields` (CF, indirizzo) e salvare su Supabase via `_updateSupabaseProfile`
+
+3. **Restyling tab Clienti**
+   - Due stat card (stile Pagamenti): "👥 Clienti Totali" e "💪 Clienti Attivi" con toggle dropdown
+   - `getActiveClients()`: filtra clienti con prenotazioni negli ultimi 2 mesi + prossimo mese
+   - Barra di ricerca con dropdown a tendina (stesso stile di Pagamenti)
+   - Clic su risultato mostra solo la card del cliente selezionato (non tutta la lista)
+   - Filtro "📝 Senza anagrafica": `clientHasAnagIssue()` verifica CF, via, paese, CAP mancanti
+   - Numero telefono: nascosto prefisso +39 nella visualizzazione
+
+4. **Ricerca unificata con tutti i clienti**
+   - **Tab Clienti**: `liveSearchClients()` con dropdown, cerca tra tutti i clienti registrati indipendentemente dalla lista aperta
+   - **Tab Pagamenti**: `_searchAllContacts()` estesa per includere tutti i clienti da `UserStorage`, non solo debitori/creditori — i clienti senza debiti/crediti mostrati con badge "👤 Cliente"
+
+5. **Modifica e eliminazione crediti/debiti (tab Pagamenti)**
+   - **Bottoni +Credito / +Debito** nell'header di ogni card credito, accanto al nome
+   - **Pulsante ✏️ modifica** su ogni voce storico (crediti e debiti manuali)
+   - **Popup modifica** (`openEditEntryPopup`): permette di cambiare importo, nota e metodo
+   - **Pulsante ✕ elimina** su ogni voce storico crediti (già esistente per debiti)
+   - `deleteCreditEntryFromCard()`: chiama RPC `admin_delete_credit_entry` e ricarica
+   - `saveEditEntry()`: chiama nuove RPC `admin_edit_credit_entry` / `admin_edit_debt_entry`
+   - **Migration `20260316100000_admin_edit_entries.sql`**: due nuove RPC PostgreSQL
+     - `admin_edit_credit_entry(p_email, p_entry_date, p_new_amount, p_new_note, p_new_method)`: modifica voce in `credit_history`, ricalcola saldo preservando segno originale
+     - `admin_edit_debt_entry(p_email, p_entry_date, p_new_amount, p_new_note)`: modifica voce nella history JSONB di `manual_debts`, ricalcola saldo
+   - `openManualEntryPopup()` aggiornata per accettare parametri pre-fill (email, nome, whatsapp)
+
+6. **Navigazione settimana auto-hide**
+   - La barra "← Settimana Precedente / date / Settimana Successiva →" ora scompare appena si scrolla (in qualsiasi direzione)
+   - Riappare solo quando si torna in cima alla pagina (`scrollY <= 10`)
+
+**File modificati/creati:**
+- `admin.html` — restyling tab Clienti (stat cards, dropdown ricerca, filtro anagrafica), cache busting v89→v97
+- `js/admin.js` — downloadWeeklyReport fix (timezone, crediti manuali), openEditClientPopup, liveSearchClients con dropdown, selectClientFromDropdown, createCreditCard con bottoni header + edit/delete, openEditEntryPopup/saveEditEntry, deleteCreditEntryFromCard, scroll handler semplificato
+- `js/data.js` — method in _insertCreditHistory/syncFromSupabase, fix UserStorage.getAll() spread
+- `css/admin.css` — popup modifica cliente, bottoni header card credito, popup edit entry, btn-edit-contact-icon, dropdown clienti, debt-entry-edit-btn
+- `supabase/migrations/20260316000000_credit_history_method.sql` — colonna method + RPC admin_add_credit aggiornata
+- `supabase/migrations/20260316100000_admin_edit_entries.sql` — RPC admin_edit_credit_entry + admin_edit_debt_entry
+
+**Migrazioni SQL da eseguire su Supabase:**
+1. `20260316000000_credit_history_method.sql` — aggiunge colonna `method` a `credit_history` e aggiorna RPC `admin_add_credit`
+2. `20260316100000_admin_edit_entries.sql` — crea RPC `admin_edit_credit_entry` e `admin_edit_debt_entry`
 
 ---
 
