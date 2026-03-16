@@ -929,6 +929,11 @@ canvas {
     border-color: #ff6b6b;
 }
 
+.clients-search-bar .debtor-search-dropdown {
+    right: 0;
+    top: 42px;
+}
+
 .clients-cert-filter-btn {
     align-self: flex-start;
     background: none;

@@ -13,7 +13,7 @@
     <link rel="icon" type="image/jpeg" href="images/logo-tb---nero.jpg">
     <link rel="stylesheet" href="css/style.css?v=7">
     <link rel="stylesheet" href="css/login.css?v=5">
-    <link rel="stylesheet" href="css/admin.css?v=27">
+    <link rel="stylesheet" href="css/admin.css?v=28">
 </head>
 <body>
     <nav class="navbar">
@@ -159,10 +159,12 @@
             <!-- Tab: Clients -->
             <div id="tab-clients" class="tab-content">
                 <div class="dashboard-card">
-                    <div class="clients-search-bar">
+                    <div class="clients-search-bar" style="position:relative;">
                         <input type="text" id="clientSearchInput"
                                placeholder="Cerca per nome, telefono o email..."
-                               oninput="liveSearchClients()">
+                               oninput="liveSearchClients()"
+                               onkeydown="if(event.key==='Escape') closeClientsSearchDropdown()">
+                        <div id="clientsSearchDropdown" class="debtor-search-dropdown" style="display:none;"></div>
                         <div style="display:flex;flex-wrap:wrap;gap:0.5rem;">
                             <button class="clients-cert-filter-btn" id="certFilterBtn" onclick="toggleCertFilter()">
                                 🏥 Senza certificato
@@ -831,7 +833,7 @@
     <script src="js/auth.js?v=21"></script>
     <script src="js/push.js?v=11"></script>
     <script src="js/chart-mini.js?v=12"></script>
-    <script src="js/admin.js?v=91"></script>
+    <script src="js/admin.js?v=92"></script>
     <script>
         // Avvia auth, sincronizza i booking da Supabase, poi aggiorna la dashboard
         (async function () {

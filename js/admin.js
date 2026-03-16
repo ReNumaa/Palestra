@@ -4118,8 +4118,67 @@ function getAllClients() {
 }
 
 function liveSearchClients() {
-    clientsSearchQuery = document.getElementById('clientSearchInput').value;
+    const query = document.getElementById('clientSearchInput').value.trim();
+    const dropdown = document.getElementById('clientsSearchDropdown');
+    if (!query) {
+        dropdown.style.display = 'none';
+        return;
+    }
+    const q = query.toLowerCase();
+    const allClients = getAllClients();
+    const matches = allClients.filter(c =>
+        c.name.toLowerCase().includes(q) ||
+        c.whatsapp.toLowerCase().includes(q) ||
+        (c.email && c.email.toLowerCase().includes(q))
+    );
+    if (matches.length === 0) {
+        dropdown.innerHTML = '<div class="dropdown-no-results">Nessun risultato</div>';
+    } else {
+        dropdown.innerHTML = matches.slice(0, 15).map((c, i) => {
+            const sub = c.email || (c.whatsapp || '').replace(/^\+39\s*/, '') || '';
+            return `<div class="dropdown-item" onclick="selectClientFromDropdown(${i})">
+                <span class="dropdown-item-name">${_escHtml(c.name)}</span>
+                <span style="color:#888;font-size:0.82rem">${_escHtml(sub)}</span>
+            </div>`;
+        }).join('');
+        dropdown._matches = matches;
+    }
+    dropdown.style.display = 'block';
+}
+
+function closeClientsSearchDropdown() {
+    const dropdown = document.getElementById('clientsSearchDropdown');
+    if (dropdown) dropdown.style.display = 'none';
+}
+
+function selectClientFromDropdown(index) {
+    const dropdown = document.getElementById('clientsSearchDropdown');
+    const matches = dropdown._matches;
+    if (!matches || !matches[index]) return;
+    const client = matches[index];
+
+    // Open the total list and scroll to the matching card
+    if (!clientsListMode) {
+        clientsListMode = 'total';
+        _updateClientsHints();
+    }
+    clientsSearchQuery = '';
     renderClientsTab();
+
+    // Find the card by name and open it
+    const container = document.getElementById('clientsList');
+    const cards = container.querySelectorAll('.client-card');
+    for (const card of cards) {
+        const nameEl = card.querySelector('.client-name');
+        if (nameEl && nameEl.textContent.trim() === client.name) {
+            card.classList.add('open');
+            card.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+            break;
+        }
+    }
+
+    closeClientsSearchDropdown();
+    document.getElementById('clientSearchInput').value = client.name;
 }
 
 function filterClientTx(cardIndex, days, btn) {
@@ -4201,19 +4260,13 @@ async function refreshClients() {
 function renderClientsTab() {
     renderClientsSummary();
     const listEl = document.getElementById('clientsList');
-    const query = clientsSearchQuery.trim().toLowerCase();
-    if (!clientsListMode && !query) {
+    if (!clientsListMode) {
         if (listEl) listEl.style.display = 'none';
         return;
     }
     if (listEl) listEl.style.display = '';
-    const baseClients = query ? getAllClients() : (clientsListMode === 'active' ? getActiveClients() : getAllClients());
-    let filtered = query
-        ? baseClients.filter(c =>
-            c.name.toLowerCase().includes(query) ||
-            c.whatsapp.toLowerCase().includes(query) ||
-            (c.email && c.email.toLowerCase().includes(query)))
-        : baseClients;
+    const baseClients = clientsListMode === 'active' ? getActiveClients() : getAllClients();
+    let filtered = baseClients;
     if (clientCertFilter)  filtered = filtered.filter(clientHasCertIssue);
     if (clientAssicFilter) filtered = filtered.filter(clientHasAssicIssue);
     if (clientAnagFilter)  filtered = filtered.filter(clientHasAnagIssue);
