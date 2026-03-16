@@ -4765,15 +4765,17 @@ function _saveClientEditLocalProfile(index, oldWhatsapp, oldEmail, newName, newW
 
         _saveUsers(users);
 
-        const _supaFields = {};
+        const _supaFields = { name: newName };
+        if (newEmail) _supaFields.email = newEmail.toLowerCase();
+        if (normNewPhone) _supaFields.whatsapp = normNewPhone;
         if (newCert !== oldCert) _supaFields.medical_cert_expiry = newCert || null;
         if (newAssic !== oldAssic) _supaFields.insurance_expiry = newAssic || null;
         if (ef.cf !== undefined)    _supaFields.codice_fiscale   = ef.cf || null;
         if (ef.via !== undefined)   _supaFields.indirizzo_via    = ef.via || null;
         if (ef.paese !== undefined) _supaFields.indirizzo_paese  = ef.paese || null;
         if (ef.cap !== undefined)   _supaFields.indirizzo_cap    = ef.cap || null;
-        if (Object.keys(_supaFields).length > 0)
-            _updateSupabaseProfile(newEmail || oldEmail, normNewPhone, _supaFields);
+        // Usa i VECCHI valori per trovare il record nel DB (non i nuovi che non esistono ancora)
+        _updateSupabaseProfile(oldEmail, normOld, _supaFields);
 
         const current = getCurrentUser();
         if (current) {
