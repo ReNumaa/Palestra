@@ -4341,21 +4341,8 @@ function createClientCard(client, index) {
             ${filterBarHTML}
             <div class="client-contact-edit" id="cedit-section-${index}">
                 <div class="client-view-mode">
-                    <button class="btn-edit-contact" onclick="event.stopPropagation(); startEditClient(${index}, '${wEsc}', '${emEsc}', '${nEsc}')">✏️ Modifica contatto</button>
-                </div>
-                <div class="client-edit-mode" style="display:none;">
-                    <div class="client-edit-fields">
-                        <label>Nome<input type="text"  id="cedit-name-${index}"  value="${_escHtml(client.name)}"></label>
-                        <label>WhatsApp<input type="tel"   id="cedit-phone-${index}" value="${_escHtml(client.whatsapp)}"></label>
-                        <label>Email<input type="email" id="cedit-email-${index}" value="${_escHtml(client.email || '')}"></label>
-                        <label>Cert. Medico<input type="date" id="cedit-cert-${index}" value="${certScad}"></label>
-                        <label>Assicurazione<input type="date" id="cedit-assic-${index}" value="${assicScad2}"></label>
-                    </div>
-                    <div class="client-edit-actions">
-                        <button class="btn-save-edit"   onclick="saveClientEdit(${index}, '${wEsc}', '${emEsc}')">✓ Salva</button>
-                        <button class="btn-cancel-edit" onclick="cancelClientEdit(${index})">✕ Annulla</button>
-                        <button class="btn-delete-client" onclick="deleteClientData(${index}, '${wEsc}', '${emEsc}')" title="Elimina tutti i dati del cliente">🗑️</button>
-                    </div>
+                    <button class="btn-edit-contact" onclick="event.stopPropagation(); openEditClientPopup(${index}, '${wEsc}', '${emEsc}', '${nEsc}')">✏️ Modifica contatto</button>
+                    <button class="btn-delete-client" onclick="event.stopPropagation(); deleteClientData(${index}, '${wEsc}', '${emEsc}')" title="Elimina tutti i dati del cliente">🗑️</button>
                 </div>
             </div>
             <div class="client-bookings-section">
@@ -4373,22 +4360,79 @@ function createClientCard(client, index) {
     return card;
 }
 
-function startEditClient(index, whatsapp, email, name) {
-    const section = document.getElementById(`cedit-section-${index}`);
-    if (!section) return;
-    section.querySelector('.client-view-mode').style.display = 'none';
-    section.querySelector('.client-edit-mode').style.display = 'flex';
+function openEditClientPopup(index, whatsapp, email, name) {
+    const clients = getAllClients();
+    const client = clients[index];
+    if (!client) return;
+
+    const userRecord = _getUserRecord(client.email, client.whatsapp);
+    const certScad   = userRecord?.certificatoMedicoScadenza || '';
+    const assicScad  = userRecord?.assicurazioneScadenza || '';
+    const cf         = userRecord?.codiceFiscale || '';
+    const via        = userRecord?.indirizzoVia || '';
+    const paese      = userRecord?.indirizzoPaese || '';
+    const cap        = userRecord?.indirizzoCap || '';
+
+    // Remove existing popup if any
+    document.getElementById('editClientPopupOverlay')?.remove();
+
+    const overlay = document.createElement('div');
+    overlay.id = 'editClientPopupOverlay';
+    overlay.className = 'edit-client-popup-overlay';
+    overlay.innerHTML = `
+        <div class="edit-client-popup">
+            <div class="edit-client-popup-header">
+                <h3>Modifica contatto</h3>
+                <button class="edit-client-popup-close" onclick="closeEditClientPopup()">&times;</button>
+            </div>
+            <div class="edit-client-popup-body">
+                <div class="edit-client-popup-section">
+                    <h4>Dati personali</h4>
+                    <label>Nome<input type="text" id="cedit-name-${index}" value="${_escHtml(client.name)}"></label>
+                    <label>WhatsApp<input type="tel" id="cedit-phone-${index}" value="${_escHtml(client.whatsapp)}"></label>
+                    <label>Email<input type="email" id="cedit-email-${index}" value="${_escHtml(client.email || '')}"></label>
+                </div>
+                <div class="edit-client-popup-section">
+                    <h4>Dati fiscali</h4>
+                    <label>Codice Fiscale<input type="text" id="cedit-cf-${index}" value="${_escHtml(cf)}" maxlength="16" style="text-transform:uppercase"></label>
+                </div>
+                <div class="edit-client-popup-section">
+                    <h4>Indirizzo di residenza</h4>
+                    <label>Via/Indirizzo<input type="text" id="cedit-via-${index}" value="${_escHtml(via)}"></label>
+                    <div class="edit-client-popup-row">
+                        <label class="edit-client-popup-flex2">Comune<input type="text" id="cedit-paese-${index}" value="${_escHtml(paese)}"></label>
+                        <label class="edit-client-popup-flex1">CAP<input type="text" id="cedit-cap-${index}" value="${_escHtml(cap)}" maxlength="5"></label>
+                    </div>
+                </div>
+                <div class="edit-client-popup-section">
+                    <h4>Documenti</h4>
+                    <div class="edit-client-popup-row">
+                        <label class="edit-client-popup-flex1">Cert. Medico<input type="date" id="cedit-cert-${index}" value="${certScad}"></label>
+                        <label class="edit-client-popup-flex1">Assicurazione<input type="date" id="cedit-assic-${index}" value="${assicScad}"></label>
+                    </div>
+                </div>
+            </div>
+            <div class="edit-client-popup-actions">
+                <button class="btn-save-edit" onclick="saveClientEdit(${index}, '${_escHtml(whatsapp)}', '${_escHtml(email)}')">Salva</button>
+                <button class="btn-cancel-edit" onclick="closeEditClientPopup()">Annulla</button>
+            </div>
+        </div>
+    `;
+    document.body.appendChild(overlay);
+    overlay.addEventListener('click', e => { if (e.target === overlay) closeEditClientPopup(); });
+    setTimeout(() => overlay.classList.add('open'), 10);
 }
 
-function cancelClientEdit(index) {
-    const section = document.getElementById(`cedit-section-${index}`);
-    if (!section) return;
-    section.querySelector('.client-view-mode').style.display = 'flex';
-    section.querySelector('.client-edit-mode').style.display = 'none';
+function closeEditClientPopup() {
+    const overlay = document.getElementById('editClientPopupOverlay');
+    if (overlay) {
+        overlay.classList.remove('open');
+        setTimeout(() => overlay.remove(), 200);
+    }
 }
 
-// Helper: aggiorna profilo locale (users), cert, assic, sessione dopo rename
-function _saveClientEditLocalProfile(index, oldWhatsapp, oldEmail, newName, newWhatsapp, newEmail, newCert, newAssic, normOld, normNewPhone) {
+// Helper: aggiorna profilo locale (users), cert, assic, CF, indirizzo, sessione dopo rename
+function _saveClientEditLocalProfile(index, oldWhatsapp, oldEmail, newName, newWhatsapp, newEmail, newCert, newAssic, normOld, normNewPhone, extraFields) {
     const users  = _getUsersFull();
     const oldEmailLow = (oldEmail || '').toLowerCase();
     let userIdx = users.findIndex(u => {
@@ -4397,7 +4441,7 @@ function _saveClientEditLocalProfile(index, oldWhatsapp, oldEmail, newName, newW
         return phoneMatch || emailMatch;
     });
 
-    if (userIdx === -1 && (newCert || newAssic)) {
+    if (userIdx === -1) {
         users.push({ name: newName, email: newEmail, whatsapp: normNewPhone, createdAt: new Date().toISOString() });
         userIdx = users.length - 1;
     }
@@ -4419,11 +4463,23 @@ function _saveClientEditLocalProfile(index, oldWhatsapp, oldEmail, newName, newW
             if (!users[userIdx].assicurazioneHistory) users[userIdx].assicurazioneHistory = [];
             users[userIdx].assicurazioneHistory.push({ scadenza: newAssic || null, aggiornatoIl: new Date().toISOString() });
         }
+
+        // CF e indirizzo
+        const ef = extraFields || {};
+        if (ef.cf !== undefined)    users[userIdx].codiceFiscale   = ef.cf || null;
+        if (ef.via !== undefined)   users[userIdx].indirizzoVia    = ef.via || null;
+        if (ef.paese !== undefined) users[userIdx].indirizzoPaese  = ef.paese || null;
+        if (ef.cap !== undefined)   users[userIdx].indirizzoCap    = ef.cap || null;
+
         _saveUsers(users);
 
         const _supaFields = {};
         if (newCert !== oldCert) _supaFields.medical_cert_expiry = newCert || null;
         if (newAssic !== oldAssic) _supaFields.insurance_expiry = newAssic || null;
+        if (ef.cf !== undefined)    _supaFields.codice_fiscale   = ef.cf || null;
+        if (ef.via !== undefined)   _supaFields.indirizzo_via    = ef.via || null;
+        if (ef.paese !== undefined) _supaFields.indirizzo_paese  = ef.paese || null;
+        if (ef.cap !== undefined)   _supaFields.indirizzo_cap    = ef.cap || null;
         if (Object.keys(_supaFields).length > 0)
             _updateSupabaseProfile(newEmail || oldEmail, normNewPhone, _supaFields);
 
@@ -4447,7 +4503,12 @@ function saveClientEdit(index, oldWhatsapp, oldEmail) {
     const newEmail    = document.getElementById(`cedit-email-${index}`).value.trim();
     const newCert     = document.getElementById(`cedit-cert-${index}`).value;
     const newAssic    = document.getElementById(`cedit-assic-${index}`).value;
+    const newCf       = (document.getElementById(`cedit-cf-${index}`)?.value || '').trim().toUpperCase();
+    const newVia      = (document.getElementById(`cedit-via-${index}`)?.value || '').trim();
+    const newPaese    = (document.getElementById(`cedit-paese-${index}`)?.value || '').trim();
+    const newCap      = (document.getElementById(`cedit-cap-${index}`)?.value || '').trim();
     if (!newName || !newWhatsapp) { alert('Nome e WhatsApp sono obbligatori.'); return; }
+    closeEditClientPopup();
 
     const normOld      = normalizePhone(oldWhatsapp);
     const normNewPhone = normalizePhone(newWhatsapp) || newWhatsapp;
@@ -4475,7 +4536,7 @@ function saveClientEdit(index, oldWhatsapp, oldEmail) {
                 ManualDebtStorage.syncFromSupabase(),
             ]);
             // Continua con profilo locale + cert/assic (sotto)
-            _saveClientEditLocalProfile(index, oldWhatsapp, oldEmail, newName, newWhatsapp, newEmail, newCert, newAssic, normOld, normNewPhone);
+            _saveClientEditLocalProfile(index, oldWhatsapp, oldEmail, newName, newWhatsapp, newEmail, newCert, newAssic, normOld, normNewPhone, { cf: newCf, via: newVia, paese: newPaese, cap: newCap });
         })();
         return; // il resto è gestito nella callback async
     }
