@@ -4111,7 +4111,7 @@ function filterClientTx(cardIndex, days, btn) {
     btn.classList.add('active');
 }
 
-let clientsListMode = null; // null = summary, 'total' | 'active'
+let clientsListMode = null; // null = hidden, 'total' | 'active'
 
 function getActiveClients() {
     const allClients = getAllClients();
@@ -4119,8 +4119,10 @@ function getActiveClients() {
     const now = new Date();
     const twoMonthsAgo = new Date(now.getFullYear(), now.getMonth() - 2, now.getDate());
     const oneMonthAhead = new Date(now.getFullYear(), now.getMonth() + 1, now.getDate());
-    const cutoffFrom = twoMonthsAgo.toISOString().slice(0, 10);
-    const cutoffTo   = oneMonthAhead.toISOString().slice(0, 10);
+    const pad = n => String(n).padStart(2, '0');
+    const localDate = d => `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}`;
+    const cutoffFrom = localDate(twoMonthsAgo);
+    const cutoffTo   = localDate(oneMonthAhead);
 
     const activeEmails = new Set();
     const activePhones = new Set();
@@ -4147,19 +4149,23 @@ function renderClientsSummary() {
     document.getElementById('clientsActiveCount').textContent = activeClients.length;
 }
 
-function showClientsList(mode) {
-    clientsListMode = mode;
-    document.getElementById('clientsSummaryView').style.display = 'none';
-    document.getElementById('clientsListView').style.display = '';
-    document.getElementById('clientsListTitle').textContent = mode === 'active' ? 'Clienti attivi' : 'Clienti totali';
+function toggleClientsTotalList() {
+    clientsListMode = clientsListMode === 'total' ? null : 'total';
+    _updateClientsHints();
     renderClientsTab();
 }
 
-function hideClientsList() {
-    clientsListMode = null;
-    document.getElementById('clientsSummaryView').style.display = '';
-    document.getElementById('clientsListView').style.display = 'none';
-    renderClientsSummary();
+function toggleClientsActiveList() {
+    clientsListMode = clientsListMode === 'active' ? null : 'active';
+    _updateClientsHints();
+    renderClientsTab();
+}
+
+function _updateClientsHints() {
+    const totalHint = document.getElementById('clientsTotalHint');
+    const activeHint = document.getElementById('clientsActiveHint');
+    if (totalHint) totalHint.textContent = clientsListMode === 'total' ? '▲ Nascondi lista' : '▼ Mostra lista';
+    if (activeHint) activeHint.textContent = clientsListMode === 'active' ? '▲ Nascondi lista' : '▼ Mostra lista';
 }
 
 async function refreshClients() {
@@ -4172,7 +4178,12 @@ async function refreshClients() {
 
 function renderClientsTab() {
     renderClientsSummary();
-    if (!clientsListMode) return;
+    const listEl = document.getElementById('clientsList');
+    if (!clientsListMode) {
+        if (listEl) listEl.style.display = 'none';
+        return;
+    }
+    if (listEl) listEl.style.display = '';
     const baseClients = clientsListMode === 'active' ? getActiveClients() : getAllClients();
     const query = clientsSearchQuery.trim().toLowerCase();
     let filtered = query
