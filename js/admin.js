@@ -6740,6 +6740,9 @@ async function downloadWeeklyReport() {
             });
         });
 
+        console.log('[WeeklyReport] cardBookings:', cardBookings.length, 'manualCardPayments:', manualCardPayments.length, 'manualCreditPayments:', manualCreditPayments.length, 'total rows:', rows.length);
+        if (manualCreditPayments.length > 0) console.log('[WeeklyReport] manualCreditPayments:', JSON.stringify(manualCreditPayments));
+
         // Sort by date ascending
         rows.sort((a, b) => (a.sortKey || '').localeCompare(b.sortKey || ''));
 
