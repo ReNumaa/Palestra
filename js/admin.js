@@ -4329,7 +4329,7 @@ function createClientCard(client, index) {
             <div class="client-info-block">
                 <div class="client-name">${_escHtml(client.name)} <button class="btn-edit-contact-icon" onclick="event.stopPropagation(); openEditClientPopup(${index}, '${wEsc}', '${emEsc}', '${nEsc}')" title="Modifica contatto">✏️</button></div>
                 <div class="client-contacts">
-                    <span>📱 ${_escHtml(client.whatsapp)}</span>
+                    <span>📱 ${_escHtml((client.whatsapp || '').replace(/^\+39\s*/, ''))}</span>
                     ${client.email ? `<span>✉️ ${_escHtml(client.email)}</span>` : ''}
                     ${certDisplay}${assicDisplay}${bonusDisplay}
                 </div>
