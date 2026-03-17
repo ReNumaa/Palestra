@@ -1360,6 +1360,9 @@ class BookingStorage {
         const all = this.getAllBookings();
         const idx = all.findIndex(b => b.id === id);
         if (idx !== -1 && all[idx].status !== 'cancelled') {
+            // Clone the booking so replaceAllBookings can detect the diff
+            // (getAllBookings returns the same cache references)
+            all[idx] = { ...all[idx] };
             all[idx].status = 'cancelled';
             all[idx].cancelledAt = new Date().toISOString();
             all[idx].paid = false;
