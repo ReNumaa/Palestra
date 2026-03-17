@@ -2297,7 +2297,18 @@ function changeScheduleWeek(direction) {
     renderScheduleManager();
 }
 
+function weekHasBookings(weekOffset) {
+    const weekDates = getScheduleWeekDates(weekOffset);
+    const weekDateSet = new Set(weekDates.map(d => d.formatted));
+    const allBookings = BookingStorage.getAllBookings();
+    return allBookings.some(b => weekDateSet.has(b.date) && b.status !== 'cancelled');
+}
+
 function importWeekTemplate(weekOffset) {
+    if (weekHasBookings(weekOffset)) {
+        alert('Non è possibile importare la settimana standard: ci sono prenotazioni in questa settimana.');
+        return;
+    }
     const weekDates = getScheduleWeekDates(weekOffset);
     const overrides = BookingStorage.getScheduleOverrides();
     const dayNames = ['Domenica','Lunedì','Martedì','Mercoledì','Giovedì','Venerdì','Sabato'];
@@ -2318,7 +2329,11 @@ function importWeekTemplate(weekOffset) {
 }
 
 function clearWeekSchedule(weekOffset) {
-    if (!confirm('Svuotare tutti i giorni di questa settimana? Le prenotazioni esistenti non verranno eliminate.')) return;
+    if (weekHasBookings(weekOffset)) {
+        alert('Non è possibile svuotare la settimana: ci sono prenotazioni in questa settimana.');
+        return;
+    }
+    if (!confirm('Svuotare tutti i giorni di questa settimana?')) return;
     const weekDates = getScheduleWeekDates(weekOffset);
     const overrides = BookingStorage.getScheduleOverrides();
     weekDates.forEach(dateInfo => { delete overrides[dateInfo.formatted]; });
