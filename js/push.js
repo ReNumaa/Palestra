@@ -154,7 +154,11 @@ async function notifySlotAvailable(booking) {
 
 // Notifica admin dopo una prenotazione confermata
 async function notifyAdminBooking(booking) {
-    if (typeof SUPABASE_URL === 'undefined') return;
+    console.log('[Push] notifyAdminBooking chiamata', booking);
+    if (typeof SUPABASE_URL === 'undefined') {
+        console.warn('[Push] SUPABASE_URL non definito — notifica admin saltata');
+        return;
+    }
 
     const dateDisplay = booking.dateDisplay || booking.date_display || booking.date || '';
     const date = booking.date || '';
@@ -165,7 +169,7 @@ async function notifyAdminBooking(booking) {
         : 5;
 
     try {
-        await fetch(`${SUPABASE_URL}/functions/v1/notify-admin-booking`, {
+        const resp = await fetch(`${SUPABASE_URL}/functions/v1/notify-admin-booking`, {
             method: 'POST',
             headers: {
                 'Content-Type': 'application/json',
@@ -180,6 +184,8 @@ async function notifyAdminBooking(booking) {
                 max_capacity: maxCapacity,
             }),
         });
+        const result = await resp.json();
+        console.log('[Push] notifyAdminBooking response:', resp.status, result);
     } catch (e) {
         console.warn('[Push] notifyAdminBooking error:', e);
     }

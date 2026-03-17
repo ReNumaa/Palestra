@@ -358,6 +358,7 @@ async function handleBookingSubmit(e) {
     // Show confirmation
     showConfirmation(savedBooking);
     notificaPrenotazione(savedBooking);
+    console.log('[Booking] notifyAdminBooking exists?', typeof notifyAdminBooking);
     if (typeof notifyAdminBooking === 'function') notifyAdminBooking(savedBooking);
 
     // Reset form
