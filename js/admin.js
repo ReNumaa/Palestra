@@ -2827,6 +2827,8 @@ async function selectSlotClient(timeSlot, index) {
     const user = (_clientSearchResults[timeSlot] || [])[index];
     if (!user || !selectedScheduleDate) return;
 
+    if (!confirm(`Confermare la prenotazione di ${user.name} per lo slot ${timeSlot} del ${selectedScheduleDate.formatted}?`)) return;
+
     const overrides = BookingStorage.getScheduleOverrides();
     const dateSlots = overrides[selectedScheduleDate.formatted];
     if (!dateSlots) return;
@@ -2868,6 +2870,7 @@ async function selectSlotClient(timeSlot, index) {
 }
 
 // Removes the associated client and booking from a group-class slot
+// Uses same cancellation logic as deleteBooking (24h threshold, bonus/mora popup)
 function clearSlotClient(timeSlot) {
     if (!selectedScheduleDate) return;
 
@@ -2876,20 +2879,193 @@ function clearSlotClient(timeSlot) {
     if (!dateSlots) return;
 
     const slot = dateSlots.find(s => s.time === timeSlot);
-    if (slot) {
-        if (slot.bookingId) {
-            const allBookings = BookingStorage.getAllBookings();
-            const found = allBookings.find(b => b.id === slot.bookingId);
-            console.log('[clearSlotClient] bookingId:', slot.bookingId, 'found:', !!found, '_sbId:', found?._sbId, 'status:', found?.status);
-            BookingStorage.removeBookingById(slot.bookingId);
-        } else {
-            console.warn('[clearSlotClient] nessun bookingId nello slot');
-        }
+    if (!slot || !slot.bookingId) return;
+
+    const allBookings = [...BookingStorage.getAllBookings()];
+    const index = allBookings.findIndex(b => b.id === slot.bookingId);
+    if (index === -1) {
+        // Booking not found in cache — just clear the slot
         delete slot.client;
         delete slot.bookingId;
         BookingStorage.saveScheduleOverrides(overrides);
+        renderAllTimeSlots();
+        return;
     }
-    renderAllTimeSlots();
+
+    const booking = allBookings[index];
+    const bookingName = booking.name || slot.client?.name || '';
+    const price = SLOT_PRICES[booking.slotType] || 0;
+    const hasBonus = BonusStorage.getBonus(booking.whatsapp, booking.email) > 0;
+
+    // Helper to finalize: clear slot override + render
+    const finalizeSlotClear = () => {
+        const ov = BookingStorage.getScheduleOverrides();
+        const ds = ov[selectedScheduleDate.formatted];
+        if (ds) {
+            const s = ds.find(x => x.time === timeSlot);
+            if (s) { delete s.client; delete s.bookingId; }
+            BookingStorage.saveScheduleOverrides(ov);
+        }
+        renderAllTimeSlots();
+    };
+
+    // Calculate distance from lesson
+    const _tp = _parseSlotTime(booking.time);
+    const [_yr, _mo, _dy] = booking.date.split('-').map(Number);
+    const lessonStart = _tp ? new Date(_yr, _mo - 1, _dy, _tp.startH, _tp.startM, 0) : null;
+    const msToLesson = lessonStart ? lessonStart - new Date() : Infinity;
+    const ONE_DAY = 24 * 60 * 60 * 1000;
+    const isWithin24h = msToLesson <= ONE_DAY;
+
+    // > 24h: simple confirm
+    if (!isWithin24h) {
+        if (!confirm(`Confermare l'annullamento della prenotazione di ${bookingName}?`)) return;
+
+        const isCancellationPending = booking.status === 'cancellation_requested';
+        const wasPaid = !isCancellationPending && (booking.paid || (booking.creditApplied || 0) > 0);
+        if (wasPaid) {
+            const creditToRefund = (booking.creditApplied || 0) > 0 ? booking.creditApplied : price;
+            CreditStorage.addCredit(
+                booking.whatsapp, booking.email, booking.name,
+                creditToRefund, `Rimborso lezione ${booking.date}`,
+                null, false, false, null, booking.paymentMethod || ''
+            );
+        }
+        allBookings[index] = {
+            ...booking,
+            cancelledPaymentMethod: booking.paymentMethod,
+            cancelledPaidAt: booking.paidAt,
+            status: 'cancelled',
+            cancelledAt: new Date().toISOString(),
+            cancelledWithBonus: false,
+            cancelledRefundPct: 100,
+            paid: false, paymentMethod: null, paidAt: null, creditApplied: 0,
+        };
+        BookingStorage.replaceAllBookings(allBookings);
+        if (typeof notifySlotAvailable === 'function') notifySlotAvailable(booking);
+        finalizeSlotClear();
+        return;
+    }
+
+    // <= 24h: popup with bonus/mora options
+    const mora = Math.round(price * 0.5 * 100) / 100;
+    const overlay = document.createElement('div');
+    overlay.className = 'cancel-popup-overlay';
+    overlay.innerHTML = `
+        <div class="cancel-popup">
+            <div class="cancel-popup-header">Annulla prenotazione</div>
+            <div class="cancel-popup-body">
+                <p class="cancel-popup-name">${bookingName}</p>
+                <p class="cancel-popup-detail">${booking.date} · ${booking.time} · €${price}</p>
+                <p class="cancel-popup-hint" style="color:var(--danger,#e74c3c);margin-bottom:0.5rem">⚠️ Entro 24h dall'inizio della lezione</p>
+
+                ${hasBonus ? `
+                <label class="cancel-popup-label">Utilizza bonus</label>
+                <div class="cancel-popup-toggle-row">
+                    <button class="cancel-toggle-btn" data-val="false" data-group="bonus">No</button>
+                    <button class="cancel-toggle-btn" data-val="true" data-group="bonus">Sì</button>
+                </div>
+                ` : ''}
+
+                <label class="cancel-popup-label">Modalità annullamento</label>
+                <div class="cancel-popup-toggle-row">
+                    <button class="cancel-toggle-btn" data-val="mora" data-group="mode">Con mora (€${mora})</button>
+                    <button class="cancel-toggle-btn" data-val="senza" data-group="mode">Senza mora</button>
+                </div>
+
+                <div class="cancel-popup-actions">
+                    <button class="cancel-popup-btn cancel-popup-btn--cancel">Annulla</button>
+                    <button class="cancel-popup-btn cancel-popup-btn--confirm" disabled>Conferma</button>
+                </div>
+            </div>
+        </div>
+    `;
+    document.body.appendChild(overlay);
+    requestAnimationFrame(() => overlay.classList.add('visible'));
+
+    let selectedBonus = hasBonus ? null : false;
+    let selectedMode = null;
+
+    overlay.querySelectorAll('.cancel-toggle-btn').forEach(btn => {
+        btn.addEventListener('click', () => {
+            const group = btn.dataset.group;
+            overlay.querySelectorAll(`[data-group="${group}"]`).forEach(b => b.classList.remove('active'));
+            btn.classList.add('active');
+            if (group === 'bonus') {
+                selectedBonus = btn.dataset.val === 'true';
+                if (selectedBonus) {
+                    const senzaBtn = overlay.querySelector('[data-group="mode"][data-val="senza"]');
+                    if (senzaBtn) {
+                        overlay.querySelectorAll('[data-group="mode"]').forEach(b => b.classList.remove('active'));
+                        senzaBtn.classList.add('active');
+                        selectedMode = 'senza';
+                    }
+                }
+            }
+            if (group === 'mode') selectedMode = btn.dataset.val;
+            overlay.querySelector('.cancel-popup-btn--confirm').disabled = (selectedBonus === null || selectedMode === null);
+        });
+    });
+
+    const closePopup = () => {
+        overlay.classList.remove('visible');
+        setTimeout(() => overlay.remove(), 250);
+    };
+    overlay.querySelector('.cancel-popup-btn--cancel').addEventListener('click', closePopup);
+    overlay.addEventListener('click', (e) => { if (e.target === overlay) closePopup(); });
+
+    overlay.querySelector('.cancel-popup-btn--confirm').addEventListener('click', () => {
+        const useBonus = selectedBonus;
+        const withMora = selectedMode === 'mora';
+
+        if (useBonus) {
+            BonusStorage.useBonus(booking.whatsapp, booking.email, booking.name);
+        }
+
+        const isCancellationPending = booking.status === 'cancellation_requested';
+        const wasPaid = !isCancellationPending && (booking.paid || (booking.creditApplied || 0) > 0);
+        let refundPct;
+
+        if (withMora) {
+            if (wasPaid) {
+                const refund = Math.round(price * 0.5 * 100) / 100;
+                CreditStorage.addCredit(
+                    booking.whatsapp, booking.email, booking.name,
+                    refund, `Rimborso parziale 50% — annullamento con mora ${booking.date} ${booking.time}`,
+                    null, false, false, null, booking.paymentMethod || ''
+                );
+            } else {
+                ManualDebtStorage.addDebt(booking.whatsapp, booking.email, booking.name,
+                    mora, `Mora 50% annullamento tardivo ${booking.date} ${booking.time}`);
+            }
+            refundPct = wasPaid ? 50 : 0;
+        } else {
+            if (wasPaid) {
+                const creditToRefund = (booking.creditApplied || 0) > 0 ? booking.creditApplied : price;
+                CreditStorage.addCredit(
+                    booking.whatsapp, booking.email, booking.name,
+                    creditToRefund, `Rimborso lezione ${booking.date}`,
+                    null, false, false, null, booking.paymentMethod || ''
+                );
+            }
+            refundPct = 100;
+        }
+
+        allBookings[index] = {
+            ...booking,
+            cancelledPaymentMethod: booking.paymentMethod,
+            cancelledPaidAt: booking.paidAt,
+            status: 'cancelled',
+            cancelledAt: new Date().toISOString(),
+            cancelledWithBonus: useBonus,
+            cancelledRefundPct: refundPct,
+            paid: false, paymentMethod: null, paidAt: null, creditApplied: 0,
+        };
+        BookingStorage.replaceAllBookings(allBookings);
+        if (typeof notifySlotAvailable === 'function') notifySlotAvailable(booking);
+        finalizeSlotClear();
+        closePopup();
+    });
 }
 
 // Payments Management Functions
