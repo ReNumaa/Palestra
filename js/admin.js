@@ -2050,16 +2050,19 @@ function deleteBooking(bookingId, bookingName) {
             );
         }
 
-        bookings[index].cancelledPaymentMethod = booking.paymentMethod;
-        bookings[index].cancelledPaidAt = booking.paidAt;
-        bookings[index].status = 'cancelled';
-        bookings[index].cancelledAt = new Date().toISOString();
-        bookings[index].cancelledWithBonus = false;
-        bookings[index].cancelledRefundPct = 100;
-        bookings[index].paid = false;
-        bookings[index].paymentMethod = null;
-        bookings[index].paidAt = null;
-        bookings[index].creditApplied = 0;
+        bookings[index] = {
+            ...booking,
+            cancelledPaymentMethod: booking.paymentMethod,
+            cancelledPaidAt: booking.paidAt,
+            status: 'cancelled',
+            cancelledAt: new Date().toISOString(),
+            cancelledWithBonus: false,
+            cancelledRefundPct: 100,
+            paid: false,
+            paymentMethod: null,
+            paidAt: null,
+            creditApplied: 0,
+        };
         BookingStorage.replaceAllBookings(bookings);
         if (typeof notifySlotAvailable === 'function') notifySlotAvailable(booking);
         if (selectedAdminDay) renderAdminDayView(selectedAdminDay);
@@ -2174,15 +2177,19 @@ function deleteBooking(bookingId, bookingName) {
             bookings[index].cancelledRefundPct = 100;
         }
 
-        bookings[index].cancelledPaymentMethod = booking.paymentMethod;
-        bookings[index].cancelledPaidAt = booking.paidAt;
-        bookings[index].status = 'cancelled';
-        bookings[index].cancelledAt = new Date().toISOString();
-        bookings[index].cancelledWithBonus = useBonus;
-        bookings[index].paid = false;
-        bookings[index].paymentMethod = null;
-        bookings[index].paidAt = null;
-        bookings[index].creditApplied = 0;
+        bookings[index] = {
+            ...bookings[index],
+            cancelledPaymentMethod: booking.paymentMethod,
+            cancelledPaidAt: booking.paidAt,
+            status: 'cancelled',
+            cancelledAt: new Date().toISOString(),
+            cancelledWithBonus: useBonus,
+            cancelledRefundPct: bookings[index].cancelledRefundPct,
+            paid: false,
+            paymentMethod: null,
+            paidAt: null,
+            creditApplied: 0,
+        };
         BookingStorage.replaceAllBookings(bookings);
 
         if (typeof notifySlotAvailable === 'function') notifySlotAvailable(booking);
