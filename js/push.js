@@ -152,6 +152,36 @@ async function notifySlotAvailable(booking) {
     }
 }
 
+// Notifica admin dopo una prenotazione confermata
+async function notifyAdminBooking(booking) {
+    if (typeof SUPABASE_URL === 'undefined') return;
+
+    const dateDisplay = booking.dateDisplay || booking.date_display || booking.date || '';
+    const date = booking.date || '';
+    const time = booking.time || '';
+    const slotType = booking.slotType || booking.slot_type || '';
+    const maxCapacity = typeof BookingStorage !== 'undefined' && typeof BookingStorage.getEffectiveCapacity === 'function'
+        ? BookingStorage.getEffectiveCapacity(date, time, slotType)
+        : 5;
+
+    try {
+        await fetch(`${SUPABASE_URL}/functions/v1/notify-admin-booking`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+                name: booking.name || '',
+                date_display: dateDisplay,
+                date,
+                time,
+                slot_type: slotType,
+                max_capacity: maxCapacity,
+            }),
+        });
+    } catch (e) {
+        console.warn('[Push] notifyAdminBooking error:', e);
+    }
+}
+
 // Se permesso già concesso, registra silenziosamente ad ogni apertura
 if ('Notification' in window && Notification.permission === 'granted') {
     navigator.serviceWorker?.ready.then(() => registerPushSubscription());

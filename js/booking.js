@@ -358,6 +358,7 @@ async function handleBookingSubmit(e) {
     // Show confirmation
     showConfirmation(savedBooking);
     notificaPrenotazione(savedBooking);
+    if (typeof notifyAdminBooking === 'function') notifyAdminBooking(savedBooking);
 
     // Reset form
     document.getElementById('bookingForm').reset();
