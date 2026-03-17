@@ -458,7 +458,7 @@ class BookingStorage {
         }
     }
 
-    static async saveBooking(booking) {
+    static async saveBooking(booking, overrideCapacity) {
         booking.id = `${Date.now()}-${Math.random().toString(36).substr(2, 9)}`;
         booking.createdAt = new Date().toISOString();
         booking.status = 'confirmed';
@@ -468,7 +468,7 @@ class BookingStorage {
         }
 
         const user = typeof getCurrentUser === 'function' ? getCurrentUser() : null;
-        const maxCap = BookingStorage.getEffectiveCapacity(booking.date, booking.time, booking.slotType);
+        const maxCap = overrideCapacity || BookingStorage.getEffectiveCapacity(booking.date, booking.time, booking.slotType);
         const { data, error } = await supabaseClient.rpc('book_slot_atomic', {
             p_local_id:     booking.id,
             p_user_id:      user?.id || null,

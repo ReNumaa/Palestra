@@ -2842,7 +2842,10 @@ async function selectSlotClient(timeSlot, index) {
         notes: '',
         dateDisplay: formatAdminBookingDate(selectedScheduleDate.formatted)
     };
-    const result = await BookingStorage.saveBooking(booking);
+    // Admin assigns client to slot: ensure capacity allows the booking
+    const currentCount = BookingStorage.getBookingsForSlot(booking.date, booking.time)
+        .filter(b => b.status === 'confirmed' && b.slotType === booking.slotType).length;
+    const result = await BookingStorage.saveBooking(booking, currentCount + 1);
     if (!result.ok) {
         showToast('⚠️ Errore: prenotazione non riuscita. Riprova.', 'error');
         renderAllTimeSlots();
