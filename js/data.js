@@ -179,7 +179,7 @@ const DEFAULT_WEEKLY_SCHEDULE = {
         { time: '14:40 - 16:00', type: SLOT_TYPES.GROUP_CLASS },// 🔴
         { time: '16:00 - 17:20', type: SLOT_TYPES.SMALL_GROUP },// 🟡
         { time: '17:20 - 18:40', type: SLOT_TYPES.SMALL_GROUP },// 🟡
-        { time: '18:40 - 20:00', type: SLOT_TYPES.PERSONAL },   // 🟢
+        { time: '18:40 - 20:00', type: SLOT_TYPES.SMALL_GROUP },  // 🟡
         { time: '20:00 - 21:20', type: SLOT_TYPES.PERSONAL }    // 🟢
     ],
     'Sabato': [
