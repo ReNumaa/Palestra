@@ -167,7 +167,10 @@ async function notifyAdminBooking(booking) {
     try {
         await fetch(`${SUPABASE_URL}/functions/v1/notify-admin-booking`, {
             method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
+            headers: {
+                'Content-Type': 'application/json',
+                'Authorization': 'Bearer ' + SUPABASE_ANON_KEY,
+            },
             body: JSON.stringify({
                 name: booking.name || '',
                 date_display: dateDisplay,
