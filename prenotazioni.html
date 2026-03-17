@@ -193,7 +193,7 @@
     <script src="js/ui.js?v=2"></script>
     <script src="js/data.js?v=50"></script>
     <script src="js/auth.js?v=21"></script>
-    <script src="js/push.js?v=11"></script>
+    <script src="js/push.js?v=13"></script>
     <script>
         // ── Guard async: aspetta la sessione Supabase prima di controllare ─
 
@@ -282,6 +282,8 @@
                     BonusStorage.syncFromSupabase(),
                     BookingStorage.syncAppSettingsFromSupabase(),
                 ]);
+                // Applica credito alle lezioni passate non ancora pagate
+                try { await _applyCreditToPastBookings(); } catch (e) { console.warn('[rt] applyCreditToPastBookings failed:', e); }
                 renderPrenoList();
                 renderCreditBalance();
                 renderBonusBalance();
