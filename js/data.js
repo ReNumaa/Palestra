@@ -1357,19 +1357,24 @@ class BookingStorage {
     // Marca come cancellata una prenotazione per ID (preserva lo storico)
     static removeBookingById(id) {
         if (!id) return;
-        const all = this.getAllBookings();
+        const all = this._cache;
         const idx = all.findIndex(b => b.id === id);
         if (idx !== -1 && all[idx].status !== 'cancelled') {
-            // Clone the booking so replaceAllBookings can detect the diff
-            // (getAllBookings returns the same cache references)
-            all[idx] = { ...all[idx] };
-            all[idx].status = 'cancelled';
-            all[idx].cancelledAt = new Date().toISOString();
-            all[idx].paid = false;
-            all[idx].paymentMethod = null;
-            all[idx].paidAt = null;
-            all[idx].creditApplied = 0;
-            this.replaceAllBookings(all);
+            // Build a new array with the modified booking so replaceAllBookings
+            // can diff against the old cache (which still has the original refs)
+            const updated = all.map((b, i) => {
+                if (i !== idx) return b;
+                return {
+                    ...b,
+                    status: 'cancelled',
+                    cancelledAt: new Date().toISOString(),
+                    paid: false,
+                    paymentMethod: null,
+                    paidAt: null,
+                    creditApplied: 0,
+                };
+            });
+            this.replaceAllBookings(updated);
         }
     }
 }
