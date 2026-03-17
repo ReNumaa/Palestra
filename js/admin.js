@@ -2018,7 +2018,7 @@ function createAdminSlotCard(dateInfo, scheduledSlot) {
 
 
 function deleteBooking(bookingId, bookingName) {
-    const bookings = BookingStorage.getAllBookings();
+    const bookings = [...BookingStorage.getAllBookings()];
     const index = bookings.findIndex(b => b.id === bookingId);
     if (index === -1) return;
 
@@ -2149,6 +2149,7 @@ function deleteBooking(bookingId, bookingName) {
 
         const isCancellationPending = booking.status === 'cancellation_requested';
         const wasPaid = !isCancellationPending && (booking.paid || (booking.creditApplied || 0) > 0);
+        let refundPct;
 
         if (withMora) {
             // Con mora: rimborso 50% se pagato, oppure addebita mora se non pagato
@@ -2163,7 +2164,7 @@ function deleteBooking(bookingId, bookingName) {
                 ManualDebtStorage.addDebt(booking.whatsapp, booking.email, booking.name,
                     mora, `Mora 50% annullamento tardivo ${booking.date} ${booking.time}`);
             }
-            bookings[index].cancelledRefundPct = wasPaid ? 50 : 0;
+            refundPct = wasPaid ? 50 : 0;
         } else {
             // Senza mora: rimborso completo se pagato
             if (wasPaid) {
@@ -2174,7 +2175,7 @@ function deleteBooking(bookingId, bookingName) {
                     null, false, false, null, booking.paymentMethod || ''
                 );
             }
-            bookings[index].cancelledRefundPct = 100;
+            refundPct = 100;
         }
 
         bookings[index] = {
@@ -2184,7 +2185,7 @@ function deleteBooking(bookingId, bookingName) {
             status: 'cancelled',
             cancelledAt: new Date().toISOString(),
             cancelledWithBonus: useBonus,
-            cancelledRefundPct: bookings[index].cancelledRefundPct,
+            cancelledRefundPct: refundPct,
             paid: false,
             paymentMethod: null,
             paidAt: null,
