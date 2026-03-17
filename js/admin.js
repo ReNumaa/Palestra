@@ -3034,6 +3034,67 @@ function saveDebtThreshold() {
     }
 }
 
+// ── Health Check ─────────────────────────────────────────────────────────────
+async function runHealthCheck() {
+    const btn = document.getElementById('healthCheckBtn');
+    const resultEl = document.getElementById('healthCheckResult');
+    if (!resultEl) return;
+
+    btn.disabled = true;
+    btn.textContent = '⏳ Verifica in corso...';
+    resultEl.style.display = 'none';
+
+    try {
+        const { data, error } = await supabaseClient.rpc('admin_health_check');
+        if (error) throw new Error(error.message);
+        if (!data.success) throw new Error(data.error || 'Errore sconosciuto');
+
+        const checks = [
+            { key: 'ghost_users',      label: '👻 Utenti senza profilo',         desc: 'Account auth.users senza riga in profiles' },
+            { key: 'orphan_bookings',   label: '📅 Prenotazioni orfane',          desc: 'Prenotazioni con user_id che punta a profilo inesistente' },
+            { key: 'email_mismatch',    label: '📧 Email non corrispondenti',     desc: 'Prenotazioni con email diversa dal profilo collegato' },
+            { key: 'orphan_credits',    label: '💰 Crediti orfani',               desc: 'Crediti con user_id che punta a profilo inesistente' },
+            { key: 'orphan_debts',      label: '💸 Debiti orfani',                desc: 'Debiti con user_id che punta a profilo inesistente' },
+            { key: 'orphan_bonuses',    label: '🎁 Bonus orfani',                 desc: 'Bonus con user_id che punta a profilo inesistente' },
+        ];
+
+        let totalIssues = 0;
+        let html = '';
+
+        checks.forEach(c => {
+            const items = data[c.key] || [];
+            totalIssues += items.length;
+            const ok = items.length === 0;
+            html += `<div style="display:flex;align-items:center;gap:0.5rem;padding:0.4rem 0;${ok ? '' : 'color:#dc2626;font-weight:600'}">
+                <span>${ok ? '✅' : '⚠️'}</span>
+                <span>${c.label}</span>
+                <span style="margin-left:auto;font-size:0.85rem;${ok ? 'color:#16a34a' : 'color:#dc2626'}">${ok ? 'OK' : items.length + ' problemi'}</span>
+            </div>`;
+            if (!ok) {
+                html += `<div style="font-size:0.8rem;color:#6b7280;padding:0.2rem 0 0.5rem 1.75rem;">${c.desc}:<br>`;
+                items.slice(0, 10).forEach(item => {
+                    html += `<div style="padding:0.15rem 0;">• ${item.email || item.booking_email || '—'}${item.date ? ' (' + item.date + ')' : ''}${item.profile_email ? ' → profilo: ' + item.profile_email : ''}</div>`;
+                });
+                if (items.length > 10) html += `<div style="padding:0.15rem 0;">... e altri ${items.length - 10}</div>`;
+                html += `</div>`;
+            }
+        });
+
+        const summary = totalIssues === 0
+            ? '<div style="padding:0.75rem;background:#f0fdf4;border-radius:8px;color:#16a34a;font-weight:600;text-align:center;margin-bottom:0.75rem">✅ Nessuna anomalia rilevata</div>'
+            : `<div style="padding:0.75rem;background:#fef2f2;border-radius:8px;color:#dc2626;font-weight:600;text-align:center;margin-bottom:0.75rem">⚠️ ${totalIssues} anomalie rilevate</div>`;
+
+        resultEl.innerHTML = summary + html;
+        resultEl.style.display = 'block';
+    } catch (e) {
+        resultEl.innerHTML = `<div style="color:#dc2626">Errore: ${e.message}</div>`;
+        resultEl.style.display = 'block';
+    } finally {
+        btn.disabled = false;
+        btn.textContent = '🔍 Verifica';
+    }
+}
+
 function renderPaymentsTab() {
     const debtors = getDebtors();
     const totalUnpaid = debtors.reduce((sum, debtor) => sum + debtor.totalAmount, 0);
@@ -4655,8 +4716,12 @@ function createClientCard(client, index) {
 }
 
 function openEditClientPopup(index, whatsapp, email, name) {
+    // Cerca il client per email/whatsapp (non per indice, che cambia con i filtri attivi)
     const clients = getAllClients();
-    const client = clients[index];
+    const client = clients.find(c =>
+        (email && c.email && c.email.toLowerCase() === email.toLowerCase()) ||
+        (whatsapp && c.whatsapp && normalizePhone(c.whatsapp) === normalizePhone(whatsapp))
+    ) || clients[index];
     if (!client) return;
 
     const userRecord = _getUserRecord(client.email, client.whatsapp);
