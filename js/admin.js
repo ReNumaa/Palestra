@@ -4396,11 +4396,13 @@ async function refreshClients() {
 function renderClientsTab() {
     renderClientsSummary();
     const listEl = document.getElementById('clientsList');
-    if (!clientsListMode) {
+    const hasFilter = clientCertFilter || clientAssicFilter || clientAnagFilter;
+    if (!clientsListMode && !hasFilter) {
         if (listEl) listEl.style.display = 'none';
         return;
     }
     if (listEl) listEl.style.display = '';
+    // Se un filtro è attivo senza lista, usa tutti i clienti come base
     const baseClients = clientsListMode === 'active' ? getActiveClients() : getAllClients();
     let filtered = baseClients;
     if (clientCertFilter)  filtered = filtered.filter(clientHasCertIssue);
