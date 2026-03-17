@@ -1146,13 +1146,13 @@ class BookingStorage {
         const rows = [];
         for (const [dateStr, slots] of Object.entries(overrides)) {
             for (const slot of slots) {
-                const row = { date: dateStr, time: slot.time, slot_type: slot.type, extras: slot.extras || [] };
-                if (slot.client) {
-                    row.client_name     = slot.client.name || null;
-                    row.client_email    = slot.client.email || null;
-                    row.client_whatsapp = slot.client.whatsapp || null;
-                }
-                if (slot.bookingId) row.booking_id = slot.bookingId;
+                const row = {
+                    date: dateStr, time: slot.time, slot_type: slot.type, extras: slot.extras || [],
+                    client_name:     slot.client?.name || null,
+                    client_email:    slot.client?.email || null,
+                    client_whatsapp: slot.client?.whatsapp || null,
+                    booking_id:      slot.bookingId || null,
+                };
                 rows.push(row);
             }
         }
