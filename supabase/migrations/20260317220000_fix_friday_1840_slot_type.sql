@@ -6,4 +6,4 @@ SET slot_type = 'small-group'
 WHERE time = '18:40 - 20:00'
   AND slot_type = 'personal-training'
   AND EXTRACT(DOW FROM date::date) = 5  -- 5 = Friday
-  AND date >= CURRENT_DATE::text;
+  AND date::date >= CURRENT_DATE;
