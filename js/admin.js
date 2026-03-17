@@ -3114,6 +3114,13 @@ function _syncFilterButtons() {
     document.getElementById('anagFilterBtn')?.classList.toggle('active', clientAnagFilter);
 }
 
+function toggleClientsFiltersMenu() {
+    const btns  = document.getElementById('clientsFilterBtns');
+    const arrow = document.getElementById('clientsFilterToggleArrow');
+    const open  = btns.classList.toggle('open');
+    if (arrow) arrow.textContent = open ? '▲' : '▼';
+}
+
 function toggleCertFilter() {
     clientCertFilter = !clientCertFilter;
     if (clientCertFilter) { clientAssicFilter = false; clientAnagFilter = false; }

@@ -934,8 +934,24 @@ canvas {
     top: 42px;
 }
 
+.clients-filter-row {
+    display: flex;
+    flex-direction: column;
+    gap: 0.5rem;
+}
+
+.clients-filter-toggle {
+    display: none;
+}
+
+.clients-filter-btns {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.5rem;
+    justify-content: center;
+}
+
 .clients-cert-filter-btn {
-    align-self: flex-start;
     background: none;
     border: 1.5px solid #e5e7eb;
     color: #6b7280;
@@ -4376,7 +4392,30 @@ canvas {
     /* -- Clients tab -- */
     .clients-search-bar { gap: 0.4rem; margin-bottom: 0.75rem; }
     .clients-search-bar input { padding: 0.6rem 0.8rem; font-size: 0.9rem; }
-    .clients-cert-filter-btn { font-size: 0.75rem; padding: 0.25rem 0.6rem; }
+    .clients-cert-filter-btn { font-size: 0.82rem; padding: 0.35rem 0.85rem; width: 100%; justify-content: flex-start; }
+
+    .clients-filter-toggle {
+        display: flex;
+        align-items: center;
+        gap: 0.4rem;
+        background: none;
+        border: 1.5px solid #e5e7eb;
+        color: #6b7280;
+        font-size: 0.85rem;
+        font-weight: 600;
+        padding: 0.4rem 0.85rem;
+        border-radius: 20px;
+        cursor: pointer;
+        align-self: flex-start;
+    }
+    .clients-filter-btns {
+        display: none;
+        flex-direction: column;
+        gap: 0.4rem;
+    }
+    .clients-filter-btns.open {
+        display: flex;
+    }
 
     .client-card-header {
         flex-direction: column;

@@ -165,16 +165,21 @@
                                oninput="liveSearchClients()"
                                onkeydown="if(event.key==='Escape') closeClientsSearchDropdown()">
                         <div id="clientsSearchDropdown" class="debtor-search-dropdown" style="display:none;"></div>
-                        <div style="display:flex;flex-wrap:wrap;gap:0.5rem;">
-                            <button class="clients-cert-filter-btn" id="certFilterBtn" onclick="toggleCertFilter()">
-                                🏥 Senza certificato
+                        <div class="clients-filter-row">
+                            <button class="clients-filter-toggle" id="clientsFilterToggle" onclick="toggleClientsFiltersMenu()">
+                                🔍 Filtri <span id="clientsFilterToggleArrow">▼</span>
                             </button>
-                            <button class="clients-cert-filter-btn" id="assicFilterBtn" onclick="toggleAssicFilter()">
-                                📋 Senza assicurazione
-                            </button>
-                            <button class="clients-cert-filter-btn" id="anagFilterBtn" onclick="toggleAnagFilter()">
-                                📝 Senza anagrafica
-                            </button>
+                            <div class="clients-filter-btns" id="clientsFilterBtns">
+                                <button class="clients-cert-filter-btn" id="certFilterBtn" onclick="toggleCertFilter()">
+                                    🏥 Senza certificato
+                                </button>
+                                <button class="clients-cert-filter-btn" id="assicFilterBtn" onclick="toggleAssicFilter()">
+                                    📋 Senza assicurazione
+                                </button>
+                                <button class="clients-cert-filter-btn" id="anagFilterBtn" onclick="toggleAnagFilter()">
+                                    📝 Senza anagrafica
+                                </button>
+                            </div>
                         </div>
                     </div>
                     <div class="payments-stats">
