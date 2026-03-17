@@ -107,7 +107,7 @@ const TIME_SLOTS = [
 ];
 
 // Bump this whenever DEFAULT_WEEKLY_SCHEDULE changes — forces a reset for all clients
-const SCHEDULE_VERSION = 'v8';
+const SCHEDULE_VERSION = 'v9';
 
 // Default weekly schedule — all 12 slots assigned every day
 // 🟢 GREEN = personal-training | 🟡 YELLOW = small-group | 🔴 RED = group-class
