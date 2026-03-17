@@ -4392,7 +4392,7 @@ canvas {
     /* -- Clients tab -- */
     .clients-search-bar { gap: 0.4rem; margin-bottom: 0.75rem; }
     .clients-search-bar input { padding: 0.6rem 0.8rem; font-size: 0.9rem; }
-    .clients-cert-filter-btn { font-size: 0.82rem; padding: 0.35rem 0.85rem; width: 100%; justify-content: flex-start; }
+    .clients-cert-filter-btn { font-size: 0.82rem; padding: 0.35rem 0.85rem; }
 
     .clients-filter-toggle {
         display: flex;
@@ -4406,12 +4406,14 @@ canvas {
         padding: 0.4rem 0.85rem;
         border-radius: 20px;
         cursor: pointer;
-        align-self: flex-start;
+        align-self: center;
     }
     .clients-filter-btns {
         display: none;
-        flex-direction: column;
+        flex-direction: row;
+        flex-wrap: wrap;
         gap: 0.4rem;
+        justify-content: center;
     }
     .clients-filter-btns.open {
         display: flex;
