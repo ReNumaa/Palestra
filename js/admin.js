@@ -2878,7 +2878,12 @@ function clearSlotClient(timeSlot) {
     const slot = dateSlots.find(s => s.time === timeSlot);
     if (slot) {
         if (slot.bookingId) {
+            const allBookings = BookingStorage.getAllBookings();
+            const found = allBookings.find(b => b.id === slot.bookingId);
+            console.log('[clearSlotClient] bookingId:', slot.bookingId, 'found:', !!found, '_sbId:', found?._sbId, 'status:', found?.status);
             BookingStorage.removeBookingById(slot.bookingId);
+        } else {
+            console.warn('[clearSlotClient] nessun bookingId nello slot');
         }
         delete slot.client;
         delete slot.bookingId;
