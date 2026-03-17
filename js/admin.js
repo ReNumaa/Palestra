@@ -2838,7 +2838,7 @@ async function selectSlotClient(timeSlot, index) {
         whatsapp: user.whatsapp || '',
         date: selectedScheduleDate.formatted,
         time: timeSlot,
-        slotType: SLOT_TYPES.GROUP_CLASS,
+        slotType: slot.type || SLOT_TYPES.GROUP_CLASS,
         notes: '',
         dateDisplay: formatAdminBookingDate(selectedScheduleDate.formatted)
     };
