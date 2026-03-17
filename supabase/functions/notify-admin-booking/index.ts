@@ -55,7 +55,7 @@ Deno.serve(async (req) => {
         const startTime = time.split(" - ")[0]?.trim() ?? time;
 
         const payload = JSON.stringify({
-            title: `Prenotazione ${name}`,
+            title: name,
             body:  `${date_display} alle ${startTime} (${occupancy}/${capacity})`,
             tag:   `admin-booking-${date}-${startTime}-${occupancy}`.replace(/\s/g, "-"),
             url:   `/admin.html?date=${date}`,
