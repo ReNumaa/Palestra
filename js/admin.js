@@ -3035,13 +3035,24 @@ function saveDebtThreshold() {
 }
 
 // ── Health Check ─────────────────────────────────────────────────────────────
+const HEALTH_CHECKS = [
+    { key: 'ghost_users',      label: '👻 Utenti senza profilo',         desc: 'Account auth.users senza riga in profiles', fix: 'Crea profilo da metadata' },
+    { key: 'orphan_bookings',  label: '📅 Prenotazioni orfane',          desc: 'Prenotazioni con user_id che punta a profilo inesistente', fix: 'Scollega user_id (booking intatta)' },
+    { key: 'email_mismatch',   label: '📧 Email non corrispondenti',     desc: 'Prenotazioni con email diversa dal profilo collegato', fix: 'Allinea email al profilo' },
+    { key: 'orphan_credits',   label: '💰 Crediti orfani',               desc: 'Crediti con user_id che punta a profilo inesistente', fix: 'Scollega user_id (credito intatto)' },
+    { key: 'orphan_debts',     label: '💸 Debiti orfani',                desc: 'Debiti con user_id che punta a profilo inesistente', fix: 'Scollega user_id (debito intatto)' },
+    { key: 'orphan_bonuses',   label: '🎁 Bonus orfani',                 desc: 'Bonus con user_id che punta a profilo inesistente', fix: 'Scollega user_id (bonus intatto)' },
+];
+
 async function runHealthCheck() {
     const btn = document.getElementById('healthCheckBtn');
+    const fixBtn = document.getElementById('healthFixBtn');
     const resultEl = document.getElementById('healthCheckResult');
     if (!resultEl) return;
 
     btn.disabled = true;
     btn.textContent = '⏳ Verifica in corso...';
+    fixBtn.style.display = 'none';
     resultEl.style.display = 'none';
 
     try {
@@ -3049,19 +3060,10 @@ async function runHealthCheck() {
         if (error) throw new Error(error.message);
         if (!data.success) throw new Error(data.error || 'Errore sconosciuto');
 
-        const checks = [
-            { key: 'ghost_users',      label: '👻 Utenti senza profilo',         desc: 'Account auth.users senza riga in profiles' },
-            { key: 'orphan_bookings',   label: '📅 Prenotazioni orfane',          desc: 'Prenotazioni con user_id che punta a profilo inesistente' },
-            { key: 'email_mismatch',    label: '📧 Email non corrispondenti',     desc: 'Prenotazioni con email diversa dal profilo collegato' },
-            { key: 'orphan_credits',    label: '💰 Crediti orfani',               desc: 'Crediti con user_id che punta a profilo inesistente' },
-            { key: 'orphan_debts',      label: '💸 Debiti orfani',                desc: 'Debiti con user_id che punta a profilo inesistente' },
-            { key: 'orphan_bonuses',    label: '🎁 Bonus orfani',                 desc: 'Bonus con user_id che punta a profilo inesistente' },
-        ];
-
         let totalIssues = 0;
         let html = '';
 
-        checks.forEach(c => {
+        HEALTH_CHECKS.forEach(c => {
             const items = data[c.key] || [];
             totalIssues += items.length;
             const ok = items.length === 0;
@@ -3071,12 +3073,12 @@ async function runHealthCheck() {
                 <span style="margin-left:auto;font-size:0.85rem;${ok ? 'color:#16a34a' : 'color:#dc2626'}">${ok ? 'OK' : items.length + ' problemi'}</span>
             </div>`;
             if (!ok) {
-                html += `<div style="font-size:0.8rem;color:#6b7280;padding:0.2rem 0 0.5rem 1.75rem;">${c.desc}:<br>`;
+                html += `<div style="font-size:0.8rem;color:#6b7280;padding:0.2rem 0 0.2rem 1.75rem;">${c.desc}</div>`;
+                html += `<div style="font-size:0.8rem;color:#2563eb;padding:0 0 0.5rem 1.75rem;">Correzione: ${c.fix}</div>`;
                 items.slice(0, 10).forEach(item => {
-                    html += `<div style="padding:0.15rem 0;">• ${item.email || item.booking_email || '—'}${item.date ? ' (' + item.date + ')' : ''}${item.profile_email ? ' → profilo: ' + item.profile_email : ''}</div>`;
+                    html += `<div style="font-size:0.8rem;color:#6b7280;padding:0.15rem 0 0.15rem 1.75rem;">• ${item.email || item.booking_email || '—'}${item.date ? ' (' + item.date + ')' : ''}${item.profile_email ? ' → profilo: ' + item.profile_email : ''}</div>`;
                 });
-                if (items.length > 10) html += `<div style="padding:0.15rem 0;">... e altri ${items.length - 10}</div>`;
-                html += `</div>`;
+                if (items.length > 10) html += `<div style="font-size:0.8rem;color:#6b7280;padding:0.15rem 0 0.15rem 1.75rem;">... e altri ${items.length - 10}</div>`;
             }
         });
 
@@ -3086,12 +3088,66 @@ async function runHealthCheck() {
 
         resultEl.innerHTML = summary + html;
         resultEl.style.display = 'block';
+
+        // Mostra bottone fix solo se ci sono anomalie
+        fixBtn.style.display = totalIssues > 0 ? '' : 'none';
     } catch (e) {
         resultEl.innerHTML = `<div style="color:#dc2626">Errore: ${e.message}</div>`;
         resultEl.style.display = 'block';
     } finally {
         btn.disabled = false;
         btn.textContent = '🔍 Verifica';
+    }
+}
+
+async function runHealthFix() {
+    if (!confirm('Correggi tutte le anomalie?\n\nNessun dato verrà cancellato.\n• Utenti fantasma → crea profilo\n• Booking/crediti/debiti/bonus orfani → scollega user_id\n• Email mismatch → allinea al profilo')) return;
+
+    const btn = document.getElementById('healthFixBtn');
+    const resultEl = document.getElementById('healthCheckResult');
+    btn.disabled = true;
+    btn.textContent = '⏳ Correzione in corso...';
+
+    try {
+        const { data, error } = await supabaseClient.rpc('admin_health_fix');
+        if (error) throw new Error(error.message);
+        if (!data.success) throw new Error(data.error || 'Errore sconosciuto');
+
+        const fixes = [
+            { key: 'fixed_ghosts',   label: 'Profili creati' },
+            { key: 'fixed_bookings', label: 'Prenotazioni scollegate' },
+            { key: 'fixed_emails',   label: 'Email allineate' },
+            { key: 'fixed_credits',  label: 'Crediti scollegati' },
+            { key: 'fixed_debts',    label: 'Debiti scollegati' },
+            { key: 'fixed_bonuses',  label: 'Bonus scollegati' },
+        ];
+
+        const totalFixed = fixes.reduce((s, f) => s + (data[f.key] || 0), 0);
+        let html = `<div style="padding:0.75rem;background:#f0fdf4;border-radius:8px;color:#16a34a;font-weight:600;text-align:center;margin-bottom:0.75rem">🔧 ${totalFixed} correzioni applicate</div>`;
+        fixes.forEach(f => {
+            const n = data[f.key] || 0;
+            if (n > 0) html += `<div style="padding:0.3rem 0;color:#16a34a">✅ ${f.label}: ${n}</div>`;
+        });
+        if (totalFixed === 0) html += `<div style="padding:0.3rem 0;color:#6b7280">Nessuna correzione necessaria.</div>`;
+
+        resultEl.innerHTML = html;
+        btn.style.display = 'none';
+
+        // Risincronizza le cache dopo il fix
+        await Promise.all([
+            UserStorage.syncUsersFromSupabase(),
+            BookingStorage.syncFromSupabase(),
+            CreditStorage.syncFromSupabase(),
+            ManualDebtStorage.syncFromSupabase(),
+            BonusStorage.syncFromSupabase(),
+        ]);
+        showToast('Integrità dati corretta.', 'success');
+    } catch (e) {
+        resultEl.innerHTML = `<div style="color:#dc2626">Errore: ${e.message}</div>`;
+        resultEl.style.display = 'block';
+    } finally {
+        btn.disabled = false;
+        btn.textContent = '🔧 Correggi anomalie';
     }
 }
 

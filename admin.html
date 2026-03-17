@@ -387,12 +387,11 @@
 
                     <!-- Verifica integrità dati -->
                     <div class="settings-section">
-                        <div class="settings-section--inline" style="margin-bottom:0; padding-bottom:0; border-bottom:none;">
-                            <div class="debt-threshold-text">
-                                <h4 class="settings-section-title">🔍 Verifica integrità dati</h4>
-                                <p class="settings-section-desc">Controlla anomalie: utenti senza profilo, prenotazioni orfane, email non corrispondenti, crediti/debiti/bonus collegati a utenti inesistenti.</p>
-                            </div>
-                            <button class="btn-action" id="healthCheckBtn" onclick="runHealthCheck()" style="background:#7c3aed; white-space:nowrap;">🔍 Verifica</button>
+                        <h4 class="settings-section-title">🔍 Verifica integrità dati</h4>
+                        <p class="settings-section-desc">Controlla anomalie: utenti senza profilo, prenotazioni orfane, email non corrispondenti, crediti/debiti/bonus collegati a utenti inesistenti.</p>
+                        <div style="display:flex;gap:0.75rem;flex-wrap:wrap;margin-top:0.75rem">
+                            <button class="btn-action" id="healthCheckBtn" onclick="runHealthCheck()" style="background:#7c3aed">🔍 Verifica</button>
+                            <button class="btn-action" id="healthFixBtn" onclick="runHealthFix()" style="background:#dc2626;display:none">🔧 Correggi anomalie</button>
                         </div>
                         <div id="healthCheckResult" style="display:none; margin-top:1rem;"></div>
                     </div>
