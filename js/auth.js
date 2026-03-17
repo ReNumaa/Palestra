@@ -98,12 +98,19 @@ async function initAuth() {
     if (session) {
         const ok = await _loadProfile(session.user.id);
         if (!ok && !window._currentUser) {
-            // Fallback minimo: non redirigere a login su errori di rete transitori
+            // Fallback: profilo non trovato (trigger fallito) — usa user_metadata
+            const meta = session.user.user_metadata || {};
             window._currentUser = {
-                id:      session.user.id,
-                email:   session.user.email || session.user.user_metadata?.email || '',
-                name:    session.user.user_metadata?.full_name || session.user.email || '',
-                whatsapp: session.user.user_metadata?.whatsapp || ''
+                id:              session.user.id,
+                email:           session.user.email || meta.email || '',
+                name:            meta.full_name || meta.name || session.user.email || '',
+                whatsapp:        meta.whatsapp || '',
+                codice_fiscale:  meta.codice_fiscale || null,
+                indirizzo_via:   meta.indirizzo_via || null,
+                indirizzo_paese: meta.indirizzo_paese || null,
+                indirizzo_cap:   meta.indirizzo_cap || null,
+                medical_cert_expiry: null,
+                insurance_expiry:    null,
             };
         }
         // Propaga il claim admin al sessionStorage così updateNavAuth() può mostrare il link
@@ -325,12 +332,18 @@ async function updateUserProfile(currentEmail, updates, newPassword) {
         }
     }
 
-    // Aggiorna profilo su Supabase
+    // Aggiorna profilo su Supabase (upsert: crea il profilo se il trigger handle_new_user non l'ha fatto)
     if (Object.keys(profileUpdate).length > 0) {
+        // Garantisci che name e email siano sempre presenti per l'upsert (colonne NOT NULL)
+        const upsertData = {
+            id: user.id,
+            name: user.name || updates.name || '',
+            email: (user.email || updates.email || '').toLowerCase(),
+            ...profileUpdate
+        };
         const { error } = await supabaseClient
             .from('profiles')
-            .update(profileUpdate)
-            .eq('id', user.id);
+            .upsert(upsertData);
         if (error) return { ok: false, error: error.message };
     }
 

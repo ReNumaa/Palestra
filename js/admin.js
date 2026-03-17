@@ -4801,7 +4801,7 @@ function saveClientEdit(index, oldWhatsapp, oldEmail) {
     const newVia      = (document.getElementById(`cedit-via-${index}`)?.value || '').trim();
     const newPaese    = (document.getElementById(`cedit-paese-${index}`)?.value || '').trim();
     const newCap      = (document.getElementById(`cedit-cap-${index}`)?.value || '').trim();
-    if (!newName || !newWhatsapp) { alert('Nome e WhatsApp sono obbligatori.'); return; }
+    if (!newName) { alert('Il nome è obbligatorio.'); return; }
     closeEditClientPopup();
 
     const normOld      = normalizePhone(oldWhatsapp);
