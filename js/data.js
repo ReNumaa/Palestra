@@ -1146,7 +1146,14 @@ class BookingStorage {
         const rows = [];
         for (const [dateStr, slots] of Object.entries(overrides)) {
             for (const slot of slots) {
-                rows.push({ date: dateStr, time: slot.time, slot_type: slot.type, extras: slot.extras || [] });
+                const row = { date: dateStr, time: slot.time, slot_type: slot.type, extras: slot.extras || [] };
+                if (slot.client) {
+                    row.client_name     = slot.client.name || null;
+                    row.client_email    = slot.client.email || null;
+                    row.client_whatsapp = slot.client.whatsapp || null;
+                }
+                if (slot.bookingId) row.booking_id = slot.bookingId;
+                rows.push(row);
             }
         }
         // Calcola le combinazioni (date, time) attive per eliminare le vecchie
@@ -1195,7 +1202,7 @@ class BookingStorage {
                 supabaseClient.from('credit_history').select('credit_id, amount, note, created_at, method').order('created_at', { ascending: true }),
                 supabaseClient.from('manual_debts').select('name, whatsapp, email, balance, history'),
                 supabaseClient.from('bonuses').select('name, whatsapp, email, bonus, last_reset_month'),
-                supabaseClient.from('schedule_overrides').select('date, time, slot_type, extras').order('date').order('time'),
+                supabaseClient.from('schedule_overrides').select('date, time, slot_type, extras, client_name, client_email, client_whatsapp, booking_id').order('date').order('time'),
                 supabaseClient.from('settings').select('key, value'),
             ]);
 
@@ -1257,6 +1264,8 @@ class BookingStorage {
                     if (!overrides[r.date]) overrides[r.date] = [];
                     const slot = { time: r.time, type: r.slot_type };
                     if (r.extras?.length) slot.extras = r.extras;
+                    if (r.client_name) slot.client = { name: r.client_name, email: r.client_email || '', whatsapp: r.client_whatsapp || '' };
+                    if (r.booking_id) slot.bookingId = r.booking_id;
                     overrides[r.date].push(slot);
                 }
                 _lsSet('scheduleOverrides', JSON.stringify(overrides));
