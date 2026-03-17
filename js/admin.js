@@ -4841,6 +4841,7 @@ function openEditClientPopup(index, whatsapp, email, name) {
             <div class="edit-client-popup-actions">
                 <button class="btn-save-edit" onclick="saveClientEdit(${index}, '${_escHtml(whatsapp)}', '${_escHtml(email)}')">Salva</button>
                 <button class="btn-cancel-edit" onclick="closeEditClientPopup()">Annulla</button>
+                <button class="btn-delete-client" onclick="event.stopPropagation(); deleteClientData(${index}, '${_escHtml(whatsapp)}', '${_escHtml(email)}')" title="Elimina tutti i dati del cliente">🗑️ Elimina</button>
             </div>
         </div>
     `;
