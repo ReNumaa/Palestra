@@ -5013,7 +5013,10 @@ async function deleteClientData(index, whatsapp, email) {
     }
 
     const clients = getAllClients();
-    const client = clients[index];
+    const client = clients.find(c =>
+        (email && c.email && c.email.toLowerCase() === email.toLowerCase()) ||
+        (whatsapp && c.whatsapp && normalizePhone(c.whatsapp) === normalizePhone(whatsapp))
+    ) || clients[index];
     if (!client) return;
     const clientEmail = (client.email || email || '').toLowerCase();
     const clientPhone = normalizePhone(client.whatsapp || whatsapp || '');
