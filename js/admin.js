@@ -1807,14 +1807,11 @@ function _buildParticipantCard(booking) {
     const _today30    = new Date(); _today30.setDate(_today30.getDate() + 30);
     const _today30Str = _localDateStr(_today30);
 
-    // Cert medico + codice fiscale: combinati se entrambi mancanti
+    // Cert medico
     let certBadge = '';
     const certMissing = !certScad;
-    const cfMissing   = !hasCF;
-    if (certMissing && cfMissing) {
-        certBadge = `<div class="cert-expired-badge cert-expired-badge--clickable" onclick="openCertModal(this,'${emE}','${waE}','${nmE2}')">🏥 Imposta Cert. Med + Codice Fiscale</div>`;
-    } else if (certMissing) {
-        certBadge = `<div class="cert-expired-badge cert-expired-badge--clickable" onclick="openCertModal(this,'${emE}','${waE}','${nmE2}')">🏥 Imposta scadenza Cert. Med</div>`;
+    if (certMissing) {
+        certBadge = `<div class="cert-expired-badge cert-expired-badge--clickable" onclick="openCertModal(this,'${emE}','${waE}','${nmE2}')">🏥 Imposta Cert. Med</div>`;
     } else if (certScad < _todayStr) {
         const [cy, cm, cd] = certScad.split('-');
         certBadge = `<div class="cert-expired-badge cert-expired-badge--clickable" onclick="openCertModal(this,'${emE}','${waE}','${nmE2}')">🏥 Cert. scaduto il ${cd}/${cm}/${cy}</div>`;
@@ -1823,10 +1820,11 @@ function _buildParticipantCard(booking) {
         certBadge = `<div class="cert-expired-badge cert-expired-badge--clickable" style="background:#fffbeb;border-color:#fde68a;color:#92400e;border-left:3px solid #f59e0b" onclick="openCertModal(this,'${emE}','${waE}','${nmE2}')">⏳ Cert. Med scade il ${cd}/${cm}/${cy}</div>`;
     }
 
-    // Codice fiscale warning (solo se cert è presente ma CF manca)
+    // Anagrafica incompleta (CF, indirizzo)
     let cfBadge = '';
-    if (cfMissing && !certMissing) {
-        cfBadge = `<div class="cert-expired-badge cert-expired-badge--clickable" style="background:#fef3c7;border-color:#fde68a;color:#92400e;border-left:3px solid #f59e0b">🏥 Imposta Codice Fiscale</div>`;
+    const anagMissing = !hasCF || !userRecord?.indirizzoVia || !userRecord?.indirizzoPaese || !userRecord?.indirizzoCap;
+    if (anagMissing) {
+        cfBadge = `<div class="cert-expired-badge cert-expired-badge--clickable" style="background:#fef3c7;border-color:#fde68a;color:#92400e;border-left:3px solid #f59e0b">📋 Completa anagrafica</div>`;
     }
 
     let assicBadge = '';
@@ -6916,12 +6914,9 @@ function openCertModal(badgeEl, email, whatsapp, name) {
     const users = _getUsersFull();
     const idx   = _findUserIdx(users, email, whatsapp);
     const existing = idx !== -1 ? (users[idx].certificatoMedicoScadenza || '') : '';
-    const existingCF = idx !== -1 ? (users[idx].codiceFiscale || '') : '';
 
     document.getElementById('certModalName').textContent = name;
     document.getElementById('certModalDate').value = existing;
-    document.getElementById('certModalCF').value = existingCF;
-    document.getElementById('certModalCFError').style.display = 'none';
     document.getElementById('certModalOverlay').style.display = 'block';
     document.getElementById('certModal').style.display = 'flex';
     setTimeout(() => document.getElementById('certModalDate').focus(), 50);
@@ -6935,29 +6930,18 @@ function closeCertModal() {
 
 function saveCertDate() {
     const val = document.getElementById('certModalDate').value;
-    const cfVal = document.getElementById('certModalCF').value.trim().toUpperCase();
-    const cfErrEl = document.getElementById('certModalCFError');
-    cfErrEl.style.display = 'none';
-
-    // Valida CF se compilato
-    if (cfVal && !/^[A-Z]{6}\d{2}[A-Z]\d{2}[A-Z]\d{3}[A-Z]$/i.test(cfVal)) {
-        cfErrEl.style.display = 'block';
-        return;
-    }
 
     const users = _getUsersFull();
     let idx = _findUserIdx(users, _certModalEmail, _certModalWhatsapp);
 
     if (idx === -1) {
-        // Crea utente minimo se non esiste
         users.push({
             name: _certModalName2 || '',
             email: _certModalEmail || null,
             whatsapp: _certModalWhatsapp || null,
             createdAt: new Date().toISOString(),
             certificatoMedicoScadenza: val || null,
-            certificatoMedicoHistory: [{ scadenza: val || null, aggiornatoIl: new Date().toISOString() }],
-            codiceFiscale: cfVal || null
+            certificatoMedicoHistory: [{ scadenza: val || null, aggiornatoIl: new Date().toISOString() }]
         });
     } else {
         const oldCert = users[idx].certificatoMedicoScadenza || '';
@@ -6966,12 +6950,9 @@ function saveCertDate() {
             if (!users[idx].certificatoMedicoHistory) users[idx].certificatoMedicoHistory = [];
             users[idx].certificatoMedicoHistory.push({ scadenza: val || null, aggiornatoIl: new Date().toISOString() });
         }
-        users[idx].codiceFiscale = cfVal || null;
     }
     _saveUsers(users);
-    const supaFields = { medical_cert_expiry: val || null };
-    if (cfVal || cfVal === '') supaFields.codice_fiscale = cfVal || null;
-    _updateSupabaseProfile(_certModalEmail, _certModalWhatsapp, supaFields);
+    _updateSupabaseProfile(_certModalEmail, _certModalWhatsapp, { medical_cert_expiry: val || null });
 
     // Aggiorna sessione se è il cliente loggato
     const session = getCurrentUser();
@@ -6985,12 +6966,8 @@ function saveCertDate() {
     // Aggiorna il badge in-place
     if (_certModalBadgeEl) {
         const today = _localDateStr();
-        const stillNoCF = !cfVal;
-        if (!val && stillNoCF) {
-            _certModalBadgeEl.textContent = '🏥 Imposta Cert. Med + Codice Fiscale';
-            _certModalBadgeEl.removeAttribute('style');
-        } else if (!val) {
-            _certModalBadgeEl.textContent = '🏥 Imposta scadenza Cert. Med';
+        if (!val) {
+            _certModalBadgeEl.textContent = '🏥 Imposta Cert. Med';
             _certModalBadgeEl.removeAttribute('style');
         } else if (val < today) {
             const [y, m, d] = val.split('-');
