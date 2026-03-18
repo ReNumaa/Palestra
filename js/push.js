@@ -191,6 +191,47 @@ async function notifyAdminBooking(booking) {
     }
 }
 
+// Notifica admin dopo un annullamento
+async function notifyAdminCancellation(booking, { withBonus = false, withMora = false } = {}) {
+    console.log('[Push] notifyAdminCancellation chiamata', booking);
+    if (typeof SUPABASE_URL === 'undefined') {
+        console.warn('[Push] SUPABASE_URL non definito — notifica admin saltata');
+        return;
+    }
+
+    const dateDisplay = booking.dateDisplay || booking.date_display || booking.date || '';
+    const date = booking.date || '';
+    const time = booking.time || '';
+    const slotType = booking.slotType || booking.slot_type || '';
+    const maxCapacity = typeof BookingStorage !== 'undefined' && typeof BookingStorage.getEffectiveCapacity === 'function'
+        ? BookingStorage.getEffectiveCapacity(date, time, slotType)
+        : 5;
+
+    try {
+        const resp = await fetch(`${SUPABASE_URL}/functions/v1/notify-admin-cancellation`, {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                'Authorization': 'Bearer ' + SUPABASE_ANON_KEY,
+            },
+            body: JSON.stringify({
+                name: booking.name || '',
+                date_display: dateDisplay,
+                date,
+                time,
+                slot_type: slotType,
+                max_capacity: maxCapacity,
+                with_bonus: withBonus,
+                with_mora: withMora,
+            }),
+        });
+        const result = await resp.json();
+        console.log('[Push] notifyAdminCancellation response:', resp.status, result);
+    } catch (e) {
+        console.warn('[Push] notifyAdminCancellation error:', e);
+    }
+}
+
 // Se permesso già concesso, registra silenziosamente ad ogni apertura
 if ('Notification' in window && Notification.permission === 'granted') {
     navigator.serviceWorker?.ready.then(() => registerPushSubscription());

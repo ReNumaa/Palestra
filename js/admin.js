@@ -2063,6 +2063,7 @@ function deleteBooking(bookingId, bookingName) {
         };
         BookingStorage.replaceAllBookings(bookings);
         if (typeof notifySlotAvailable === 'function') notifySlotAvailable(booking);
+        if (typeof notifyAdminCancellation === 'function') notifyAdminCancellation(booking);
         if (selectedAdminDay) renderAdminDayView(selectedAdminDay);
         return;
     }
@@ -2192,6 +2193,7 @@ function deleteBooking(bookingId, bookingName) {
         BookingStorage.replaceAllBookings(bookings);
 
         if (typeof notifySlotAvailable === 'function') notifySlotAvailable(booking);
+        if (typeof notifyAdminCancellation === 'function') notifyAdminCancellation(booking, { withBonus: useBonus, withMora });
         if (selectedAdminDay) renderAdminDayView(selectedAdminDay);
 
         closePopup();
