@@ -76,7 +76,7 @@
                 </div>
             </div>
 
-            <!-- Warning certificato medico -->
+            <!-- Warning anagrafica incompleta -->
             <div id="prenoCertWarning"></div>
 
             <!-- Tabs -->
@@ -909,49 +909,24 @@
             renderPrenoList();
         }
 
-        // ── Certificato medico warning ────────────────────────────────────
+        // ── Anagrafica incompleta warning ────────────────────────────────
         function renderCertWarning() {
             const user = getCurrentUser();
             const el   = document.getElementById('prenoCertWarning');
             if (!user || !el) return;
 
-            const certEditable = CertEditableStorage.get();
-            const hasCF = !!user.codice_fiscale;
+            const missing = !user.whatsapp
+                || !user.codice_fiscale
+                || !user.indirizzo_via
+                || !user.indirizzo_paese
+                || !user.indirizzo_cap
+                || (CertEditableStorage.get() && !user.medical_cert_expiry);
 
-            // Se il cert non è modificabile dall'utente, mostra solo il warning CF
-            if (!certEditable) {
-                if (!hasCF) {
-                    el.innerHTML = `<div class="preno-cert-warning preno-cert-expired preno-cert-clickable" onclick="openEditProfileModal()">🏥 Imposta Codice Fiscale</div>`;
-                } else {
-                    el.innerHTML = '';
-                }
-                return;
+            if (missing) {
+                el.innerHTML = `<div class="preno-cert-warning preno-cert-expired preno-cert-clickable" onclick="openEditProfileModal()">📋 Completa anagrafica</div>`;
+            } else {
+                el.innerHTML = '';
             }
-
-            const scad = user.medical_cert_expiry || null;
-            const cfSuffix = !hasCF ? ' + Codice Fiscale' : '';
-            if (!scad) {
-                el.innerHTML = `<div class="preno-cert-warning preno-cert-expired preno-cert-clickable" onclick="openEditProfileModal()">🏥 Imposta scadenza Cert. Medico${cfSuffix}</div>`;
-                return;
-            }
-
-            const today   = new Date(); today.setHours(0,0,0,0);
-            const scadDt  = new Date(scad + 'T00:00:00');
-            const diffMs  = scadDt - today;
-            const diffDays = Math.ceil(diffMs / (1000 * 60 * 60 * 24));
-            const [y, m, d] = scad.split('-');
-            const dateLabel = `${d}/${m}/${y}`;
-
-            let html = '';
-            if (diffDays <= 0) {
-                html += `<div class="preno-cert-warning preno-cert-expired preno-cert-clickable" onclick="openEditProfileModal()">🏥 Cert. Medico scaduto il ${dateLabel}</div>`;
-            } else if (diffDays <= 30) {
-                html += `<div class="preno-cert-warning preno-cert-expiring preno-cert-clickable" onclick="openEditProfileModal()">⏳ Mancano ${diffDays} giorn${diffDays === 1 ? 'o' : 'i'} alla scadenza del tuo Cert. Medico</div>`;
-            }
-            if (!hasCF) {
-                html += `<div class="preno-cert-warning preno-cert-expired preno-cert-clickable" onclick="openEditProfileModal()" style="margin-top:0.5rem">🏥 Imposta Codice Fiscale</div>`;
-            }
-            el.innerHTML = html;
         }
 
         // ── Edit profile modal ────────────────────────────────────────────
