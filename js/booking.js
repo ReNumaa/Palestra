@@ -390,19 +390,42 @@ function googleCalendarUrl(booking) {
     const title = encodeURIComponent(`Allenamento – ${SLOT_NAMES[booking.slotType]}`);
     const details = encodeURIComponent(`Prenotato da ${booking.name}`);
     const location = encodeURIComponent('Via S. Rocco, 1, Sabbio Chiese BS');
-    return `https://calendar.google.com/calendar/render?action=TEMPLATE&text=${title}&dates=${start}/${end}&details=${details}&location=${location}`;
+    return `https://calendar.google.com/calendar/render?action=TEMPLATE&text=${title}&dates=${start}/${end}&details=${details}&location=${location}&ctz=Europe/Rome`;
+}
+
+function _bookingUid(booking) {
+    return `${booking.id}@thomasbresciani.pt`;
 }
 
 function downloadIcs(booking) {
     const { start, end } = buildCalendarDates(booking.date, booking.time);
     const title = `Allenamento – ${SLOT_NAMES[booking.slotType]}`;
+    const uid = _bookingUid(booking);
     const ics = [
         'BEGIN:VCALENDAR',
         'VERSION:2.0',
         'PRODID:-//Thomas Bresciani PT//IT',
+        'BEGIN:VTIMEZONE',
+        'TZID:Europe/Rome',
+        'BEGIN:STANDARD',
+        'DTSTART:19701025T030000',
+        'RRULE:FREQ=YEARLY;BYDAY=-1SU;BYMONTH=10',
+        'TZOFFSETFROM:+0200',
+        'TZOFFSETTO:+0100',
+        'TZNAME:CET',
+        'END:STANDARD',
+        'BEGIN:DAYLIGHT',
+        'DTSTART:19700329T020000',
+        'RRULE:FREQ=YEARLY;BYDAY=-1SU;BYMONTH=3',
+        'TZOFFSETFROM:+0100',
+        'TZOFFSETTO:+0200',
+        'TZNAME:CEST',
+        'END:DAYLIGHT',
+        'END:VTIMEZONE',
         'BEGIN:VEVENT',
-        `DTSTART:${start}`,
-        `DTEND:${end}`,
+        `UID:${uid}`,
+        `DTSTART;TZID=Europe/Rome:${start}`,
+        `DTEND;TZID=Europe/Rome:${end}`,
         `SUMMARY:${title}`,
         'LOCATION:Via S. Rocco\\, 1\\, Sabbio Chiese BS',
         `DESCRIPTION:Prenotato da ${booking.name}`,
@@ -415,6 +438,52 @@ function downloadIcs(booking) {
     const a = document.createElement('a');
     a.href = url;
     a.download = 'allenamento.ics';
+    a.click();
+    URL.revokeObjectURL(url);
+}
+
+function downloadCancelIcs(booking) {
+    const { start, end } = buildCalendarDates(booking.date, booking.time);
+    const title = `Allenamento – ${SLOT_NAMES[booking.slotType]}`;
+    const uid = _bookingUid(booking);
+    const ics = [
+        'BEGIN:VCALENDAR',
+        'VERSION:2.0',
+        'PRODID:-//Thomas Bresciani PT//IT',
+        'METHOD:CANCEL',
+        'BEGIN:VTIMEZONE',
+        'TZID:Europe/Rome',
+        'BEGIN:STANDARD',
+        'DTSTART:19701025T030000',
+        'RRULE:FREQ=YEARLY;BYDAY=-1SU;BYMONTH=10',
+        'TZOFFSETFROM:+0200',
+        'TZOFFSETTO:+0100',
+        'TZNAME:CET',
+        'END:STANDARD',
+        'BEGIN:DAYLIGHT',
+        'DTSTART:19700329T020000',
+        'RRULE:FREQ=YEARLY;BYDAY=-1SU;BYMONTH=3',
+        'TZOFFSETFROM:+0100',
+        'TZOFFSETTO:+0200',
+        'TZNAME:CEST',
+        'END:DAYLIGHT',
+        'END:VTIMEZONE',
+        'BEGIN:VEVENT',
+        `UID:${uid}`,
+        `DTSTART;TZID=Europe/Rome:${start}`,
+        `DTEND;TZID=Europe/Rome:${end}`,
+        `SUMMARY:${title}`,
+        'STATUS:CANCELLED',
+        'SEQUENCE:1',
+        'END:VEVENT',
+        'END:VCALENDAR'
+    ].join('\r\n');
+
+    const blob = new Blob([ics], { type: 'text/calendar' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = 'annulla-allenamento.ics';
     a.click();
     URL.revokeObjectURL(url);
 }
