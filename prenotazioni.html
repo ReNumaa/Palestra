@@ -233,9 +233,7 @@
         }
 
         function _offerCalendarRemoval(booking) {
-            if (confirm('Vuoi rimuovere questo evento anche dal tuo calendario?\n\nScarica il file per eliminare l\'evento da Apple Calendar.')) {
-                downloadCancelIcs(booking);
-            }
+            // no-op: rimozione calendario non automatizzabile senza API OAuth
         }
 
         // ── Date formatter ───────────────────────────────────────────────
