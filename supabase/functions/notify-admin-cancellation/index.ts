@@ -55,10 +55,9 @@ Deno.serve(async (req) => {
         const startTime = time.split(" - ")[0]?.trim() ?? time;
 
         // Titolo con suffisso bonus/mora
-        let title = name;
+        let title = "❌ " + name;
         if (with_bonus) title += " con bonus";
         else if (with_mora) title += " con mora";
-        title += " ❌";
 
         const payload = JSON.stringify({
             title,
