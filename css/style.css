@@ -816,6 +816,12 @@ body.nav-open {
     border: 2px solid #ddd;
 }
 
+.mobile-day-card.disabled {
+    opacity: 0.35;
+    cursor: not-allowed;
+    pointer-events: none;
+}
+
 .mobile-day-card.active {
     background: linear-gradient(135deg, var(--primary-cyan), var(--primary-cyan-dark));
 

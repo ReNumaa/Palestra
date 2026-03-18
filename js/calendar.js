@@ -81,7 +81,7 @@ function setupCalendarControls() {
             if (Math.abs(dx) < 50) return;
             if (dx < 0) {
                 // Swipe sinistra → settimana successiva
-                if (weekHasSlots(currentWeekOffset + 1)) {
+                if (weekHasSlotsDesktop(currentWeekOffset + 1)) {
                     currentWeekOffset++;
                     renderCalendar();
                     renderMobileCalendar();
@@ -310,7 +310,7 @@ function createDiv(className, innerHTML) {
 
 // Mobile Calendar Functions
 function renderMobileCalendar() {
-    const weekDates = getWeekDates(currentWeekOffset);
+    const weekDates = getWeekDatesDesktop(currentWeekOffset);
 
     // Update mobile week label
     const mobileWeekLabel = document.getElementById('mobileWeekLabel');
@@ -330,14 +330,24 @@ function renderMobileCalendar() {
 
     const mobileNext = document.getElementById('mobileNextWeek');
     if (mobileNext) {
-        const nextHasSlots = weekHasSlots(currentWeekOffset + 1);
+        const nextHasSlots = weekHasSlotsDesktop(currentWeekOffset + 1);
         mobileNext.disabled = !nextHasSlots;
         mobileNext.style.opacity = nextHasSlots ? '1' : '0.3';
         mobileNext.style.cursor  = nextHasSlots ? 'pointer' : 'not-allowed';
     }
 
-    // Set selected day BEFORE rendering the selector so active class is applied correctly
-    selectedMobileDay = weekDates[0];
+    // Auto-select today if it's in this week, otherwise first future day
+    const todayStr = formatDate(new Date());
+    const todayInWeek = weekDates.find(d => d.formatted === todayStr);
+    if (todayInWeek) {
+        selectedMobileDay = todayInWeek;
+    } else {
+        // Pick first day that is today or later
+        const now = new Date(); now.setHours(0, 0, 0, 0);
+        const firstFuture = weekDates.find(d => d.date >= now);
+        selectedMobileDay = firstFuture || weekDates[0];
+    }
+
     renderMobileDaySelector(weekDates);
     renderMobileSlots(selectedMobileDay);
 }
@@ -350,9 +360,18 @@ function renderMobileDaySelector(weekDates) {
     // Index by actual JS day (0=Sun,1=Mon,...) so it works regardless of start day
     const dayNamesShort = ['Dom', 'Lun', 'Mar', 'Mer', 'Gio', 'Ven', 'Sab'];
 
+    const today = new Date();
+    today.setHours(0, 0, 0, 0);
+
     weekDates.forEach((dateInfo) => {
         const dayCard = document.createElement('div');
         dayCard.className = 'mobile-day-card';
+
+        const isPast = dateInfo.date < today;
+
+        if (isPast) {
+            dayCard.classList.add('disabled');
+        }
 
         if (selectedMobileDay && selectedMobileDay.formatted === dateInfo.formatted) {
             dayCard.classList.add('active');
@@ -364,12 +383,14 @@ function renderMobileDaySelector(weekDates) {
             <div class="mobile-day-month">${monthNames[dateInfo.date.getMonth()]}</div>
         `;
 
-        dayCard.addEventListener('click', () => {
-            selectedMobileDay = dateInfo;
-            document.querySelectorAll('.mobile-day-card').forEach(card => card.classList.remove('active'));
-            dayCard.classList.add('active');
-            renderMobileSlots(dateInfo);
-        });
+        if (!isPast) {
+            dayCard.addEventListener('click', () => {
+                selectedMobileDay = dateInfo;
+                document.querySelectorAll('.mobile-day-card').forEach(card => card.classList.remove('active'));
+                dayCard.classList.add('active');
+                renderMobileSlots(dateInfo);
+            });
+        }
 
         selector.appendChild(dayCard);
     });
