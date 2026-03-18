@@ -1358,8 +1358,16 @@ canvas {
 
 .tx-filter-bar {
     display: flex;
+    flex-direction: column;
     gap: 0.35rem;
     margin-bottom: 0.6rem;
+}
+.tx-filter-toggle {
+    display: none;
+}
+.tx-filter-btns {
+    display: flex;
+    gap: 0.35rem;
     flex-wrap: wrap;
 }
 .tx-filter-btn {
@@ -4431,6 +4439,29 @@ canvas {
         justify-content: center;
     }
     .clients-filter-btns.open {
+        display: flex;
+    }
+
+    .tx-filter-toggle {
+        display: flex;
+        align-items: center;
+        gap: 0.4rem;
+        background: none;
+        border: 1px solid #d1d5db;
+        color: #6b7280;
+        font-size: 0.75rem;
+        font-weight: 600;
+        padding: 0.2rem 0.65rem;
+        border-radius: 20px;
+        cursor: pointer;
+        align-self: flex-start;
+    }
+    .tx-filter-btns {
+        display: none;
+        flex-wrap: wrap;
+        gap: 0.35rem;
+    }
+    .tx-filter-btns.open {
         display: flex;
     }
 

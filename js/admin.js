@@ -4653,8 +4653,15 @@ function filterClientTx(cardIndex, days, btn) {
     card.querySelectorAll('.credit-history-row, tr[data-ts]').forEach(row => {
         row.style.display = parseInt(row.dataset.ts) >= cutoff ? '' : 'none';
     });
-    btn.closest('.tx-filter-bar').querySelectorAll('.tx-filter-btn').forEach(b => b.classList.remove('active'));
+    btn.closest('.tx-filter-btns').querySelectorAll('.tx-filter-btn').forEach(b => b.classList.remove('active'));
     btn.classList.add('active');
+}
+
+function toggleTxFilters(btn) {
+    const btns = btn.closest('.tx-filter-bar').querySelector('.tx-filter-btns');
+    btns.classList.toggle('open');
+    const arrow = btn.querySelector('.tx-filter-arrow');
+    if (arrow) arrow.textContent = btns.classList.contains('open') ? '▲' : '▼';
 }
 
 let clientsListMode = null; // null = hidden, 'total' | 'active'
@@ -4769,7 +4776,7 @@ function createClientCard(client, index) {
     card.className = 'client-card';
     card.id = `client-card-${index}`;
 
-    const cutoff30 = Date.now() - 30 * 24 * 60 * 60 * 1000;
+    const cutoff7 = Date.now() - 7 * 24 * 60 * 60 * 1000;
     const activeBookings = client.bookings.filter(b => b.status !== 'cancelled');
     const totalBookings = activeBookings.length;
     const totalPaid   = activeBookings.filter(b => b.paid && b.paymentMethod !== 'lezione-gratuita').reduce((s, b) => s + (SLOT_PRICES[b.slotType] || 0), 0);
@@ -4835,7 +4842,7 @@ function createClientCard(client, index) {
                     ? `<span class="payment-status" style="background:#ede9fe;color:#5b21b6">💳 Parziale (€${(SLOT_PRICES[b.slotType] || 0) - b.creditApplied} da pagare)</span>`
                     : `<span class="payment-status ${b.paid ? 'paid' : 'unpaid'}">${b.paid ? '✓ Pagato' : 'Non pagato'}</span>`;
         const bTs = new Date(b.date + 'T12:00:00').getTime();
-        return `<tr id="brow-${b.id}" class="${rowClass}" data-ts="${bTs}"${bTs < cutoff30 ? ' style="display:none"' : ''}>
+        return `<tr id="brow-${b.id}" class="${rowClass}" data-ts="${bTs}"${bTs < cutoff7 ? ' style="display:none"' : ''}>
             <td>${dateStr}</td>
             <td>${b.time}</td>
             <td>${SLOT_NAMES[b.slotType]}</td>
@@ -4910,10 +4917,13 @@ function createClientCard(client, index) {
     const fmtDTx = d => `${String(d.getDate()).padStart(2,'0')}/${String(d.getMonth()+1).padStart(2,'0')}/${d.getFullYear()} ${String(d.getHours()).padStart(2,'0')}:${String(d.getMinutes()).padStart(2,'0')}`;
 
     const filterBarHTML = `<div class="tx-filter-bar">
-        <button class="tx-filter-btn" onclick="filterClientTx(${index}, 7, this)">Settimana</button>
-        <button class="tx-filter-btn active" onclick="filterClientTx(${index}, 30, this)">Mese</button>
-        <button class="tx-filter-btn" onclick="filterClientTx(${index}, 180, this)">6 mesi</button>
-        <button class="tx-filter-btn" onclick="filterClientTx(${index}, 365, this)">1 anno</button>
+        <button class="tx-filter-toggle" onclick="toggleTxFilters(this)">🔍 Filtri <span class="tx-filter-arrow">▼</span></button>
+        <div class="tx-filter-btns">
+            <button class="tx-filter-btn active" onclick="filterClientTx(${index}, 7, this)">Settimana</button>
+            <button class="tx-filter-btn" onclick="filterClientTx(${index}, 30, this)">Mese</button>
+            <button class="tx-filter-btn" onclick="filterClientTx(${index}, 180, this)">6 mesi</button>
+            <button class="tx-filter-btn" onclick="filterClientTx(${index}, 365, this)">1 anno</button>
+        </div>
     </div>`;
 
     const wEsc  = client.whatsapp.replace(/'/g, "\\'");
@@ -4941,7 +4951,7 @@ function createClientCard(client, index) {
                     } else if (e.txType === 'debt') {
                         delBtn = `<button class="btn-tx-delete" onclick="event.stopPropagation(); deleteTxEntry('debt', '${(e.txEntryDate || '').replace(/'/g, "\\'")}', '${wEsc}', ${index}, '${emEsc}')" title="Elimina transazione">🗑️</button>`;
                     }
-                    return `<div class="credit-history-row" data-ts="${eTs}"${eTs < cutoff30 ? ' style="display:none"' : ''}>
+                    return `<div class="credit-history-row" data-ts="${eTs}"${eTs < cutoff7 ? ' style="display:none"' : ''}>
                         <span class="credit-history-date">${fmtDTx(e.date)}</span>
                         <span class="credit-history-icon">${e.icon}</span>
                         <span class="credit-history-note">${_escHtml(cleanLabel)}${e.sub ? ` <small style="opacity:0.7">${_escHtml(e.sub)}</small>` : ''}</span>
