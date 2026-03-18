@@ -2063,7 +2063,6 @@ function deleteBooking(bookingId, bookingName) {
         };
         BookingStorage.replaceAllBookings(bookings);
         if (typeof notifySlotAvailable === 'function') notifySlotAvailable(booking);
-        if (typeof notifyAdminCancellation === 'function') notifyAdminCancellation(booking);
         if (selectedAdminDay) renderAdminDayView(selectedAdminDay);
         return;
     }
@@ -2193,7 +2192,6 @@ function deleteBooking(bookingId, bookingName) {
         BookingStorage.replaceAllBookings(bookings);
 
         if (typeof notifySlotAvailable === 'function') notifySlotAvailable(booking);
-        if (typeof notifyAdminCancellation === 'function') notifyAdminCancellation(booking, { withBonus: useBonus, withMora });
         if (selectedAdminDay) renderAdminDayView(selectedAdminDay);
 
         closePopup();
@@ -2958,7 +2956,6 @@ function clearSlotClient(timeSlot) {
         };
         BookingStorage.replaceAllBookings(allBookings);
         if (typeof notifySlotAvailable === 'function') notifySlotAvailable(booking);
-        if (typeof notifyAdminCancellation === 'function') notifyAdminCancellation(booking);
         finalizeSlotClear();
         return;
     }
@@ -3079,7 +3076,6 @@ function clearSlotClient(timeSlot) {
         };
         BookingStorage.replaceAllBookings(allBookings);
         if (typeof notifySlotAvailable === 'function') notifySlotAvailable(booking);
-        if (typeof notifyAdminCancellation === 'function') notifyAdminCancellation(booking, { withBonus: useBonus, withMora });
         finalizeSlotClear();
         closePopup();
     });
@@ -5496,7 +5492,6 @@ function deleteBookingFromClients(bookingId, bookingName) {
             }
             console.log('[admin_delete_booking_with_refund]', data);
 
-            if (typeof notifyAdminCancellation === 'function') notifyAdminCancellation(b);
             await Promise.all([
                 BookingStorage.syncFromSupabase(),
                 CreditStorage.syncFromSupabase(),
@@ -5510,7 +5505,6 @@ function deleteBookingFromClients(bookingId, bookingName) {
                 `Rimborso lezione ${b.date}`,
                 null, false, false, null, b.paymentMethod || '');
         }
-        if (typeof notifyAdminCancellation === 'function') notifyAdminCancellation(b);
         bookings.splice(idx, 1);
         BookingStorage.replaceAllBookings(bookings);
         renderClientsTab();
