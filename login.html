@@ -243,7 +243,7 @@
     <script src="js/supabase-client.js?v=1"></script>
     <script src="js/ui.js?v=2"></script>
     <script src="js/data.js?v=50"></script>
-    <script src="js/auth.js?v=21"></script>
+    <script src="js/auth.js?v=22"></script>
     <script src="js/push.js?v=13"></script>
     <script>
         // Prevent iOS Safari auto-zoom on input focus.
@@ -573,6 +573,7 @@
         // Supabase emits this when the user clicks the reset link in the email.
         // We listen BEFORE initAuth() so we catch it immediately.
         window._isPasswordRecovery = false;
+        window._isEmailConfirmation = false;
         supabaseClient.auth.onAuthStateChange((event) => {
             if (event === 'PASSWORD_RECOVERY') {
                 window._isPasswordRecovery = true;
@@ -580,9 +581,27 @@
             }
         });
 
+        // ── Detect email confirmation: URL contains type=signup or type=email_change ──
+        (function detectEmailConfirmation() {
+            const hash = window.location.hash || '';
+            const params = new URLSearchParams(hash.replace('#', ''));
+            const type = params.get('type');
+            if (type === 'signup' || type === 'email_change') {
+                window._isEmailConfirmation = true;
+            }
+        })();
+
         // ── Init: redirect se già loggato, oppure gestisci OAuth return ──
         initAuth().then(async session => {
             if (window._isPasswordRecovery) return; // Non redirigere durante il reset
+
+            // Email confirmation: l'utente ha cliccato il link di conferma
+            // Supabase ha già consumato il token e creato la sessione
+            if (window._isEmailConfirmation && session) {
+                window.location.replace('index.html');
+                return;
+            }
+
             const isOAuth = await handleOAuthReturn();
             if (!isOAuth && session && getCurrentUser()) {
                 // Già loggato con profilo completo: vai all'homepage

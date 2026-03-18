@@ -228,14 +228,17 @@ async function registerUser(name, email, whatsapp, password, codiceFiscale, indi
     const { data, error } = await supabaseClient.auth.signUp({
         email,
         password,
-        options: { data: {
-            full_name: capitalized,
-            whatsapp,
-            codice_fiscale: (codiceFiscale || '').toUpperCase() || null,
-            indirizzo_via: addr.via || null,
-            indirizzo_paese: addr.paese || null,
-            indirizzo_cap: addr.cap || null,
-        } }
+        options: {
+            emailRedirectTo: window.location.origin + '/login.html',
+            data: {
+                full_name: capitalized,
+                whatsapp,
+                codice_fiscale: (codiceFiscale || '').toUpperCase() || null,
+                indirizzo_via: addr.via || null,
+                indirizzo_paese: addr.paese || null,
+                indirizzo_cap: addr.cap || null,
+            }
+        }
     });
     if (error) return { ok: false, error: _authError(error) };
     if (!data.user?.id) return { ok: false, error: 'Errore durante la registrazione.' };
@@ -360,7 +363,11 @@ async function updateUserProfile(currentEmail, updates, newPassword) {
         if (error) return { ok: false, error: error.message };
     }
 
-    // Ricarica profilo in memoria
+    // Aggiorna subito in memoria così i dati sono disponibili anche se _loadProfile fallisce
+    if (window._currentUser) {
+        Object.assign(window._currentUser, profileUpdate);
+    }
+    // Ricarica profilo dal server (sovrascrive con dati autorevoli)
     await _loadProfile(user.id);
 
     // Sincronizza cert/assic nella cache UserStorage (letto da admin.js)

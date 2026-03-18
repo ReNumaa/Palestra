@@ -192,7 +192,7 @@
     <script src="js/supabase-client.js?v=1"></script>
     <script src="js/ui.js?v=2"></script>
     <script src="js/data.js?v=50"></script>
-    <script src="js/auth.js?v=21"></script>
+    <script src="js/auth.js?v=22"></script>
     <script src="js/push.js?v=13"></script>
     <script>
         // ── Guard async: aspetta la sessione Supabase prima di controllare ─
@@ -1006,39 +1006,45 @@
             if (!email) return showErr("L'email è obbligatoria.");
             if (pass && pass.length < 6) return showErr('La password deve essere di almeno 6 caratteri.');
             if (pass && pass !== passConf) return showErr('Le password non coincidono.');
-
-            setLoading(btn, true, 'Salvataggio...');
             if (cap && !/^\d{5}$/.test(cap)) return showErr('CAP non valido. Deve essere di 5 cifre.');
 
-            const result = await updateUserProfile(user.email, {
-                name,
-                email,
-                whatsapp: whatsapp ? normalizePhone(whatsapp) : '',
-                codiceFiscale,
-                indirizzoVia: via,
-                indirizzoPaese: paese,
-                indirizzoCap: cap,
-                certificatoMedicoScadenza: certSc
-            }, pass || null);
+            setLoading(btn, true, 'Salvataggio...');
 
-            if (!result.ok) {
+            try {
+                const result = await updateUserProfile(user.email, {
+                    name,
+                    email,
+                    whatsapp: whatsapp ? normalizePhone(whatsapp) : '',
+                    codiceFiscale,
+                    indirizzoVia: via,
+                    indirizzoPaese: paese,
+                    indirizzoCap: cap,
+                    certificatoMedicoScadenza: certSc
+                }, pass || null);
+
+                if (!result.ok) {
+                    setLoading(btn, false);
+                    return showErr(result.error);
+                }
+
+                const updated = getCurrentUser();
+                document.getElementById('prenoUserName').textContent = updated.name;
+                document.getElementById('prenoUserEmail').textContent = updated.email;
+                document.getElementById('prenoAvatar').textContent = updated.name.charAt(0).toUpperCase();
+                updateNavAuth();
+                renderCertWarning();
                 setLoading(btn, false);
-                return showErr(result.error);
-            }
+                closeEditProfileModal();
 
-            const updated = getCurrentUser();
-            document.getElementById('prenoUserName').textContent = updated.name;
-            document.getElementById('prenoUserEmail').textContent = updated.email;
-            document.getElementById('prenoAvatar').textContent = updated.name.charAt(0).toUpperCase();
-            updateNavAuth();
-            renderCertWarning();
-            setLoading(btn, false);
-            closeEditProfileModal();
-
-            if (result.emailPendingConfirmation) {
-                showToast('Profilo aggiornato. Controlla la tua email per confermare il cambio di indirizzo.', 'success', 6000);
-            } else {
-                showToast('Profilo aggiornato.', 'success');
+                if (result.emailPendingConfirmation) {
+                    showToast('Profilo aggiornato. Controlla la tua email per confermare il cambio di indirizzo.', 'success', 6000);
+                } else {
+                    showToast('Profilo aggiornato.', 'success');
+                }
+            } catch (ex) {
+                console.error('[editProfile] exception:', ex);
+                setLoading(btn, false);
+                showErr('Errore di rete. Riprova.');
             }
         });
     </script>
