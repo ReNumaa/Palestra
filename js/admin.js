@@ -5042,6 +5042,7 @@ function openEditClientPopup(index, whatsapp, email, name) {
             <div class="edit-client-popup-actions">
                 <button class="btn-save-edit" onclick="saveClientEdit(${index}, '${_escHtml(whatsapp)}', '${_escHtml(email)}')">Salva</button>
                 <button class="btn-cancel-edit" onclick="closeEditClientPopup()">Annulla</button>
+                <button class="btn-reset-bonus" onclick="event.stopPropagation(); resetClientBonus('${_escHtml(whatsapp)}', '${_escHtml(email)}', '${_escHtml(client.name)}')" title="Ripristina bonus a 1 se è a 0">🎟️ Reset bonus</button>
                 <button class="btn-delete-client" onclick="event.stopPropagation(); deleteClientData(${index}, '${_escHtml(whatsapp)}', '${_escHtml(email)}')" title="Elimina tutti i dati del cliente">🗑️ Elimina</button>
             </div>
         </div>
@@ -5057,6 +5058,30 @@ function closeEditClientPopup() {
         overlay.classList.remove('open');
         setTimeout(() => overlay.remove(), 200);
     }
+}
+
+function resetClientBonus(whatsapp, email, name) {
+    const current = BonusStorage.getBonus(whatsapp, email);
+    if (current === 1) {
+        showToast('Il bonus è già a 1, nessun reset necessario.', 'info');
+        return;
+    }
+    const all = BonusStorage._getAll();
+    const key = BonusStorage._findKey(whatsapp, email);
+    if (key && all[key]) {
+        all[key].bonus = 1;
+        all[key].lastResetMonth = BonusStorage._thisMonthStr();
+        BonusStorage._save(all);
+    } else {
+        const normWa = normalizePhone(whatsapp) || '';
+        const normEm = (email || '').toLowerCase();
+        const newKey = `${normWa}||${normEm}`;
+        all[newKey] = { name, whatsapp: normWa, email: normEm, bonus: 1, lastResetMonth: BonusStorage._thisMonthStr() };
+        BonusStorage._save(all);
+    }
+    showToast('🎟️ Bonus ripristinato a 1!', 'success');
+    closeEditClientPopup();
+    renderClientsTab();
 }
 
 // Helper: aggiorna profilo locale (users), cert, assic, CF, indirizzo, sessione dopo rename
