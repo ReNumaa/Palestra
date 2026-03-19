@@ -102,7 +102,7 @@ class SimpleChart {
 
         const maxVal = Math.max(...data.values.map((v, i) => {
             const base = Array.isArray(v) ? Math.max(...v) : v;
-            return base + ((data.projected && data.projected[i]) || 0);
+            return base + ((data.projected && data.projected[i]) || 0) + ((data.estimated && data.estimated[i]) || 0);
         }), 1);
         const step = Math.ceil(maxVal / 5) || 1;
         const axisMax = step * 5;
@@ -174,6 +174,32 @@ class SimpleChart {
                 ctx.beginPath();
                 if (ctx.roundRect) ctx.roundRect(px, py, barW, projH, [3, 3, 0, 0]);
                 else ctx.rect(px, py, barW, projH);
+                ctx.stroke();
+                ctx.setLineDash([]);
+                ctx.restore();
+            }
+
+            // Estimated extension on top (green dashed, single-series only)
+            if (data.estimated && data.estimated[i] > 0 && seriesCount === 1) {
+                const estH   = (data.estimated[i] / axisMax) * chartH;
+                const solidH = (vals[0] / axisMax) * chartH;
+                const projH  = data.projected?.[i] ? (data.projected[i] / axisMax) * chartH : 0;
+                const px = slotStart;
+                const py = pad.top + chartH - solidH - projH - estH;
+                ctx.save();
+                ctx.globalAlpha = 0.22;
+                ctx.fillStyle = '#22c55e';
+                ctx.beginPath();
+                if (ctx.roundRect) ctx.roundRect(px, py, barW, estH, [3, 3, 0, 0]);
+                else ctx.rect(px, py, barW, estH);
+                ctx.fill();
+                ctx.globalAlpha = 1;
+                ctx.strokeStyle = '#22c55e';
+                ctx.lineWidth = 1.5;
+                ctx.setLineDash([3, 2]);
+                ctx.beginPath();
+                if (ctx.roundRect) ctx.roundRect(px, py, barW, estH, [3, 3, 0, 0]);
+                else ctx.rect(px, py, barW, estH);
                 ctx.stroke();
                 ctx.setLineDash([]);
                 ctx.restore();

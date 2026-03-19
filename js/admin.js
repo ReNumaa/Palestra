@@ -6318,7 +6318,8 @@ function renderFatturatoDetail(panel) {
 
     // ── Bar chart: mese corrente + prossimi 12 mesi ──────────────────────────
     const MONTH_NAMES = ['Gen','Feb','Mar','Apr','Mag','Giu','Lug','Ago','Set','Ott','Nov','Dic'];
-    const barLabels = [], barValues = [], barHighlight = [], barProjected = [];
+    const barLabels = [], barValues = [], barHighlight = [], barProjected = [], barEstimate = [];
+    const overrides = BookingStorage.getScheduleOverrides();
 
     // Current-month projection for dashed extension
     const cmFrom    = new Date(now.getFullYear(), now.getMonth(), 1);
@@ -6361,6 +6362,26 @@ function renderFatturatoDetail(panel) {
             barValues.push(rev);
             barHighlight.push(false);
             barProjected.push(0);
+        }
+
+        // ── Stima verde: proiezione basata su giorni programmati vs totali ───
+        // Solo per mese corrente e futuro (i mesi passati hanno dati definitivi)
+        if (i >= 0) {
+            const daysInMonth = new Date(d.getFullYear(), d.getMonth() + 1, 0).getDate();
+            let scheduledDays = 0;
+            for (let day = 1; day <= daysInMonth; day++) {
+                const ds = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(day).padStart(2, '0')}`;
+                if (overrides[ds] && overrides[ds].length > 0) scheduledDays++;
+            }
+            const unscheduledDays = daysInMonth - scheduledDays;
+            const knownRev = barValues[barValues.length - 1] + barProjected[barProjected.length - 1];
+            if (scheduledDays > 0 && unscheduledDays > 0) {
+                barEstimate.push(Math.round(knownRev / scheduledDays * unscheduledDays));
+            } else {
+                barEstimate.push(0);
+            }
+        } else {
+            barEstimate.push(0);
         }
     }
 
@@ -6512,7 +6533,7 @@ function renderFatturatoDetail(panel) {
 
     requestAnimationFrame(() => {
         const barCanvas = document.getElementById('detailBarChart');
-        if (barCanvas) new SimpleChart(barCanvas).drawBarChart({ labels: barLabels, values: barValues, highlight: barHighlight, projected: barProjected });
+        if (barCanvas) new SimpleChart(barCanvas).drawBarChart({ labels: barLabels, values: barValues, highlight: barHighlight, projected: barProjected, estimated: barEstimate });
 
         const fcCanvas = document.getElementById('detailForecastChart');
         if (fcCanvas) new SimpleChart(fcCanvas).drawForecastChart({ actual: fActual, forecast: fForecast, labels: fLabels, todayIndex: todayGroupIdx });
