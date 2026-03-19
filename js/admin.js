@@ -6379,17 +6379,20 @@ function renderFatturatoDetail(panel) {
 
         // ── Stima verde: proiezione basata su giorni programmati vs totali ───
         // Solo per mese corrente e futuro (i mesi passati hanno dati definitivi)
+        // Stima verde: solo giorni FUTURI senza slot (ignora quelli passati)
         if (i >= 0) {
             const daysInMonth = new Date(d.getFullYear(), d.getMonth() + 1, 0).getDate();
-            let scheduledDays = 0;
+            let schDays = 0, futUnschDays = 0;
             for (let day = 1; day <= daysInMonth; day++) {
+                const dayDate = new Date(d.getFullYear(), d.getMonth(), day);
                 const ds = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(day).padStart(2, '0')}`;
-                if (overrides[ds] && overrides[ds].length > 0) scheduledDays++;
+                const hasSlots = overrides[ds] && overrides[ds].length > 0;
+                if (hasSlots) schDays++;
+                else if (dayDate >= today) futUnschDays++;
             }
-            const unscheduledDays = daysInMonth - scheduledDays;
             const knownRev = barValues[barValues.length - 1] + barProjected[barProjected.length - 1];
-            if (scheduledDays > 0 && unscheduledDays > 0) {
-                barEstimate.push(Math.round(knownRev / scheduledDays * unscheduledDays));
+            if (schDays > 0 && futUnschDays > 0) {
+                barEstimate.push(Math.round(knownRev / schDays * futUnschDays));
             } else {
                 barEstimate.push(0);
             }
@@ -6482,19 +6485,26 @@ function renderFatturatoDetail(panel) {
         values: typeStats.map(t => t.pastRev + t.futureRev),
     };
 
-    // ── Stima futura basata su giorni programmati nel periodo filtrato ───────
+    // ── Stima futura: solo giorni futuri senza slot programmati ────────────
+    // Conta i giorni futuri (da oggi in poi) nel periodo che NON hanno slot.
+    // Media ricavo/giorno calcolata su TUTTI i giorni programmati (passati+futuri).
     const schedOverrides = BookingStorage.getScheduleOverrides();
     const periodTotalDays = Math.ceil((to - from) / 86400000);
     let periodScheduledDays = 0;
+    let futureUnscheduledDays = 0;
     for (let dd = 0; dd < periodTotalDays; dd++) {
         const day = new Date(from.getTime() + dd * 86400000);
         const ds = `${day.getFullYear()}-${String(day.getMonth() + 1).padStart(2, '0')}-${String(day.getDate()).padStart(2, '0')}`;
-        if (schedOverrides[ds] && schedOverrides[ds].length > 0) periodScheduledDays++;
+        const hasSlots = schedOverrides[ds] && schedOverrides[ds].length > 0;
+        if (hasSlots) {
+            periodScheduledDays++;
+        } else if (day >= today) {
+            futureUnscheduledDays++;
+        }
     }
     const knownPeriodRev = pastRevenue + futureRevenue;
-    const periodUnscheduledDays = periodTotalDays - periodScheduledDays;
-    const scheduleEstimate = (periodScheduledDays > 0 && periodUnscheduledDays > 0)
-        ? knownPeriodRev + Math.round(knownPeriodRev / periodScheduledDays * periodUnscheduledDays)
+    const scheduleEstimate = (periodScheduledDays > 0 && futureUnscheduledDays > 0)
+        ? knownPeriodRev + Math.round(knownPeriodRev / periodScheduledDays * futureUnscheduledDays)
         : knownPeriodRev;
 
     // ── Render ────────────────────────────────────────────────────────────────
@@ -6547,7 +6557,7 @@ function renderFatturatoDetail(panel) {
                     <span class="sdb-value">€${pastRevenue + futureRevenue}</span>
                 </div>
                 <div class="sdb-row sdb-row--projected">
-                    <span class="sdb-label">Stima futura (${periodScheduledDays}/${periodTotalDays} gg programmati)</span>
+                    <span class="sdb-label">Stima futura (+${futureUnscheduledDays} gg futuri senza slot)</span>
                     <span class="sdb-value">€${scheduleEstimate}</span>
                 </div>
             </div>
