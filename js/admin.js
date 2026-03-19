@@ -6607,7 +6607,7 @@ function renderFatturatoDetail(panel) {
         if (fcCanvas) new SimpleChart(fcCanvas).drawForecastChart({ actual: fActual, forecast: fForecast, estimated: fEstimate, labels: fLabels, todayIndex: todayGroupIdx });
 
         const typeCanvas = document.getElementById('detailTypeChart');
-        if (typeCanvas && typeStats.length > 0) new SimpleChart(typeCanvas).drawPieChart(typePieData, { colors: ['#3b82f6', '#f59e0b', '#22c55e'] });
+        if (typeCanvas && typeStats.length > 0) new SimpleChart(typeCanvas).drawPieChart(typePieData, { colors: ['#22c55e', '#f59e0b', '#e63946'] });
     });
 }
 

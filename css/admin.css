@@ -4213,6 +4213,9 @@ canvas {
     margin-bottom: 2rem;
     box-shadow: 0 4px 20px rgba(0,0,0,0.07);
     animation: statDetailFadeIn 0.22s ease;
+    overflow: hidden;
+    max-width: 100%;
+    box-sizing: border-box;
 }
 
 @keyframes statDetailFadeIn {
@@ -4315,6 +4318,7 @@ canvas {
     border: 1px solid #e5e7eb;
     border-radius: 10px;
     padding: 0.9rem 1rem;
+    overflow-x: auto;
 }
 
 .stat-detail-breakdown h4 {
@@ -4386,9 +4390,11 @@ canvas {
 }
 
 @media (max-width: 480px) {
-    .stats-detail-panel   { padding: 1rem 0.75rem; }
+    .stats-detail-panel   { padding: 1rem 0.5rem; }
     .stat-detail-kpi-value { font-size: 1.05rem; }
     .stat-detail-kpis { gap: 0.5rem; }
+    .stat-detail-chart-block { padding: 0.6rem 0.4rem 0.3rem; }
+    .stat-detail-breakdown { padding: 0.6rem 0.5rem; }
 }
 
 /* ── Mobile Admin Improvements ──────────────────────────── */
