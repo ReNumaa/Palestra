@@ -136,7 +136,7 @@
             <form id="editProfileForm" class="booking-form">
                 <div class="form-group">
                     <label for="editName">Nome completo</label>
-                    <input type="text" id="editName" required autocomplete="name">
+                    <input type="text" id="editName" required autocomplete="name" disabled>
                 </div>
                 <div class="form-group">
                     <label for="editEmail">Email</label>
@@ -288,9 +288,10 @@
                 if (!user) { clearInterval(_pollInterval); _pollInterval = null; return; }
                 const _myPhone = user.whatsapp ? normalizePhone(user.whatsapp) : '';
                 const hasPending = BookingStorage.getAllBookings().some(b => {
+                    const uidMatch = b.userId && user.id && b.userId === user.id;
                     const emailMatch = user.email && b.email && b.email.toLowerCase() === user.email.toLowerCase();
                     const phoneMatch = _myPhone && b.whatsapp && normalizePhone(b.whatsapp) === _myPhone;
-                    return (emailMatch || phoneMatch) && b.status === 'cancellation_requested';
+                    return (uidMatch || emailMatch || phoneMatch) && b.status === 'cancellation_requested';
                 });
                 if (!hasPending) {
                     clearInterval(_pollInterval);
@@ -619,10 +620,9 @@
             const entries = [];
 
             const uPhone = normalizePhone(user.whatsapp);
-            // Email is required; when both sides have a phone it must also match.
-            // This prevents two accounts with the same email but different phones
-            // from seeing each other's booking history.
-            function matchUser(w, e) {
+            // Match primario: user_id; fallback: email + phone
+            function matchUser(w, e, uid) {
+                if (uid && user.id && uid === user.id) return true;
                 if (!user.email || !e) return false;
                 if (e.toLowerCase() !== user.email.toLowerCase()) return false;
                 if (uPhone && w && normalizePhone(w) !== uPhone) return false;
@@ -633,7 +633,7 @@
 
             // 1. Tutte le prenotazioni pagate — prezzo pieno, singole (le cancellate non compaiono)
             BookingStorage.getAllBookings()
-                .filter(b => !b.id?.startsWith('demo-') && matchUser(b.whatsapp, b.email) && b.paid)
+                .filter(b => !b.id?.startsWith('demo-') && matchUser(b.whatsapp, b.email, b.userId) && b.paid)
                 .forEach(b => {
                     const price = SLOT_PRICES[b.slotType] || 0;
                     const isFree = b.paymentMethod === 'lezione-gratuita';
@@ -666,7 +666,7 @@
 
             // 3. Bonus utilizzati — booking annullati con bonus
             BookingStorage.getAllBookings()
-                .filter(b => !b.id?.startsWith('demo-') && matchUser(b.whatsapp, b.email) && b.cancelledWithBonus && b.status === 'cancelled')
+                .filter(b => !b.id?.startsWith('demo-') && matchUser(b.whatsapp, b.email, b.userId) && b.cancelledWithBonus && b.status === 'cancelled')
                 .forEach(b => {
                     const slotName = (SLOT_NAMES && SLOT_NAMES[b.slotType]) || b.slotType || '—';
                     const [by, bm, bd] = b.date.split('-');
@@ -963,7 +963,7 @@
             const user = getCurrentUser();
             if (!user) return;
 
-            const name     = document.getElementById('editName').value.trim();
+            const name     = user.name; // nome non modificabile dall'utente
             const email    = document.getElementById('editEmail').value.trim();
             const whatsapp = document.getElementById('editWhatsapp').value.trim();
             const codiceFiscale = document.getElementById('editCodiceFiscale').value.trim();

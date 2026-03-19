@@ -415,6 +415,9 @@ function getUserBookings() {
     const myPhone = user.whatsapp ? normalizePhone(user.whatsapp) : '';
     const mine = allBookings.filter(b => {
         if (b.id && b.id.startsWith('demo-')) return false;
+        // Match primario: user_id (più affidabile, non cambia con nome/email/telefono)
+        if (b.userId && user.id && b.userId === user.id) return true;
+        // Fallback: email (per prenotazioni vecchie senza user_id)
         if (!user.email || !b.email) return false;
         if (b.email.toLowerCase() !== user.email.toLowerCase()) return false;
         if (myPhone && b.whatsapp && normalizePhone(b.whatsapp) !== myPhone) return false;
