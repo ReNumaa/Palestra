@@ -2135,7 +2135,7 @@ function deleteBooking(bookingId, bookingName) {
         setTimeout(() => overlay.remove(), 250);
     };
     overlay.querySelector('.cancel-popup-btn--cancel').addEventListener('click', closePopup);
-    overlay.addEventListener('click', (e) => { if (e.target === overlay) closePopup(); });
+    overlay.addEventListener('click', e => { e.stopPropagation(); });
 
     overlay.querySelector('.cancel-popup-btn--confirm').addEventListener('click', () => {
         const useBonus = selectedBonus;
@@ -2640,7 +2640,7 @@ function _showSlotChangePopup(timeSlot, newType, bookings) {
 
     document.getElementById('slotChangeClose').addEventListener('click', closePopup);
     document.getElementById('slotChangeCancelBtn').addEventListener('click', closePopup);
-    overlay.addEventListener('click', closePopup);
+    overlay.addEventListener('click', e => { e.stopPropagation(); });
 
     // Confirm handler
     document.getElementById('slotChangeConfirmBtn').addEventListener('click', async () => {
@@ -3025,7 +3025,7 @@ function clearSlotClient(timeSlot) {
         setTimeout(() => overlay.remove(), 250);
     };
     overlay.querySelector('.cancel-popup-btn--cancel').addEventListener('click', closePopup);
-    overlay.addEventListener('click', (e) => { if (e.target === overlay) closePopup(); });
+    overlay.addEventListener('click', e => { e.stopPropagation(); });
 
     overlay.querySelector('.cancel-popup-btn--confirm').addEventListener('click', () => {
         const useBonus = selectedBonus;
@@ -3250,7 +3250,7 @@ function saveDebtThreshold() {
 const HEALTH_CHECKS = [
     { key: 'ghost_users',      label: '👻 Utenti senza profilo',         desc: 'Account auth.users senza riga in profiles', fix: 'Crea profilo da metadata' },
     { key: 'orphan_bookings',  label: '📅 Prenotazioni orfane',          desc: 'Prenotazioni con user_id che punta a profilo inesistente', fix: 'Scollega user_id (booking intatta)' },
-    { key: 'email_mismatch',   label: '📧 Email non corrispondenti',     desc: 'Prenotazioni con email diversa dal profilo collegato', fix: 'Allinea email al profilo' },
+    { key: 'email_mismatch',   label: '📧 Email non corrispondenti',     desc: 'Prenotazioni con email diversa dal profilo collegato (es. admin ha prenotato per conto del cliente)', fix: 'Ricollega user_id al profilo corretto' },
     { key: 'orphan_credits',   label: '💰 Crediti orfani',               desc: 'Crediti con user_id che punta a profilo inesistente', fix: 'Scollega user_id (credito intatto)' },
     { key: 'orphan_debts',     label: '💸 Debiti orfani',                desc: 'Debiti con user_id che punta a profilo inesistente', fix: 'Scollega user_id (debito intatto)' },
     { key: 'orphan_bonuses',   label: '🎁 Bonus orfani',                 desc: 'Bonus con user_id che punta a profilo inesistente', fix: 'Scollega user_id (bonus intatto)' },
@@ -3313,7 +3313,7 @@ async function runHealthCheck() {
 }
 
 async function runHealthFix() {
-    if (!confirm('Correggi tutte le anomalie?\n\nNessun dato verrà cancellato.\n• Utenti fantasma → crea profilo\n• Booking/crediti/debiti/bonus orfani → scollega user_id\n• Email mismatch → allinea al profilo')) return;
+    if (!confirm('Correggi tutte le anomalie?\n\nNessun dato verrà cancellato.\n• Utenti fantasma → crea profilo\n• Booking/crediti/debiti/bonus orfani → scollega user_id\n• Email mismatch → ricollega user_id al profilo corretto')) return;
 
     const btn = document.getElementById('healthFixBtn');
     const resultEl = document.getElementById('healthCheckResult');
@@ -3465,7 +3465,7 @@ function openEditEntryPopup(type, email, entryDate, amount, note, method) {
     overlay = document.createElement('div');
     overlay.id = 'editEntryOverlay';
     overlay.className = 'edit-entry-overlay';
-    overlay.onclick = (e) => { if (e.target === overlay) closeEditEntryPopup(); };
+    overlay.onclick = (e) => { e.stopPropagation(); };
 
     const isCredit = type === 'credit';
     overlay.innerHTML = `
@@ -5058,7 +5058,8 @@ function openEditClientPopup(index, whatsapp, email, name) {
         </div>
     `;
     document.body.appendChild(overlay);
-    overlay.addEventListener('click', e => { if (e.target === overlay) closeEditClientPopup(); });
+    // Prevent clicks on overlay from propagating to elements behind
+    overlay.addEventListener('click', e => { e.stopPropagation(); });
     setTimeout(() => overlay.classList.add('open'), 10);
 }
 
@@ -7527,7 +7528,7 @@ function showMsgResultPopup(recipients, failed) {
     const overlay = document.createElement('div');
     overlay.id = 'msgResultOverlay';
     overlay.style.cssText = 'position:fixed;inset:0;background:rgba(0,0,0,0.4);z-index:9998;';
-    overlay.onclick = () => { overlay.remove(); popup.remove(); };
+    overlay.onclick = (e) => { e.stopPropagation(); };
 
     const popup = document.createElement('div');
     popup.id = 'msgResultPopup';

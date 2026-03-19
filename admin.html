@@ -614,7 +614,7 @@
     </div>
 
     <!-- Cert Modal -->
-    <div id="certModalOverlay" class="debt-popup-overlay" onclick="closeCertModal()" style="display:none"></div>
+    <div id="certModalOverlay" class="debt-popup-overlay" onclick="event.stopPropagation()" style="display:none"></div>
     <div id="certModal" class="cert-modal" style="display:none">
         <div class="debt-popup-header">
             <div>
@@ -636,7 +636,7 @@
     </div>
 
     <!-- Assicurazione Modal -->
-    <div id="assicModalOverlay" class="debt-popup-overlay" onclick="closeAssicModal()" style="display:none"></div>
+    <div id="assicModalOverlay" class="debt-popup-overlay" onclick="event.stopPropagation()" style="display:none"></div>
     <div id="assicModal" class="cert-modal" style="display:none">
         <div class="debt-popup-header">
             <div>
@@ -658,7 +658,7 @@
     </div>
 
     <!-- Debt Payment Popup -->
-    <div id="debtPopupOverlay" class="debt-popup-overlay" onclick="closeDebtPopup()"></div>
+    <div id="debtPopupOverlay" class="debt-popup-overlay" onclick="event.stopPropagation()"></div>
     <div id="debtPopupModal" class="debt-popup-modal">
         <div class="debt-popup-header">
             <div>
@@ -706,7 +706,7 @@
     </div>
 
     <!-- Manual Credit/Debt Entry Popup -->
-    <div id="manualEntryOverlay" class="debt-popup-overlay" onclick="closeManualEntryPopup()"></div>
+    <div id="manualEntryOverlay" class="debt-popup-overlay" onclick="event.stopPropagation()"></div>
     <div id="manualEntryModal" class="debt-popup-modal manual-entry-modal">
         <div class="debt-popup-header">
             <div>

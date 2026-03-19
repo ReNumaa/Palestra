@@ -468,10 +468,21 @@ class BookingStorage {
         }
 
         const user = typeof getCurrentUser === 'function' ? getCurrentUser() : null;
+        // Se l'utente loggato è admin e l'email del booking è diversa dalla sua,
+        // risolvi il user_id del vero cliente (per evitare email_mismatch nel health check)
+        let bookingUserId = user?.id || null;
+        if (user && booking.email && user.email
+            && booking.email.toLowerCase() !== user.email.toLowerCase()) {
+            try {
+                const { data: prof } = await supabaseClient
+                    .from('profiles').select('id').eq('email', booking.email.toLowerCase()).maybeSingle();
+                bookingUserId = prof?.id || null;
+            } catch { /* fallback: nessun profilo trovato → null */ }
+        }
         const maxCap = overrideCapacity || BookingStorage.getEffectiveCapacity(booking.date, booking.time, booking.slotType);
         const { data, error } = await supabaseClient.rpc('book_slot_atomic', {
             p_local_id:     booking.id,
-            p_user_id:      user?.id || null,
+            p_user_id:      bookingUserId,
             p_date:         booking.date,
             p_time:         booking.time,
             p_slot_type:    booking.slotType,
