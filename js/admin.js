@@ -6302,10 +6302,11 @@ function toggleStatDetail(type) {
 
 function renderFatturatoDetail(panel) {
     const isReale = _fatturatoMode === 'reale';
+    const REAL_METHODS = new Set(['contanti', 'carta', 'iban']);
     const allBookings = (_statsBookings ?? BookingStorage.getAllBookings())
         .filter(b => {
             if (b.status === 'cancelled') return false;
-            if (isReale) return b.paid && b.paymentMethod !== 'lezione-gratuita';
+            if (isReale) return b.paid && REAL_METHODS.has(b.paymentMethod);
             return b.paymentMethod !== 'lezione-gratuita';
         });
     const revFn = (s, b) => s + (SLOT_PRICES[b.slotType] || 0);
@@ -6313,19 +6314,40 @@ function renderFatturatoDetail(panel) {
     const now   = new Date();
     const today = new Date(now); today.setHours(0, 0, 0, 0);
 
+    // ── Credit top-ups (solo in modalità Reale) ─────────────────────────────
+    // Crediti aggiunti dall'admin = soldi reali prepagati dal cliente.
+    // Escludi: freeLesson (gratuiti), hiddenRefund (rimborsi cancellazione), amount <= 0 (deduzioni).
+    let _creditEntries = [];
+    if (isReale) {
+        const allCredits = CreditStorage._getAll();
+        for (const key in allCredits) {
+            const rec = allCredits[key];
+            if (!rec.history) continue;
+            rec.history.forEach(h => {
+                if (h.amount > 0 && !h.freeLesson && !h.hiddenRefund) {
+                    _creditEntries.push(h);
+                }
+            });
+        }
+    }
+    // Helper: somma crediti in un range di date
+    const creditInRange = (dateFrom, dateTo) => _creditEntries
+        .filter(h => { const d = new Date(h.date); return d >= dateFrom && d <= dateTo; })
+        .reduce((s, h) => s + h.amount, 0);
+
     // Bookings in current filter period
     const periodBookings = allBookings.filter(b => {
         const d = new Date(b.date + 'T00:00:00');
         return d >= from && d <= to;
     });
 
-    // Past bookings (before today)
+    // Past bookings (before today) + crediti passati
     const pastBookings   = periodBookings.filter(b => new Date(b.date + 'T00:00:00') < today);
-    const pastRevenue    = pastBookings.reduce(revFn, 0);
+    const pastRevenue    = pastBookings.reduce(revFn, 0) + creditInRange(from, new Date(today.getTime() - 1));
 
-    // Future confirmed bookings in period
+    // Future confirmed bookings in period + crediti futuri
     const futureBookings = periodBookings.filter(b => new Date(b.date + 'T00:00:00') >= today);
-    const futureRevenue  = futureBookings.reduce(revFn, 0);
+    const futureRevenue  = futureBookings.reduce(revFn, 0) + creditInRange(today, to);
 
     // Linear projection for remaining days (based on past daily rate)
     const periodStart    = from.getTime();
@@ -6358,8 +6380,10 @@ function renderFatturatoDetail(panel) {
     // Current-month projection for dashed extension
     const cmFrom    = new Date(now.getFullYear(), now.getMonth(), 1);
     const cmTo      = new Date(now.getFullYear(), now.getMonth() + 1, 0, 23, 59, 59, 999);
-    const cmActual  = allBookings.filter(b => { const d = new Date(b.date + 'T00:00:00'); return d >= cmFrom && d < today; }).reduce((s, b) => s + (SLOT_PRICES[b.slotType] || 0), 0);
-    const cmFuture  = allBookings.filter(b => { const d = new Date(b.date + 'T00:00:00'); return d >= today && d <= cmTo; }).reduce((s, b) => s + (SLOT_PRICES[b.slotType] || 0), 0);
+    const cmActual  = allBookings.filter(b => { const d = new Date(b.date + 'T00:00:00'); return d >= cmFrom && d < today; }).reduce(revFn, 0)
+        + creditInRange(cmFrom, new Date(today.getTime() - 1));
+    const cmFuture  = allBookings.filter(b => { const d = new Date(b.date + 'T00:00:00'); return d >= today && d <= cmTo; }).reduce(revFn, 0)
+        + creditInRange(today, cmTo);
     const cmElapsed = Math.max(1, Math.round((Math.min(yesterday.getTime(), cmTo.getTime()) - cmFrom.getTime()) / 86400000) + 1);
     const cmDays    = Math.ceil((cmTo.getTime() - cmFrom.getTime()) / 86400000);
     const cmRate    = cmActual / cmElapsed;
@@ -6381,18 +6405,18 @@ function renderFatturatoDetail(panel) {
             barHighlight.push(true);
             barProjected.push(Math.max(0, cmEstimate - cmActual));
         } else if (isFuture) {
-            // Mese successivo: barra tratteggiata = prenotazioni già confermate
+            // Mese successivo: barra tratteggiata = prenotazioni già confermate + crediti
             const confirmedRev = allBookings
                 .filter(b => { const bd = new Date(b.date + 'T00:00:00'); return bd >= mFrom && bd <= mTo && b.status !== 'cancelled' && b.paymentMethod !== 'lezione-gratuita'; })
-                .reduce((s, b) => s + (SLOT_PRICES[b.slotType] || 0), 0);
+                .reduce(revFn, 0) + creditInRange(mFrom, mTo);
             barValues.push(0);
             barHighlight.push(false);
             barProjected.push(confirmedRev);
         } else {
-            // Mesi passati: barra solida = fatturato reale
+            // Mesi passati: barra solida = fatturato reale + crediti
             const rev = allBookings
                 .filter(b => { const bd = new Date(b.date + 'T00:00:00'); return bd >= mFrom && bd <= mTo; })
-                .reduce((s, b) => s + (SLOT_PRICES[b.slotType] || 0), 0);
+                .reduce(revFn, 0) + creditInRange(mFrom, mTo);
             barValues.push(rev);
             barHighlight.push(false);
             barProjected.push(0);
@@ -6441,13 +6465,20 @@ function renderFatturatoDetail(panel) {
         ? Math.floor((today.getTime() - periodStart) / (86400000 * groupDays))
         : null;
 
-    // Revenue maps by date
+    // Revenue maps by date (booking + credit top-ups)
     const revByDate = {};
     const futureRevByDate = {};
     allBookings.forEach(b => {
         const d = new Date(b.date + 'T00:00:00');
         if (d >= from && d < today)  revByDate[b.date]       = (revByDate[b.date] || 0)       + (SLOT_PRICES[b.slotType] || 0);
         if (d >= today && d >= from && d <= to) futureRevByDate[b.date] = (futureRevByDate[b.date] || 0) + (SLOT_PRICES[b.slotType] || 0);
+    });
+    // Aggiungi crediti alle mappe per data (solo in modalità Reale)
+    _creditEntries.forEach(h => {
+        const d = new Date(h.date);
+        const ds = d.toISOString().split('T')[0];
+        if (d >= from && d < today)              revByDate[ds]       = (revByDate[ds] || 0)       + h.amount;
+        else if (d >= today && d >= from && d <= to) futureRevByDate[ds] = (futureRevByDate[ds] || 0) + h.amount;
     });
 
     let cumRev = 0, cumFuture = 0, cumEstExtra = 0;
@@ -6522,11 +6553,21 @@ function renderFatturatoDetail(panel) {
         };
     }).filter(t => t.pastCount + t.futureCount > 0);
 
+    // In modalità Reale: aggiungi fetta "Crediti" alla pie chart
+    const periodCreditTotal = creditInRange(from, to);
+    if (isReale && periodCreditTotal > 0) {
+        typeStats.push({ label: 'Crediti', pastCount: 0, futureCount: 0,
+            pastRev: periodCreditTotal, futureRev: 0 });
+    }
     const typeTotal = typeStats.reduce((s, t) => s + t.pastRev + t.futureRev, 0);
     const typePieData = {
         labels: typeStats.map(t => `${t.label} €${t.pastRev + t.futureRev}`),
         values: typeStats.map(t => t.pastRev + t.futureRev),
     };
+    // Colori: verde (Autonomia), giallo (Gruppo), rosso (Slot), blu (Crediti)
+    const pieColors = isReale && periodCreditTotal > 0
+        ? ['#22c55e', '#f59e0b', '#e63946', '#3b82f6']
+        : ['#22c55e', '#f59e0b', '#e63946'];
 
     // ── Stima futura: solo giorni futuri senza slot programmati ────────────
     // Conta i giorni futuri (da oggi in poi) nel periodo che NON hanno slot.
@@ -6627,7 +6668,7 @@ function renderFatturatoDetail(panel) {
         if (fcCanvas) new SimpleChart(fcCanvas).drawForecastChart({ actual: fActual, forecast: fForecast, estimated: fEstimate, labels: fLabels, todayIndex: todayGroupIdx });
 
         const typeCanvas = document.getElementById('detailTypeChart');
-        if (typeCanvas && typeStats.length > 0) new SimpleChart(typeCanvas).drawPieChart(typePieData, { colors: ['#22c55e', '#f59e0b', '#e63946'] });
+        if (typeCanvas && typeStats.length > 0) new SimpleChart(typeCanvas).drawPieChart(typePieData, { colors: pieColors });
     });
 }
 
