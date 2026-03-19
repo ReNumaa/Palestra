@@ -3574,7 +3574,7 @@ function toggleCreditsList() {
     }
 }
 
-function createCreditCard(credit, index) {
+function createCreditCard(credit, index, showActions = false) {
     const card = document.createElement('div');
     card.className = 'debtor-card credit-client-card';
     card.id = `credit-card-${index}`;
@@ -3583,9 +3583,7 @@ function createCreditCard(credit, index) {
     const safeE = (credit.email || '').replace(/'/g, "\\'");
     const safeN = (credit.name || '').replace(/'/g, "\\'");
 
-    const recentHistory = [...(credit.history || [])].reverse().slice(0, 5);
-    let historyHTML = '<div class="debtor-bookings" style="margin-top:0.75rem;">';
-    recentHistory.forEach(entry => {
+    const allCreditItems = [...(credit.history || [])].reverse().map(entry => {
         const d = new Date(entry.date);
         const dateStr = `${d.getDate()}/${d.getMonth() + 1}/${d.getFullYear()}`;
         const sign = entry.amount >= 0 ? '+' : '';
@@ -3593,7 +3591,7 @@ function createCreditCard(credit, index) {
         const safeDate = (entry.date || '').replace(/'/g, "\\'");
         const safeNote = _escHtml((entry.note || '').replace(/'/g, "\\'"));
         const safeMethod = _escHtml((entry.method || '').replace(/'/g, "\\'"));
-        historyHTML += `
+        return `
             <div class="debtor-booking-item">
                 <div class="debtor-booking-details">📅 ${dateStr} — ${_escHtml(entry.note || 'Movimento credito')}</div>
                 <div style="display:flex;align-items:center;gap:0.35rem;">
@@ -3603,14 +3601,14 @@ function createCreditCard(credit, index) {
                 </div>
             </div>`;
     });
-    historyHTML += '</div>';
+    const historyHTML = `<div style="margin-top:0.75rem;">${_buildPaginatedList(allCreditItems, 5, 10)}</div>`;
 
     card.innerHTML = `
         <div class="debtor-card-header" onclick="toggleDebtorCard('credit-card-${index}')">
             <div class="debtor-info">
-                <div class="debtor-name">${_escHtml(credit.name)}
+                <div class="debtor-name">${_escHtml(credit.name)}${showActions ? `
                     <button class="credit-action-btn credit-action-btn--credit credit-action-btn--header" onclick="event.stopPropagation();openManualEntryPopup('credit','${safeE}','${safeN}','${safeW}')">+ Credito</button>
-                    <button class="credit-action-btn credit-action-btn--debt credit-action-btn--header" onclick="event.stopPropagation();openManualEntryPopup('debt','${safeE}','${safeN}','${safeW}')">+ Debito</button>
+                    <button class="credit-action-btn credit-action-btn--debt credit-action-btn--header" onclick="event.stopPropagation();openManualEntryPopup('debt','${safeE}','${safeN}','${safeW}')">+ Debito</button>` : ''}
                 </div>
                 <div class="debtor-contact">
                     <span>📱 ${_escHtml(credit.whatsapp)}</span>
@@ -3707,6 +3705,36 @@ function getDebtors() {
         .sort((a, b) => b.totalAmount - a.totalAmount);
 }
 
+function _buildPaginatedList(itemsHTML, initialCount, stepCount) {
+    const total = itemsHTML.length;
+    let html = '<div class="debtor-bookings">';
+    itemsHTML.forEach((item, i) => {
+        html += `<div class="pag-item"${i >= initialCount ? ' style="display:none"' : ''}>${item}</div>`;
+    });
+    if (total > initialCount) {
+        const remaining = total - initialCount;
+        html += `<button class="show-more-btn" onclick="_showMoreItems(this,${stepCount})" data-shown="${initialCount}" data-total="${total}">▼ Mostra altri ${Math.min(stepCount, remaining)}</button>`;
+    }
+    html += '</div>';
+    return html;
+}
+
+function _showMoreItems(btn, stepCount) {
+    const shown = parseInt(btn.dataset.shown);
+    const total = parseInt(btn.dataset.total);
+    const items = btn.parentElement.querySelectorAll('.pag-item');
+    const newShown = Math.min(shown + stepCount, total);
+    for (let i = shown; i < newShown; i++) {
+        if (items[i]) items[i].style.display = '';
+    }
+    btn.dataset.shown = newShown;
+    if (newShown >= total) {
+        btn.remove();
+    } else {
+        btn.textContent = `▼ Mostra altri ${Math.min(stepCount, total - newShown)}`;
+    }
+}
+
 function createDebtorCard(debtor, cardId) {
     const card = document.createElement('div');
     card.className = 'debtor-card';
@@ -3716,16 +3744,16 @@ function createDebtorCard(debtor, cardId) {
     const safeE = debtor.email.replace(/'/g, "\\'");
     const safeN = debtor.name.replace(/'/g, "\\'");
 
-    let bookingsHTML = '<div class="debtor-bookings">';
+    const allDebtItems = [];
     debtor.unpaidBookings.forEach(booking => {
-        bookingsHTML += `
+        allDebtItems.push(`
             <div class="debtor-booking-item">
                 <div class="debtor-booking-details">
                     📅 ${booking.date} &nbsp;·&nbsp; 🕐 ${booking.time} &nbsp;·&nbsp; ${SLOT_NAMES[booking.slotType]}
                 </div>
                 <div class="debtor-booking-price">€${booking.price}</div>
             </div>
-        `;
+        `);
     });
     if (debtor.manualDebt > 0) {
         const record = ManualDebtStorage.getRecord(debtor.whatsapp, debtor.email);
@@ -3736,7 +3764,7 @@ function createDebtorCard(debtor, cardId) {
             const safeDate = entry.date.replace(/'/g, "\\'");
             const safeDebtNote = _escHtml((entry.note || '').replace(/'/g, "\\'"));
             const safeDebtMethod = _escHtml((entry.method || '').replace(/'/g, "\\'"));
-            bookingsHTML += `
+            allDebtItems.push(`
                 <div class="debtor-booking-item debtor-booking-manual">
                     <div class="debtor-booking-details">✏️ ${dateStr} &nbsp;·&nbsp; ${_escHtml(entry.note || 'Debito manuale')}</div>
                     <div style="display:flex;align-items:center;gap:0.35rem;">
@@ -3744,10 +3772,10 @@ function createDebtorCard(debtor, cardId) {
                         <button class="debt-entry-edit-btn" onclick="openEditEntryPopup('debt','${safeE}','${safeDate}',${entry.amount},'${safeDebtNote}','${safeDebtMethod}')" title="Modifica">✏️</button>
                         <button class="debt-entry-delete-btn" onclick="deleteManualDebtEntry('${safeW}','${safeE}','${safeDate}')" title="Elimina">✕</button>
                     </div>
-                </div>`;
+                </div>`);
         });
     }
-    bookingsHTML += '</div>';
+    const bookingsHTML = _buildPaginatedList(allDebtItems, 5, 10);
 
     card.innerHTML = `
         <div class="debtor-card-header" onclick="toggleDebtorCard('debtor-card-${cardId}')">
@@ -3923,7 +3951,7 @@ function searchDebtor() {
         results.forEach((r, index) => {
             const card = r.type === 'debtor'
                 ? createDebtorCard(r.data, `search-${index}`)
-                : createCreditCard(r.data, `search-${index}`);
+                : createCreditCard(r.data, `search-${index}`, true);
             card.classList.add('open');
             resultsList.appendChild(card);
         });
@@ -3990,7 +4018,7 @@ function selectDebtorFromDropdown(index) {
     resultsList.innerHTML = '';
     const card = r.type === 'debtor'
         ? createDebtorCard(r.data, 'search-sel')
-        : createCreditCard(r.data, 'search-sel');  // works for 'credit' and 'client' types
+        : createCreditCard(r.data, 'search-sel', true);  // works for 'credit' and 'client' types
     card.classList.add('open');
     resultsList.appendChild(card);
 
