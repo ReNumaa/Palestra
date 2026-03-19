@@ -6304,8 +6304,9 @@ function renderFatturatoDetail(panel) {
     // Linear projection for remaining days (based on past daily rate)
     const periodStart    = from.getTime();
     const yesterday      = new Date(today); yesterday.setDate(yesterday.getDate() - 1);
-    const yesterdayCap   = Math.min(yesterday.getTime(), to.getTime());
-    const daysElapsed    = today <= from ? 1 : Math.max(1, Math.round((yesterdayCap - periodStart) / 86400000) + 1);
+    const yesterdayCapDate = new Date(Math.min(yesterday.getTime(), to.getTime()));
+    yesterdayCapDate.setHours(0, 0, 0, 0); // normalizza a mezzanotte per divisione esatta
+    const daysElapsed    = today <= from ? 1 : Math.max(1, Math.round((yesterdayCapDate.getTime() - periodStart) / 86400000) + 1);
     const totalDays      = Math.max(1, Math.ceil((to.getTime() - periodStart) / 86400000));
     const daysRemaining  = Math.max(0, totalDays - daysElapsed);
     const dailyRate      = pastRevenue / daysElapsed;
@@ -6325,7 +6326,7 @@ function renderFatturatoDetail(panel) {
     const cmActual  = allBookings.filter(b => { const d = new Date(b.date + 'T00:00:00'); return d >= cmFrom && d < today; }).reduce((s, b) => s + (SLOT_PRICES[b.slotType] || 0), 0);
     const cmFuture  = allBookings.filter(b => { const d = new Date(b.date + 'T00:00:00'); return d >= today && d <= cmTo; }).reduce((s, b) => s + (SLOT_PRICES[b.slotType] || 0), 0);
     const cmElapsed = Math.max(1, Math.round((Math.min(yesterday.getTime(), cmTo.getTime()) - cmFrom.getTime()) / 86400000) + 1);
-    const cmDays    = Math.round((cmTo.getTime() - cmFrom.getTime()) / 86400000) + 1;
+    const cmDays    = Math.ceil((cmTo.getTime() - cmFrom.getTime()) / 86400000);
     const cmRate    = cmActual / cmElapsed;
     const cmLinear  = Math.round(cmRate * Math.max(0, cmDays - cmElapsed));
     const cmEstimate = cmActual + Math.max(cmFuture, cmLinear);
