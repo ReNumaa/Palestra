@@ -6302,11 +6302,10 @@ function toggleStatDetail(type) {
 
 function renderFatturatoDetail(panel) {
     const isReale = _fatturatoMode === 'reale';
-    const REAL_METHODS = new Set(['contanti', 'carta', 'iban']);
     const allBookings = (_statsBookings ?? BookingStorage.getAllBookings())
         .filter(b => {
             if (b.status === 'cancelled') return false;
-            if (isReale) return b.paid && REAL_METHODS.has(b.paymentMethod);
+            if (isReale) return b.paid && b.paymentMethod !== 'lezione-gratuita';
             return b.paymentMethod !== 'lezione-gratuita';
         });
     const revFn = (s, b) => s + (SLOT_PRICES[b.slotType] || 0);
