@@ -5160,10 +5160,21 @@ function _saveClientEditLocalProfile(index, oldWhatsapp, oldEmail, newName, newW
 
     openClientIndex = null;
     renderClientsTab();
+    // Se c'era una ricerca attiva, riesegui con il nome aggiornato
+    const searchInput = document.getElementById('clientSearchInput');
+    if (searchInput && searchInput.value.trim()) {
+        searchInput.value = newName;
+        liveSearchClients();
+        // Auto-seleziona il cliente appena modificato
+        const dropdown = document.getElementById('clientsSearchDropdown');
+        if (dropdown && dropdown._matches && dropdown._matches.length > 0) {
+            selectClientFromDropdown(0);
+        }
+    }
     showToast('Contatto aggiornato.', 'success');
 }
 
-function saveClientEdit(index, oldWhatsapp, oldEmail) {
+async function saveClientEdit(index, oldWhatsapp, oldEmail) {
     const newName     = document.getElementById(`cedit-name-${index}`).value.trim().replace(/\S+/g, w => w[0].toUpperCase() + w.slice(1).toLowerCase());
     const newWhatsapp = document.getElementById(`cedit-phone-${index}`).value.trim();
     const newEmail    = document.getElementById(`cedit-email-${index}`).value.trim();
@@ -5174,14 +5185,17 @@ function saveClientEdit(index, oldWhatsapp, oldEmail) {
     const newPaese    = (document.getElementById(`cedit-paese-${index}`)?.value || '').trim();
     const newCap      = (document.getElementById(`cedit-cap-${index}`)?.value || '').trim();
     if (!newName) { alert('Il nome è obbligatorio.'); return; }
-    closeEditClientPopup();
 
     const normOld      = normalizePhone(oldWhatsapp);
     const normNewPhone = normalizePhone(newWhatsapp) || newWhatsapp;
 
     // ── 1-3. bookings + credits + manual_debts: atomico server-side ──
     if (typeof supabaseClient !== 'undefined') {
-        (async () => {
+        // Mostra stato di caricamento sul bottone Salva
+        const saveBtn = document.querySelector('#editClientPopupOverlay .btn-save-edit');
+        if (saveBtn) { saveBtn.disabled = true; saveBtn.textContent = 'Salvataggio...'; }
+
+        try {
             const { data, error } = await supabaseClient.rpc('admin_rename_client', {
                 p_old_email:    oldEmail || '',
                 p_old_whatsapp: normOld || null,
@@ -5192,6 +5206,7 @@ function saveClientEdit(index, oldWhatsapp, oldEmail) {
             if (error) {
                 console.error('[Supabase] admin_rename_client error:', error.message);
                 alert('⚠️ Errore durante l\'aggiornamento: ' + error.message);
+                if (saveBtn) { saveBtn.disabled = false; saveBtn.textContent = 'Salva'; }
                 return;
             }
             console.log('[admin_rename_client]', data);
@@ -5201,10 +5216,17 @@ function saveClientEdit(index, oldWhatsapp, oldEmail) {
                 CreditStorage.syncFromSupabase(),
                 ManualDebtStorage.syncFromSupabase(),
             ]);
-            // Continua con profilo locale + cert/assic (sotto)
-            _saveClientEditLocalProfile(index, oldWhatsapp, oldEmail, newName, newWhatsapp, newEmail, newCert, newAssic, normOld, normNewPhone, { cf: newCf, via: newVia, paese: newPaese, cap: newCap });
-        })();
-        return; // il resto è gestito nella callback async
+        } catch (e) {
+            console.error('[saveClientEdit] exception:', e);
+            alert('⚠️ Errore di rete. Riprova.');
+            if (saveBtn) { saveBtn.disabled = false; saveBtn.textContent = 'Salva'; }
+            return;
+        }
+
+        closeEditClientPopup();
+        // Continua con profilo locale + cert/assic (sotto)
+        _saveClientEditLocalProfile(index, oldWhatsapp, oldEmail, newName, newWhatsapp, newEmail, newCert, newAssic, normOld, normNewPhone, { cf: newCf, via: newVia, paese: newPaese, cap: newCap });
+        return;
     }
 
     // Fallback client-side (offline)
@@ -5239,6 +5261,7 @@ function saveClientEdit(index, oldWhatsapp, oldEmail) {
     }
 
     // Profilo locale + cert/assic + sessione
+    closeEditClientPopup();
     _saveClientEditLocalProfile(index, oldWhatsapp, oldEmail, newName, newWhatsapp, newEmail, newCert, newAssic, normOld, normNewPhone);
 }
 
