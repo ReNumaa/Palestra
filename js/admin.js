@@ -164,7 +164,7 @@ function getFilterLabel(filter) {
     }
 }
 
-function setAnalyticsFilter(filter, btn) {
+async function setAnalyticsFilter(filter, btn) {
     currentFilter = filter;
     document.querySelectorAll('.filter-btn').forEach(b => b.classList.remove('active'));
     btn.classList.add('active');
@@ -182,17 +182,31 @@ function setAnalyticsFilter(filter, btn) {
     } else {
         customDates.style.display = 'none';
     }
-    loadDashboardData();
+    // Disabilita i pulsanti durante il caricamento
+    document.querySelectorAll('.filter-btn').forEach(b => b.disabled = true);
+    btn.style.opacity = '0.6';
+    try {
+        await loadDashboardData();
+    } finally {
+        document.querySelectorAll('.filter-btn').forEach(b => b.disabled = false);
+        btn.style.opacity = '';
+    }
 }
 
-function applyCustomFilter() {
+async function applyCustomFilter() {
     const from = document.getElementById('filterDateFrom').value;
     const to = document.getElementById('filterDateTo').value;
     if (!from || !to) { alert('Seleziona entrambe le date.'); return; }
     if (from > to) { alert('La data di inizio deve essere precedente alla data di fine.'); return; }
     customFilterFrom = from;
     customFilterTo = to;
-    loadDashboardData();
+    const applyBtn = document.querySelector('.btn-apply-filter');
+    if (applyBtn) { applyBtn.disabled = true; applyBtn.style.opacity = '0.6'; }
+    try {
+        await loadDashboardData();
+    } finally {
+        if (applyBtn) { applyBtn.disabled = false; applyBtn.style.opacity = ''; }
+    }
 }
 
 let _adminStickyResizeHandler = null;
@@ -350,8 +364,8 @@ function switchTab(tabName) {
 
     // Load specific data based on tab
     if (tabName === 'analytics') {
-        // Delay so browser can layout the tab (canvas needs offsetWidth > 0)
-        setTimeout(() => loadDashboardData(), 50);
+        // Aspetta il layout del browser (canvas necessita offsetWidth > 0)
+        requestAnimationFrame(() => requestAnimationFrame(() => loadDashboardData()));
     } else if (tabName === 'bookings') {
         renderAdminCalendar();
     } else if (tabName === 'payments') {
@@ -386,9 +400,8 @@ async function loadDashboardData() {
     const seq = ++_loadDashboardSeq;
     BookingStorage.processPendingCancellations();
 
-    // Fetch stats fresh da Supabase: periodo corrente + precedente + ultimi 12 mesi + prossimi 90 gg.
+    // Fetch stats fresh da Supabase: periodo corrente + precedente + ultimi 12 mesi + 12 mesi futuri.
     // Non usa localStorage — bypassa il limite di 5MB per dataset grandi.
-    // I detail panel mostrano grafici degli ultimi 12 mesi, quindi extFrom copre sempre 12 mesi.
     if (typeof BookingStorage !== 'undefined' && typeof supabaseClient !== 'undefined') {
         const { from, to } = getFilterDateRange(currentFilter);
         const prevRange = getPreviousFilterDateRange(currentFilter);
@@ -399,7 +412,6 @@ async function loadDashboardData() {
             from.getTime(),
             twelveMonthsAgo.getTime()
         ));
-        // Includi sempre almeno 12 mesi futuri (per il grafico "prossimi 12 mesi" nei detail panel)
         const twelveMonthsAhead = new Date(now.getFullYear() + 1, now.getMonth() + 1, 0, 23, 59, 59, 999);
         const extTo = new Date(Math.max(
             to.getTime(),
@@ -411,7 +423,13 @@ async function loadDashboardData() {
         );
         // Scarta la risposta se nel frattempo è arrivata una richiesta più recente
         if (seq !== _loadDashboardSeq) return;
-        _statsBookings = freshData;
+        // freshData = null su errore Supabase → mantieni dati precedenti
+        if (freshData !== null) {
+            _statsBookings = freshData;
+        } else if (!_statsBookings) {
+            // Prima volta senza Supabase: fallback a localStorage
+            _statsBookings = BookingStorage.getAllBookings();
+        }
     }
 
     const filteredBookings = getFilteredBookings(currentFilter);

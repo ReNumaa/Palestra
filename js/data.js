@@ -418,17 +418,19 @@ class BookingStorage {
     // Fetch diretto da Supabase senza toccare localStorage — usato da stats admin ed export.
     // startStr / endStr: 'YYYY-MM-DD' oppure null per nessun limite.
     static async fetchForAdmin(startStr, endStr) {
-        if (typeof supabaseClient === 'undefined') return [];
+        if (typeof supabaseClient === 'undefined') return null;
         try {
-            let q = supabaseClient.from('bookings').select('*').order('date', { ascending: false });
+            let q = supabaseClient.from('bookings').select('*', { count: 'exact' })
+                .order('date', { ascending: false })
+                .range(0, 9999); // bypass default 1000-row limit
             if (startStr) q = q.gte('date', startStr);
             if (endStr)   q = q.lte('date', endStr);
             const { data, error } = await q;
-            if (error) { console.error('[Supabase] fetchForAdmin error:', error.message); return []; }
+            if (error) { console.error('[Supabase] fetchForAdmin error:', error.message); return null; }
             return data.map(row => this._mapRow(row));
         } catch (e) {
             console.error('[Supabase] fetchForAdmin exception:', e);
-            return [];
+            return null;
         }
     }
 
