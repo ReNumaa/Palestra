@@ -4227,6 +4227,8 @@ canvas {
     display: flex;
     align-items: center;
     justify-content: space-between;
+    gap: 0.5rem;
+    flex-wrap: wrap;
     margin-bottom: 1.25rem;
     padding-bottom: 0.75rem;
     border-bottom: 1px solid #f3f4f6;
@@ -4238,6 +4240,29 @@ canvas {
     color: #111;
     margin: 0;
 }
+
+.stat-detail-mode-tabs {
+    display: flex;
+    gap: 0;
+    border: 1px solid #d1d5db;
+    border-radius: 8px;
+    overflow: hidden;
+}
+
+.stat-mode-btn {
+    padding: 0.25rem 0.7rem;
+    font-size: 0.72rem;
+    font-weight: 600;
+    border: none;
+    background: #f9fafb;
+    color: #6b7280;
+    cursor: pointer;
+    transition: all 0.15s;
+}
+
+.stat-mode-btn + .stat-mode-btn { border-left: 1px solid #d1d5db; }
+.stat-mode-btn.active { background: #111; color: #fff; }
+.stat-mode-btn:hover:not(.active) { background: #e5e7eb; }
 
 .stat-detail-period {
     font-size: 0.78rem;

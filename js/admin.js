@@ -6259,6 +6259,13 @@ function exportRegistro() {
 // ── Statistics Detail Panel ──────────────────────────────────────────────────
 
 let _currentStatDetail = null;
+let _fatturatoMode = 'prenotazioni'; // 'prenotazioni' | 'reale'
+
+function switchFatturatoMode(mode) {
+    _fatturatoMode = mode;
+    const panel = document.getElementById('statsDetailPanel');
+    if (panel) renderFatturatoDetail(panel);
+}
 
 function toggleStatDetail(type) {
     const panel = document.getElementById('statsDetailPanel');
@@ -6294,8 +6301,15 @@ function toggleStatDetail(type) {
 }
 
 function renderFatturatoDetail(panel) {
+    const isReale = _fatturatoMode === 'reale';
+    const REAL_METHODS = new Set(['contanti', 'carta', 'iban']);
     const allBookings = (_statsBookings ?? BookingStorage.getAllBookings())
-        .filter(b => b.status !== 'cancelled' && b.paymentMethod !== 'lezione-gratuita');
+        .filter(b => {
+            if (b.status === 'cancelled') return false;
+            if (isReale) return b.paid && REAL_METHODS.has(b.paymentMethod);
+            return b.paymentMethod !== 'lezione-gratuita';
+        });
+    const revFn = (s, b) => s + (SLOT_PRICES[b.slotType] || 0);
     const { from, to } = getFilterDateRange(currentFilter);
     const now   = new Date();
     const today = new Date(now); today.setHours(0, 0, 0, 0);
@@ -6306,13 +6320,13 @@ function renderFatturatoDetail(panel) {
         return d >= from && d <= to;
     });
 
-    // Past bookings (before today) — per-competenza revenue
+    // Past bookings (before today)
     const pastBookings   = periodBookings.filter(b => new Date(b.date + 'T00:00:00') < today);
-    const pastRevenue    = pastBookings.reduce((s, b) => s + (SLOT_PRICES[b.slotType] || 0), 0);
+    const pastRevenue    = pastBookings.reduce(revFn, 0);
 
     // Future confirmed bookings in period
     const futureBookings = periodBookings.filter(b => new Date(b.date + 'T00:00:00') >= today);
-    const futureRevenue  = futureBookings.reduce((s, b) => s + (SLOT_PRICES[b.slotType] || 0), 0);
+    const futureRevenue  = futureBookings.reduce(revFn, 0);
 
     // Linear projection for remaining days (based on past daily rate)
     const periodStart    = from.getTime();
@@ -6538,19 +6552,26 @@ function renderFatturatoDetail(panel) {
         : knownPeriodRev;
 
     // ── Render ────────────────────────────────────────────────────────────────
+    const pastLabel   = isReale ? 'Pagato' : 'Incassato';
+    const futureLabel = isReale ? 'Pagato futuro' : 'Prenotato futuro';
+
     panel.innerHTML = `
         <div class="stat-detail-header">
             <h3>💰 Fatturato — Dettaglio</h3>
+            <div class="stat-detail-mode-tabs">
+                <button class="stat-mode-btn${!isReale ? ' active' : ''}" onclick="switchFatturatoMode('prenotazioni')">Prenotazioni</button>
+                <button class="stat-mode-btn${isReale ? ' active' : ''}" onclick="switchFatturatoMode('reale')">Reale</button>
+            </div>
             <span class="stat-detail-period">${getFilterLabel(currentFilter)}</span>
         </div>
         <div class="stat-detail-kpis">
             <div class="stat-detail-kpi stat-detail-kpi--actual">
                 <div class="stat-detail-kpi-value">€${pastRevenue}</div>
-                <div class="stat-detail-kpi-label">Incassato</div>
+                <div class="stat-detail-kpi-label">${pastLabel}</div>
             </div>
             <div class="stat-detail-kpi stat-detail-kpi--future">
                 <div class="stat-detail-kpi-value">€${futureRevenue}</div>
-                <div class="stat-detail-kpi-label">Prenotato futuro</div>
+                <div class="stat-detail-kpi-label">${futureLabel}</div>
             </div>
             <div class="stat-detail-kpi stat-detail-kpi--projected">
                 <div class="stat-detail-kpi-value">€${scheduleEstimate}</div>
