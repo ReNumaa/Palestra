@@ -336,16 +336,23 @@ function renderMobileCalendar() {
         mobileNext.style.cursor  = nextHasSlots ? 'pointer' : 'not-allowed';
     }
 
-    // Auto-select today if it's in this week, otherwise first future day
-    const todayStr = formatDate(new Date());
-    const todayInWeek = weekDates.find(d => d.formatted === todayStr);
-    if (todayInWeek) {
-        selectedMobileDay = todayInWeek;
+    // Preserve current selection if it's still in this week, otherwise auto-select
+    const currentInWeek = selectedMobileDay
+        ? weekDates.find(d => d.formatted === selectedMobileDay.formatted)
+        : null;
+    if (currentInWeek) {
+        selectedMobileDay = currentInWeek;
     } else {
-        // Pick first day that is today or later
-        const now = new Date(); now.setHours(0, 0, 0, 0);
-        const firstFuture = weekDates.find(d => d.date >= now);
-        selectedMobileDay = firstFuture || weekDates[0];
+        const todayStr = formatDate(new Date());
+        const todayInWeek = weekDates.find(d => d.formatted === todayStr);
+        if (todayInWeek) {
+            selectedMobileDay = todayInWeek;
+        } else {
+            // Pick first day that is today or later
+            const now = new Date(); now.setHours(0, 0, 0, 0);
+            const firstFuture = weekDates.find(d => d.date >= now);
+            selectedMobileDay = firstFuture || weekDates[0];
+        }
     }
 
     renderMobileDaySelector(weekDates);
