@@ -69,6 +69,11 @@ function getFilterDateRange(filter) {
                 from: new Date(now.getFullYear(), now.getMonth(), 1),
                 to: new Date(now.getFullYear(), now.getMonth() + 1, 0, 23, 59, 59, 999)
             };
+        case 'next-month':
+            return {
+                from: new Date(now.getFullYear(), now.getMonth() + 1, 1),
+                to: new Date(now.getFullYear(), now.getMonth() + 2, 0, 23, 59, 59, 999)
+            };
         case 'last-month': {
             const lm = now.getMonth() === 0 ? 11 : now.getMonth() - 1;
             const ly = now.getMonth() === 0 ? now.getFullYear() - 1 : now.getFullYear();
@@ -108,6 +113,9 @@ function getPreviousFilterDateRange(filter) {
             const ly = now.getMonth() === 0 ? now.getFullYear() - 1 : now.getFullYear();
             return { from: new Date(ly, lm, 1), to: new Date(ly, lm + 1, 0, 23, 59, 59, 999) };
         }
+        case 'next-month':
+            // Periodo confronto = mese corrente
+            return { from: new Date(now.getFullYear(), now.getMonth(), 1), to: new Date(now.getFullYear(), now.getMonth() + 1, 0, 23, 59, 59, 999) };
         case 'last-month': {
             const m2 = ((now.getMonth() - 2) % 12 + 12) % 12;
             const y2 = now.getMonth() <= 1 ? now.getFullYear() - 1 : now.getFullYear();
@@ -138,6 +146,11 @@ function getFilterLabel(filter) {
     const months = ['Gennaio','Febbraio','Marzo','Aprile','Maggio','Giugno','Luglio','Agosto','Settembre','Ottobre','Novembre','Dicembre'];
     switch (filter) {
         case 'this-month': return `${months[now.getMonth()]} ${now.getFullYear()}`;
+        case 'next-month': {
+            const nm = (now.getMonth() + 1) % 12;
+            const ny = now.getMonth() === 11 ? now.getFullYear() + 1 : now.getFullYear();
+            return `${months[nm]} ${ny}`;
+        }
         case 'last-month': {
             const lm = now.getMonth() === 0 ? 11 : now.getMonth() - 1;
             const ly = now.getMonth() === 0 ? now.getFullYear() - 1 : now.getFullYear();
