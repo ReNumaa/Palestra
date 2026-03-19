@@ -23,14 +23,15 @@
         /* ── Import area ────────────────────────────────────── */
         .import-area { background: #fff; border: 2px dashed #d1d5db; border-radius: 16px; padding: 2.5rem 1.5rem; text-align: center; margin-bottom: 1.5rem; transition: all 0.25s; }
         .import-area:hover { border-color: #9ca3af; }
-        .import-area.loaded { border-color: #22c55e; border-style: solid; background: linear-gradient(135deg, #f0fdf4 0%, #ecfdf5 100%); }
+        .import-area.loaded { border-color: #22c55e; border-style: solid; background: linear-gradient(135deg, #f0fdf4 0%, #ecfdf5 100%); padding: 0.6rem 1rem; }
         .import-icon { font-size: 2.5rem; margin-bottom: 0.75rem; }
         .import-btn { background: linear-gradient(135deg, #2563eb 0%, #1d4ed8 100%); color: #fff; border: none; padding: 0.8rem 2rem; border-radius: 10px; font-size: 1rem; font-weight: 600; cursor: pointer; transition: transform 0.1s, box-shadow 0.2s; box-shadow: 0 2px 8px rgba(37,99,235,0.3); }
         .import-btn:hover { transform: translateY(-1px); box-shadow: 0 4px 14px rgba(37,99,235,0.4); }
         .import-btn:active { transform: translateY(0); }
         .import-info { margin-top: 0.6rem; color: #6b7280; font-size: 0.82rem; }
-        .import-area.loaded .import-icon { font-size: 1.5rem; }
-        .import-area.loaded .import-info { color: #166534; font-weight: 500; }
+        .import-area.loaded .import-icon { display: none; }
+        .import-area.loaded .import-btn { padding: 0.4rem 1rem; font-size: 0.82rem; }
+        .import-area.loaded .import-info { color: #166534; font-weight: 500; margin-top: 0.3rem; font-size: 0.75rem; }
 
         /* ── Search ─────────────────────────────────────────── */
         .search-wrap { position: relative; margin-bottom: 1.25rem; }
@@ -55,8 +56,9 @@
         .client-contact { font-size: 0.78rem; color: #6b7280; margin-top: 0.1rem; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
         .client-badges { display: flex; gap: 0.4rem; flex-wrap: wrap; flex-shrink: 0; }
         .badge { padding: 0.2rem 0.55rem; border-radius: 6px; font-size: 0.72rem; font-weight: 600; white-space: nowrap; }
-        .badge-credit { background: #dcfce7; color: #166534; }
-        .badge-debt { background: #fef3c7; color: #92400e; }
+        .badge-positive { background: #dcfce7; color: #166534; }
+        .badge-negative { background: #fee2e2; color: #991b1b; }
+        .badge-zero { background: #f3f4f6; color: #6b7280; }
         .badge-bonus-ok { background: #e0e7ff; color: #3730a3; }
         .badge-bonus-used { background: #f3f4f6; color: #9ca3af; }
         .badge-bookings { background: #f3f4f6; color: #4b5563; }
@@ -92,12 +94,56 @@
 
         .empty { color: #9ca3af; font-style: italic; font-size: 0.85rem; padding: 0.75rem 0; }
 
+        /* ── Main tabs ─────────────────────────────────────── */
+        .main-tabs { display: flex; gap: 0; margin-bottom: 1.25rem; background: #f3f4f6; border-radius: 12px; padding: 0.25rem; }
+        .main-tab { flex: 1; padding: 0.6rem 1rem; border-radius: 10px; border: none; background: transparent; cursor: pointer; font-size: 0.9rem; font-weight: 600; color: #6b7280; transition: all 0.15s; text-align: center; }
+        .main-tab.active { background: #1a1a1a; color: #fff; box-shadow: 0 2px 8px rgba(0,0,0,0.15); }
+        .main-tab:hover:not(.active) { color: #1a1a1a; }
+        .tab-panel { display: none; }
+        .tab-panel.active { display: block; }
+
+        /* ── Calendar (Prenotazioni) ───────────────────────── */
+        .cal-controls { display: flex; align-items: center; justify-content: space-between; margin-bottom: 1rem; }
+        .cal-controls h4 { font-size: 1rem; font-weight: 700; }
+        .btn-week { background: #f3f4f6; border: 1px solid #e5e7eb; border-radius: 8px; padding: 0.4rem 0.8rem; font-size: 0.82rem; font-weight: 600; cursor: pointer; color: #4b5563; transition: all 0.15s; }
+        .btn-week:hover { background: #e5e7eb; }
+        .day-selector { display: flex; gap: 0.4rem; margin-bottom: 1rem; justify-content: center; flex-wrap: wrap; }
+        .day-card { min-width: 70px; padding: 0.5rem 0.4rem; background: #f3f4f6; border-radius: 10px; text-align: center; cursor: pointer; border: 2px solid #e5e7eb; transition: all 0.2s; }
+        .day-card:hover { transform: translateY(-2px); box-shadow: 0 3px 8px rgba(0,0,0,0.1); }
+        .day-card.active { background: linear-gradient(135deg, #2563eb, #1d4ed8); color: #fff; border-color: #2563eb; transform: scale(1.05); }
+        .day-card .day-name { font-size: 0.78rem; font-weight: 700; }
+        .day-card .day-num { font-size: 1.2rem; font-weight: 800; }
+        .day-card .day-count { font-size: 0.68rem; opacity: 0.8; }
+        .day-view { display: flex; flex-direction: column; gap: 0.75rem; }
+        .slot-card { background: #f9fafb; border-radius: 12px; padding: 1rem 1.2rem; border-left: 4px solid #d1d5db; transition: all 0.2s; }
+        .slot-card:hover { box-shadow: 0 3px 10px rgba(0,0,0,0.08); }
+        .slot-card.personal-training { border-left-color: #22c55e; background: rgba(34,197,94,0.06); }
+        .slot-card.small-group { border-left-color: #eab308; background: rgba(234,179,8,0.06); }
+        .slot-card.group-class { border-left-color: #ef4444; background: rgba(239,68,68,0.06); }
+        .slot-header { display: flex; align-items: center; gap: 0.6rem; margin-bottom: 0.6rem; flex-wrap: wrap; }
+        .slot-time { font-size: 1rem; font-weight: 700; color: #1a1a1a; }
+        .slot-type-badge { font-size: 0.78rem; padding: 0.2rem 0.6rem; border-radius: 20px; background: #fff; font-weight: 600; color: #4b5563; }
+        .slot-capacity { font-size: 0.78rem; color: #6b7280; margin-left: auto; }
+        .participants-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(220px, 1fr)); gap: 0.5rem; }
+        .participant-card { background: #fff; border-radius: 8px; padding: 0.75rem; border: 1px solid #e5e7eb; transition: all 0.15s; }
+        .participant-card:hover { border-color: #2563eb; box-shadow: 0 2px 8px rgba(37,99,235,0.1); }
+        .participant-card.cancelled { opacity: 0.5; border-color: #fca5a5; background: #fef2f2; }
+        .p-name { font-weight: 700; font-size: 0.9rem; color: #1a1a1a; }
+        .p-contact { font-size: 0.78rem; color: #6b7280; margin-top: 0.15rem; }
+        .p-notes { font-size: 0.75rem; color: #9ca3af; font-style: italic; margin-top: 0.2rem; background: #f9fafb; padding: 0.2rem 0.4rem; border-radius: 4px; }
+        .p-status { display: inline-block; margin-top: 0.35rem; font-size: 0.75rem; font-weight: 600; padding: 0.15rem 0.5rem; border-radius: 20px; }
+        .p-status.paid { color: #16a34a; background: rgba(34,197,94,0.1); }
+        .p-status.unpaid { color: #d97706; background: rgba(245,158,11,0.1); }
+        .p-status.cancelled { color: #dc2626; background: rgba(220,38,38,0.1); }
+        .empty-day { text-align: center; padding: 2rem; color: #9ca3af; font-style: italic; }
+
         /* ── Emergency toolbar ─────────────────────────────── */
         .emergency-bar { display: flex; gap: 0.5rem; margin-bottom: 1.25rem; flex-wrap: wrap; }
         .em-btn { padding: 0.6rem 1rem; border-radius: 10px; border: none; font-size: 0.85rem; font-weight: 600; cursor: pointer; transition: all 0.15s; display: flex; align-items: center; gap: 0.4rem; }
         .em-btn:hover { transform: translateY(-1px); }
         .em-btn-booking { background: #2563eb; color: #fff; box-shadow: 0 2px 8px rgba(37,99,235,0.3); }
         .em-btn-credit { background: #16a34a; color: #fff; box-shadow: 0 2px 8px rgba(22,163,74,0.3); }
+        .em-btn-debt { background: #dc2626; color: #fff; box-shadow: 0 2px 8px rgba(220,38,38,0.3); }
         .em-btn-export { background: #1a1a1a; color: #fff; box-shadow: 0 2px 8px rgba(0,0,0,0.2); }
         .em-btn-export.has-changes { background: #dc2626; animation: pulse-red 2s infinite; }
         @keyframes pulse-red { 0%,100% { box-shadow: 0 2px 8px rgba(220,38,38,0.3); } 50% { box-shadow: 0 2px 16px rgba(220,38,38,0.6); } }
@@ -135,6 +181,13 @@
             .emergency-bar { flex-direction: column; }
             .em-btn { justify-content: center; }
             .modal { margin: 0.5rem; padding: 1.2rem; }
+            .day-selector { gap: 0.25rem; }
+            .day-card { min-width: 44px; padding: 0.4rem 0.25rem; }
+            .day-card .day-name { font-size: 0.68rem; }
+            .day-card .day-num { font-size: 1rem; }
+            .day-card .day-count { font-size: 0.6rem; }
+            .participants-grid { grid-template-columns: 1fr; }
+            .cal-controls h4 { font-size: 0.85rem; }
         }
     </style>
 </head>
@@ -162,14 +215,35 @@
             <div class="emergency-bar">
                 <button class="em-btn em-btn-booking" onclick="openBookingModal()">+ Prenotazione</button>
                 <button class="em-btn em-btn-credit" onclick="openCreditModal()">+ Credito</button>
+                <button class="em-btn em-btn-debt" onclick="openDebtModal()">+ Debito</button>
                 <button class="em-btn em-btn-export" id="exportBtn" onclick="exportData()">Esporta backup</button>
             </div>
-            <div class="stats-row" id="statsRow"></div>
-            <div class="search-wrap">
-                <span class="search-icon">&#128269;</span>
-                <input type="text" class="search-bar" id="searchBar" placeholder="Cerca cliente per nome, email o telefono...">
+
+            <div class="main-tabs">
+                <button class="main-tab active" onclick="switchMainTab('clients')">Clienti</button>
+                <button class="main-tab" onclick="switchMainTab('calendar')">Prenotazioni</button>
             </div>
-            <div class="client-list" id="clientList"></div>
+
+            <!-- Tab: Clienti -->
+            <div class="tab-panel active" id="panelClients">
+                <div class="stats-row" id="statsRow"></div>
+                <div class="search-wrap">
+                    <span class="search-icon">&#128269;</span>
+                    <input type="text" class="search-bar" id="searchBar" placeholder="Cerca cliente per nome, email o telefono...">
+                </div>
+                <div class="client-list" id="clientList"></div>
+            </div>
+
+            <!-- Tab: Prenotazioni (calendario) -->
+            <div class="tab-panel" id="panelCalendar">
+                <div class="cal-controls">
+                    <button class="btn-week" onclick="changeWeek(-1)">&larr; Sett. prec.</button>
+                    <h4 id="calWeekLabel">Settimana corrente</h4>
+                    <button class="btn-week" onclick="changeWeek(1)">Sett. succ. &rarr;</button>
+                </div>
+                <div class="day-selector" id="daySelector"></div>
+                <div class="day-view" id="dayView"></div>
+            </div>
         </div>
     </div>
 
@@ -192,14 +266,11 @@
             <input type="hidden" id="bkSelectedEmail" value="">
             <input type="hidden" id="bkSelectedName" value="">
             <input type="hidden" id="bkSelectedWhatsapp" value="">
-            <div class="modal-field"><label>Data</label><input type="date" id="bkDate"></div>
-            <div class="modal-field"><label>Ora</label><input type="time" id="bkTime"></div>
+            <div class="modal-field"><label>Data</label><input type="date" id="bkDate" onchange="populateSlotOptions()"></div>
             <div class="modal-field">
-                <label>Tipo slot</label>
-                <select id="bkSlotType">
-                    <option value="personal-training">Autonomia</option>
-                    <option value="small-group">Lezione di Gruppo</option>
-                    <option value="group-class">Slot prenotato</option>
+                <label>Slot orario</label>
+                <select id="bkSlotSelect">
+                    <option value="">-- Seleziona prima una data --</option>
                 </select>
             </div>
             <div class="modal-field"><label>Note (opzionale)</label><input type="text" id="bkNotes" placeholder=""></div>
@@ -228,9 +299,11 @@
             <div class="modal-field">
                 <label>Metodo</label>
                 <select id="crMethod">
+                    <option value="" disabled selected>Seleziona</option>
                     <option value="contanti">Contanti</option>
                     <option value="carta">Carta</option>
                     <option value="iban">Bonifico</option>
+                    <option value="lezione-gratuita">Lezione gratuita</option>
                 </select>
             </div>
             <div class="modal-field"><label>Nota (opzionale)</label><input type="text" id="crNote" placeholder=""></div>
@@ -241,10 +314,135 @@
         </div>
     </div>
 
+    <!-- Debt modal -->
+    <div class="modal-overlay" id="debtModal">
+        <div class="modal">
+            <h3>Aggiungi debito</h3>
+            <div class="modal-field">
+                <label>Cliente</label>
+                <div class="client-search-input">
+                    <input type="text" id="dbClientSearch" placeholder="Cerca cliente..." autocomplete="off" oninput="filterClientDropdown('db')">
+                    <div class="client-dropdown" id="dbClientDropdown"></div>
+                </div>
+            </div>
+            <input type="hidden" id="dbSelectedEmail" value="">
+            <input type="hidden" id="dbSelectedName" value="">
+            <input type="hidden" id="dbSelectedWhatsapp" value="">
+            <div class="modal-field"><label>Importo (&euro;)</label><input type="number" id="dbAmount" step="0.01" min="0" placeholder="es. 10"></div>
+            <div class="modal-field"><label>Nota (opzionale)</label><input type="text" id="dbNote" placeholder=""></div>
+            <div class="modal-actions">
+                <button class="btn-cancel" onclick="closeModal('debtModal')">Annulla</button>
+                <button class="btn-save" style="background:#dc2626" onclick="saveDebt()">Aggiungi debito</button>
+            </div>
+        </div>
+    </div>
+
     <script>
     const SLOT_PRICES = { 'personal-training': 5, 'small-group': 10, 'group-class': 30 };
     const SLOT_NAMES = { 'personal-training': 'Autonomia', 'small-group': 'Lezione di Gruppo', 'group-class': 'Slot prenotato' };
     const METHOD_LABELS = { credito: 'Credito', contanti: 'Contanti', carta: 'Carta', iban: 'Bonifico', 'lezione-gratuita': 'Gratuita' };
+    const DAY_NAMES = ['Domenica','Lunedì','Martedì','Mercoledì','Giovedì','Venerdì','Sabato'];
+
+    const DEFAULT_WEEKLY_SCHEDULE = {
+        'Lunedì': [
+            { time: '05:20 - 06:40', type: 'personal-training' },
+            { time: '06:40 - 08:00', type: 'personal-training' },
+            { time: '08:00 - 09:20', type: 'small-group' },
+            { time: '09:20 - 10:40', type: 'small-group' },
+            { time: '10:40 - 12:00', type: 'small-group' },
+            { time: '12:00 - 13:20', type: 'personal-training' },
+            { time: '13:20 - 14:40', type: 'personal-training' },
+            { time: '14:40 - 16:00', type: 'personal-training' },
+            { time: '16:00 - 17:20', type: 'small-group' },
+            { time: '17:20 - 18:40', type: 'small-group' },
+            { time: '18:40 - 20:00', type: 'personal-training' },
+            { time: '20:00 - 21:20', type: 'personal-training' }
+        ],
+        'Martedì': [
+            { time: '05:20 - 06:40', type: 'small-group' },
+            { time: '06:40 - 08:00', type: 'small-group' },
+            { time: '08:00 - 09:20', type: 'small-group' },
+            { time: '09:20 - 10:40', type: 'small-group' },
+            { time: '10:40 - 12:00', type: 'personal-training' },
+            { time: '12:00 - 13:20', type: 'personal-training' },
+            { time: '13:20 - 14:40', type: 'personal-training' },
+            { time: '14:40 - 16:00', type: 'group-class' },
+            { time: '16:00 - 17:20', type: 'small-group' },
+            { time: '17:20 - 18:40', type: 'small-group' },
+            { time: '18:40 - 20:00', type: 'small-group' },
+            { time: '20:00 - 21:20', type: 'personal-training' }
+        ],
+        'Mercoledì': [
+            { time: '05:20 - 06:40', type: 'small-group' },
+            { time: '06:40 - 08:00', type: 'small-group' },
+            { time: '08:00 - 09:20', type: 'small-group' },
+            { time: '09:20 - 10:40', type: 'small-group' },
+            { time: '10:40 - 12:00', type: 'personal-training' },
+            { time: '12:00 - 13:20', type: 'personal-training' },
+            { time: '13:20 - 14:40', type: 'personal-training' },
+            { time: '14:40 - 16:00', type: 'small-group' },
+            { time: '16:00 - 17:20', type: 'small-group' },
+            { time: '17:20 - 18:40', type: 'small-group' },
+            { time: '18:40 - 20:00', type: 'small-group' },
+            { time: '20:00 - 21:20', type: 'personal-training' }
+        ],
+        'Giovedì': [
+            { time: '05:20 - 06:40', type: 'personal-training' },
+            { time: '06:40 - 08:00', type: 'personal-training' },
+            { time: '08:00 - 09:20', type: 'personal-training' },
+            { time: '09:20 - 10:40', type: 'personal-training' },
+            { time: '10:40 - 12:00', type: 'personal-training' },
+            { time: '12:00 - 13:20', type: 'personal-training' },
+            { time: '13:20 - 14:40', type: 'personal-training' },
+            { time: '14:40 - 16:00', type: 'personal-training' },
+            { time: '16:00 - 17:20', type: 'personal-training' },
+            { time: '17:20 - 18:40', type: 'personal-training' },
+            { time: '18:40 - 20:00', type: 'personal-training' },
+            { time: '20:00 - 21:20', type: 'personal-training' }
+        ],
+        'Venerdì': [
+            { time: '05:20 - 06:40', type: 'group-class' },
+            { time: '06:40 - 08:00', type: 'personal-training' },
+            { time: '08:00 - 09:20', type: 'personal-training' },
+            { time: '09:20 - 10:40', type: 'small-group' },
+            { time: '10:40 - 12:00', type: 'small-group' },
+            { time: '12:00 - 13:20', type: 'small-group' },
+            { time: '13:20 - 14:40', type: 'personal-training' },
+            { time: '14:40 - 16:00', type: 'group-class' },
+            { time: '16:00 - 17:20', type: 'small-group' },
+            { time: '17:20 - 18:40', type: 'small-group' },
+            { time: '18:40 - 20:00', type: 'small-group' },
+            { time: '20:00 - 21:20', type: 'personal-training' }
+        ],
+        'Sabato': [
+            { time: '05:20 - 06:40', type: 'personal-training' },
+            { time: '06:40 - 08:00', type: 'personal-training' },
+            { time: '08:00 - 09:20', type: 'small-group' },
+            { time: '09:20 - 10:40', type: 'small-group' },
+            { time: '10:40 - 12:00', type: 'small-group' },
+            { time: '12:00 - 13:20', type: 'personal-training' },
+            { time: '13:20 - 14:40', type: 'personal-training' },
+            { time: '14:40 - 16:00', type: 'small-group' },
+            { time: '16:00 - 17:20', type: 'small-group' },
+            { time: '17:20 - 18:40', type: 'personal-training' },
+            { time: '18:40 - 20:00', type: 'personal-training' },
+            { time: '20:00 - 21:20', type: 'personal-training' }
+        ],
+        'Domenica': [
+            { time: '05:20 - 06:40', type: 'personal-training' },
+            { time: '06:40 - 08:00', type: 'personal-training' },
+            { time: '08:00 - 09:20', type: 'personal-training' },
+            { time: '09:20 - 10:40', type: 'personal-training' },
+            { time: '10:40 - 12:00', type: 'personal-training' },
+            { time: '12:00 - 13:20', type: 'personal-training' },
+            { time: '13:20 - 14:40', type: 'personal-training' },
+            { time: '14:40 - 16:00', type: 'personal-training' },
+            { time: '16:00 - 17:20', type: 'personal-training' },
+            { time: '17:20 - 18:40', type: 'personal-training' },
+            { time: '18:40 - 20:00', type: 'personal-training' },
+            { time: '20:00 - 21:20', type: 'personal-training' }
+        ]
+    };
 
     let DATA = null;
 
@@ -277,7 +475,7 @@
                     const creds = {};
                     (t.credits || []).forEach(r => {
                         const key = `${normalizePhone(r.whatsapp) || ''}||${(r.email || '').toLowerCase()}`;
-                        creds[key] = { name: r.name, whatsapp: r.whatsapp || '', email: r.email || '', balance: r.balance || 0, freeBalance: r.free_balance || 0, history: [] };
+                        creds[key] = { name: r.name, whatsapp: r.whatsapp || '', email: r.email || '', userId: r.user_id || null, balance: r.balance || 0, freeBalance: r.free_balance || 0, history: [] };
                     });
                     // Attach credit_history entries
                     (t.credit_history || []).forEach(h => {
@@ -291,7 +489,7 @@
                     const debts = {};
                     (t.manual_debts || []).forEach(r => {
                         const key = `${normalizePhone(r.whatsapp) || ''}||${(r.email || '').toLowerCase()}`;
-                        debts[key] = { name: r.name, whatsapp: r.whatsapp || '', email: r.email || '', balance: r.balance || 0, history: r.history || [] };
+                        debts[key] = { name: r.name, whatsapp: r.whatsapp || '', email: r.email || '', userId: r.user_id || null, balance: r.balance || 0, history: r.history || [] };
                     });
                     DATA.gym_manual_debts = debts;
 
@@ -299,17 +497,23 @@
                     const bon = {};
                     (t.bonuses || []).forEach(r => {
                         const key = `${normalizePhone(r.whatsapp) || ''}||${(r.email || '').toLowerCase()}`;
-                        bon[key] = { name: r.name, whatsapp: r.whatsapp || '', email: r.email || '', bonus: r.bonus ?? 1, lastResetMonth: r.last_reset_month };
+                        bon[key] = { name: r.name, whatsapp: r.whatsapp || '', email: r.email || '', userId: r.user_id || null, bonus: r.bonus ?? 1, lastResetMonth: r.last_reset_month };
                     });
                     DATA.gym_bonus = bon;
 
-                    // Profiles (cert, insurance, registration date)
+                    // Profiles (name, whatsapp, cert, insurance, address, CF, registration date)
                     DATA._profiles = {};
                     (t.profiles || []).forEach(r => {
                         const em = (r.email || '').toLowerCase();
                         if (em) DATA._profiles[em] = {
+                            name: r.name || '',
+                            whatsapp: r.whatsapp || '',
                             certExpiry: r.medical_cert_expiry || null,
                             insuranceExpiry: r.insurance_expiry || null,
+                            codiceFiscale: r.codice_fiscale || null,
+                            indirizzoVia: r.indirizzo_via || null,
+                            indirizzoPaese: r.indirizzo_paese || null,
+                            indirizzoCap: r.indirizzo_cap || null,
                             createdAt: r.created_at || null,
                         };
                     });
@@ -318,11 +522,59 @@
                     DATA._schedule = t.settings || [];
                     DATA._appSettings = t.app_settings || [];
                     DATA._scheduleOverrides = t.schedule_overrides || [];
+                    // Convert cron overrides array to map {date: [{time, type}]}
+                    const ovMap = {};
+                    (t.schedule_overrides || []).forEach(o => {
+                        if (!ovMap[o.date]) ovMap[o.date] = [];
+                        ovMap[o.date].push({ time: o.time, type: o.slot_type, extras: o.extras || [] });
+                    });
+                    DATA._scheduleOverridesMap = ovMap;
                 } else {
                     // ── Admin export format (localStorage keys) ──
                     const raw = json.data || json;
                     for (const [k, v] of Object.entries(raw)) {
                         try { DATA[k] = JSON.parse(v); } catch { DATA[k] = v; }
+                    }
+                    // Extract schedule data from admin format
+                    if (DATA.weeklyScheduleTemplate) DATA._weeklySchedule = DATA.weeklyScheduleTemplate;
+                    if (DATA.scheduleOverrides) DATA._scheduleOverridesMap = DATA.scheduleOverrides;
+                    // Parse profiles from admin backup (_profiles is a raw Supabase array)
+                    if (Array.isArray(DATA._profiles)) {
+                        const profMap = {};
+                        DATA._profiles.forEach(r => {
+                            const em = (r.email || '').toLowerCase();
+                            if (em) profMap[em] = {
+                                name: r.name || '',
+                                whatsapp: r.whatsapp || '',
+                                certExpiry: r.medical_cert_expiry || null,
+                                insuranceExpiry: r.insurance_expiry || null,
+                                codiceFiscale: r.codice_fiscale || null,
+                                indirizzoVia: r.indirizzo_via || null,
+                                indirizzoPaese: r.indirizzo_paese || null,
+                                indirizzoCap: r.indirizzo_cap || null,
+                                createdAt: r.created_at || null,
+                            };
+                        });
+                        DATA._profiles = profMap;
+                    }
+                    // Also parse gym_users for profile data if _profiles not available
+                    if (!DATA._profiles && Array.isArray(DATA.gym_users)) {
+                        const profMap = {};
+                        DATA.gym_users.forEach(r => {
+                            const em = (r.email || '').toLowerCase();
+                            if (em) profMap[em] = {
+                                name: r.nome || r.name || '',
+                                whatsapp: r.whatsapp || '',
+                                certExpiry: r.certificatoMedicoScadenza || r.medical_cert_expiry || null,
+                                insuranceExpiry: r.assicurazioneScadenza || r.insurance_expiry || null,
+                                codiceFiscale: r.codiceFiscale || r.codice_fiscale || null,
+                                indirizzoVia: r.indirizzoVia || r.indirizzo_via || null,
+                                indirizzoPaese: r.indirizzoPaese || r.indirizzo_paese || null,
+                                indirizzoCap: r.indirizzoCap || r.indirizzo_cap || null,
+                                createdAt: r.created_at || null,
+                            };
+                        });
+                        DATA._profiles = profMap;
                     }
                 }
                 document.getElementById('importArea').classList.add('loaded');
@@ -360,24 +612,38 @@
         const credits = DATA.gym_credits || {};
         const debts = DATA.gym_manual_debts || {};
         const bonus = DATA.gym_bonus || {};
+        const profiles = DATA._profiles || {};
 
         const map = {};
-        function ensure(name, wa, em) {
+        // Mappa userId → key per raggruppare per UID quando disponibile
+        const uidToKey = {};
+        function ensure(name, wa, em, uid) {
             const normWa = normalizePhone(wa);
             const normEm = (em || '').toLowerCase();
-            const key = `${normEm}||${normWa}`;
-            if (!map[key]) map[key] = { name: name || '', whatsapp: normWa, email: normEm, bookings: [], creditBalance: 0, creditHistory: [], debtBalance: 0, debtHistory: [], bonusValue: 1, profile: null };
+            // Chiave primaria: userId se disponibile, altrimenti email, altrimenti whatsapp
+            let key = uidToKey[uid] || null;
+            if (!key) key = normEm ? normEm : `wa:${normWa}`;
+            if (!map[key]) map[key] = { name: name || '', whatsapp: normWa, email: normEm, userId: uid || null, bookings: [], creditBalance: 0, creditHistory: [], debtBalance: 0, debtHistory: [], bonusValue: 1, profile: null };
+            if (uid && !uidToKey[uid]) uidToKey[uid] = key;
             if (name && (!map[key].name || map[key].name.length < name.length)) map[key].name = name;
+            if (uid && !map[key].userId) map[key].userId = uid;
+            // Keep the longest/most complete whatsapp
+            if (normWa && (!map[key].whatsapp || normWa.length > map[key].whatsapp.length)) map[key].whatsapp = normWa;
             return map[key];
         }
 
-        bookings.filter(b => b.email && !b.id?.startsWith('demo-')).forEach(b => ensure(b.name, b.whatsapp, b.email).bookings.push(b));
-        Object.values(credits).forEach(r => { const c = ensure(r.name, r.whatsapp, r.email); c.creditBalance = r.balance || 0; c.creditHistory = r.history || []; });
-        Object.values(debts).forEach(r => { const c = ensure(r.name, r.whatsapp, r.email); c.debtBalance = r.balance || 0; c.debtHistory = r.history || []; });
-        Object.values(bonus).forEach(r => { const c = ensure(r.name, r.whatsapp, r.email); c.bonusValue = r.bonus ?? 1; });
+        // Include ALL clients from every source (not just booked ones)
+        bookings.filter(b => b.email && !b.id?.startsWith('demo-')).forEach(b => ensure(b.name, b.whatsapp, b.email, b.userId).bookings.push(b));
+        Object.values(credits).forEach(r => { const c = ensure(r.name, r.whatsapp, r.email, r.userId); c.creditBalance = r.balance || 0; c.creditHistory = r.history || []; });
+        Object.values(debts).forEach(r => { const c = ensure(r.name, r.whatsapp, r.email, r.userId); c.debtBalance = r.balance || 0; c.debtHistory = r.history || []; });
+        Object.values(bonus).forEach(r => { const c = ensure(r.name, r.whatsapp, r.email, r.userId); c.bonusValue = r.bonus ?? 1; });
 
-        // Attach profiles if available (Supabase backup)
-        const profiles = DATA._profiles || {};
+        // Include clients from profiles (registered users who may have no bookings/credits)
+        for (const [em, p] of Object.entries(profiles)) {
+            if (em && p.name) ensure(p.name, p.whatsapp, em, p.id);
+        }
+
+        // Attach profile data
         for (const c of Object.values(map)) {
             if (c.email && profiles[c.email]) c.profile = profiles[c.email];
         }
@@ -385,40 +651,49 @@
         for (const c of Object.values(map)) {
             c.bookingDebt = c.bookings.filter(b => {
                 if (b.paid || b.status === 'cancelled') return false;
-                // Solo lezioni già iniziate
                 const startTime = new Date(`${b.date}T${b.time.split(' - ')[0].trim()}:00`);
                 return startTime <= new Date();
             }).reduce((s, b) => s + (SLOT_PRICES[b.slotType] || 0) - (b.creditApplied || 0), 0);
             c.totalDebt = c.bookingDebt + c.debtBalance;
+            // Saldo reale = credito disponibile - debito totale
+            c.saldo = c.creditBalance - c.totalDebt;
             c.bookings.sort((a, b) => (b.date || '').localeCompare(a.date || '') || (b.time || '').localeCompare(a.time || ''));
         }
-        return Object.values(map).sort((a, b) => a.name.localeCompare(b.name));
+        // Filter out ghost clients: no name AND no real activity
+        return Object.values(map)
+            .filter(c => c.name || c.bookings.length || c.creditBalance || c.debtBalance || c.creditHistory.length || c.debtHistory.length)
+            .sort((a, b) => a.name.localeCompare(b.name));
     }
+
+    let _renderedClients = [];
 
     function render() {
         const query = (document.getElementById('searchBar').value || '').toLowerCase().trim();
         let clients = getClients();
         if (query) clients = clients.filter(c => c.name.toLowerCase().includes(query) || c.email.includes(query) || c.whatsapp.includes(query));
+        _renderedClients = clients;
 
         const totalClients = clients.length;
         const totalBookings = clients.reduce((s, c) => s + c.bookings.length, 0);
-        const totalCredit = clients.reduce((s, c) => s + c.creditBalance, 0);
-        const totalDebt = clients.reduce((s, c) => s + c.totalDebt, 0);
+        const totalPositive = clients.filter(c => c.saldo > 0).reduce((s, c) => s + c.saldo, 0);
+        const totalNegative = clients.filter(c => c.saldo < 0).reduce((s, c) => s + Math.abs(c.saldo), 0);
 
         document.getElementById('statsRow').innerHTML = [
             stat(totalClients, 'Clienti', '#1a1a1a'),
             stat(totalBookings, 'Prenotazioni', '#2563eb'),
-            stat(`&euro;${totalCredit.toFixed(2)}`, 'Crediti totali', '#16a34a'),
-            stat(`&euro;${totalDebt.toFixed(2)}`, 'Debiti totali', '#dc2626'),
+            stat(`&euro;${totalPositive.toFixed(2)}`, 'Saldi positivi', '#16a34a'),
+            stat(`&euro;${totalNegative.toFixed(2)}`, 'Saldi negativi', '#dc2626'),
         ].join('');
 
         document.getElementById('clientList').innerHTML = clients.map((c, i) => {
             const initial = (c.name || '?')[0].toUpperCase();
             const badges = [];
-            if (c.creditBalance > 0) badges.push(`<span class="badge badge-credit">&euro;${c.creditBalance.toFixed(2)} credito</span>`);
-            if (c.totalDebt > 0) badges.push(`<span class="badge badge-debt">&euro;${c.totalDebt.toFixed(2)} da pagare</span>`);
+            // Single saldo badge
+            if (c.saldo > 0) badges.push(`<span class="badge badge-positive">+&euro;${c.saldo.toFixed(2)}</span>`);
+            else if (c.saldo < 0) badges.push(`<span class="badge badge-negative">-&euro;${Math.abs(c.saldo).toFixed(2)}</span>`);
+            else badges.push(`<span class="badge badge-zero">&euro;0.00</span>`);
             badges.push(`<span class="badge ${c.bonusValue > 0 ? 'badge-bonus-ok' : 'badge-bonus-used'}">${c.bonusValue}/1 bonus</span>`);
-            badges.push(`<span class="badge badge-bookings">${c.bookings.length} pren.</span>`);
+            if (c.bookings.length > 0) badges.push(`<span class="badge badge-bookings">${c.bookings.length} pren.</span>`);
             if (c.profile) {
                 const today = new Date().toISOString().slice(0,10);
                 if (c.profile.certExpiry) {
@@ -466,7 +741,7 @@
     }
 
     function renderDetail(idx) {
-        const c = getClients()[idx];
+        const c = _renderedClients[idx];
         if (!c) return;
         const el = document.getElementById('detail-' + idx);
         const tab = el.dataset.tab || 'bookings';
@@ -504,18 +779,17 @@
                 const exp = date <= today;
                 return `<span class="badge" style="background:${exp ? '#fee2e2' : '#dcfce7'};color:${exp ? '#991b1b' : '#166534'}">${exp ? expLabel : okLabel}</span>`;
             };
-            content = `<div style="display:grid;gap:0.75rem;padding:0.5rem 0">
-                <div style="display:flex;justify-content:space-between;align-items:center;padding:0.6rem 0;border-bottom:1px solid #f3f4f6">
-                    <div><div style="font-weight:600;font-size:0.9rem">Certificato medico</div><div style="font-size:0.8rem;color:#6b7280">Scadenza: ${fmtDate(p.certExpiry)}</div></div>
-                    ${statusBadge(p.certExpiry, 'Valido', 'Scaduto')}
-                </div>
-                <div style="display:flex;justify-content:space-between;align-items:center;padding:0.6rem 0;border-bottom:1px solid #f3f4f6">
-                    <div><div style="font-weight:600;font-size:0.9rem">Assicurazione</div><div style="font-size:0.8rem;color:#6b7280">Scadenza: ${fmtDate(p.insuranceExpiry)}</div></div>
-                    ${statusBadge(p.insuranceExpiry, 'Valida', 'Scaduta')}
-                </div>
-                <div style="display:flex;justify-content:space-between;align-items:center;padding:0.6rem 0">
-                    <div><div style="font-weight:600;font-size:0.9rem">Data registrazione</div><div style="font-size:0.8rem;color:#6b7280">${p.createdAt ? fmtDate(p.createdAt.slice(0,10)) : '—'}</div></div>
-                </div>
+            const profRow = (label, value, badge) => `<div style="display:flex;justify-content:space-between;align-items:center;padding:0.6rem 0;border-bottom:1px solid #f3f4f6">
+                <div><div style="font-weight:600;font-size:0.9rem">${label}</div><div style="font-size:0.8rem;color:#6b7280">${value}</div></div>
+                ${badge || ''}
+            </div>`;
+            const address = [p.indirizzoVia, p.indirizzoCap, p.indirizzoPaese].filter(Boolean).join(', ');
+            content = `<div style="display:grid;gap:0;padding:0.5rem 0">
+                ${profRow('Codice Fiscale', esc(p.codiceFiscale) || '<span style="color:#9ca3af">Non inserito</span>')}
+                ${profRow('Indirizzo', address ? esc(address) : '<span style="color:#9ca3af">Non inserito</span>')}
+                ${profRow('Certificato medico', 'Scadenza: ' + fmtDate(p.certExpiry), statusBadge(p.certExpiry, 'Valido', 'Scaduto'))}
+                ${profRow('Assicurazione', 'Scadenza: ' + fmtDate(p.insuranceExpiry), statusBadge(p.insuranceExpiry, 'Valida', 'Scaduta'))}
+                ${profRow('Data registrazione', p.createdAt ? fmtDate(p.createdAt.slice(0,10)) : '—')}
             </div>`;
         } else if (tab === 'transactions') {
             const entries = [];
@@ -607,6 +881,40 @@
         }
     }
 
+    /* ── Schedule slot helpers ─────────────────────────────── */
+    function getSlotsForDate(dateStr) {
+        if (!dateStr || !DATA) return [];
+        // Check overrides first
+        const overrides = DATA._scheduleOverridesMap || {};
+        if (overrides[dateStr]) return overrides[dateStr];
+        // Fall back to weekly schedule template
+        const schedule = DATA._weeklySchedule || DEFAULT_WEEKLY_SCHEDULE;
+        const dayIdx = new Date(dateStr + 'T12:00:00').getDay();
+        const dayName = DAY_NAMES[dayIdx];
+        return schedule[dayName] || [];
+    }
+
+    function populateSlotOptions() {
+        const dateStr = document.getElementById('bkDate').value;
+        const select = document.getElementById('bkSlotSelect');
+        select.innerHTML = '';
+        if (!dateStr) {
+            select.innerHTML = '<option value="">-- Seleziona prima una data --</option>';
+            return;
+        }
+        const slots = getSlotsForDate(dateStr);
+        if (!slots.length) {
+            select.innerHTML = '<option value="">Nessuno slot disponibile per questa data</option>';
+            return;
+        }
+        slots.forEach(s => {
+            const opt = document.createElement('option');
+            opt.value = JSON.stringify({ time: s.time, type: s.type });
+            opt.textContent = `${s.time} — ${SLOT_NAMES[s.type] || s.type}`;
+            select.appendChild(opt);
+        });
+    }
+
     /* ── Modals ──────────────────────────────────────────── */
     function openBookingModal() {
         document.getElementById('bkClientSearch').value = '';
@@ -618,9 +926,8 @@
         document.getElementById('bkNewEmail').value = '';
         document.getElementById('bkNewWhatsapp').value = '';
         document.getElementById('bkDate').value = new Date().toISOString().slice(0,10);
-        document.getElementById('bkTime').value = '';
-        document.getElementById('bkSlotType').value = 'personal-training';
         document.getElementById('bkNotes').value = '';
+        populateSlotOptions();
         document.getElementById('bookingModal').classList.add('open');
     }
 
@@ -711,11 +1018,13 @@
         }
 
         const date = document.getElementById('bkDate').value;
-        const time = document.getElementById('bkTime').value;
-        const slotType = document.getElementById('bkSlotType').value;
+        const slotVal = document.getElementById('bkSlotSelect').value;
         const notes = document.getElementById('bkNotes').value.trim();
 
-        if (!date || !time) { alert('Inserisci data e ora'); return; }
+        if (!date || !slotVal) { alert('Seleziona data e slot orario'); return; }
+        const slotData = JSON.parse(slotVal);
+        const time = slotData.time;
+        const slotType = slotData.type;
 
         const booking = {
             id: 'emergency-' + Date.now() + '-' + Math.random().toString(36).slice(2,8),
@@ -754,6 +1063,7 @@
         const note = document.getElementById('crNote').value.trim();
 
         if (!email) { alert('Seleziona un cliente'); return; }
+        if (!method) { alert('Seleziona un metodo di pagamento'); return; }
         if (!amount || amount <= 0) { alert('Inserisci un importo valido'); return; }
 
         const credits = DATA.gym_credits || {};
@@ -780,6 +1090,170 @@
         render();
     }
 
+    /* ── Debt modal ──────────────────────────────────────── */
+    function openDebtModal() {
+        document.getElementById('dbClientSearch').value = '';
+        document.getElementById('dbSelectedEmail').value = '';
+        document.getElementById('dbSelectedName').value = '';
+        document.getElementById('dbSelectedWhatsapp').value = '';
+        document.getElementById('dbAmount').value = '';
+        document.getElementById('dbNote').value = '';
+        document.getElementById('debtModal').classList.add('open');
+    }
+
+    function saveDebt() {
+        const email = document.getElementById('dbSelectedEmail').value;
+        const name = document.getElementById('dbSelectedName').value;
+        const whatsapp = document.getElementById('dbSelectedWhatsapp').value;
+        const amount = parseFloat(document.getElementById('dbAmount').value);
+        const note = document.getElementById('dbNote').value.trim();
+
+        if (!email) { alert('Seleziona un cliente'); return; }
+        if (!amount || amount <= 0) { alert('Inserisci un importo valido'); return; }
+
+        const debts = DATA.gym_manual_debts || {};
+        const normWa = normalizePhone(whatsapp);
+        const key = `${normWa}||${email.toLowerCase()}`;
+
+        if (!debts[key]) {
+            debts[key] = { name, whatsapp: whatsapp || '', email: email || '', balance: 0, history: [] };
+        }
+        debts[key].balance = (debts[key].balance || 0) + amount;
+        if (!debts[key].history) debts[key].history = [];
+        debts[key].history.push({
+            date: new Date().toISOString(),
+            amount: amount,
+            note: note || 'Debito aggiunto - offline',
+            _addedOffline: true,
+        });
+        DATA.gym_manual_debts = debts;
+
+        pendingChanges++;
+        persistData();
+        updateChangesIndicator();
+        closeModal('debtModal');
+        render();
+    }
+
+    /* ── Main tabs ────────────────────────────────────────── */
+    function switchMainTab(tab) {
+        document.querySelectorAll('.main-tab').forEach((el, i) => {
+            el.classList.toggle('active', (tab === 'clients' && i === 0) || (tab === 'calendar' && i === 1));
+        });
+        document.getElementById('panelClients').classList.toggle('active', tab === 'clients');
+        document.getElementById('panelCalendar').classList.toggle('active', tab === 'calendar');
+        if (tab === 'calendar') renderCalendar();
+    }
+
+    /* ── Calendar (Prenotazioni) ──────────────────────────── */
+    let calWeekOffset = 0;
+    let calSelectedDate = null;
+    const SLOT_CAPACITY = { 'personal-training': 5, 'small-group': 5, 'group-class': 1 };
+
+    function changeWeek(dir) {
+        calWeekOffset += dir;
+        calSelectedDate = null;
+        renderCalendar();
+    }
+
+    function getWeekDates(offset) {
+        const now = new Date();
+        const dayOfWeek = now.getDay();
+        const mondayDiff = dayOfWeek === 0 ? -6 : 1 - dayOfWeek;
+        const monday = new Date(now);
+        monday.setDate(now.getDate() + mondayDiff + (offset * 7));
+        const dates = [];
+        for (let i = 0; i < 7; i++) {
+            const d = new Date(monday);
+            d.setDate(monday.getDate() + i);
+            const y = d.getFullYear(), m = String(d.getMonth()+1).padStart(2,'0'), dd = String(d.getDate()).padStart(2,'0');
+            dates.push({ date: d, formatted: `${y}-${m}-${dd}`, dayName: DAY_NAMES[d.getDay()], dayNum: d.getDate() });
+        }
+        return dates;
+    }
+
+    function renderCalendar() {
+        if (!DATA) return;
+        const weekDates = getWeekDates(calWeekOffset);
+        const bookings = (DATA.gym_bookings || []).filter(b => b.email && !b.id?.startsWith('demo-'));
+
+        // Default to today if in current week
+        if (!calSelectedDate) {
+            const today = new Date().toISOString().slice(0,10);
+            calSelectedDate = weekDates.find(d => d.formatted === today) || weekDates[0];
+        }
+
+        // Week label
+        const first = weekDates[0], last = weekDates[6];
+        document.getElementById('calWeekLabel').textContent =
+            `${first.dayNum}/${first.date.getMonth()+1} – ${last.dayNum}/${last.date.getMonth()+1}/${last.date.getFullYear()}`;
+
+        // Day selector
+        const selector = document.getElementById('daySelector');
+        selector.innerHTML = weekDates.map(d => {
+            const count = bookings.filter(b => b.date === d.formatted && b.status !== 'cancelled').length;
+            const isActive = calSelectedDate && calSelectedDate.formatted === d.formatted;
+            return `<div class="day-card ${isActive ? 'active' : ''}" onclick="selectDay('${d.formatted}')">
+                <div class="day-name">${d.dayName.slice(0,3)}</div>
+                <div class="day-num">${d.dayNum}</div>
+                <div class="day-count">${count} pren.</div>
+            </div>`;
+        }).join('');
+
+        // Day view
+        renderDayView(calSelectedDate, bookings);
+    }
+
+    function selectDay(dateStr) {
+        const weekDates = getWeekDates(calWeekOffset);
+        calSelectedDate = weekDates.find(d => d.formatted === dateStr) || weekDates[0];
+        renderCalendar();
+    }
+
+    function renderDayView(dateInfo, bookings) {
+        const dayView = document.getElementById('dayView');
+        const slots = getSlotsForDate(dateInfo.formatted);
+        const dayBookings = bookings.filter(b => b.date === dateInfo.formatted);
+
+        if (!slots.length) {
+            dayView.innerHTML = '<div class="empty-day">Nessuno slot programmato per questo giorno</div>';
+            return;
+        }
+
+        dayView.innerHTML = slots.map(slot => {
+            const slotBookings = dayBookings.filter(b => b.time === slot.time);
+            const confirmed = slotBookings.filter(b => b.status !== 'cancelled');
+            const cap = SLOT_CAPACITY[slot.type] || 5;
+            const remaining = cap - confirmed.length;
+
+            let participantsHTML;
+            if (slotBookings.length === 0) {
+                participantsHTML = '<div class="empty">Nessuna prenotazione</div>';
+            } else {
+                participantsHTML = `<div class="participants-grid">${slotBookings.map(b => {
+                    let statusCls = 'unpaid', statusTxt = 'Da pagare';
+                    if (b.status === 'cancelled') { statusCls = 'cancelled'; statusTxt = 'Annullata'; }
+                    else if (b.paid) { statusCls = 'paid'; statusTxt = METHOD_LABELS[b.paymentMethod] || 'Pagata'; }
+                    return `<div class="participant-card ${b.status === 'cancelled' ? 'cancelled' : ''}">
+                        <div class="p-name">${esc(b.name)}</div>
+                        <div class="p-contact">${esc(b.whatsapp || b.email)}</div>
+                        ${b.notes ? `<div class="p-notes">${esc(b.notes)}</div>` : ''}
+                        <span class="p-status ${statusCls}">${statusTxt}</span>
+                    </div>`;
+                }).join('')}</div>`;
+            }
+
+            return `<div class="slot-card ${slot.type}">
+                <div class="slot-header">
+                    <span class="slot-time">${slot.time}</span>
+                    <span class="slot-type-badge">${SLOT_NAMES[slot.type] || slot.type}</span>
+                    <span class="slot-capacity">${confirmed.length}/${cap}${remaining > 0 ? ` (${remaining} liberi)` : ' COMPLETO'}</span>
+                </div>
+                ${participantsHTML}
+            </div>`;
+        }).join('');
+    }
+
     /* ── Export ───────────────────────────────────────────── */
     function exportData() {
         if (!DATA) { alert('Nessun dato caricato'); return; }
@@ -797,9 +1271,15 @@
             }
         };
 
-        // Schedule overrides — use admin's key name
-        if (DATA._scheduleOverrides?.length) {
-            // Convert Supabase array format to admin's {date: slots[]} format
+        // Weekly schedule template — preserve for re-import
+        if (DATA._weeklySchedule) {
+            exportObj.data.weeklyScheduleTemplate = JSON.stringify(DATA._weeklySchedule);
+        }
+
+        // Schedule overrides — handle both cron (array) and admin (map) formats
+        if (DATA._scheduleOverridesMap && Object.keys(DATA._scheduleOverridesMap).length) {
+            exportObj.data.scheduleOverrides = JSON.stringify(DATA._scheduleOverridesMap);
+        } else if (DATA._scheduleOverrides?.length) {
             const ovMap = {};
             DATA._scheduleOverrides.forEach(o => {
                 if (!ovMap[o.date]) ovMap[o.date] = [];
@@ -807,6 +1287,10 @@
             });
             exportObj.data.scheduleOverrides = JSON.stringify(ovMap);
         }
+
+        // Settings — preserve for re-import
+        if (DATA.gym_debt_threshold !== undefined) exportObj.data.gym_debt_threshold = String(DATA.gym_debt_threshold);
+        if (DATA.gym_cancellation_mode !== undefined) exportObj.data.gym_cancellation_mode = String(DATA.gym_cancellation_mode);
 
         // Collect ONLY offline-added credit_history entries for Supabase sync
         const creditHistory = [];
