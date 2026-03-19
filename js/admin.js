@@ -6703,6 +6703,8 @@ function renderPrenotazioniDetail(panel) {
     const { from, to } = getFilterDateRange(currentFilter);
     const now   = new Date();
     const today = new Date(now); today.setHours(0, 0, 0, 0);
+    const yesterday = new Date(today); yesterday.setDate(yesterday.getDate() - 1);
+    const overrides = BookingStorage.getScheduleOverrides();
 
     const periodBookings = allBookings.filter(b => {
         if (b.status === 'cancelled') return false;
@@ -6722,40 +6724,109 @@ function renderPrenotazioniDetail(panel) {
 
     // ── KPIs ─────────────────────────────────────────────────────────────────
     const totalDays  = Math.max(1, Math.ceil((to - from) / 86400000));
-    const weeklyAvg  = (periodBookings.length / totalDays * 7).toFixed(1);
+    // Media settimanale basata su giorni con slot programmati
+    let _pSchedDays = 0;
+    for (let dd = 0; dd < totalDays; dd++) {
+        const day = new Date(from.getTime() + dd * 86400000);
+        const ds = `${day.getFullYear()}-${String(day.getMonth() + 1).padStart(2, '0')}-${String(day.getDate()).padStart(2, '0')}`;
+        if (overrides[ds] && overrides[ds].length > 0) _pSchedDays++;
+    }
+    const weeklyAvg = _pSchedDays > 0
+        ? (periodBookings.length / _pSchedDays * 7).toFixed(1)
+        : (periodBookings.length / totalDays * 7).toFixed(1);
     const cancelRate = cancelledInPeriod.length > 0
         ? Math.round(cancelledInPeriod.length / (periodBookings.length + cancelledInPeriod.length) * 100)
         : 0;
 
-    // ── Trend mensile (ultimi 12 mesi) ────────────────────────────────────────
+    // Stima futura: basata su giorni futuri senza slot
+    let periodScheduledDays = 0, futureUnscheduledDays = 0;
+    for (let dd = 0; dd < totalDays; dd++) {
+        const day = new Date(from.getTime() + dd * 86400000);
+        const ds = `${day.getFullYear()}-${String(day.getMonth() + 1).padStart(2, '0')}-${String(day.getDate()).padStart(2, '0')}`;
+        const hasSlots = overrides[ds] && overrides[ds].length > 0;
+        if (hasSlots) periodScheduledDays++;
+        else if (day >= today) futureUnscheduledDays++;
+    }
+    const knownCount = periodBookings.length;
+    const scheduleEstimate = (periodScheduledDays > 0 && futureUnscheduledDays > 0)
+        ? knownCount + Math.round(knownCount / periodScheduledDays * futureUnscheduledDays)
+        : knownCount;
+
+    // ── Bar chart: ultimi 12 mesi + 1 successivo ────────────────────────────
     const MONTH_NAMES = ['Gen','Feb','Mar','Apr','Mag','Giu','Lug','Ago','Set','Ott','Nov','Dic'];
-    const trendLabels = [], trendValues = [], trendHighlight = [], trendProjected = [];
+    const trendLabels = [], trendValues = [], trendHighlight = [], trendProjected = [], trendEstimate = [];
+
+    // Proiezione mese corrente
     const cmFrom = new Date(now.getFullYear(), now.getMonth(), 1);
-    const cmDaysTotal = new Date(now.getFullYear(), now.getMonth() + 1, 0).getDate();
+    const cmTo   = new Date(now.getFullYear(), now.getMonth() + 1, 0, 23, 59, 59, 999);
+    const cmActual = allBookings.filter(b => {
+        if (b.status === 'cancelled') return false;
+        const bd = new Date(b.date + 'T00:00:00');
+        return bd >= cmFrom && bd < today;
+    }).length;
+    const cmFuture = allBookings.filter(b => {
+        if (b.status === 'cancelled') return false;
+        const bd = new Date(b.date + 'T00:00:00');
+        return bd >= today && bd <= cmTo;
+    }).length;
     const cmDaysElapsed = Math.max(today.getDate() - 1, 1);
-    for (let i = 11; i >= 0; i--) {
-        const d     = new Date(now.getFullYear(), now.getMonth() - i, 1);
+    const cmDaysTotal = new Date(now.getFullYear(), now.getMonth() + 1, 0).getDate();
+    const cmLinear = Math.round(cmActual * cmDaysTotal / cmDaysElapsed);
+    const cmEstimate = cmActual + Math.max(cmFuture, cmLinear - cmActual, 0);
+
+    // i=-11..0 = ultimi 12 mesi, i=1 = mese successivo
+    for (let i = -11; i <= 1; i++) {
+        const d     = new Date(now.getFullYear(), now.getMonth() + i, 1);
         const mFrom = new Date(d.getFullYear(), d.getMonth(), 1);
         const mTo   = new Date(d.getFullYear(), d.getMonth() + 1, 0, 23, 59, 59, 999);
-        trendLabels.push(MONTH_NAMES[d.getMonth()]);
         const isCurrent = i === 0;
-        const count = allBookings.filter(b => {
-            if (b.status === 'cancelled') return false;
-            const bd = new Date(b.date + 'T00:00:00');
-            return bd >= mFrom && (isCurrent ? bd < today : bd <= mTo);
-        }).length;
-        trendValues.push(count);
-        trendHighlight.push(isCurrent);
+        const isFuture  = i > 0;
+        const label = MONTH_NAMES[d.getMonth()] + (d.getFullYear() !== now.getFullYear() ? ` '${String(d.getFullYear()).slice(2)}` : '');
+        trendLabels.push(label);
+
         if (isCurrent) {
-            const cmFuture = allBookings.filter(b => {
+            trendValues.push(cmActual);
+            trendHighlight.push(true);
+            trendProjected.push(Math.max(0, cmEstimate - cmActual));
+        } else if (isFuture) {
+            const confirmed = allBookings.filter(b => {
                 if (b.status === 'cancelled') return false;
                 const bd = new Date(b.date + 'T00:00:00');
-                return bd >= today && bd <= mTo;
+                return bd >= mFrom && bd <= mTo;
             }).length;
-            const cmLinear = Math.round(count * cmDaysTotal / cmDaysElapsed);
-            trendProjected.push(Math.max(cmFuture, cmLinear - count, 0));
+            trendValues.push(0);
+            trendHighlight.push(false);
+            trendProjected.push(confirmed);
         } else {
+            const count = allBookings.filter(b => {
+                if (b.status === 'cancelled') return false;
+                const bd = new Date(b.date + 'T00:00:00');
+                return bd >= mFrom && bd <= mTo;
+            }).length;
+            trendValues.push(count);
+            trendHighlight.push(false);
             trendProjected.push(0);
+        }
+
+        // Stima verde: giorni futuri senza slot
+        if (i >= 0) {
+            const daysInMonth = new Date(d.getFullYear(), d.getMonth() + 1, 0).getDate();
+            let schDays = 0, futUnschDays = 0;
+            for (let day = 1; day <= daysInMonth; day++) {
+                const dayDate = new Date(d.getFullYear(), d.getMonth(), day);
+                const ds = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(day).padStart(2, '0')}`;
+                const hasSlots = overrides[ds] && overrides[ds].length > 0;
+                if (hasSlots) schDays++;
+                else if (dayDate >= today) futUnschDays++;
+            }
+            const knownBar = trendValues[trendValues.length - 1] + trendProjected[trendProjected.length - 1];
+            if (schDays > 0 && futUnschDays > 0) {
+                trendEstimate.push(Math.round(knownBar / schDays * futUnschDays));
+            } else {
+                trendEstimate.push(0);
+            }
+        } else {
+            trendEstimate.push(0);
         }
     }
 
@@ -6800,13 +6871,17 @@ function renderPrenotazioniDetail(panel) {
             <span class="stat-detail-period">${getFilterLabel(currentFilter)}</span>
         </div>
         <div class="stat-detail-kpis">
-            <div class="stat-detail-kpi">
-                <div class="stat-detail-kpi-value">${periodBookings.length}</div>
-                <div class="stat-detail-kpi-label">Totale periodo</div>
+            <div class="stat-detail-kpi stat-detail-kpi--actual">
+                <div class="stat-detail-kpi-value">${pastBookings.length}</div>
+                <div class="stat-detail-kpi-label">Passate</div>
             </div>
             <div class="stat-detail-kpi stat-detail-kpi--future">
                 <div class="stat-detail-kpi-value">${futureBookings.length}</div>
                 <div class="stat-detail-kpi-label">Future</div>
+            </div>
+            <div class="stat-detail-kpi stat-detail-kpi--projected">
+                <div class="stat-detail-kpi-value">${scheduleEstimate}</div>
+                <div class="stat-detail-kpi-label">Stima futura</div>
             </div>
             <div class="stat-detail-kpi">
                 <div class="stat-detail-kpi-value">${weeklyAvg}</div>
@@ -6820,7 +6895,7 @@ function renderPrenotazioniDetail(panel) {
 
         <div class="stat-detail-charts">
             <div class="stat-detail-chart-block">
-                <h4>Trend mensile (ultimi 12 mesi)</h4>
+                <h4>Trend mensile (ultimi 12 mesi + successivo)</h4>
                 <canvas id="detailTrendChart" style="width:100%;display:block;"></canvas>
             </div>
             <div class="stat-detail-chart-block">
@@ -6850,6 +6925,10 @@ function renderPrenotazioniDetail(panel) {
                     <span class="sdb-label" style="color:#6b7280">Giorno più popolare</span>
                     <span class="sdb-value sdb-bold">${dayLabels[peakDay]}</span>
                 </div>
+                <div class="sdb-row sdb-row--projected">
+                    <span class="sdb-label">Stima futura (+${futureUnscheduledDays} gg futuri senza slot)</span>
+                    <span class="sdb-value">${scheduleEstimate}</span>
+                </div>
             </div>
         </div>
     `;
@@ -6857,14 +6936,14 @@ function renderPrenotazioniDetail(panel) {
     requestAnimationFrame(() => {
         const trendCanvas = document.getElementById('detailTrendChart');
         if (trendCanvas) new SimpleChart(trendCanvas).drawBarChart(
-            { labels: trendLabels, values: trendValues, highlight: trendHighlight, projected: trendProjected },
-            { colors: ['#8b5cf6'], prefix: '' }
+            { labels: trendLabels, values: trendValues, highlight: trendHighlight, projected: trendProjected, estimated: trendEstimate },
+            { colors: ['#3b82f6'], prefix: '' }
         );
         const typeBookCanvas = document.getElementById('detailTypeBookChart');
         if (typeBookCanvas && typeLabels.length > 0)
             new SimpleChart(typeBookCanvas).drawPieChart(
                 { labels: typeLabels, values: typeValues },
-                { colors: ['#3b82f6', '#f59e0b', '#22c55e'] }
+                { colors: ['#22c55e', '#f59e0b', '#e63946'] }
             );
         const dayCanvas = document.getElementById('detailDayChart');
         if (dayCanvas) new SimpleChart(dayCanvas).drawBarChart(
