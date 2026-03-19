@@ -6400,18 +6400,26 @@ function renderFatturatoDetail(panel) {
         const label = MONTH_NAMES[d.getMonth()] + (d.getFullYear() !== now.getFullYear() ? ` '${String(d.getFullYear()).slice(2)}` : '');
         barLabels.push(label);
         if (isCurrent) {
-            // Mese corrente: solido = incassato finora, tratteggiato = proiezione
             barValues.push(cmActual);
             barHighlight.push(true);
-            barProjected.push(Math.max(0, cmEstimate - cmActual));
+            // In modalità Reale: niente proiezione rossa (non sai chi pagherà)
+            barProjected.push(isReale ? 0 : Math.max(0, cmEstimate - cmActual));
         } else if (isFuture) {
-            // Mese successivo: barra tratteggiata = prenotazioni già confermate + crediti
-            const confirmedRev = allBookings
-                .filter(b => { const bd = new Date(b.date + 'T00:00:00'); return bd >= mFrom && bd <= mTo && b.status !== 'cancelled' && b.paymentMethod !== 'lezione-gratuita'; })
-                .reduce(revFn, 0) + creditInRange(mFrom, mTo);
-            barValues.push(0);
-            barHighlight.push(false);
-            barProjected.push(confirmedRev);
+            if (isReale) {
+                // Reale: solo crediti già incassati nel mese futuro
+                const futCredits = creditInRange(mFrom, mTo);
+                barValues.push(futCredits);
+                barHighlight.push(false);
+                barProjected.push(0);
+            } else {
+                // Prenotazioni: barra tratteggiata = prenotazioni confermate + crediti
+                const confirmedRev = allBookings
+                    .filter(b => { const bd = new Date(b.date + 'T00:00:00'); return bd >= mFrom && bd <= mTo && b.status !== 'cancelled' && b.paymentMethod !== 'lezione-gratuita'; })
+                    .reduce(revFn, 0) + creditInRange(mFrom, mTo);
+                barValues.push(0);
+                barHighlight.push(false);
+                barProjected.push(confirmedRev);
+            }
         } else {
             // Mesi passati: barra solida = fatturato reale + crediti
             const rev = allBookings
