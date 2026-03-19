@@ -851,34 +851,12 @@ async function exportBackup(format = 'json') {
         return;
     }
 
-    // ── Export JSON (reimportabile) ──────────────────────────────────────────
+    // ── Export JSON — stesso formato del backup auto-cron di Nextcloud ───────
     const backup = {
-        version: 2,
-        exportedAt: new Date().toISOString(),
-        data: {}
+        generated_at: new Date().toISOString(),
+        source: 'admin-export',
+        ...tables
     };
-    // Dati principali dalle cache in memoria (formato locale per reimport)
-    backup.data['gym_bookings']      = JSON.stringify(BookingStorage._cache);
-    backup.data['gym_credits']       = JSON.stringify(CreditStorage._cache);
-    backup.data['gym_manual_debts']  = JSON.stringify(ManualDebtStorage._cache);
-    backup.data['gym_bonus']         = JSON.stringify(BonusStorage._cache);
-    backup.data['gym_users']         = JSON.stringify(UserStorage._cache);
-    // Settings e configurazione da localStorage
-    const settingsKeys = BACKUP_KEYS.filter(k =>
-        !['gym_bookings','gym_stats','gym_users','gym_credits','gym_manual_debts','gym_bonus'].includes(k)
-    );
-    settingsKeys.forEach(key => {
-        const val = localStorage.getItem(key);
-        if (val !== null) backup.data[key] = val;
-    });
-    // Tabelle Supabase raw per restore diretto
-    if (tables.profiles)           backup.data['_profiles']           = JSON.stringify(tables.profiles);
-    if (tables.credit_history)     backup.data['_credit_history']     = JSON.stringify(tables.credit_history);
-    if (tables.settings)           backup.data['_settings']           = JSON.stringify(tables.settings);
-    if (tables.push_subscriptions) backup.data['_push_subscriptions'] = JSON.stringify(tables.push_subscriptions);
-    if (tables.admin_audit_log)    backup.data['_admin_audit_log']    = JSON.stringify(tables.admin_audit_log);
-    if (tables.credit_link_clicks) backup.data['_credit_link_clicks'] = JSON.stringify(tables.credit_link_clicks);
-    if (tables.app_settings)       backup.data['_app_settings']       = JSON.stringify(tables.app_settings);
 
     const blob = new Blob([JSON.stringify(backup, null, 2)], { type: 'application/json' });
     const a = document.createElement('a');

@@ -62,7 +62,7 @@ jobs:
           fi
 
           # Costruisci il JSON con jq — una chiave per tabella
-          BACKUP="{\"generated_at\": \"$(date -u +%Y-%m-%dT%H:%M:%SZ)\"}"
+          BACKUP="{\"generated_at\": \"$(date -u +%Y-%m-%dT%H:%M:%SZ)\", \"source\": \"auto-cron\"}"
 
           for table in $ALL_TABLES; do
             order="${ORDER_MAP[$table]:-created_at.asc}"
