@@ -6536,7 +6536,7 @@ function renderFatturatoDetail(panel) {
             <span class="stat-detail-period">${getFilterLabel(currentFilter)}</span>
         </div>
         <div class="stat-detail-kpis">
-            <div class="stat-detail-kpi">
+            <div class="stat-detail-kpi stat-detail-kpi--actual">
                 <div class="stat-detail-kpi-value">€${pastRevenue}</div>
                 <div class="stat-detail-kpi-label">Incassato</div>
             </div>
