@@ -6330,12 +6330,13 @@ function renderFatturatoDetail(panel) {
     const cmLinear  = Math.round(cmRate * Math.max(0, cmDays - cmElapsed));
     const cmEstimate = cmActual + Math.max(cmFuture, cmLinear);
 
-    // i=0 = mese corrente, i=1..12 = mesi futuri
-    for (let i = 0; i <= 12; i++) {
+    // i=-11..0 = ultimi 12 mesi (corrente = i=0, rightmost), i=1 = mese successivo
+    for (let i = -11; i <= 1; i++) {
         const d     = new Date(now.getFullYear(), now.getMonth() + i, 1);
         const mFrom = new Date(d.getFullYear(), d.getMonth(), 1);
         const mTo   = new Date(d.getFullYear(), d.getMonth() + 1, 0, 23, 59, 59, 999);
         const isCurrent = i === 0;
+        const isFuture  = i > 0;
         const label = MONTH_NAMES[d.getMonth()] + (d.getFullYear() !== now.getFullYear() ? ` '${String(d.getFullYear()).slice(2)}` : '');
         barLabels.push(label);
         if (isCurrent) {
@@ -6343,14 +6344,22 @@ function renderFatturatoDetail(panel) {
             barValues.push(cmActual);
             barHighlight.push(true);
             barProjected.push(Math.max(0, cmEstimate - cmActual));
-        } else {
-            // Mesi futuri: barra tratteggiata = prenotazioni già confermate
+        } else if (isFuture) {
+            // Mese successivo: barra tratteggiata = prenotazioni già confermate
             const confirmedRev = allBookings
                 .filter(b => { const bd = new Date(b.date + 'T00:00:00'); return bd >= mFrom && bd <= mTo && b.status !== 'cancelled' && b.paymentMethod !== 'lezione-gratuita'; })
                 .reduce((s, b) => s + (SLOT_PRICES[b.slotType] || 0), 0);
             barValues.push(0);
             barHighlight.push(false);
             barProjected.push(confirmedRev);
+        } else {
+            // Mesi passati: barra solida = fatturato reale
+            const rev = allBookings
+                .filter(b => { const bd = new Date(b.date + 'T00:00:00'); return bd >= mFrom && bd <= mTo; })
+                .reduce((s, b) => s + (SLOT_PRICES[b.slotType] || 0), 0);
+            barValues.push(rev);
+            barHighlight.push(false);
+            barProjected.push(0);
         }
     }
 
@@ -6464,7 +6473,7 @@ function renderFatturatoDetail(panel) {
         </div>
         <div class="stat-detail-charts">
             <div class="stat-detail-chart-block">
-                <h4>Fatturato mensile — corrente + prossimi 12 mesi</h4>
+                <h4>Fatturato mensile (ultimi 12 mesi + successivo)</h4>
                 <canvas id="detailBarChart" style="width:100%;display:block;"></canvas>
             </div>
             <div class="stat-detail-chart-block">
