@@ -58,6 +58,8 @@ let customFilterTo = null;
 // Cache in memoria per le stats: caricato fresh da Supabase ad ogni loadDashboardData().
 // Non finisce in localStorage — bypass del limite di 5MB.
 let _statsBookings = null;
+// Sequenza per scartare risposte stale in caso di click rapidi sui filtri
+let _loadDashboardSeq = 0;
 
 function getFilterDateRange(filter) {
     const now = new Date();
@@ -360,7 +362,7 @@ function hideDashboard() {
 
 // Updates only DOM-based elements (no canvas) — safe to call when analytics tab is hidden
 function updateNonChartData() {
-    const allBookings = BookingStorage.getAllBookings();
+    const allBookings = _statsBookings ?? BookingStorage.getAllBookings();
     const filteredBookings = getFilteredBookings(currentFilter);
     updateStatsCards(filteredBookings, allBookings);
     updateBookingsTable(filteredBookings);
@@ -368,24 +370,33 @@ function updateNonChartData() {
 }
 
 async function loadDashboardData() {
+    const seq = ++_loadDashboardSeq;
     BookingStorage.processPendingCancellations();
 
-    // Fetch stats fresh da Supabase: periodo corrente + precedente + prossimi 90 gg.
+    // Fetch stats fresh da Supabase: periodo corrente + precedente + ultimi 12 mesi + prossimi 90 gg.
     // Non usa localStorage — bypassa il limite di 5MB per dataset grandi.
+    // I detail panel mostrano grafici degli ultimi 12 mesi, quindi extFrom copre sempre 12 mesi.
     if (typeof BookingStorage !== 'undefined' && typeof supabaseClient !== 'undefined') {
         const { from, to } = getFilterDateRange(currentFilter);
         const prevRange = getPreviousFilterDateRange(currentFilter);
-        const extFrom = prevRange
-            ? new Date(Math.min(prevRange.from.getTime(), from.getTime()))
-            : from;
+        const now = new Date();
+        const twelveMonthsAgo = new Date(now.getFullYear() - 1, now.getMonth(), 1);
+        const extFrom = new Date(Math.min(
+            prevRange ? prevRange.from.getTime() : from.getTime(),
+            from.getTime(),
+            twelveMonthsAgo.getTime()
+        ));
         const extTo = new Date(Math.max(
             to.getTime(),
             Date.now() + 90 * 24 * 60 * 60 * 1000  // includi prossimi 90 gg per contesto
         ));
-        _statsBookings = await BookingStorage.fetchForAdmin(
+        const freshData = await BookingStorage.fetchForAdmin(
             _localDateStr(extFrom),
             _localDateStr(extTo)
         );
+        // Scarta la risposta se nel frattempo è arrivata una richiesta più recente
+        if (seq !== _loadDashboardSeq) return;
+        _statsBookings = freshData;
     }
 
     const filteredBookings = getFilteredBookings(currentFilter);
@@ -6268,7 +6279,7 @@ function toggleStatDetail(type) {
 }
 
 function renderFatturatoDetail(panel) {
-    const allBookings = BookingStorage.getAllBookings()
+    const allBookings = (_statsBookings ?? BookingStorage.getAllBookings())
         .filter(b => b.status !== 'cancelled' && b.paymentMethod !== 'lezione-gratuita');
     const { from, to } = getFilterDateRange(currentFilter);
     const now   = new Date();
@@ -6491,7 +6502,7 @@ function renderFatturatoDetail(panel) {
 }
 
 function renderPrenotazioniDetail(panel) {
-    const allBookings = BookingStorage.getAllBookings();
+    const allBookings = _statsBookings ?? BookingStorage.getAllBookings();
     const { from, to } = getFilterDateRange(currentFilter);
     const now   = new Date();
     const today = new Date(now); today.setHours(0, 0, 0, 0);
@@ -6673,7 +6684,7 @@ function renderPrenotazioniDetail(panel) {
 }
 
 function renderClientiDetail(panel) {
-    const allBookings = BookingStorage.getAllBookings();
+    const allBookings = _statsBookings ?? BookingStorage.getAllBookings();
     const { from, to } = getFilterDateRange(currentFilter);
     const periodFrom = from || new Date(0);
     const periodTo   = to   || new Date(9e15);
@@ -7124,7 +7135,7 @@ function saveAssicDate() {
 }
 
 function renderOccupancyDetail(panel) {
-    const allBookings = BookingStorage.getAllBookings().filter(b => b.status !== 'cancelled');
+    const allBookings = (_statsBookings ?? BookingStorage.getAllBookings()).filter(b => b.status !== 'cancelled');
     const { from, to } = getFilterDateRange(currentFilter);
     const now   = new Date();
     const today = new Date(now); today.setHours(0, 0, 0, 0);
