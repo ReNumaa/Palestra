@@ -3786,7 +3786,7 @@ function createDebtorCard(debtor, cardId) {
                     <span>✉️ ${_escHtml(debtor.email)}</span>
                 </div>
             </div>
-            <div class="debtor-amount">€${debtor.totalAmount}</div>
+            <div class="debtor-amount">Debito: €${debtor.totalAmount}</div>
             <div class="debtor-toggle">▼</div>
         </div>
         <div class="debtor-card-body">
