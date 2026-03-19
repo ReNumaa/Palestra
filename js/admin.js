@@ -6326,13 +6326,21 @@ function renderFatturatoDetail(panel) {
     const linearExtra    = Math.round(dailyRate * daysRemaining);
     // Best estimate: use whichever is higher — confirmed future or linear projection
     const totalEstimate  = pastRevenue + Math.max(futureRevenue, linearExtra);
-    // Weekly average based on all confirmed data in the period
-    const weeklyAvg      = Math.round((pastRevenue + futureRevenue) / totalDays * 7);
+    // Media settimanale basata sui giorni programmati in gestione orari
+    const overrides = BookingStorage.getScheduleOverrides();
+    let _weekSchedDays = 0;
+    for (let dd = 0; dd < totalDays; dd++) {
+        const day = new Date(from.getTime() + dd * 86400000);
+        const ds = `${day.getFullYear()}-${String(day.getMonth() + 1).padStart(2, '0')}-${String(day.getDate()).padStart(2, '0')}`;
+        if (overrides[ds] && overrides[ds].length > 0) _weekSchedDays++;
+    }
+    const weeklyAvg = _weekSchedDays > 0
+        ? Math.round((pastRevenue + futureRevenue) / _weekSchedDays * 7)
+        : 0;
 
     // ── Bar chart: mese corrente + prossimi 12 mesi ──────────────────────────
     const MONTH_NAMES = ['Gen','Feb','Mar','Apr','Mag','Giu','Lug','Ago','Set','Ott','Nov','Dic'];
     const barLabels = [], barValues = [], barHighlight = [], barProjected = [], barEstimate = [];
-    const overrides = BookingStorage.getScheduleOverrides();
 
     // Current-month projection for dashed extension
     const cmFrom    = new Date(now.getFullYear(), now.getMonth(), 1);
