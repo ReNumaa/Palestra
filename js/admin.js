@@ -6402,10 +6402,19 @@ function renderFatturatoDetail(panel) {
     }
 
     // ── Forecast chart: actual (past) + confirmed future as cumulative ────────
+    // Calcolo media ricavo/giorno programmato per la linea verde stima
+    let _fcSchedDays = 0;
+    for (let dd = 0; dd < totalDays; dd++) {
+        const day = new Date(from.getTime() + dd * 86400000);
+        const ds = `${day.getFullYear()}-${String(day.getMonth() + 1).padStart(2, '0')}-${String(day.getDate()).padStart(2, '0')}`;
+        if (overrides[ds] && overrides[ds].length > 0) _fcSchedDays++;
+    }
+    const avgRevPerSchedDay = _fcSchedDays > 0 ? (pastRevenue + futureRevenue) / _fcSchedDays : 0;
+
     const useWeekly  = totalDays > 60;
     const groupDays  = useWeekly ? 7 : 1;
     const groups     = Math.ceil(totalDays / groupDays);
-    const fActual = [], fForecast = [], fLabels = [];
+    const fActual = [], fForecast = [], fEstimate = [], fLabels = [];
 
     const todayGroupIdx = (today >= from && today <= to)
         ? Math.floor((today.getTime() - periodStart) / (86400000 * groupDays))
@@ -6420,11 +6429,21 @@ function renderFatturatoDetail(panel) {
         if (d >= today && d >= from && d <= to) futureRevByDate[b.date] = (futureRevByDate[b.date] || 0) + (SLOT_PRICES[b.slotType] || 0);
     });
 
-    let cumRev = 0, cumFuture = 0;
+    let cumRev = 0, cumFuture = 0, cumEstExtra = 0;
     for (let g = 0; g < groups; g++) {
         const gStart = new Date(periodStart + g * groupDays * 86400000);
         const gEnd   = new Date(periodStart + (g + 1) * groupDays * 86400000 - 1);
         fLabels.push(`${gStart.getDate()}/${gStart.getMonth() + 1}`);
+
+        // Conta giorni futuri senza slot in questo gruppo (per stima verde)
+        let unschInGroup = 0;
+        for (let dd = 0; dd < groupDays; dd++) {
+            const day = new Date(periodStart + (g * groupDays + dd) * 86400000);
+            if (day < today || day > to) continue;
+            const ds = `${day.getFullYear()}-${String(day.getMonth() + 1).padStart(2, '0')}-${String(day.getDate()).padStart(2, '0')}`;
+            if (!overrides[ds] || overrides[ds].length === 0) unschInGroup++;
+        }
+        cumEstExtra += unschInGroup * avgRevPerSchedDay;
 
         if (gEnd < today) {
             // Fully past — actual only
@@ -6436,6 +6455,7 @@ function renderFatturatoDetail(panel) {
             cumRev += gRev;
             fActual.push(cumRev);
             fForecast.push(null);
+            fEstimate.push(null);
         } else if (gStart >= today) {
             // Fully future — confirmed bookings cumulative
             let gFutureRev = 0;
@@ -6446,6 +6466,7 @@ function renderFatturatoDetail(panel) {
             cumFuture += gFutureRev;
             fActual.push(null);
             fForecast.push(pastRevenue + cumFuture);
+            fEstimate.push(cumEstExtra > 0 ? pastRevenue + cumFuture + Math.round(cumEstExtra) : null);
         } else {
             // Straddles today — partial actual + start of forecast (connect both lines)
             let gRev = 0, gFutureRev = 0;
@@ -6458,6 +6479,7 @@ function renderFatturatoDetail(panel) {
             cumFuture += gFutureRev;
             fActual.push(cumRev);
             fForecast.push(cumRev + cumFuture);
+            fEstimate.push(cumEstExtra > 0 ? cumRev + cumFuture + Math.round(cumEstExtra) : null);
         }
     }
 
@@ -6574,7 +6596,7 @@ function renderFatturatoDetail(panel) {
         if (barCanvas) new SimpleChart(barCanvas).drawBarChart({ labels: barLabels, values: barValues, highlight: barHighlight, projected: barProjected, estimated: barEstimate });
 
         const fcCanvas = document.getElementById('detailForecastChart');
-        if (fcCanvas) new SimpleChart(fcCanvas).drawForecastChart({ actual: fActual, forecast: fForecast, labels: fLabels, todayIndex: todayGroupIdx });
+        if (fcCanvas) new SimpleChart(fcCanvas).drawForecastChart({ actual: fActual, forecast: fForecast, estimated: fEstimate, labels: fLabels, todayIndex: todayGroupIdx });
 
         const typeCanvas = document.getElementById('detailTypeChart');
         if (typeCanvas && typeStats.length > 0) new SimpleChart(typeCanvas).drawPieChart(typePieData, { colors: ['#3b82f6', '#f59e0b', '#22c55e'] });

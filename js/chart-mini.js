@@ -241,8 +241,8 @@ class SimpleChart {
         const n = data.labels.length;
         if (n === 0) return;
 
-        const allVals = [...(data.actual || []), ...(data.forecast || [])];
-        const maxVal = Math.max(...allVals, 1);
+        const allVals = [...(data.actual || []), ...(data.forecast || []), ...(data.estimated || [])];
+        const maxVal = Math.max(...allVals.filter(v => v != null), 1);
         const step = Math.ceil(maxVal / 5) || 1;
         const axisMax = step * 5;
 
@@ -291,6 +291,7 @@ class SimpleChart {
 
         drawLine(data.actual, '#3b82f6', false);
         drawLine(data.forecast, '#94a3b8', true);
+        drawLine(data.estimated, '#22c55e', true);
 
         // X labels (thin out if too many)
         const skip = Math.ceil(n / 8);
@@ -303,7 +304,8 @@ class SimpleChart {
         // Legend
         const legendItems = [
             { color: '#3b82f6', label: 'Effettivo' },
-            { color: '#94a3b8', label: 'Proiezione', dashed: true }
+            { color: '#94a3b8', label: 'Confermato', dashed: true },
+            ...(data.estimated?.some(v => v != null) ? [{ color: '#22c55e', label: 'Stima', dashed: true }] : [])
         ];
         let lx = pad.left;
         legendItems.forEach(item => {
