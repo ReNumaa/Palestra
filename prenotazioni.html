@@ -923,11 +923,25 @@
                 || !user.indirizzo_cap
                 || (CertEditableStorage.get() && !user.medical_cert_expiry);
 
+            let html = '';
             if (missing) {
-                el.innerHTML = `<div class="preno-cert-warning preno-cert-expired preno-cert-clickable" onclick="openEditProfileModal()">📋 Completa anagrafica</div>`;
-            } else {
-                el.innerHTML = '';
+                html += `<div class="preno-cert-warning preno-cert-expired preno-cert-clickable" onclick="openEditProfileModal()">📋 Completa anagrafica</div>`;
             }
+
+            // Warning certificato medico in scadenza (entro 30 giorni) o scaduto
+            if (user.medical_cert_expiry) {
+                const today = new Date(); today.setHours(0,0,0,0);
+                const [cy, cm, cd] = user.medical_cert_expiry.split('-').map(Number);
+                const expiry = new Date(cy, cm - 1, cd); expiry.setHours(0,0,0,0);
+                const diffDays = Math.round((expiry - today) / (1000 * 60 * 60 * 24));
+                if (diffDays < 0) {
+                    html += `<div class="preno-cert-warning preno-cert-expired">⚠️ Certificato medico scaduto</div>`;
+                } else if (diffDays <= 30) {
+                    html += `<div class="preno-cert-warning preno-cert-expiring">⏳ Cert. medico scade fra ${diffDays} giorn${diffDays === 1 ? 'o' : 'i'}</div>`;
+                }
+            }
+
+            el.innerHTML = html;
         }
 
         // ── Edit profile modal ────────────────────────────────────────────
