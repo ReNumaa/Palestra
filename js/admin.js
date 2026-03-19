@@ -6482,6 +6482,21 @@ function renderFatturatoDetail(panel) {
         values: typeStats.map(t => t.pastRev + t.futureRev),
     };
 
+    // ── Stima futura basata su giorni programmati nel periodo filtrato ───────
+    const schedOverrides = BookingStorage.getScheduleOverrides();
+    const periodTotalDays = Math.ceil((to - from) / 86400000);
+    let periodScheduledDays = 0;
+    for (let dd = 0; dd < periodTotalDays; dd++) {
+        const day = new Date(from.getTime() + dd * 86400000);
+        const ds = `${day.getFullYear()}-${String(day.getMonth() + 1).padStart(2, '0')}-${String(day.getDate()).padStart(2, '0')}`;
+        if (schedOverrides[ds] && schedOverrides[ds].length > 0) periodScheduledDays++;
+    }
+    const knownPeriodRev = pastRevenue + futureRevenue;
+    const periodUnscheduledDays = periodTotalDays - periodScheduledDays;
+    const scheduleEstimate = (periodScheduledDays > 0 && periodUnscheduledDays > 0)
+        ? knownPeriodRev + Math.round(knownPeriodRev / periodScheduledDays * periodUnscheduledDays)
+        : knownPeriodRev;
+
     // ── Render ────────────────────────────────────────────────────────────────
     panel.innerHTML = `
         <div class="stat-detail-header">
@@ -6498,8 +6513,8 @@ function renderFatturatoDetail(panel) {
                 <div class="stat-detail-kpi-label">Prenotato futuro</div>
             </div>
             <div class="stat-detail-kpi stat-detail-kpi--projected">
-                <div class="stat-detail-kpi-value">€${totalEstimate}</div>
-                <div class="stat-detail-kpi-label">Stima periodo</div>
+                <div class="stat-detail-kpi-value">€${scheduleEstimate}</div>
+                <div class="stat-detail-kpi-label">Stima futura</div>
             </div>
             <div class="stat-detail-kpi">
                 <div class="stat-detail-kpi-value">€${weeklyAvg}</div>
@@ -6532,8 +6547,8 @@ function renderFatturatoDetail(panel) {
                     <span class="sdb-value">€${pastRevenue + futureRevenue}</span>
                 </div>
                 <div class="sdb-row sdb-row--projected">
-                    <span class="sdb-label">Stima al ${to.getDate()}/${to.getMonth() + 1}/${to.getFullYear()} (confermato + proiezione)</span>
-                    <span class="sdb-value">€${totalEstimate}</span>
+                    <span class="sdb-label">Stima futura (${periodScheduledDays}/${periodTotalDays} gg programmati)</span>
+                    <span class="sdb-value">€${scheduleEstimate}</span>
                 </div>
             </div>
         </div>
