@@ -6306,7 +6306,7 @@ function renderFatturatoDetail(panel) {
     const yesterday      = new Date(today); yesterday.setDate(yesterday.getDate() - 1);
     const yesterdayCap   = Math.min(yesterday.getTime(), to.getTime());
     const daysElapsed    = today <= from ? 1 : Math.max(1, Math.round((yesterdayCap - periodStart) / 86400000) + 1);
-    const totalDays      = Math.max(1, Math.round((to.getTime() - periodStart) / 86400000) + 1);
+    const totalDays      = Math.max(1, Math.ceil((to.getTime() - periodStart) / 86400000));
     const daysRemaining  = Math.max(0, totalDays - daysElapsed);
     const dailyRate      = pastRevenue / daysElapsed;
     const linearExtra    = Math.round(dailyRate * daysRemaining);
@@ -6544,7 +6544,7 @@ function renderPrenotazioniDetail(panel) {
     });
 
     // ── KPIs ─────────────────────────────────────────────────────────────────
-    const totalDays  = Math.max(1, Math.round((to - from) / 86400000) + 1);
+    const totalDays  = Math.max(1, Math.ceil((to - from) / 86400000));
     const weeklyAvg  = (periodBookings.length / totalDays * 7).toFixed(1);
     const cancelRate = cancelledInPeriod.length > 0
         ? Math.round(cancelledInPeriod.length / (periodBookings.length + cancelledInPeriod.length) * 100)
