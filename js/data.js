@@ -1401,7 +1401,9 @@ class CreditStorage {
         return this._cache;
     }
 
-    static _save(data) {
+    static _pendingSave = null;
+
+    static async _save(data) {
         this._cache = data;
         if (typeof supabaseClient === 'undefined') return;
         const rows = Object.values(data).map(r => ({
@@ -1412,7 +1414,7 @@ class CreditStorage {
             free_balance: r.freeBalance  || 0,
         }));
         if (rows.length === 0) return;
-        supabaseClient.from('credits')
+        const p = supabaseClient.from('credits')
             .upsert(rows, { onConflict: 'email' })
             .then(({ error }) => {
                 if (error) {
@@ -1420,6 +1422,9 @@ class CreditStorage {
                     if (typeof showToast === 'function') showToast('⚠️ Errore salvataggio crediti sul server. Ricarica la pagina.', 'error', 5000);
                 }
             });
+        this._pendingSave = p;
+        await p;
+        if (this._pendingSave === p) this._pendingSave = null;
     }
 
     static async syncFromSupabase() {
@@ -1521,7 +1526,7 @@ class CreditStorage {
         return key ? (all[key]?.balance || 0) : 0;
     }
 
-    static addCredit(whatsapp, email, name, amount, note = '', displayAmount = null, freeLesson = false, hiddenRefund = false, bookingRef = null, method = '') {
+    static async addCredit(whatsapp, email, name, amount, note = '', displayAmount = null, freeLesson = false, hiddenRefund = false, bookingRef = null, method = '') {
         // amount=0 is allowed for informational entries (payment log) that don't affect balance
         const all = this._getAll();
         let key = this._findKey(whatsapp, email);
@@ -1542,19 +1547,18 @@ class CreditStorage {
         if (bookingRef) entry.bookingRef = bookingRef;
         if (method) entry.method = method;
         all[key].history.push(entry);
-        this._save(all);
+        await this._save(all);
 
-        // Inserisce la nuova voce in credit_history su Supabase (fire-and-forget).
-        // Il balance è già salvato sincrono via _save(); questo log è best-effort.
+        // Inserisce la nuova voce in credit_history su Supabase e attende il completamento.
         if (typeof supabaseClient !== 'undefined') {
             const _entry = entry;
             const _email = (email || '').toLowerCase();
             const _rec = all[key];
-            this._insertCreditHistory(_email, _rec, _entry);
+            await this._insertCreditHistory(_email, _rec, _entry);
         }
     }
 
-    static hidePaymentEntryByBooking(whatsapp, email, bookingId) {
+    static async hidePaymentEntryByBooking(whatsapp, email, bookingId) {
         const all = this._getAll();
         const key = this._findKey(whatsapp, email);
         if (!key || !all[key]?.history) return;
@@ -1565,7 +1569,7 @@ class CreditStorage {
                 changed = true;
             }
         });
-        if (changed) this._save(all);
+        if (changed) await this._save(all);
     }
 
     static getFreeBalance(whatsapp, email) {
@@ -1713,7 +1717,9 @@ class ManualDebtStorage {
         return this._cache;
     }
 
-    static _save(data) {
+    static _pendingSave = null;
+
+    static async _save(data) {
         this._cache = data;
         if (typeof supabaseClient === 'undefined') return;
         const rows = Object.values(data).map(r => ({
@@ -1724,7 +1730,7 @@ class ManualDebtStorage {
             history:  r.history  || [],
         }));
         if (rows.length === 0) return;
-        supabaseClient.from('manual_debts')
+        const p = supabaseClient.from('manual_debts')
             .upsert(rows, { onConflict: 'email' })
             .then(({ error }) => {
                 if (error) {
@@ -1732,6 +1738,9 @@ class ManualDebtStorage {
                     if (typeof showToast === 'function') showToast('⚠️ Errore salvataggio debiti sul server. Ricarica la pagina.', 'error', 5000);
                 }
             });
+        this._pendingSave = p;
+        await p;
+        if (this._pendingSave === p) this._pendingSave = null;
     }
 
     static async syncFromSupabase() {
@@ -1779,7 +1788,7 @@ class ManualDebtStorage {
 
     // Positive amount = add debt; negative = reduce/pay debt
     // entryType: optional tag (e.g. 'mora') stored on the history entry for Registro display
-    static addDebt(whatsapp, email, name, amount, note = '', method = '', entryType = '') {
+    static async addDebt(whatsapp, email, name, amount, note = '', method = '', entryType = '') {
         if (amount === 0) return;
         const all = this._getAll();
         let key = this._findKey(whatsapp, email);
@@ -1791,7 +1800,7 @@ class ManualDebtStorage {
         const entry = { date: new Date().toISOString(), amount, note, method };
         if (entryType) entry.entryType = entryType;
         all[key].history.push(entry);
-        this._save(all);
+        await this._save(all);
     }
 
     static getAllWithBalance() {
@@ -1805,20 +1814,18 @@ class ManualDebtStorage {
         return key ? this._getAll()[key] : null;
     }
 
-    static clearRecord(whatsapp, email) {
+    static async clearRecord(whatsapp, email) {
         const all = this._getAll();
         const key = this._findKey(whatsapp, email);
-        if (key) { delete all[key]; this._save(all); }
+        if (key) { delete all[key]; await this._save(all); }
         if (typeof supabaseClient !== 'undefined' && email) {
-            supabaseClient.from('manual_debts').delete().eq('email', (email || '').toLowerCase())
-                .then(({ error }) => {
-                    if (error) console.error('[Supabase] ManualDebtStorage.clearRecord error:', error.message);
-                });
+            const { error } = await supabaseClient.from('manual_debts').delete().eq('email', (email || '').toLowerCase());
+            if (error) console.error('[Supabase] ManualDebtStorage.clearRecord error:', error.message);
         }
     }
 
     // Elimina una singola voce di debito manuale per data (ISO string) e ricalcola il saldo
-    static deleteDebtEntry(whatsapp, email, entryDate) {
+    static async deleteDebtEntry(whatsapp, email, entryDate) {
         const all = this._getAll();
         const key = this._findKey(whatsapp, email);
         if (!key || !all[key]) return false;
@@ -1830,14 +1837,12 @@ class ManualDebtStorage {
         ) / 100;
         const wasDeleted = all[key].history.length === 0;
         if (wasDeleted) delete all[key];
-        this._save(all);
+        await this._save(all);
         // Se il record è stato eliminato completamente, rimuovilo anche da Supabase
         // (_save fa upsert dei record rimasti, ma non cancella quelli assenti)
         if (wasDeleted && typeof supabaseClient !== 'undefined' && email) {
-            supabaseClient.from('manual_debts').delete().eq('email', (email || '').toLowerCase())
-                .then(({ error }) => {
-                    if (error) console.error('[Supabase] deleteDebtEntry cleanup error:', error.message);
-                });
+            const { error } = await supabaseClient.from('manual_debts').delete().eq('email', (email || '').toLowerCase());
+            if (error) console.error('[Supabase] deleteDebtEntry cleanup error:', error.message);
         }
         return true;
     }
@@ -2143,6 +2148,93 @@ class UserStorage {
         );
     }
 }
+
+// --- Flush pending credit/debt saves on page unload (critical for mobile PWA) ---
+// On mobile, visibilitychange fires reliably when switching apps or closing tabs;
+// beforeunload is the desktop fallback.
+(function _installSaveFlushHandlers() {
+    function _flushPendingSaves() {
+        const promises = [];
+        if (typeof CreditStorage !== 'undefined' && CreditStorage._pendingSave) {
+            promises.push(CreditStorage._pendingSave);
+        }
+        if (typeof ManualDebtStorage !== 'undefined' && ManualDebtStorage._pendingSave) {
+            promises.push(ManualDebtStorage._pendingSave);
+        }
+        return promises;
+    }
+
+    // Keep a cached auth token so we can use it synchronously on unload
+    let _cachedAccessToken = '';
+    if (typeof supabaseClient !== 'undefined') {
+        // Refresh cached token on auth state changes
+        supabaseClient.auth.onAuthStateChange((_event, session) => {
+            _cachedAccessToken = session?.access_token || '';
+        });
+        // Initial token grab
+        supabaseClient.auth.getSession().then(({ data }) => {
+            _cachedAccessToken = data?.session?.access_token || '';
+        });
+    }
+
+    function _keepaliveSave() {
+        // Use the global constants from supabase-client.js
+        if (typeof SUPABASE_URL === 'undefined' || typeof SUPABASE_ANON_KEY === 'undefined') return;
+        const sbAuth = _cachedAccessToken
+            ? 'Bearer ' + _cachedAccessToken
+            : 'Bearer ' + SUPABASE_ANON_KEY;
+        try {
+            // Re-save credits
+            const creditRows = Object.values(CreditStorage._cache || {}).map(r => ({
+                name: r.name, whatsapp: r.whatsapp || null,
+                email: (r.email || '').toLowerCase(),
+                balance: r.balance || 0, free_balance: r.freeBalance || 0,
+            }));
+            if (creditRows.length > 0) {
+                fetch(SUPABASE_URL + '/rest/v1/credits', {
+                    method: 'POST', keepalive: true,
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'apikey': SUPABASE_ANON_KEY,
+                        'Authorization': sbAuth,
+                        'Prefer': 'resolution=merge-duplicates',
+                    },
+                    body: JSON.stringify(creditRows),
+                }).catch(() => {});
+            }
+            // Re-save debts
+            const debtRows = Object.values(ManualDebtStorage._cache || {}).map(r => ({
+                name: r.name, whatsapp: r.whatsapp || null,
+                email: (r.email || '').toLowerCase(),
+                balance: r.balance || 0, history: r.history || [],
+            }));
+            if (debtRows.length > 0) {
+                fetch(SUPABASE_URL + '/rest/v1/manual_debts', {
+                    method: 'POST', keepalive: true,
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'apikey': SUPABASE_ANON_KEY,
+                        'Authorization': sbAuth,
+                        'Prefer': 'resolution=merge-duplicates',
+                    },
+                    body: JSON.stringify(debtRows),
+                }).catch(() => {});
+            }
+        } catch (_) { /* best effort */ }
+    }
+
+    // visibilitychange is the most reliable event on mobile
+    document.addEventListener('visibilitychange', () => {
+        if (document.visibilityState === 'hidden') {
+            _flushPendingSaves();
+            _keepaliveSave();
+        }
+    });
+    window.addEventListener('beforeunload', () => {
+        _flushPendingSaves();
+        _keepaliveSave();
+    });
+})();
 
 // processPendingCancellations() è chiamata solo da pagine admin (admin.js).
 // Il pg_cron server-side (job "process-pending-cancellations", ogni 15 min) è la fonte autorevole.

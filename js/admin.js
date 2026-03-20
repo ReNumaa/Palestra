@@ -1906,14 +1906,19 @@ function renderAdminDayView(dateInfo) {
         const dayBookings = BookingStorage.getAllBookings().filter(b => b.date === dateInfo.formatted);
         const seen = new Set();
         const _slotPrices = { 'personal-training': 5, 'small-group': 10, 'group-class': 30 };
+        // Reconcile credits in background — await all RPCs to avoid fire-and-forget
+        const rpcPromises = [];
         dayBookings.forEach(b => {
             if (b.email && !seen.has(b.email.toLowerCase())) {
                 seen.add(b.email.toLowerCase());
-                supabaseClient.rpc('apply_credit_to_past_bookings', {
-                    p_email: b.email, p_slot_prices: _slotPrices
-                }).then(() => {}, () => {});
+                rpcPromises.push(
+                    supabaseClient.rpc('apply_credit_to_past_bookings', {
+                        p_email: b.email, p_slot_prices: _slotPrices
+                    }).catch(() => {})
+                );
             }
         });
+        if (rpcPromises.length) Promise.all(rpcPromises).catch(() => {});
     }
 
     scheduledSlots.forEach(scheduledSlot => {
@@ -3855,7 +3860,7 @@ function selectDebtorPayMethod(btn) {
     btn.classList.add('active');
 }
 
-function payAllDebtsInline(whatsapp, email, name, btn) {
+async function payAllDebtsInline(whatsapp, email, name, btn) {
     const footer = btn.closest('.debtor-pay-footer');
     const methodSelect = footer.querySelector('.debtor-method-select');
     const method = methodSelect ? methodSelect.value : '';
@@ -3882,7 +3887,7 @@ function payAllDebtsInline(whatsapp, email, name, btn) {
     // Also pay manual debts for this contact
     const manualDebt = ManualDebtStorage.getBalance(whatsapp, email);
     if (manualDebt > 0) {
-        ManualDebtStorage.addDebt(whatsapp, email, name, -manualDebt,
+        await ManualDebtStorage.addDebt(whatsapp, email, name, -manualDebt,
             `Saldato (${method})`, method);
         totalPaid += manualDebt;
     }
@@ -3894,13 +3899,13 @@ function payAllDebtsInline(whatsapp, email, name, btn) {
     const existingCredit = CreditStorage.getRecord(whatsapp, email)?.balance || 0;
     const creditToUse = Math.round(Math.min(existingCredit, totalPaid) * 100) / 100;
     if (creditToUse > 0) {
-        CreditStorage.addCredit(whatsapp, email, name, -creditToUse,
+        await CreditStorage.addCredit(whatsapp, email, name, -creditToUse,
             `Credito applicato (${method})`);
     }
     const cashCollected = Math.round((totalPaid - creditToUse) * 100) / 100;
     if (cashCollected > 0) {
         const methodLabel = { contanti: 'Contanti', carta: 'Carta', iban: 'Bonifico' }[method] || method;
-        CreditStorage.addCredit(whatsapp, email, name, 0,
+        await CreditStorage.addCredit(whatsapp, email, name, 0,
             `${methodLabel} ricevuto`, cashCollected);
     }
 
@@ -4263,7 +4268,7 @@ async function saveManualEntry() {
                 console.log('[admin_add_debt]', data);
                 await ManualDebtStorage.syncFromSupabase();
             } else {
-                ManualDebtStorage.addDebt(whatsapp, email, name, amount,
+                await ManualDebtStorage.addDebt(whatsapp, email, name, amount,
                     note || 'Debito manuale', method);
             }
             renderPaymentsTab();
@@ -4544,21 +4549,21 @@ async function paySelectedDebts() {
         });
         BookingStorage.replaceAllBookings(bookings);
         if (manualDebtCb && contact) {
-            ManualDebtStorage.addDebt(contact.whatsapp, contact.email, contact.name, -manualDebtOffset, 'Saldo debito manuale', paymentMethod);
+            await ManualDebtStorage.addDebt(contact.whatsapp, contact.email, contact.name, -manualDebtOffset, 'Saldo debito manuale', paymentMethod);
         }
         if (!isFreeLesson && amountPaid > 0 && contact) {
             const methodLabel = { contanti: 'Contanti', carta: 'Carta', iban: 'Bonifico' }[paymentMethod] || paymentMethod;
             if (creditDelta > 0) {
-                CreditStorage.addCredit(contact.whatsapp, contact.email, contact.name, creditDelta, `Pagamento in acconto di €${amountPaid}`, amountPaid, false, false, null, paymentMethod);
+                await CreditStorage.addCredit(contact.whatsapp, contact.email, contact.name, creditDelta, `Pagamento in acconto di €${amountPaid}`, amountPaid, false, false, null, paymentMethod);
                 // Reconcile via RPC dopo aggiunta credito
                 if (typeof supabaseClient !== 'undefined' && contact.email) {
-                    supabaseClient.rpc('apply_credit_to_past_bookings', {
+                    await supabaseClient.rpc('apply_credit_to_past_bookings', {
                         p_email: contact.email,
                         p_slot_prices: { 'personal-training': 5, 'small-group': 10, 'group-class': 30 }
-                    }).then(() => {}, () => {});
+                    });
                 }
             } else {
-                CreditStorage.addCredit(contact.whatsapp, contact.email, contact.name, 0, `${methodLabel} ricevuto`, amountPaid, false, false, null, paymentMethod);
+                await CreditStorage.addCredit(contact.whatsapp, contact.email, contact.name, 0, `${methodLabel} ricevuto`, amountPaid, false, false, null, paymentMethod);
             }
         }
         closeDebtPopup();
