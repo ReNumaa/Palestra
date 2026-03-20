@@ -2164,18 +2164,20 @@ class UserStorage {
         return promises;
     }
 
-    // Keep a cached auth token so we can use it synchronously on unload
+    // Keep a cached auth token so we can use it synchronously on unload.
+    // Defer registration to avoid interfering with initAuth() INITIAL_SESSION flow.
     let _cachedAccessToken = '';
-    if (typeof supabaseClient !== 'undefined') {
-        // Refresh cached token on auth state changes
-        supabaseClient.auth.onAuthStateChange((_event, session) => {
-            _cachedAccessToken = session?.access_token || '';
-        });
-        // Initial token grab
-        supabaseClient.auth.getSession().then(({ data }) => {
-            _cachedAccessToken = data?.session?.access_token || '';
-        });
-    }
+    setTimeout(() => {
+        if (typeof supabaseClient === 'undefined') return;
+        try {
+            supabaseClient.auth.onAuthStateChange((_event, session) => {
+                _cachedAccessToken = session?.access_token || '';
+            });
+            supabaseClient.auth.getSession().then(({ data }) => {
+                _cachedAccessToken = data?.session?.access_token || '';
+            }).catch(() => {});
+        } catch (_) { /* supabase not ready */ }
+    }, 2000);
 
     function _keepaliveSave() {
         // Use the global constants from supabase-client.js
