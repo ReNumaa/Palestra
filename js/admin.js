@@ -1906,19 +1906,14 @@ function renderAdminDayView(dateInfo) {
         const dayBookings = BookingStorage.getAllBookings().filter(b => b.date === dateInfo.formatted);
         const seen = new Set();
         const _slotPrices = { 'personal-training': 5, 'small-group': 10, 'group-class': 30 };
-        // Reconcile credits in background — await all RPCs to avoid fire-and-forget
-        const rpcPromises = [];
         dayBookings.forEach(b => {
             if (b.email && !seen.has(b.email.toLowerCase())) {
                 seen.add(b.email.toLowerCase());
-                rpcPromises.push(
-                    supabaseClient.rpc('apply_credit_to_past_bookings', {
-                        p_email: b.email, p_slot_prices: _slotPrices
-                    }).catch(() => {})
-                );
+                supabaseClient.rpc('apply_credit_to_past_bookings', {
+                    p_email: b.email, p_slot_prices: _slotPrices
+                }).then(() => {}, () => {});
             }
         });
-        if (rpcPromises.length) Promise.all(rpcPromises).catch(() => {});
     }
 
     scheduledSlots.forEach(scheduledSlot => {
