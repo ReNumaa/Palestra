@@ -7115,6 +7115,39 @@ function renderClientiDetail(panel) {
     const topCancellers = clients.filter(c => c.cancelled > 0).sort((a, b) => b.cancelled - a.cancelled).slice(0, 5);
     const mostLoyal    = [...activeClients].filter(c => c.cancelled === 0).sort((a, b) => b.total - a.total).slice(0, 5);
 
+    // ── Utilizzatori bonus nel periodo ───────────────────────────────────────
+    const bonusUsers = {};
+    allBookings.forEach(b => {
+        if (!b.cancelledWithBonus || b.status !== 'cancelled') return;
+        const bd = new Date(b.date + 'T00:00:00');
+        if (bd < periodFrom || bd > periodTo) return;
+        const key = b.email || b.whatsapp || b.name;
+        if (!bonusUsers[key]) bonusUsers[key] = { name: b.name, count: 0, saved: 0 };
+        bonusUsers[key].count++;
+        bonusUsers[key].saved += SLOT_PRICES[b.slotType] || 0;
+    });
+    const bonusUsersList = Object.values(bonusUsers).sort((a, b) => b.count - a.count);
+    const bonusTotalSaved = bonusUsersList.reduce((s, c) => s + c.saved, 0);
+
+    // ── Pagamento more nel periodo ───────────────────────────────────────────
+    const moraUsers = {};
+    const allDebtsC = ManualDebtStorage._getAll();
+    for (const dKey in allDebtsC) {
+        const rec = allDebtsC[dKey];
+        if (!rec.history) continue;
+        rec.history.forEach(h => {
+            if (h.entryType !== 'mora' || h.amount <= 0) return;
+            const d = new Date(h.date);
+            if (d < periodFrom || d > periodTo) return;
+            const uKey = rec.email || rec.whatsapp || rec.name;
+            if (!moraUsers[uKey]) moraUsers[uKey] = { name: rec.name, count: 0, total: 0 };
+            moraUsers[uKey].count++;
+            moraUsers[uKey].total += h.amount;
+        });
+    }
+    const moraUsersList = Object.values(moraUsers).sort((a, b) => b.total - a.total);
+    const moraTotalAmount = Math.round(moraUsersList.reduce((s, c) => s + c.total, 0) * 100) / 100;
+
     const _emptyRow = '<div class="sdb-row"><span class="sdb-label" style="color:#9ca3af">Nessun dato</span></div>';
     const _clientRows = (list, valueFn) => list.length === 0 ? _emptyRow :
         list.map((c, i) => `
@@ -7173,6 +7206,35 @@ function renderClientiDetail(panel) {
                 <h4>⭐ Più fedeli (0 cancellazioni)</h4>
                 <div class="sdb-rows">
                     ${_clientRows(mostLoyal, c => `${c.total} lezioni`)}
+                </div>
+            </div>
+        </div>
+
+        <div class="stat-detail-charts">
+            <div class="stat-detail-breakdown">
+                <h4>🎁 Utilizzatori bonus (${bonusUsersList.length}) — €${bonusTotalSaved} risparmiati</h4>
+                <div class="sdb-rows">
+                    ${bonusUsersList.length === 0
+                        ? '<div class="sdb-row"><span class="sdb-label" style="color:#9ca3af">Nessun bonus usato nel periodo</span></div>'
+                        : bonusUsersList.map((c, i) => `
+                            <div class="sdb-row">
+                                <span class="sdb-label">${i + 1}. ${c.name}</span>
+                                <span class="sdb-value">${c.count} bonus — €${c.saved}</span>
+                            </div>`).join('')
+                    }
+                </div>
+            </div>
+            <div class="stat-detail-breakdown">
+                <h4>💸 Pagamento more (${moraUsersList.length}) — €${moraTotalAmount}</h4>
+                <div class="sdb-rows">
+                    ${moraUsersList.length === 0
+                        ? '<div class="sdb-row"><span class="sdb-label" style="color:#9ca3af">Nessuna mora nel periodo</span></div>'
+                        : moraUsersList.map((c, i) => `
+                            <div class="sdb-row">
+                                <span class="sdb-label">${i + 1}. ${c.name}</span>
+                                <span class="sdb-value">${c.count} more — €${c.total}</span>
+                            </div>`).join('')
+                    }
                 </div>
             </div>
         </div>
