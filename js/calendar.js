@@ -497,7 +497,7 @@ function createMobileSlotCard(dateInfo, scheduledSlot) {
     slotCard.innerHTML = `
         <div class="mobile-slot-header">
             <span class="mobile-slot-time">🕐 ${timeSlot}</span>
-            ${!_isNonBookable(slotType) ? `<span class="mobile-slot-available ${spotsColorClass(remainingSpots)}">${isFull ? 'COMPLETO' : remainingSpots + (remainingSpots === 1 ? ' disponibile' : ' disponibili')}</span>` : ''}
+            ${!_isNonBookable(slotType) ? `<span class="mobile-slot-available ${spotsColorClass(remainingSpots)}">${isFull ? 'Completo' : remainingSpots + (remainingSpots === 1 ? ' disponibile' : ' disponibili')}</span>` : ''}
         </div>
         <div class="mobile-slot-type">${SLOT_NAMES[slotType]}</div>
     `;
