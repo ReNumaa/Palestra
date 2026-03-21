@@ -275,9 +275,14 @@
                     })
                     .subscribe();
                 // Ascolta anche le modifiche a app_settings (es. clearAllData da altro browser)
+                // e settings (impostazioni admin: soglie, blocchi, settimane standard)
                 supabaseClient
                     .channel('appsettings-rt-calendar')
                     .on('postgres_changes', { event: '*', schema: 'public', table: 'app_settings' }, async () => {
+                        await BookingStorage.syncAppSettingsFromSupabase();
+                        _rerender();
+                    })
+                    .on('postgres_changes', { event: '*', schema: 'public', table: 'settings' }, async () => {
                         await BookingStorage.syncAppSettingsFromSupabase();
                         _rerender();
                     })

@@ -905,10 +905,12 @@
                         if (typeof loadDashboardData === 'function') loadDashboardData();
                         if (typeof renderAdminCalendar === 'function') renderAdminCalendar();
                         if (typeof renderAdminDayView === 'function' && typeof selectedAdminDay !== 'undefined' && selectedAdminDay) renderAdminDayView(selectedAdminDay);
+                        if (typeof renderScheduleManager === 'function') renderScheduleManager();
                         const activeTab = document.querySelector('.admin-tab.active');
                         if (activeTab) {
                             if (activeTab.dataset.tab === 'payments' && typeof renderPaymentsTab === 'function') renderPaymentsTab();
                             if (activeTab.dataset.tab === 'clients' && typeof renderClientsTab === 'function') renderClientsTab();
+                            if (activeTab.dataset.tab === 'settings' && typeof renderSettingsTab === 'function') renderSettingsTab();
                         }
                     }, 600);
                 }
@@ -921,6 +923,7 @@
                     .on('postgres_changes', { event: '*', schema: 'public', table: 'credits' }, _adminDebouncedSync)
                     .on('postgres_changes', { event: '*', schema: 'public', table: 'credit_history' }, _adminDebouncedSync)
                     .on('postgres_changes', { event: '*', schema: 'public', table: 'bonuses' }, _adminDebouncedSync)
+                    .on('postgres_changes', { event: '*', schema: 'public', table: 'settings' }, _adminDebouncedSync)
                     .subscribe();
             }
         })();
