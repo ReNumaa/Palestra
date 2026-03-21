@@ -336,8 +336,8 @@ class SimpleChart {
             return;
         }
 
-        // Layout: mobile (narrow) = chart top + legend bottom; desktop = chart left + legend right
-        const isMobile = cw < 340;
+        // Layout: mobile = chart top + legend bottom; desktop = chart left + legend right
+        const isMobile = options.mobile || false;
         const legendItemH = 22;
         const legendH = data.labels.length * legendItemH + 8;
         const chartAreaH = isMobile ? ch - legendH : ch;

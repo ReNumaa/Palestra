@@ -6695,8 +6695,9 @@ function renderFatturatoDetail(panel) {
 
         const typeCanvas = document.getElementById('detailTypeChart');
         if (typeCanvas && typeStats.length > 0) {
-            const pieH = window.innerWidth < 768 ? 310 : 250;
-            new SimpleChart(typeCanvas, { height: pieH }).drawPieChart(typePieData, { colors: pieColors });
+            const isMobilePie = window.innerWidth < 768;
+            const pieH = isMobilePie ? 310 : 250;
+            new SimpleChart(typeCanvas, { height: pieH }).drawPieChart(typePieData, { colors: pieColors, mobile: isMobilePie });
         }
     });
 }
