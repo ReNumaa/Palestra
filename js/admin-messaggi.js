@@ -151,6 +151,14 @@ async function sendAdminMessage() {
     }
 }
 
+// ── Bootstrap ─────────────────────────────────────────────────────────────────
+// Questo è l'ultimo modulo admin-*.js a caricarsi: tutte le funzioni sono disponibili.
+if (document.readyState === 'loading') {
+    document.addEventListener('DOMContentLoaded', initAdmin);
+} else {
+    initAdmin();
+}
+
 // Aggiorna i dati quando la pagina viene ripristinata dal bfcache (back/forward)
 window.addEventListener('pageshow', (event) => {
     if (!event.persisted) return;

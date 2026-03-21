@@ -227,11 +227,3 @@ function hideDashboard() {
     document.getElementById('dashboardSection').style.display = 'none';
 }
 
-
-// Aggiorna i dati quando la pagina viene ripristinata dal bfcache (back/forward)
-window.addEventListener('pageshow', (event) => {
-    if (!event.persisted) return;
-    const activeTab = document.querySelector('.admin-tab.active');
-    if (activeTab) switchTab(activeTab.dataset.tab);
-    _applyPrivacyMask();
-});
