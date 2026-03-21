@@ -455,7 +455,7 @@ function renderMobileSlots(dateInfo) {
 
         // Card tipo principale
         const mainRemaining = BookingStorage.getRemainingSpots(dateInfo.formatted, scheduledSlot.time, scheduledSlot.type);
-        if (mainRemaining > 0) {
+        if (mainRemaining > 0 || _isNonBookable(scheduledSlot.type)) {
             slotsList.appendChild(createMobileSlotCard(dateInfo, scheduledSlot));
         }
 
