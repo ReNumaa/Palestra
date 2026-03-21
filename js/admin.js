@@ -3901,7 +3901,7 @@ async function payAllDebtsInline(whatsapp, email, name, btn) {
     if (cashCollected > 0) {
         const methodLabel = { contanti: 'Contanti', carta: 'Carta', iban: 'Bonifico' }[method] || method;
         await CreditStorage.addCredit(whatsapp, email, name, 0,
-            `${methodLabel} ricevuto`, cashCollected);
+            `${methodLabel} ricevuto`, cashCollected, false, false, null, method);
     }
 
     // Update card in-place — keep it visible with paid state
