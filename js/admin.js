@@ -3106,7 +3106,6 @@ function clearSlotClient(timeSlot) {
 // Payments Management Functions
 let debtorsListVisible = false;
 let creditsListVisible = false;
-let historyListVisible = false;
 
 // Clients Tab State
 let openClientIndex = null;
@@ -3407,15 +3406,10 @@ function renderPaymentsTab() {
     sensitiveSet('totalCreditors', credits.length);
     sensitiveSet('totalCreditAmount', `€${totalCredit}`);
 
-    // Storico transazioni (tutti i clienti con history, anche saldo 0)
-    const allHistory = CreditStorage.getAllWithHistory();
-    sensitiveSet('totalHistoryClients', allHistory.length);
-
     // Reset search UI and list visibility
     clearSearch();
     debtorsListVisible = false;
     creditsListVisible = false;
-    historyListVisible = false;
     const debtorsList = document.getElementById('debtorsList');
     debtorsList.style.display = 'none';
     document.getElementById('debtorsToggleHint').textContent = '▼ Mostra lista';
@@ -3423,11 +3417,6 @@ function renderPaymentsTab() {
     if (creditsList) {
         creditsList.style.display = 'none';
         document.getElementById('creditorsToggleHint').textContent = '▼ Mostra lista';
-    }
-    const historyList = document.getElementById('historyList');
-    if (historyList) {
-        historyList.style.display = 'none';
-        document.getElementById('historyToggleHint').textContent = '▼ Mostra lista';
     }
 
     // Render debtors
@@ -3453,17 +3442,6 @@ function renderPaymentsTab() {
         }
     }
 
-    // Render storico transazioni
-    if (historyList) {
-        if (allHistory.length === 0) {
-            historyList.innerHTML = '<div class="empty-slot">Nessuna transazione registrata</div>';
-        } else {
-            historyList.innerHTML = '';
-            allHistory.forEach((credit, index) => {
-                historyList.appendChild(createCreditCard(credit, `hist-${index}`));
-            });
-        }
-    }
 }
 
 function deleteManualDebtEntry(whatsapp, email, entryDate) {
@@ -3631,48 +3609,13 @@ function toggleCreditsList() {
     const hint = document.getElementById('creditorsToggleHint');
     if (creditsList) creditsList.style.display = creditsListVisible ? 'flex' : 'none';
     if (hint) hint.textContent = creditsListVisible ? '▲ Nascondi lista' : '▼ Mostra lista';
-    // Chiudi le altre liste se questa viene aperta
-    if (creditsListVisible) {
-        if (debtorsListVisible) {
-            debtorsListVisible = false;
-            const dl = document.getElementById('debtorsList');
-            const dh = document.getElementById('debtorsToggleHint');
-            if (dl) dl.style.display = 'none';
-            if (dh) dh.textContent = '▼ Mostra lista';
-        }
-        if (historyListVisible) {
-            historyListVisible = false;
-            const hl = document.getElementById('historyList');
-            const hh = document.getElementById('historyToggleHint');
-            if (hl) hl.style.display = 'none';
-            if (hh) hh.textContent = '▼ Mostra lista';
-        }
-    }
-}
-
-function toggleHistoryList() {
-    if (_sensitiveHidden) return;
-    historyListVisible = !historyListVisible;
-    const historyList = document.getElementById('historyList');
-    const hint = document.getElementById('historyToggleHint');
-    if (historyList) historyList.style.display = historyListVisible ? 'flex' : 'none';
-    if (hint) hint.textContent = historyListVisible ? '▲ Nascondi lista' : '▼ Mostra lista';
-    // Chiudi le altre liste se questa viene aperta
-    if (historyListVisible) {
-        if (debtorsListVisible) {
-            debtorsListVisible = false;
-            const dl = document.getElementById('debtorsList');
-            const dh = document.getElementById('debtorsToggleHint');
-            if (dl) dl.style.display = 'none';
-            if (dh) dh.textContent = '▼ Mostra lista';
-        }
-        if (creditsListVisible) {
-            creditsListVisible = false;
-            const cl = document.getElementById('creditsList');
-            const ch = document.getElementById('creditorsToggleHint');
-            if (cl) cl.style.display = 'none';
-            if (ch) ch.textContent = '▼ Mostra lista';
-        }
+    // Chiudi l'altra lista se questa viene aperta
+    if (creditsListVisible && debtorsListVisible) {
+        debtorsListVisible = false;
+        const dl = document.getElementById('debtorsList');
+        const dh = document.getElementById('debtorsToggleHint');
+        if (dl) dl.style.display = 'none';
+        if (dh) dh.textContent = '▼ Mostra lista';
     }
 }
 
@@ -3734,22 +3677,13 @@ function toggleDebtorsList() {
     const hint = document.getElementById('debtorsToggleHint');
     if (debtorsList) debtorsList.style.display = debtorsListVisible ? 'flex' : 'none';
     if (hint) hint.textContent = debtorsListVisible ? '▲ Nascondi lista' : '▼ Mostra lista';
-    // Chiudi le altre liste se questa viene aperta
-    if (debtorsListVisible) {
-        if (creditsListVisible) {
-            creditsListVisible = false;
-            const cl = document.getElementById('creditsList');
-            const ch = document.getElementById('creditorsToggleHint');
-            if (cl) cl.style.display = 'none';
-            if (ch) ch.textContent = '▼ Mostra lista';
-        }
-        if (historyListVisible) {
-            historyListVisible = false;
-            const hl = document.getElementById('historyList');
-            const hh = document.getElementById('historyToggleHint');
-            if (hl) hl.style.display = 'none';
-            if (hh) hh.textContent = '▼ Mostra lista';
-        }
+    // Chiudi l'altra lista se questa viene aperta
+    if (debtorsListVisible && creditsListVisible) {
+        creditsListVisible = false;
+        const cl = document.getElementById('creditsList');
+        const ch = document.getElementById('creditorsToggleHint');
+        if (cl) cl.style.display = 'none';
+        if (ch) ch.textContent = '▼ Mostra lista';
     }
 }
 
@@ -4013,7 +3947,8 @@ function _searchAllContacts(query) {
         )
         .map(d => ({ type: 'debtor', data: d }));
 
-    const creditMatches = CreditStorage.getAllWithBalance()
+    // Cerca in TUTTI i record credito (anche saldo 0) per mostrare lo storico
+    const creditMatches = CreditStorage.getAllWithHistory()
         .filter(c =>
             c.name.toLowerCase().includes(q) ||
             (c.whatsapp || '').toLowerCase().includes(q) ||
@@ -4026,7 +3961,7 @@ function _searchAllContacts(query) {
         ))
         .map(c => ({ type: 'credit', data: c }));
 
-    // Also search all clients (show as credit card with €0 balance)
+    // Also search all clients (arricchisci con storico credito se esiste)
     const allClients = UserStorage.getAll();
     const alreadyFound = new Set();
     [...debtorMatches, ...creditMatches].forEach(m => {
@@ -4044,7 +3979,15 @@ function _searchAllContacts(query) {
             if (c.whatsapp && alreadyFound.has(normalizePhone(c.whatsapp))) return false;
             return true;
         })
-        .map(c => ({ type: 'client', data: { name: c.name, email: c.email || '', whatsapp: c.whatsapp || '', balance: 0, history: [] } }));
+        .map(c => {
+            // Cerca storico credito per questo cliente
+            const creditRec = CreditStorage.getRecord(c.whatsapp, c.email);
+            return { type: 'client', data: {
+                name: c.name, email: c.email || '', whatsapp: c.whatsapp || '',
+                balance: creditRec?.balance || 0,
+                history: creditRec?.history || []
+            }};
+        });
 
     return [...debtorMatches, ...creditMatches, ...clientMatches];
 }
