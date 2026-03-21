@@ -216,14 +216,28 @@ const DEFAULT_WEEKLY_SCHEDULE = {
     ]
 };
 
-// Function to get the current weekly schedule (from localStorage or default)
+// Function to get the current weekly schedule (from active template or default)
 function getWeeklySchedule() {
+    // Try to load from WeekTemplateStorage (active template)
+    const templatesRaw = localStorage.getItem('gym_week_templates');
+    if (templatesRaw) {
+        try {
+            const templates = JSON.parse(templatesRaw);
+            const activeId = parseInt(localStorage.getItem('gym_active_week_template') || '1', 10);
+            const active = templates.find(t => t.id === activeId);
+            if (active && active.schedule) {
+                _lsSet('weeklyScheduleTemplate', JSON.stringify(active.schedule));
+                return active.schedule;
+            }
+        } catch { /* corrupted — fall through */ }
+    }
+
+    // Fallback: legacy localStorage or default
     const saved = localStorage.getItem('weeklyScheduleTemplate');
     const savedVersion = localStorage.getItem('scheduleVersion');
     if (saved && savedVersion === SCHEDULE_VERSION) {
         try {
             const parsed = JSON.parse(saved);
-            // Extra safety: verify slot format matches current TIME_SLOTS
             const storedTimes = Object.values(parsed).flat().map(s => s.time);
             const isCurrentFormat = storedTimes.length === 0 || storedTimes.every(t => TIME_SLOTS.includes(t));
             if (isCurrentFormat) return parsed;
@@ -1299,6 +1313,10 @@ class BookingStorage {
                 _s(CertBookingStorage.KEY_NOT_SET, 'cert_block_not_set');
                 _s(AssicBookingStorage.KEY_EXPIRED,'assic_block_expired');
                 _s(AssicBookingStorage.KEY_NOT_SET,'assic_block_not_set');
+                _s(WeekTemplateStorage.KEY,        'week_templates');
+                _s(WeekTemplateStorage.ACTIVE_KEY, 'active_week_template');
+                // Refresh global template after sync
+                WEEKLY_SCHEDULE_TEMPLATE = getWeeklySchedule();
             }
 
             const count = (creditsData?.length || 0) + (debtsData?.length || 0) +
@@ -2026,6 +2044,72 @@ class AssicBookingStorage {
     static getBlockIfNotSet()  { return localStorage.getItem(this.KEY_NOT_SET)  === 'true'; }
     static setBlockIfExpired(val) { _lsSet(this.KEY_EXPIRED, val ? 'true' : 'false'); _upsertSetting(this.KEY_EXPIRED, val ? 'true' : 'false'); }
     static setBlockIfNotSet(val)  { _lsSet(this.KEY_NOT_SET,  val ? 'true' : 'false'); _upsertSetting(this.KEY_NOT_SET,  val ? 'true' : 'false'); }
+}
+
+// Week template storage — 3 named standard week templates, one active
+class WeekTemplateStorage {
+    static KEY = 'gym_week_templates';
+    static ACTIVE_KEY = 'gym_active_week_template';
+
+    static _defaultTemplates() {
+        return [
+            { id: 1, name: 'Settimana Standard 1', schedule: JSON.parse(JSON.stringify(DEFAULT_WEEKLY_SCHEDULE)) },
+            { id: 2, name: 'Settimana Standard 2', schedule: JSON.parse(JSON.stringify(DEFAULT_WEEKLY_SCHEDULE)) },
+            { id: 3, name: 'Settimana Standard 3', schedule: JSON.parse(JSON.stringify(DEFAULT_WEEKLY_SCHEDULE)) },
+        ];
+    }
+
+    static getAll() {
+        const raw = localStorage.getItem(this.KEY);
+        if (raw) {
+            try { return JSON.parse(raw); } catch { /* corrupted */ }
+        }
+        const defaults = this._defaultTemplates();
+        _lsSet(this.KEY, JSON.stringify(defaults));
+        return defaults;
+    }
+
+    static save(templates) {
+        _lsSet(this.KEY, JSON.stringify(templates));
+        _upsertSetting(this.KEY, JSON.stringify(templates));
+    }
+
+    static getActiveId() {
+        return parseInt(localStorage.getItem(this.ACTIVE_KEY) || '1', 10);
+    }
+
+    static setActiveId(id) {
+        _lsSet(this.ACTIVE_KEY, String(id));
+        _upsertSetting(this.ACTIVE_KEY, String(id));
+        // Update global template variable
+        const templates = this.getAll();
+        const active = templates.find(t => t.id === id);
+        if (active) {
+            WEEKLY_SCHEDULE_TEMPLATE = active.schedule;
+            _lsSet('weeklyScheduleTemplate', JSON.stringify(active.schedule));
+        }
+    }
+
+    static getActiveSchedule() {
+        const templates = this.getAll();
+        const activeId = this.getActiveId();
+        const active = templates.find(t => t.id === activeId);
+        return active ? active.schedule : DEFAULT_WEEKLY_SCHEDULE;
+    }
+
+    static updateTemplate(id, data) {
+        const templates = this.getAll();
+        const tpl = templates.find(t => t.id === id);
+        if (!tpl) return;
+        if (data.name !== undefined) tpl.name = data.name;
+        if (data.schedule !== undefined) tpl.schedule = data.schedule;
+        this.save(templates);
+        // If this is the active template, update global
+        if (id === this.getActiveId()) {
+            WEEKLY_SCHEDULE_TEMPLATE = tpl.schedule;
+            _lsSet('weeklyScheduleTemplate', JSON.stringify(tpl.schedule));
+        }
+    }
 }
 
 // User storage — client lookup for schedule management (Slot prenotato picker)

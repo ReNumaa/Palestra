@@ -2285,7 +2285,7 @@ function renderScheduleManager() {
                 ${weekHasAnySlot ? '● Settimana configurata' : '○ Settimana vuota'}
             </span>
             <button class="btn-import-week" onclick="importWeekTemplate(${scheduleWeekOffset})">
-                📥 Importa settimana standard
+                📥 Importa: ${_escHtml(_getActiveTemplateName())}
             </button>
             ${weekHasAnySlot ? `<button class="btn-clear-week" onclick="clearWeekSchedule(${scheduleWeekOffset})">🗑 Svuota settimana</button>` : ''}
         </div>
@@ -3212,6 +3212,7 @@ function renderSettingsTab() {
     renderCertEditableUI();
     renderCertBlockUI();
     renderAssicBlockUI();
+    renderWeekTemplatesUI();
 }
 
 function saveCancellationMode(mode) {
@@ -3295,6 +3296,221 @@ function saveDebtThreshold() {
         msg.style.display = 'block';
         setTimeout(() => { msg.style.display = 'none'; }, 2000);
     }
+}
+
+// ── Week Templates ──────────────────────────────────────────────────────────
+
+function _getActiveTemplateName() {
+    const templates = WeekTemplateStorage.getAll();
+    const activeId = WeekTemplateStorage.getActiveId();
+    const active = templates.find(t => t.id === activeId);
+    return active ? active.name : 'Settimana Standard';
+}
+
+function renderWeekTemplatesUI() {
+    const container = document.getElementById('weekTemplatesContainer');
+    if (!container) return;
+
+    const templates = WeekTemplateStorage.getAll();
+    const activeId = WeekTemplateStorage.getActiveId();
+
+    let html = '<div class="week-templates-list">';
+    templates.forEach(tpl => {
+        const isActive = tpl.id === activeId;
+        html += `
+            <div class="week-template-card ${isActive ? 'active' : ''}">
+                <div class="week-template-info">
+                    <div class="week-template-name-row">
+                        <span class="week-template-name" id="tplName-${tpl.id}">${_escHtml(tpl.name)}</span>
+                        <input type="text" class="week-template-name-input" id="tplNameInput-${tpl.id}" value="${_escHtml(tpl.name)}" style="display:none" maxlength="40"
+                            onkeydown="if(event.key==='Enter'){saveTemplateName(${tpl.id});}" onblur="saveTemplateName(${tpl.id})">
+                        <button class="btn-template-rename" onclick="startRenamingTemplate(${tpl.id})" title="Rinomina">✏️</button>
+                    </div>
+                    <span class="week-template-summary">${_getTemplateSummary(tpl.schedule)}</span>
+                </div>
+                <div class="week-template-actions">
+                    ${isActive
+                        ? '<span class="week-template-active-badge">✅ Attiva</span>'
+                        : `<button class="btn-template-activate" onclick="activateWeekTemplate(${tpl.id})">Attiva</button>`
+                    }
+                    <button class="btn-template-edit" onclick="openTemplateEditor(${tpl.id})" title="Modifica settimana">✏️ Modifica</button>
+                </div>
+            </div>`;
+    });
+    html += '</div>';
+    container.innerHTML = html;
+}
+
+function _getTemplateSummary(schedule) {
+    if (!schedule) return 'Non configurata';
+    const days = Object.keys(schedule);
+    let personal = 0, smallGroup = 0, groupClass = 0, cleaning = 0;
+    days.forEach(day => {
+        (schedule[day] || []).forEach(slot => {
+            if (slot.type === SLOT_TYPES.PERSONAL) personal++;
+            else if (slot.type === SLOT_TYPES.SMALL_GROUP) smallGroup++;
+            else if (slot.type === SLOT_TYPES.GROUP_CLASS) groupClass++;
+            else if (slot.type === SLOT_TYPES.CLEANING) cleaning++;
+        });
+    });
+    const parts = [];
+    if (personal) parts.push(`🟢 ${personal}`);
+    if (smallGroup) parts.push(`🟡 ${smallGroup}`);
+    if (groupClass) parts.push(`🔴 ${groupClass}`);
+    if (cleaning) parts.push(`🧹 ${cleaning}`);
+    return parts.length ? parts.join('  ') : 'Vuota';
+}
+
+function startRenamingTemplate(id) {
+    const nameEl = document.getElementById(`tplName-${id}`);
+    const inputEl = document.getElementById(`tplNameInput-${id}`);
+    if (nameEl) nameEl.style.display = 'none';
+    if (inputEl) { inputEl.style.display = 'inline-block'; inputEl.focus(); inputEl.select(); }
+}
+
+function saveTemplateName(id) {
+    const nameEl = document.getElementById(`tplName-${id}`);
+    const inputEl = document.getElementById(`tplNameInput-${id}`);
+    if (!inputEl) return;
+    const newName = inputEl.value.trim();
+    if (newName) {
+        WeekTemplateStorage.updateTemplate(id, { name: newName });
+    }
+    if (nameEl) { nameEl.textContent = newName || nameEl.textContent; nameEl.style.display = ''; }
+    inputEl.style.display = 'none';
+}
+
+function activateWeekTemplate(id) {
+    WeekTemplateStorage.setActiveId(id);
+    renderWeekTemplatesUI();
+}
+
+// ── Template Editor Popup ───────────────────────────────────────────────────
+
+let _tplEditorState = { id: null, name: null, schedule: null, selectedDay: 'Lunedì' };
+const TPL_DAY_NAMES = ['Lunedì', 'Martedì', 'Mercoledì', 'Giovedì', 'Venerdì', 'Sabato', 'Domenica'];
+
+function openTemplateEditor(id) {
+    const templates = WeekTemplateStorage.getAll();
+    const tpl = templates.find(t => t.id === id);
+    if (!tpl) return;
+
+    _tplEditorState = {
+        id: id,
+        name: tpl.name,
+        schedule: JSON.parse(JSON.stringify(tpl.schedule)),
+        selectedDay: 'Lunedì'
+    };
+
+    // Create or reuse overlay
+    let overlay = document.getElementById('templateEditorOverlay');
+    if (!overlay) {
+        overlay = document.createElement('div');
+        overlay.id = 'templateEditorOverlay';
+        overlay.className = 'template-editor-overlay';
+        document.body.appendChild(overlay);
+    }
+    overlay.style.display = 'flex';
+    _renderTemplateEditorContent();
+}
+
+function _renderTemplateEditorContent() {
+    const overlay = document.getElementById('templateEditorOverlay');
+    if (!overlay) return;
+
+    const name = _tplEditorState.name || 'Settimana Standard';
+    const schedule = _tplEditorState.schedule;
+    const selectedDay = _tplEditorState.selectedDay;
+    const daySlots = schedule[selectedDay] || [];
+
+    let html = `
+        <div class="template-editor-popup">
+            <div class="template-editor-header">
+                <h3>✏️ ${_escHtml(name)}</h3>
+                <button class="template-editor-close" onclick="closeTemplateEditor()">✕</button>
+            </div>
+
+            <div class="template-editor-day-tabs">
+                ${TPL_DAY_NAMES.map(d => `<button class="tpl-day-tab ${d === selectedDay ? 'active' : ''}" onclick="_tplSelectDay('${d}')">${d.substring(0, 3)}</button>`).join('')}
+            </div>
+
+            <div class="template-editor-slots">
+                <p style="color:#9ca3af; margin-bottom:0.75rem; font-size:0.85rem"><strong>${selectedDay}</strong> — configura il tipo per ogni fascia oraria</p>`;
+
+    ALL_TIME_SLOTS.forEach(timeSlot => {
+        const existing = daySlots.find(s => s.time === timeSlot);
+        const currentType = existing ? existing.type : '';
+
+        html += `
+                <div class="tpl-slot-row">
+                    <span class="tpl-slot-time">🕐 ${timeSlot}</span>
+                    <select class="tpl-slot-select" onchange="_tplUpdateSlot('${timeSlot}', this.value)">
+                        <option value="">-- Nessuna lezione --</option>
+                        <option value="${SLOT_TYPES.PERSONAL}" ${currentType === SLOT_TYPES.PERSONAL ? 'selected' : ''}>Autonomia</option>
+                        <option value="${SLOT_TYPES.SMALL_GROUP}" ${currentType === SLOT_TYPES.SMALL_GROUP ? 'selected' : ''}>Lezione di Gruppo</option>
+                        <option value="${SLOT_TYPES.GROUP_CLASS}" ${currentType === SLOT_TYPES.GROUP_CLASS ? 'selected' : ''}>Slot prenotato</option>
+                        <option value="${SLOT_TYPES.CLEANING}" ${currentType === SLOT_TYPES.CLEANING ? 'selected' : ''}>Pulizie</option>
+                    </select>
+                    ${currentType ? `<span class="tpl-slot-badge ${currentType}">${SLOT_NAMES[currentType]}</span>` : ''}
+                </div>`;
+    });
+
+    html += `
+            </div>
+
+            <div class="template-editor-footer">
+                <button class="btn-template-save" onclick="saveTemplateEditor()">💾 Salva</button>
+                <button class="btn-template-cancel" onclick="closeTemplateEditor()">Annulla</button>
+            </div>
+        </div>`;
+
+    overlay.innerHTML = html;
+}
+
+function _tplSelectDay(day) {
+    _tplEditorState.selectedDay = day;
+    _renderTemplateEditorContent();
+}
+
+function _tplUpdateSlot(timeSlot, newType) {
+    const day = _tplEditorState.selectedDay;
+    if (!_tplEditorState.schedule[day]) _tplEditorState.schedule[day] = [];
+    let daySlots = _tplEditorState.schedule[day];
+
+    const idx = daySlots.findIndex(s => s.time === timeSlot);
+    if (newType === '') {
+        if (idx !== -1) daySlots.splice(idx, 1);
+    } else {
+        if (idx !== -1) {
+            daySlots[idx].type = newType;
+            // Remove client fields for templates
+            delete daySlots[idx].client;
+            delete daySlots[idx].bookingId;
+        } else {
+            daySlots.push({ time: timeSlot, type: newType });
+        }
+    }
+    daySlots.sort((a, b) => a.time.localeCompare(b.time));
+    _tplEditorState.schedule[day] = daySlots;
+    _renderTemplateEditorContent();
+}
+
+function saveTemplateEditor() {
+    const { id, schedule } = _tplEditorState;
+    // Clean template slots: remove client/bookingId fields
+    const cleanSchedule = {};
+    for (const day in schedule) {
+        cleanSchedule[day] = (schedule[day] || []).map(s => ({ time: s.time, type: s.type }));
+    }
+    WeekTemplateStorage.updateTemplate(id, { schedule: cleanSchedule });
+    closeTemplateEditor();
+    renderWeekTemplatesUI();
+}
+
+function closeTemplateEditor() {
+    const overlay = document.getElementById('templateEditorOverlay');
+    if (overlay) overlay.style.display = 'none';
+    _tplEditorState = { id: null, name: null, schedule: null, selectedDay: 'Lunedì' };
 }
 
 // ── Health Check ─────────────────────────────────────────────────────────────
