@@ -203,12 +203,10 @@ function renderCalendar() {
     calendarGrid.appendChild(timeHeader);
 
     weekDates.forEach(dateInfo => {
-        const dayFullyPast = !dateHasAvailableSlots(dateInfo);
         const header = createDiv('calendar-header', `
             <div>${dateInfo.dayName}</div>
             <div style="font-size: 0.85rem; opacity: 0.8;">${dateInfo.displayDate}</div>
         `);
-        if (dayFullyPast) header.style.opacity = '0.35';
         calendarGrid.appendChild(header);
     });
 
