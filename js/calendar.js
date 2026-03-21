@@ -491,7 +491,11 @@ function createMobileSlotCard(dateInfo, scheduledSlot) {
     }
 
     if (slotType === SLOT_TYPES.CLEANING) {
-        slotCard.innerHTML = `<div class="mobile-slot-type" style="text-align:center;padding:0.5rem 0;">🧹 Pulizia</div>`;
+        slotCard.innerHTML = `
+            <div class="mobile-slot-header">
+                <span class="mobile-slot-time">🕐 ${timeSlot}</span>
+            </div>
+            <div class="mobile-slot-type">🧹 Pulizia</div>`;
         slotCard.style.cursor = 'default';
         return slotCard;
     }
