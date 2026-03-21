@@ -745,7 +745,7 @@ const BACKUP_KEYS = [
     'gym_cancellation_mode', 'gym_cert_scadenza_editable',
     'gym_cert_block_expired', 'gym_cert_block_not_set',
     'gym_assic_block_expired', 'gym_assic_block_not_set', 'dataClearedByUser',
-    'dataLastCleared'
+    'dataLastCleared', 'gym_week_templates', 'gym_active_week_template'
 ];
 
 // Converte il formato backup Nextcloud/cron (tabelle Supabase raw) nel formato admin
@@ -839,6 +839,8 @@ function _convertCronToAdminFormat(cron) {
             'cert_block_not_set': 'gym_cert_block_not_set',
             'assic_block_expired': 'gym_assic_block_expired',
             'assic_block_not_set': 'gym_assic_block_not_set',
+            'week_templates': 'gym_week_templates',
+            'active_week_template': 'gym_active_week_template',
         };
         for (const [dbKey, lsKey] of Object.entries(mapping)) {
             if (sMap[dbKey] != null) data[lsKey] = String(sMap[dbKey]);
