@@ -6617,33 +6617,45 @@ function renderFatturatoDetail(panel) {
         ? knownPeriodRev + Math.round(knownPeriodRev / periodScheduledDays * futureUnscheduledDays)
         : knownPeriodRev;
 
-    // ── Fatturato per tipo di pagamento (booking + crediti manuali) ─────────
-    const PAY_METHODS = [
-        { key: 'contanti',         label: 'Contanti',  color: '#22c55e' },
-        { key: 'carta',            label: 'Carta',     color: '#3b82f6' },
-        { key: 'iban',             label: 'Bonifico',  color: '#f59e0b' },
-        { key: 'lezione-gratuita', label: 'Gratuita',  color: '#a855f7' },
-    ];
-    // Somma crediti manuali nel periodo per metodo di pagamento
-    const creditByMethod = {};
-    _creditEntries.forEach(h => {
-        const d = new Date(h.date);
-        if (d >= from && d <= to && h.method) {
-            creditByMethod[h.method] = (creditByMethod[h.method] || 0) + h.amount;
-        }
-    });
-    const payMethodStats = PAY_METHODS.map(({ key, label, color }) => {
-        const bookingRev = periodBookings
-            .filter(b => b.paid && b.paymentMethod === key)
-            .reduce(revFn, 0);
-        const creditRev = creditByMethod[key] || 0;
-        return { label, color, rev: bookingRev + creditRev };
-    }).filter(m => m.rev > 0);
-    const payMethodPieData = {
-        labels: payMethodStats.map(m => m.label),
-        values: payMethodStats.map(m => m.rev),
-    };
-    const payMethodColors = payMethodStats.map(m => m.color);
+    // ── Fatturato per tipo di pagamento (solo Reale) ───────────────────────
+    // Prende TUTTE le prenotazioni pagate nel periodo (non solo REAL_METHODS)
+    // per catturare anche lezione-gratuita. I booking con credito vengono ignorati
+    // perché il denaro reale è catturato dai credit top-ups.
+    let payMethodStats = [], payMethodPieData = {}, payMethodColors = [];
+    if (isReale) {
+        const allPaidInPeriod = (_statsBookings ?? BookingStorage.getAllBookings())
+            .filter(b => {
+                if (b.status === 'cancelled' || !b.paid) return false;
+                const d = new Date(b.date + 'T00:00:00');
+                return d >= from && d <= to;
+            });
+        const PAY_METHODS = [
+            { key: 'contanti',         label: 'Contanti',  color: '#22c55e' },
+            { key: 'carta',            label: 'Carta',     color: '#3b82f6' },
+            { key: 'iban',             label: 'Bonifico',  color: '#f59e0b' },
+            { key: 'lezione-gratuita', label: 'Gratuita',  color: '#a855f7' },
+        ];
+        // Crediti manuali nel periodo raggruppati per metodo reale di pagamento
+        const creditByMethod = {};
+        _creditEntries.forEach(h => {
+            const d = new Date(h.date);
+            if (d >= from && d <= to && h.method) {
+                creditByMethod[h.method] = (creditByMethod[h.method] || 0) + h.amount;
+            }
+        });
+        payMethodStats = PAY_METHODS.map(({ key, label, color }) => {
+            const bookingRev = allPaidInPeriod
+                .filter(b => b.paymentMethod === key)
+                .reduce(revFn, 0);
+            const creditRev = creditByMethod[key] || 0;
+            return { label, color, rev: bookingRev + creditRev };
+        }).filter(m => m.rev > 0);
+        payMethodPieData = {
+            labels: payMethodStats.map(m => m.label),
+            values: payMethodStats.map(m => m.rev),
+        };
+        payMethodColors = payMethodStats.map(m => m.color);
+    }
 
     // ── Render ────────────────────────────────────────────────────────────────
     const pastLabel   = isReale ? 'Pagato' : 'Incassato';
@@ -6691,10 +6703,13 @@ function renderFatturatoDetail(panel) {
             </div>
         </div>
 
-        <div class="stat-detail-chart-block stat-detail-type-section">
+        ${isReale ? `<div class="stat-detail-chart-block stat-detail-type-section">
             <h4>Fatturato per tipo di pagamento</h4>
             <canvas id="detailPayMethodChart" style="width:100%;display:block;"></canvas>
-        </div>
+        </div>` : `<div class="stat-detail-chart-block stat-detail-type-section">
+            <h4>Fatturato per tipo di lezione</h4>
+            <canvas id="detailTypeChart" style="width:100%;display:block;"></canvas>
+        </div>`}
     `;
 
     requestAnimationFrame(() => {
@@ -6707,9 +6722,16 @@ function renderFatturatoDetail(panel) {
         const isMobilePie = window.innerWidth < 768;
         const pieH = isMobilePie ? 310 : 250;
 
-        const payCanvas = document.getElementById('detailPayMethodChart');
-        if (payCanvas && payMethodStats.length > 0) {
-            new SimpleChart(payCanvas, { height: pieH }).drawPieChart(payMethodPieData, { colors: payMethodColors, mobile: isMobilePie });
+        if (isReale) {
+            const payCanvas = document.getElementById('detailPayMethodChart');
+            if (payCanvas && payMethodStats.length > 0) {
+                new SimpleChart(payCanvas, { height: pieH }).drawPieChart(payMethodPieData, { colors: payMethodColors, mobile: isMobilePie });
+            }
+        } else {
+            const typeCanvas = document.getElementById('detailTypeChart');
+            if (typeCanvas && typeStats.length > 0) {
+                new SimpleChart(typeCanvas, { height: pieH }).drawPieChart(typePieData, { colors: pieColors, mobile: isMobilePie });
+            }
         }
     });
 }
