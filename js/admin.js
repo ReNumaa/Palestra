@@ -3106,6 +3106,7 @@ function clearSlotClient(timeSlot) {
 // Payments Management Functions
 let debtorsListVisible = false;
 let creditsListVisible = false;
+let historyListVisible = false;
 
 // Clients Tab State
 let openClientIndex = null;
@@ -3406,10 +3407,15 @@ function renderPaymentsTab() {
     sensitiveSet('totalCreditors', credits.length);
     sensitiveSet('totalCreditAmount', `€${totalCredit}`);
 
+    // Storico transazioni (tutti i clienti con history, anche saldo 0)
+    const allHistory = CreditStorage.getAllWithHistory();
+    sensitiveSet('totalHistoryClients', allHistory.length);
+
     // Reset search UI and list visibility
     clearSearch();
     debtorsListVisible = false;
     creditsListVisible = false;
+    historyListVisible = false;
     const debtorsList = document.getElementById('debtorsList');
     debtorsList.style.display = 'none';
     document.getElementById('debtorsToggleHint').textContent = '▼ Mostra lista';
@@ -3417,6 +3423,11 @@ function renderPaymentsTab() {
     if (creditsList) {
         creditsList.style.display = 'none';
         document.getElementById('creditorsToggleHint').textContent = '▼ Mostra lista';
+    }
+    const historyList = document.getElementById('historyList');
+    if (historyList) {
+        historyList.style.display = 'none';
+        document.getElementById('historyToggleHint').textContent = '▼ Mostra lista';
     }
 
     // Render debtors
@@ -3438,6 +3449,18 @@ function renderPaymentsTab() {
             creditsList.innerHTML = '';
             credits.forEach((credit, index) => {
                 creditsList.appendChild(createCreditCard(credit, index));
+            });
+        }
+    }
+
+    // Render storico transazioni
+    if (historyList) {
+        if (allHistory.length === 0) {
+            historyList.innerHTML = '<div class="empty-slot">Nessuna transazione registrata</div>';
+        } else {
+            historyList.innerHTML = '';
+            allHistory.forEach((credit, index) => {
+                historyList.appendChild(createCreditCard(credit, `hist-${index}`));
             });
         }
     }
@@ -3608,13 +3631,48 @@ function toggleCreditsList() {
     const hint = document.getElementById('creditorsToggleHint');
     if (creditsList) creditsList.style.display = creditsListVisible ? 'flex' : 'none';
     if (hint) hint.textContent = creditsListVisible ? '▲ Nascondi lista' : '▼ Mostra lista';
-    // Chiudi l'altra lista se questa viene aperta
-    if (creditsListVisible && debtorsListVisible) {
-        debtorsListVisible = false;
-        const debtorsList = document.getElementById('debtorsList');
-        const dHint = document.getElementById('debtorsToggleHint');
-        if (debtorsList) debtorsList.style.display = 'none';
-        if (dHint) dHint.textContent = '▼ Mostra lista';
+    // Chiudi le altre liste se questa viene aperta
+    if (creditsListVisible) {
+        if (debtorsListVisible) {
+            debtorsListVisible = false;
+            const dl = document.getElementById('debtorsList');
+            const dh = document.getElementById('debtorsToggleHint');
+            if (dl) dl.style.display = 'none';
+            if (dh) dh.textContent = '▼ Mostra lista';
+        }
+        if (historyListVisible) {
+            historyListVisible = false;
+            const hl = document.getElementById('historyList');
+            const hh = document.getElementById('historyToggleHint');
+            if (hl) hl.style.display = 'none';
+            if (hh) hh.textContent = '▼ Mostra lista';
+        }
+    }
+}
+
+function toggleHistoryList() {
+    if (_sensitiveHidden) return;
+    historyListVisible = !historyListVisible;
+    const historyList = document.getElementById('historyList');
+    const hint = document.getElementById('historyToggleHint');
+    if (historyList) historyList.style.display = historyListVisible ? 'flex' : 'none';
+    if (hint) hint.textContent = historyListVisible ? '▲ Nascondi lista' : '▼ Mostra lista';
+    // Chiudi le altre liste se questa viene aperta
+    if (historyListVisible) {
+        if (debtorsListVisible) {
+            debtorsListVisible = false;
+            const dl = document.getElementById('debtorsList');
+            const dh = document.getElementById('debtorsToggleHint');
+            if (dl) dl.style.display = 'none';
+            if (dh) dh.textContent = '▼ Mostra lista';
+        }
+        if (creditsListVisible) {
+            creditsListVisible = false;
+            const cl = document.getElementById('creditsList');
+            const ch = document.getElementById('creditorsToggleHint');
+            if (cl) cl.style.display = 'none';
+            if (ch) ch.textContent = '▼ Mostra lista';
+        }
     }
 }
 
@@ -3676,13 +3734,22 @@ function toggleDebtorsList() {
     const hint = document.getElementById('debtorsToggleHint');
     if (debtorsList) debtorsList.style.display = debtorsListVisible ? 'flex' : 'none';
     if (hint) hint.textContent = debtorsListVisible ? '▲ Nascondi lista' : '▼ Mostra lista';
-    // Chiudi l'altra lista se questa viene aperta
-    if (debtorsListVisible && creditsListVisible) {
-        creditsListVisible = false;
-        const creditsList = document.getElementById('creditsList');
-        const cHint = document.getElementById('creditorsToggleHint');
-        if (creditsList) creditsList.style.display = 'none';
-        if (cHint) cHint.textContent = '▼ Mostra lista';
+    // Chiudi le altre liste se questa viene aperta
+    if (debtorsListVisible) {
+        if (creditsListVisible) {
+            creditsListVisible = false;
+            const cl = document.getElementById('creditsList');
+            const ch = document.getElementById('creditorsToggleHint');
+            if (cl) cl.style.display = 'none';
+            if (ch) ch.textContent = '▼ Mostra lista';
+        }
+        if (historyListVisible) {
+            historyListVisible = false;
+            const hl = document.getElementById('historyList');
+            const hh = document.getElementById('historyToggleHint');
+            if (hl) hl.style.display = 'none';
+            if (hh) hh.textContent = '▼ Mostra lista';
+        }
     }
 }
 

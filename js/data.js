@@ -1584,6 +1584,16 @@ class CreditStorage {
             .sort((a, b) => b.balance - a.balance);
     }
 
+    static getAllWithHistory() {
+        return Object.values(this._getAll())
+            .filter(c => c.history && c.history.length > 0)
+            .sort((a, b) => {
+                const lastA = a.history[a.history.length - 1]?.date || '';
+                const lastB = b.history[b.history.length - 1]?.date || '';
+                return lastB.localeCompare(lastA);
+            });
+    }
+
     static getTotalCredit() {
         return this.getAllWithBalance().reduce((s, c) => s + c.balance, 0);
     }
