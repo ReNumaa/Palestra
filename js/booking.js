@@ -123,6 +123,10 @@ function openBookingModal(dateInfo, timeSlot, slotType, remainingSpots) {
         }
     }
 
+    // Reset submit button (potrebbe essere rimasto disabilitato da un submit precedente)
+    const _submitBtn = document.querySelector('#bookingForm button[type="submit"]');
+    if (_submitBtn) { _submitBtn.disabled = false; setLoading(_submitBtn, false); }
+
     // Show modal
     document.getElementById('bookingModal').style.display = 'flex';
     document.body.style.overflow = 'hidden';
@@ -172,6 +176,7 @@ async function handleBookingSubmit(e) {
     _lessonStart.setHours(_sh, _sm, 0, 0);
     if ((new Date() - _lessonStart) > 30 * 60 * 1000) {
         showToast('Non è possibile prenotare: sono passati più di 30 minuti dall\'inizio della lezione.', 'error');
+        submitBtn.disabled = false;
         closeBookingModal();
         return;
     }
@@ -312,68 +317,74 @@ async function handleBookingSubmit(e) {
         dateDisplay: selectedSlot.dateDisplay
     };
 
-    // Save booking — attende la conferma server prima di mostrare il risultato
-    const result = await BookingStorage.saveBooking(booking);
-    if (!result.ok) {
+    try {
+        // Save booking — attende la conferma server prima di mostrare il risultato
+        const result = await BookingStorage.saveBooking(booking);
+        if (!result.ok) {
+            setLoading(submitBtn, false);
+            submitBtn.disabled = false;
+            if (result.error === 'slot_full') {
+                showToast('Slot non più disponibile. Qualcun altro ha prenotato prima di te.', 'error');
+                renderCalendar();
+                if (typeof renderMobileSlots === 'function' && selectedMobileDay) renderMobileSlots(selectedMobileDay);
+            } else if (result.error === 'too_late') {
+                showToast('Non è possibile prenotare: sono passati più di 30 minuti dall\'inizio della lezione.', 'error');
+                closeBookingModal();
+            } else if (result.error === 'server_error' && !navigator.onLine) {
+                showToast('Sei offline. Connettiti a internet per prenotare.', 'error');
+            } else {
+                showToast('Errore durante la prenotazione. Riprova tra qualche secondo.', 'error');
+            }
+            return;
+        }
+        const savedBooking = result.booking;
+        if (result.offline) {
+            showToast('⚠️ Prenotazione salvata localmente. Verrà sincronizzata quando torni online.', 'warning', 5000);
+        }
+
+        // Se c'era una richiesta di annullamento per questo slot, è ora soddisfatta
+        if (typeof supabaseClient !== 'undefined') {
+            try {
+                const { data: fcResult, error: fcErr } = await supabaseClient.rpc('fulfill_pending_cancellation', {
+                    p_date: booking.date,
+                    p_time: booking.time,
+                    p_slot_prices: { 'personal-training': 5, 'small-group': 10, 'group-class': 30 },
+                });
+                if (fcErr) console.error('[Supabase] fulfill_pending_cancellation error:', fcErr.message);
+                else if (fcResult?.found) console.log('[fulfill_pending_cancellation] annullamento soddisfatto:', fcResult);
+            } catch (e) { console.error('[fulfill_pending_cancellation] exception:', e); }
+        } else {
+            BookingStorage.fulfillPendingCancellations(booking.date, booking.time);
+        }
+
+        // Il credito NON viene scalato alla prenotazione.
+        // Verrà applicato automaticamente quando arriva l'ora di inizio lezione
+        // (tramite apply_credit_to_past_bookings chiamato al caricamento pagina).
+
+        // Show confirmation
+        showConfirmation(savedBooking);
+        notificaPrenotazione(savedBooking);
+        console.log('[Booking] notifyAdminBooking exists?', typeof notifyAdminBooking);
+        if (typeof notifyAdminBooking === 'function') notifyAdminBooking(savedBooking);
+
+        // Reset form
+        document.getElementById('bookingForm').reset();
+
+        // Refresh calendar to show updated availability
+        renderCalendar();
+        if (typeof renderMobileSlots === 'function' && selectedMobileDay) {
+            renderMobileSlots(selectedMobileDay);
+        }
+
+        // Clear selection
+        selectedSlot = null;
+    } catch (err) {
+        console.error('[Booking] errore imprevisto durante la prenotazione:', err);
+        showToast('Errore durante la prenotazione. Riprova.', 'error');
+    } finally {
         setLoading(submitBtn, false);
         submitBtn.disabled = false;
-        if (result.error === 'slot_full') {
-            showToast('Slot non più disponibile. Qualcun altro ha prenotato prima di te.', 'error');
-            renderCalendar();
-            if (typeof renderMobileSlots === 'function' && selectedMobileDay) renderMobileSlots(selectedMobileDay);
-        } else if (result.error === 'too_late') {
-            showToast('Non è possibile prenotare: sono passati più di 30 minuti dall\'inizio della lezione.', 'error');
-            closeBookingModal();
-        } else if (result.error === 'server_error' && !navigator.onLine) {
-            showToast('Sei offline. Connettiti a internet per prenotare.', 'error');
-        } else {
-            showToast('Errore durante la prenotazione. Riprova tra qualche secondo.', 'error');
-        }
-        return;
     }
-    const savedBooking = result.booking;
-    if (result.offline) {
-        showToast('⚠️ Prenotazione salvata localmente. Verrà sincronizzata quando torni online.', 'warning', 5000);
-    }
-
-    // Se c'era una richiesta di annullamento per questo slot, è ora soddisfatta
-    if (typeof supabaseClient !== 'undefined') {
-        try {
-            const { data: fcResult, error: fcErr } = await supabaseClient.rpc('fulfill_pending_cancellation', {
-                p_date: booking.date,
-                p_time: booking.time,
-                p_slot_prices: { 'personal-training': 5, 'small-group': 10, 'group-class': 30 },
-            });
-            if (fcErr) console.error('[Supabase] fulfill_pending_cancellation error:', fcErr.message);
-            else if (fcResult?.found) console.log('[fulfill_pending_cancellation] annullamento soddisfatto:', fcResult);
-        } catch (e) { console.error('[fulfill_pending_cancellation] exception:', e); }
-    } else {
-        BookingStorage.fulfillPendingCancellations(booking.date, booking.time);
-    }
-
-    // Il credito NON viene scalato alla prenotazione.
-    // Verrà applicato automaticamente quando arriva l'ora di inizio lezione
-    // (tramite apply_credit_to_past_bookings chiamato al caricamento pagina).
-
-    // Show confirmation
-    showConfirmation(savedBooking);
-    notificaPrenotazione(savedBooking);
-    console.log('[Booking] notifyAdminBooking exists?', typeof notifyAdminBooking);
-    if (typeof notifyAdminBooking === 'function') notifyAdminBooking(savedBooking);
-
-    // Reset form
-    document.getElementById('bookingForm').reset();
-    setLoading(submitBtn, false);
-    submitBtn.disabled = false;
-
-    // Refresh calendar to show updated availability
-    renderCalendar();
-    if (typeof renderMobileSlots === 'function' && selectedMobileDay) {
-        renderMobileSlots(selectedMobileDay);
-    }
-
-    // Clear selection
-    selectedSlot = null;
 }
 
 function buildCalendarDates(dateStr, timeStr) {
