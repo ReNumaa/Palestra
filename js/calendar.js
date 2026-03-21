@@ -203,10 +203,12 @@ function renderCalendar() {
     calendarGrid.appendChild(timeHeader);
 
     weekDates.forEach(dateInfo => {
+        const dayFullyPast = !dateHasAvailableSlots(dateInfo);
         const header = createDiv('calendar-header', `
             <div>${dateInfo.dayName}</div>
             <div style="font-size: 0.85rem; opacity: 0.8;">${dateInfo.displayDate}</div>
         `);
+        if (dayFullyPast) header.style.opacity = '0.35';
         calendarGrid.appendChild(header);
     });
 
@@ -255,6 +257,7 @@ function createSlot(dateInfo, timeSlot) {
         lessonStart.setHours(_tp1.startH, _tp1.startM, 0, 0);
         timeOk = (new Date() - lessonStart) <= 30 * 60 * 1000;
     }
+    if (!timeOk) slot.style.opacity = '0.35';
 
     if (!hasMixedExtras) {
         // Vista unificata (stesso tipo o nessun extra)
@@ -402,7 +405,7 @@ function renderMobileDaySelector(weekDates) {
         const dayCard = document.createElement('div');
         dayCard.className = 'mobile-day-card';
 
-        const isPast = dateInfo.date < today;
+        const isPast = dateInfo.date < today || !dateHasAvailableSlots(dateInfo);
 
         if (isPast) {
             dayCard.classList.add('disabled');
