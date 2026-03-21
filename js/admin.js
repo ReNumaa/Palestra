@@ -1268,7 +1268,8 @@ async function exportData() {
     const SLOT_LABEL = {
         'personal-training': 'Personal Training',
         'small-group':       'Small Group',
-        'group-class':       'Lezione di Gruppo'
+        'group-class':       'Lezione di Gruppo',
+        'cleaning':          'Pulizie'
     };
     const STATUS_LABEL = {
         'confirmed':              'Confermata',
@@ -1997,7 +1998,7 @@ function createAdminSlotCard(dateInfo, scheduledSlot) {
     const hasMixedExtras = extraTypes.length > 0;
 
     // ── Header ──────────────────────────────────────────────────────────────
-    const capStr = mainType !== 'group-class'
+    const capStr = mainType !== 'group-class' && mainType !== 'cleaning'
         ? `${mainConfirmed}/${mainEffCap} posti (${mainRemaining > 0 ? mainRemaining + ' liberi' : 'COMPLETO'})`
         : '';
     const pickerId = 'xpick-' + date + '-' + timeSlot.replace(/[: -]/g, '');
@@ -2492,6 +2493,7 @@ function renderAllTimeSlots() {
                                 <option value="${SLOT_TYPES.PERSONAL}">Autonomia</option>
                                 <option value="${SLOT_TYPES.SMALL_GROUP}">Lezione di Gruppo</option>
                                 <option value="${SLOT_TYPES.GROUP_CLASS}" selected>Slot prenotato</option>
+                                <option value="${SLOT_TYPES.CLEANING}">Pulizie</option>
                             </select>
                         </div>
                         <div class="current-type-badge ${SLOT_TYPES.GROUP_CLASS}">${SLOT_NAMES[SLOT_TYPES.GROUP_CLASS]}</div>
@@ -2509,6 +2511,7 @@ function renderAllTimeSlots() {
                             <option value="${SLOT_TYPES.PERSONAL}" ${currentType === SLOT_TYPES.PERSONAL ? 'selected' : ''}>Autonomia</option>
                             <option value="${SLOT_TYPES.SMALL_GROUP}" ${currentType === SLOT_TYPES.SMALL_GROUP ? 'selected' : ''}>Lezione di Gruppo</option>
                             <option value="${SLOT_TYPES.GROUP_CLASS}">Slot prenotato</option>
+                            <option value="${SLOT_TYPES.CLEANING}" ${currentType === SLOT_TYPES.CLEANING ? 'selected' : ''}>Pulizie</option>
                         </select>
                     </div>
                     ${currentType ? `<div class="current-type-badge ${currentType}">${SLOT_NAMES[currentType]}</div>` : ''}
@@ -5770,6 +5773,7 @@ function buildRegistroEntries() {
         'personal-training': 'Autonomia',
         'small-group':       'Lezione di Gruppo',
         'group-class':       'Slot prenotato',
+        'cleaning':          'Pulizie',
     };
 
     const entries = [];

@@ -632,6 +632,11 @@ canvas {
     background: rgba(239, 68, 68, 0.08);
 }
 
+.admin-slot-card.cleaning {
+    border-left-color: var(--cleaning);
+    background: rgba(139, 92, 246, 0.08);
+}
+
 .admin-slot-header {
     display: flex;
     justify-content: space-between;
@@ -768,6 +773,7 @@ canvas {
 .split-col-title.personal-training { background: #dcfce7; color: #16a34a; }
 .split-col-title.small-group        { background: #fef9c3; color: #b45309; }
 .split-col-title.group-class        { background: #fee2e2; color: #dc2626; }
+.split-col-title.cleaning           { background: #ede9fe; color: #7c3aed; }
 .split-col-divider-v {
     width: 1px;
     background: #ddd;
@@ -1560,6 +1566,11 @@ canvas {
     color: #333;
 }
 
+.schedule-slot-type-badge.cleaning {
+    background-color: var(--cleaning);
+    color: white;
+}
+
 .schedule-slot-actions {
     display: flex;
     gap: 0.5rem;
@@ -1711,6 +1722,11 @@ canvas {
 .current-type-badge.group-class {
     background-color: var(--group-class);
     color: #333;
+}
+
+.current-type-badge.cleaning {
+    background-color: var(--cleaning);
+    color: white;
 }
 
 /* ── Client Picker for "Slot prenotato" ──────────────────────────────────── */

@@ -221,6 +221,7 @@
 .preno-card.personal-training { border-left-color: var(--personal-training); }
 .preno-card.small-group        { border-left-color: var(--small-group); }
 .preno-card.group-class        { border-left-color: var(--group-class); }
+.preno-card.cleaning           { border-left-color: var(--cleaning); }
 
 .preno-card-left {
     display: flex;

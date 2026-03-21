@@ -69,25 +69,29 @@ function _rpcWithTimeout(promise, ms = 12000) {
 const SLOT_TYPES = {
     PERSONAL: 'personal-training',
     SMALL_GROUP: 'small-group',
-    GROUP_CLASS: 'group-class'
+    GROUP_CLASS: 'group-class',
+    CLEANING: 'cleaning'
 };
 
 const SLOT_MAX_CAPACITY = {
     'personal-training': 5,
     'small-group': 5,
-    'group-class': 0
+    'group-class': 0,
+    'cleaning': 0
 };
 
 const SLOT_PRICES = {
     'personal-training': 5,
     'small-group': 10,
-    'group-class': 30
+    'group-class': 30,
+    'cleaning': 0
 };
 
 const SLOT_NAMES = {
     'personal-training': 'Autonomia',
     'small-group': 'Lezione di Gruppo',
-    'group-class': 'Slot prenotato'
+    'group-class': 'Slot prenotato',
+    'cleaning': 'Pulizie'
 };
 
 // Time slots configuration — 80 min each, 05:20 → 21:20

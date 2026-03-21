@@ -9,6 +9,7 @@
     --personal-training: #22c55e;
     --small-group: #fbbf24;
     --group-class: #ef4444;
+    --cleaning: #8b5cf6;
     --success: #06d6a0;
     --warning: #f77f00;
 }
@@ -449,6 +450,10 @@ body.nav-open {
     background-color: var(--group-class);
 }
 
+.color-box.cleaning {
+    background-color: var(--cleaning);
+}
+
 .legend-note {
     text-align: center;
     font-size: 0.9rem;
@@ -556,6 +561,10 @@ body.nav-open {
     background: linear-gradient(135deg, var(--group-class) 0%, #dc2626 100%);
 }
 
+.calendar-slot.has-booking.cleaning {
+    background: linear-gradient(135deg, var(--cleaning) 0%, #7c3aed 100%);
+}
+
 .calendar-slot.selected {
     border: 3px solid var(--primary-cyan);
     box-shadow: 0 0 20px rgba(0, 174, 239, 0.4);
@@ -611,6 +620,9 @@ body.nav-open {
 }
 .split-slot-half.group-class {
     background: linear-gradient(135deg, var(--group-class) 0%, #dc2626 100%);
+}
+.split-slot-half.cleaning {
+    background: linear-gradient(135deg, var(--cleaning) 0%, #7c3aed 100%);
 }
 .split-slot-half .slot-type  { font-size: 0.72rem; }
 .split-slot-half .slot-spots { font-size: 0.65rem; }
@@ -875,6 +887,11 @@ body.nav-open {
 .mobile-slot-card.group-class {
     border-left-color: var(--group-class);
     background: linear-gradient(to right, rgba(239, 68, 68, 0.1), white);
+}
+
+.mobile-slot-card.cleaning {
+    border-left-color: var(--cleaning);
+    background: linear-gradient(to right, rgba(139, 92, 246, 0.1), white);
 }
 
 .mobile-slot-card.slot-full {
@@ -1311,6 +1328,7 @@ body.nav-open {
 .modal-slot-badge.personal-training { background-color: #22c55e; }
 .modal-slot-badge.small-group       { background-color: #fbbf24; }
 .modal-slot-badge.group-class       { background-color: #ef4444; }
+.modal-slot-badge.cleaning          { background-color: #8b5cf6; }
 
 .modal-slot-info h3 {
     font-size: 1.25rem;

@@ -224,6 +224,11 @@ function renderCalendar() {
     });
 }
 
+// Slot types that are not bookable by users (no spots shown, no click)
+function _isNonBookable(type) {
+    return type === SLOT_TYPES.GROUP_CLASS || type === SLOT_TYPES.CLEANING;
+}
+
 function createSlot(dateInfo, timeSlot) {
     const slot = document.createElement('div');
     slot.className = 'calendar-slot';
@@ -259,9 +264,9 @@ function createSlot(dateInfo, timeSlot) {
         if (isFull) slot.classList.add('slot-full');
         slot.innerHTML = `
             <div class="slot-type">${SLOT_NAMES[mainType]}</div>
-            ${mainType !== SLOT_TYPES.GROUP_CLASS && remainingSpots > 0 ? `<div class="slot-spots ${spotsColorClass(remainingSpots)}">${remainingSpots} ${remainingSpots === 1 ? 'disponibile' : 'disponibili'}</div>` : ''}
+            ${!_isNonBookable(mainType) && remainingSpots > 0 ? `<div class="slot-spots ${spotsColorClass(remainingSpots)}">${remainingSpots} ${remainingSpots === 1 ? 'disponibile' : 'disponibili'}</div>` : ''}
         `;
-        const bookable = !isFull && timeOk && mainType !== SLOT_TYPES.GROUP_CLASS;
+        const bookable = !isFull && timeOk && !_isNonBookable(mainType);
         slot.style.cursor = bookable ? 'pointer' : 'not-allowed';
         if (bookable) slot.addEventListener('click', () => selectSlot(dateInfo, timeSlot, mainType, remainingSpots));
     } else {
@@ -271,12 +276,12 @@ function createSlot(dateInfo, timeSlot) {
         const buildHalf = (type) => {
             const rem = BookingStorage.getRemainingSpots(dateInfo.formatted, timeSlot, type);
             const full = rem <= 0;
-            const bookable = !full && timeOk && type !== SLOT_TYPES.GROUP_CLASS;
+            const bookable = !full && timeOk && !_isNonBookable(type);
             const half = document.createElement('div');
             half.className = `split-slot-half ${type}${full ? ' slot-full' : ''}`;
             half.innerHTML = `
                 <div class="slot-type">${SLOT_NAMES[type]}</div>
-                ${type !== SLOT_TYPES.GROUP_CLASS && rem > 0 ? `<div class="slot-spots ${spotsColorClass(rem)}">${rem} disp.</div>` : ''}
+                ${!_isNonBookable(type) && rem > 0 ? `<div class="slot-spots ${spotsColorClass(rem)}">${rem} disp.</div>` : ''}
             `;
             half.style.cursor = bookable ? 'pointer' : 'not-allowed';
             if (bookable) half.addEventListener('click', e => { e.stopPropagation(); selectSlot(dateInfo, timeSlot, type, rem); });
@@ -306,6 +311,22 @@ function createDiv(className, innerHTML) {
     div.className = className;
     div.innerHTML = innerHTML;
     return div;
+}
+
+// Check if a date still has available (future) slots considering the 30-min rule
+function dateHasAvailableSlots(dateInfo) {
+    const overrides = BookingStorage.getScheduleOverrides();
+    const scheduledSlots = overrides[dateInfo.formatted] || [];
+    if (scheduledSlots.length === 0) return false;
+    const now = new Date();
+    const thirtyMinMs = 30 * 60 * 1000;
+    return scheduledSlots.some(slot => {
+        const tp = _parseSlotTime(slot.time);
+        if (!tp) return false;
+        const lessonStart = new Date(dateInfo.date);
+        lessonStart.setHours(tp.startH, tp.startM, 0, 0);
+        return (now - lessonStart) <= thirtyMinMs;
+    });
 }
 
 // Mobile Calendar Functions
@@ -340,18 +361,25 @@ function renderMobileCalendar() {
     const currentInWeek = selectedMobileDay
         ? weekDates.find(d => d.formatted === selectedMobileDay.formatted)
         : null;
-    if (currentInWeek) {
+    if (currentInWeek && dateHasAvailableSlots(currentInWeek)) {
         selectedMobileDay = currentInWeek;
     } else {
         const todayStr = formatDate(new Date());
+        const now = new Date(); now.setHours(0, 0, 0, 0);
+        // Pick today if it has available slots, otherwise the next day with slots
         const todayInWeek = weekDates.find(d => d.formatted === todayStr);
-        if (todayInWeek) {
+        if (todayInWeek && dateHasAvailableSlots(todayInWeek)) {
             selectedMobileDay = todayInWeek;
         } else {
-            // Pick first day that is today or later
-            const now = new Date(); now.setHours(0, 0, 0, 0);
-            const firstFuture = weekDates.find(d => d.date >= now);
-            selectedMobileDay = firstFuture || weekDates[0];
+            // Pick first future day that has available slots
+            const firstFutureWithSlots = weekDates.find(d => d.date >= now && d.formatted !== todayStr && dateHasAvailableSlots(d));
+            if (firstFutureWithSlots) {
+                selectedMobileDay = firstFutureWithSlots;
+            } else {
+                // Fallback: first future day (even without slots)
+                const firstFuture = weekDates.find(d => d.date >= now);
+                selectedMobileDay = firstFuture || weekDates[0];
+            }
         }
     }
 
@@ -465,7 +493,7 @@ function createMobileSlotCard(dateInfo, scheduledSlot) {
     slotCard.innerHTML = `
         <div class="mobile-slot-header">
             <span class="mobile-slot-time">🕐 ${timeSlot}</span>
-            ${slotType !== SLOT_TYPES.GROUP_CLASS ? `<span class="mobile-slot-available ${spotsColorClass(remainingSpots)}">${remainingSpots} ${remainingSpots === 1 ? 'disponibile' : 'disponibili'}</span>` : ''}
+            ${!_isNonBookable(slotType) ? `<span class="mobile-slot-available ${spotsColorClass(remainingSpots)}">${remainingSpots} ${remainingSpots === 1 ? 'disponibile' : 'disponibili'}</span>` : ''}
         </div>
         <div class="mobile-slot-type">${SLOT_NAMES[slotType]}</div>
     `;
