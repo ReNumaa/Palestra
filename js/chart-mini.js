@@ -387,7 +387,8 @@ class SimpleChart {
         ctx.font = 'bold 16px sans-serif';
         ctx.textAlign = 'center';
         ctx.textBaseline = 'middle';
-        ctx.fillText(`€${total}`, centerX, centerY - 6);
+        const piePrefix = options.prefix ?? '€';
+        ctx.fillText(`${piePrefix}${total}`, centerX, centerY - 6);
         ctx.fillStyle = '#888';
         ctx.font = '10px sans-serif';
         ctx.fillText('Totale', centerX, centerY + 10);

@@ -6901,7 +6901,7 @@ function renderPrenotazioniDetail(panel) {
 
     // ── Per giorno della settimana ────────────────────────────────────────────
     const dayCounts = [0,0,0,0,0,0,0];
-    pastBookings.forEach(b => { dayCounts[new Date(b.date + 'T00:00:00').getDay()]++; });
+    periodBookings.forEach(b => { dayCounts[new Date(b.date + 'T00:00:00').getDay()]++; });
     const DAY_ORDER = [1,2,3,4,5,6,0];
     const DAY_NAMES = ['Dom','Lun','Mar','Mer','Gio','Ven','Sab'];
     const dayLabels = DAY_ORDER.map(d => DAY_NAMES[d]);
@@ -6909,7 +6909,7 @@ function renderPrenotazioniDetail(panel) {
 
     // ── Per fascia oraria ─────────────────────────────────────────────────────
     const timeMap = {};
-    pastBookings.forEach(b => {
+    periodBookings.forEach(b => {
         const t = b.time ? b.time.split(' - ')[0] : '?';
         timeMap[t] = (timeMap[t] || 0) + 1;
     });
@@ -7000,7 +7000,7 @@ function renderPrenotazioniDetail(panel) {
         if (typeBookCanvas && typeLabels.length > 0)
             new SimpleChart(typeBookCanvas).drawPieChart(
                 { labels: typeLabels, values: typeValues },
-                { colors: ['#22c55e', '#f59e0b', '#e63946'] }
+                { colors: ['#22c55e', '#f59e0b', '#e63946'], prefix: '' }
             );
         const dayCanvas = document.getElementById('detailDayChart');
         if (dayCanvas) new SimpleChart(dayCanvas).drawBarChart(
