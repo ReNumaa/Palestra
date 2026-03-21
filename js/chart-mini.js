@@ -1,11 +1,11 @@
 // Mini chart library for simple visualizations
 class SimpleChart {
-    constructor(canvas) {
+    constructor(canvas, options = {}) {
         this.canvas = canvas;
         this.ctx = canvas.getContext('2d');
         const rect = canvas.getBoundingClientRect();
         const w = rect.width > 0 ? rect.width : (canvas.offsetWidth > 0 ? canvas.offsetWidth : 400);
-        const h = 250;
+        const h = options.height || 250;
         this.width = canvas.width = Math.round(w * 2);
         this.height = canvas.height = Math.round(h * 2);
         this.ctx.scale(2, 2);
@@ -320,65 +320,100 @@ class SimpleChart {
     }
 
     drawPieChart(data, options = {}) {
-        const centerX = this.canvas.width / 4;
-        const centerY = this.canvas.height / 4;
-        const radius = Math.min(centerX, centerY) - 40;
-
-        // Clear canvas
-        this.ctx.clearRect(0, 0, this.canvas.width, this.canvas.height);
-
-        if (radius <= 0) return;
+        const ctx = this.ctx;
+        const cw = this.canvas.width / 2;   // logical width
+        const ch = this.canvas.height / 2;  // logical height
+        ctx.clearRect(0, 0, this.canvas.width, this.canvas.height);
 
         const colors = options.colors || ['#ff6b6b', '#4ecdc4', '#ffd93d'];
         const total = data.values.reduce((a, b) => a + b, 0);
 
         if (total === 0) {
-            this.ctx.fillStyle = '#ccc';
-            this.ctx.font = '14px sans-serif';
-            this.ctx.textAlign = 'center';
-            this.ctx.fillText('Nessun dato', centerX, centerY);
+            ctx.fillStyle = '#ccc';
+            ctx.font = '14px sans-serif';
+            ctx.textAlign = 'center';
+            ctx.fillText('Nessun dato', cw / 2, ch / 2);
             return;
         }
 
-        let currentAngle = -Math.PI / 2;
+        // Layout: mobile (narrow) = chart top + legend bottom; desktop = chart left + legend right
+        const isMobile = cw < 340;
+        const legendItemH = 22;
+        const legendH = data.labels.length * legendItemH + 8;
+        const chartAreaH = isMobile ? ch - legendH : ch;
+        const chartAreaW = isMobile ? cw : cw * 0.55;
 
+        const centerX = chartAreaW / 2;
+        const centerY = chartAreaH / 2;
+        const radius = Math.min(centerX, chartAreaH / 2) - 24;
+        const innerRadius = radius * 0.52;
+
+        if (radius <= 0) return;
+
+        // ── Draw donut slices ──
+        let currentAngle = -Math.PI / 2;
         data.values.forEach((value, i) => {
             const sliceAngle = (value / total) * Math.PI * 2;
+            ctx.fillStyle = colors[i % colors.length];
+            ctx.beginPath();
+            ctx.moveTo(centerX + innerRadius * Math.cos(currentAngle), centerY + innerRadius * Math.sin(currentAngle));
+            ctx.arc(centerX, centerY, radius, currentAngle, currentAngle + sliceAngle);
+            ctx.arc(centerX, centerY, innerRadius, currentAngle + sliceAngle, currentAngle, true);
+            ctx.closePath();
+            ctx.fill();
+            ctx.strokeStyle = '#fff';
+            ctx.lineWidth = 2;
+            ctx.stroke();
 
-            // Draw slice
-            this.ctx.fillStyle = colors[i % colors.length];
-            this.ctx.beginPath();
-            this.ctx.moveTo(centerX, centerY);
-            this.ctx.arc(centerX, centerY, radius, currentAngle, currentAngle + sliceAngle);
-            this.ctx.closePath();
-            this.ctx.fill();
-
-            // Draw border
-            this.ctx.strokeStyle = '#fff';
-            this.ctx.lineWidth = 2;
-            this.ctx.stroke();
+            // ── € label on slice ──
+            const midAngle = currentAngle + sliceAngle / 2;
+            const labelR = (radius + innerRadius) / 2;
+            const lx = centerX + labelR * Math.cos(midAngle);
+            const ly = centerY + labelR * Math.sin(midAngle);
+            const pct = Math.round((value / total) * 100);
+            if (pct >= 8) {
+                ctx.fillStyle = '#fff';
+                ctx.font = 'bold 11px sans-serif';
+                ctx.textAlign = 'center';
+                ctx.textBaseline = 'middle';
+                ctx.fillText(`€${value}`, lx, ly);
+            }
 
             currentAngle += sliceAngle;
         });
 
-        // Draw legend
-        const legendX = centerX + radius + 30;
-        let legendY = centerY - (data.labels.length * 20) / 2;
+        // ── Total in center ──
+        ctx.fillStyle = '#333';
+        ctx.font = 'bold 16px sans-serif';
+        ctx.textAlign = 'center';
+        ctx.textBaseline = 'middle';
+        ctx.fillText(`€${total}`, centerX, centerY - 6);
+        ctx.fillStyle = '#888';
+        ctx.font = '10px sans-serif';
+        ctx.fillText('Totale', centerX, centerY + 10);
 
-        this.ctx.textAlign = 'left';
-        this.ctx.font = '12px sans-serif';
+        // ── Legend ──
+        ctx.textBaseline = 'alphabetic';
+        let lx, ly;
+        if (isMobile) {
+            // Legend below chart, centered
+            lx = 12;
+            ly = chartAreaH + 8;
+        } else {
+            // Legend right of chart
+            lx = chartAreaW + 16;
+            ly = centerY - (data.labels.length * legendItemH) / 2;
+        }
 
+        ctx.textAlign = 'left';
         data.labels.forEach((label, i) => {
-            // Color box
-            this.ctx.fillStyle = colors[i % colors.length];
-            this.ctx.fillRect(legendX, legendY - 8, 12, 12);
-
-            // Label
-            this.ctx.fillStyle = '#333';
-            const percentage = total > 0 ? Math.round((data.values[i] / total) * 100) : 0;
-            this.ctx.fillText(`${label} (${percentage}%)`, legendX + 18, legendY + 2);
-
-            legendY += 20;
+            ctx.fillStyle = colors[i % colors.length];
+            ctx.fillRect(lx, ly, 10, 10);
+            ctx.fillStyle = '#333';
+            ctx.font = '11px sans-serif';
+            const pct = Math.round((data.values[i] / total) * 100);
+            ctx.fillText(`${label} (${pct}%)`, lx + 14, ly + 9);
+            ly += legendItemH;
         });
     }
 }

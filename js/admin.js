@@ -6587,7 +6587,7 @@ function renderFatturatoDetail(panel) {
     }
     const typeTotal = typeStats.reduce((s, t) => s + t.pastRev + t.futureRev, 0);
     const typePieData = {
-        labels: typeStats.map(t => `${t.label} €${t.pastRev + t.futureRev}`),
+        labels: typeStats.map(t => t.label),
         values: typeStats.map(t => t.pastRev + t.futureRev),
     };
     // Colori: verde (Autonomia), giallo (Gruppo), rosso (Slot), blu (Crediti)
@@ -6694,7 +6694,10 @@ function renderFatturatoDetail(panel) {
         if (fcCanvas) new SimpleChart(fcCanvas).drawForecastChart({ actual: fActual, forecast: fForecast, estimated: fEstimate, labels: fLabels, todayIndex: todayGroupIdx });
 
         const typeCanvas = document.getElementById('detailTypeChart');
-        if (typeCanvas && typeStats.length > 0) new SimpleChart(typeCanvas).drawPieChart(typePieData, { colors: pieColors });
+        if (typeCanvas && typeStats.length > 0) {
+            const pieH = window.innerWidth < 768 ? 310 : 250;
+            new SimpleChart(typeCanvas, { height: pieH }).drawPieChart(typePieData, { colors: pieColors });
+        }
     });
 }
 
