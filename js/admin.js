@@ -6637,10 +6637,15 @@ function renderFatturatoDetail(panel) {
         ];
         // Crediti manuali nel periodo raggruppati per metodo reale di pagamento
         const creditByMethod = {};
+        let creditNoMethod = 0;
         _creditEntries.forEach(h => {
             const d = new Date(h.date);
-            if (d >= from && d <= to && h.method) {
-                creditByMethod[h.method] = (creditByMethod[h.method] || 0) + h.amount;
+            if (d >= from && d <= to) {
+                if (h.method) {
+                    creditByMethod[h.method] = (creditByMethod[h.method] || 0) + h.amount;
+                } else {
+                    creditNoMethod += h.amount;
+                }
             }
         });
         payMethodStats = PAY_METHODS.map(({ key, label, color }) => {
@@ -6650,6 +6655,10 @@ function renderFatturatoDetail(panel) {
             const creditRev = creditByMethod[key] || 0;
             return { label, color, rev: bookingRev + creditRev };
         }).filter(m => m.rev > 0);
+        // Crediti senza metodo specificato → "Altro"
+        if (creditNoMethod > 0) {
+            payMethodStats.push({ label: 'Altro', color: '#94a3b8', rev: creditNoMethod });
+        }
         payMethodPieData = {
             labels: payMethodStats.map(m => m.label),
             values: payMethodStats.map(m => m.rev),
