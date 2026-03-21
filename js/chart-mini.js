@@ -365,7 +365,7 @@ class SimpleChart {
             ctx.lineWidth = 2;
             ctx.stroke();
 
-            // ── € label on slice ──
+            // ── % label on slice ──
             const midAngle = currentAngle + sliceAngle / 2;
             const labelR = (radius + innerRadius) / 2;
             const lx = centerX + labelR * Math.cos(midAngle);
@@ -376,7 +376,7 @@ class SimpleChart {
                 ctx.font = 'bold 11px sans-serif';
                 ctx.textAlign = 'center';
                 ctx.textBaseline = 'middle';
-                ctx.fillText(`€${value}`, lx, ly);
+                ctx.fillText(`${pct}%`, lx, ly);
             }
 
             currentAngle += sliceAngle;
