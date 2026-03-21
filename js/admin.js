@@ -477,9 +477,23 @@ function updateStatsCards(filteredBookings, allBookings) {
     }
 
     // Revenue — exclude free lessons (lezione-gratuita) from revenue stats
+    const { from: filterFrom, to: filterTo } = getFilterDateRange(currentFilter);
+    // Calcola more nel periodo corrente e precedente
+    let _moraRevenue = 0, _moraPrevRevenue = 0;
+    const allDebts = ManualDebtStorage._getAll();
+    for (const key in allDebts) {
+        const rec = allDebts[key];
+        if (!rec.history) continue;
+        rec.history.forEach(h => {
+            if (h.entryType !== 'mora' || h.amount <= 0) return;
+            const d = new Date(h.date);
+            if (d >= filterFrom && d <= filterTo) _moraRevenue += h.amount;
+            if (prevRange && d >= prevRange.from && d <= prevRange.to) _moraPrevRevenue += h.amount;
+        });
+    }
     const revenue = filteredBookings
         .filter(b => b.paymentMethod !== 'lezione-gratuita')
-        .reduce((t, b) => t + (SLOT_PRICES[b.slotType] || 0), 0);
+        .reduce((t, b) => t + (SLOT_PRICES[b.slotType] || 0), 0) + _moraRevenue;
     sensitiveSet('monthlyRevenue', `€${revenue}`);
     const prevRevBookings = prevRange ? allBookings.filter(b => {
         const d = new Date(b.date + 'T00:00:00');
@@ -490,7 +504,7 @@ function updateStatsCards(filteredBookings, allBookings) {
         const d = new Date(b.date + 'T00:00:00');
         return d >= prevRange.from && d <= prevRange.to;
     }) : [];
-    const prevRev = prevRevBookings.reduce((t, b) => t + (SLOT_PRICES[b.slotType] || 0), 0);
+    const prevRev = prevRevBookings.reduce((t, b) => t + (SLOT_PRICES[b.slotType] || 0), 0) + _moraPrevRevenue;
     calcChange(revenue, prevRev, document.getElementById('revenueChange'));
     sensitiveSet('revenueChange', document.getElementById('revenueChange').textContent);
 
@@ -6369,19 +6383,35 @@ function renderFatturatoDetail(panel) {
         .filter(h => { const d = new Date(h.date); return d >= dateFrom && d <= dateTo; })
         .reduce((s, h) => s + h.amount, 0);
 
+    // ── More (penalità cancellazione) ────────────────────────────────────────
+    const _moraEntries = [];
+    const allDebts = ManualDebtStorage._getAll();
+    for (const key in allDebts) {
+        const rec = allDebts[key];
+        if (!rec.history) continue;
+        rec.history.forEach(h => {
+            if (h.entryType === 'mora' && h.amount > 0) {
+                _moraEntries.push(h);
+            }
+        });
+    }
+    const moraInRange = (dateFrom, dateTo) => _moraEntries
+        .filter(h => { const d = new Date(h.date); return d >= dateFrom && d <= dateTo; })
+        .reduce((s, h) => s + h.amount, 0);
+
     // Bookings in current filter period
     const periodBookings = allBookings.filter(b => {
         const d = new Date(b.date + 'T00:00:00');
         return d >= from && d <= to;
     });
 
-    // Past bookings (before today) + crediti passati
+    // Past bookings (before today) + crediti passati + more passate
     const pastBookings   = periodBookings.filter(b => new Date(b.date + 'T00:00:00') < today);
-    const pastRevenue    = pastBookings.reduce(revFn, 0) + creditInRange(from, new Date(today.getTime() - 1));
+    const pastRevenue    = pastBookings.reduce(revFn, 0) + creditInRange(from, new Date(today.getTime() - 1)) + moraInRange(from, new Date(today.getTime() - 1));
 
-    // Future confirmed bookings in period + crediti futuri
+    // Future confirmed bookings in period + crediti futuri + more future
     const futureBookings = periodBookings.filter(b => new Date(b.date + 'T00:00:00') >= today);
-    const futureRevenue  = futureBookings.reduce(revFn, 0) + creditInRange(today, to);
+    const futureRevenue  = futureBookings.reduce(revFn, 0) + creditInRange(today, to) + moraInRange(today, to);
 
     // Linear projection for remaining days (based on past daily rate)
     const periodStart    = from.getTime();
@@ -6415,9 +6445,9 @@ function renderFatturatoDetail(panel) {
     const cmFrom    = new Date(now.getFullYear(), now.getMonth(), 1);
     const cmTo      = new Date(now.getFullYear(), now.getMonth() + 1, 0, 23, 59, 59, 999);
     const cmActual  = allBookings.filter(b => { const d = new Date(b.date + 'T00:00:00'); return d >= cmFrom && d < today; }).reduce(revFn, 0)
-        + creditInRange(cmFrom, new Date(today.getTime() - 1));
+        + creditInRange(cmFrom, new Date(today.getTime() - 1)) + moraInRange(cmFrom, new Date(today.getTime() - 1));
     const cmFuture  = allBookings.filter(b => { const d = new Date(b.date + 'T00:00:00'); return d >= today && d <= cmTo; }).reduce(revFn, 0)
-        + creditInRange(today, cmTo);
+        + creditInRange(today, cmTo) + moraInRange(today, cmTo);
     const cmElapsed = Math.max(1, Math.round((Math.min(yesterday.getTime(), cmTo.getTime()) - cmFrom.getTime()) / 86400000) + 1);
     const cmDays    = Math.ceil((cmTo.getTime() - cmFrom.getTime()) / 86400000);
     const cmRate    = cmActual / cmElapsed;
@@ -6441,7 +6471,7 @@ function renderFatturatoDetail(panel) {
         } else if (isFuture) {
             if (isReale) {
                 // Reale: solo crediti già incassati nel mese futuro
-                const futCredits = creditInRange(mFrom, mTo);
+                const futCredits = creditInRange(mFrom, mTo) + moraInRange(mFrom, mTo);
                 barValues.push(futCredits);
                 barHighlight.push(false);
                 barProjected.push(0);
@@ -6449,7 +6479,7 @@ function renderFatturatoDetail(panel) {
                 // Prenotazioni: barra tratteggiata = prenotazioni confermate + crediti
                 const confirmedRev = allBookings
                     .filter(b => { const bd = new Date(b.date + 'T00:00:00'); return bd >= mFrom && bd <= mTo && b.status !== 'cancelled' && b.paymentMethod !== 'lezione-gratuita'; })
-                    .reduce(revFn, 0) + creditInRange(mFrom, mTo);
+                    .reduce(revFn, 0) + creditInRange(mFrom, mTo) + moraInRange(mFrom, mTo);
                 barValues.push(0);
                 barHighlight.push(false);
                 barProjected.push(confirmedRev);
@@ -6458,7 +6488,7 @@ function renderFatturatoDetail(panel) {
             // Mesi passati: barra solida = fatturato reale + crediti
             const rev = allBookings
                 .filter(b => { const bd = new Date(b.date + 'T00:00:00'); return bd >= mFrom && bd <= mTo; })
-                .reduce(revFn, 0) + creditInRange(mFrom, mTo);
+                .reduce(revFn, 0) + creditInRange(mFrom, mTo) + moraInRange(mFrom, mTo);
             barValues.push(rev);
             barHighlight.push(false);
             barProjected.push(0);
@@ -6517,6 +6547,13 @@ function renderFatturatoDetail(panel) {
     });
     // Aggiungi crediti alle mappe per data (solo in modalità Reale)
     _creditEntries.forEach(h => {
+        const d = new Date(h.date);
+        const ds = d.toISOString().split('T')[0];
+        if (d >= from && d < today)              revByDate[ds]       = (revByDate[ds] || 0)       + h.amount;
+        else if (d >= today && d >= from && d <= to) futureRevByDate[ds] = (futureRevByDate[ds] || 0) + h.amount;
+    });
+    // Aggiungi more alle mappe per data
+    _moraEntries.forEach(h => {
         const d = new Date(h.date);
         const ds = d.toISOString().split('T')[0];
         if (d >= from && d < today)              revByDate[ds]       = (revByDate[ds] || 0)       + h.amount;
@@ -6601,15 +6638,22 @@ function renderFatturatoDetail(panel) {
         typeStats.push({ label: 'Crediti', pastCount: 0, futureCount: 0,
             pastRev: periodCreditTotal, futureRev: 0 });
     }
+    // Aggiungi fetta "More" alla pie chart (penalità cancellazione)
+    const periodMoraTotal = moraInRange(from, to);
+    if (periodMoraTotal > 0) {
+        typeStats.push({ label: 'More', pastCount: 0, futureCount: 0,
+            pastRev: periodMoraTotal, futureRev: 0 });
+    }
     const typeTotal = typeStats.reduce((s, t) => s + t.pastRev + t.futureRev, 0);
     const typePieData = {
         labels: typeStats.map(t => t.label),
         values: typeStats.map(t => t.pastRev + t.futureRev),
     };
-    // Colori: verde (Autonomia), giallo (Gruppo), rosso (Slot), blu (Crediti)
-    const pieColors = isReale && periodCreditTotal > 0
-        ? ['#22c55e', '#f59e0b', '#e63946', '#3b82f6']
-        : ['#22c55e', '#f59e0b', '#e63946'];
+    // Colori: verde (Autonomia), giallo (Gruppo), rosso (Slot), blu (Crediti), viola (More)
+    const basePieColors = ['#22c55e', '#f59e0b', '#e63946'];
+    const pieColors = [...basePieColors];
+    if (isReale && periodCreditTotal > 0) pieColors.push('#3b82f6');
+    if (periodMoraTotal > 0) pieColors.push('#a855f7');
 
     // ── Stima futura: solo giorni futuri senza slot programmati ────────────
     // Conta i giorni futuri (da oggi in poi) nel periodo che NON hanno slot.
@@ -7119,6 +7163,21 @@ function renderClientiDetail(panel) {
         </div>
 
         <div class="stat-detail-charts">
+            <div class="stat-detail-breakdown">
+                <h4>❌ Top annullatori</h4>
+                <div class="sdb-rows">
+                    ${_clientRows(topCancellers, c => `${c.cancelled} cancellaz.`)}
+                </div>
+            </div>
+            <div class="stat-detail-breakdown">
+                <h4>⭐ Più fedeli (0 cancellazioni)</h4>
+                <div class="sdb-rows">
+                    ${_clientRows(mostLoyal, c => `${c.total} lezioni`)}
+                </div>
+            </div>
+        </div>
+
+        <div class="stat-detail-charts">
             <div class="stat-detail-breakdown" style="grid-column:1/-1">
                 <h4>🆕 Nuovi clienti nel periodo (${newClients.length})</h4>
                 <div class="sdb-rows">
@@ -7130,21 +7189,6 @@ function renderClientiDetail(panel) {
                                 <span class="sdb-value" style="color:#9ca3af;font-size:0.8rem">${c.date.getDate()}/${c.date.getMonth()+1}/${c.date.getFullYear()}</span>
                             </div>`).join('')
                     }
-                </div>
-            </div>
-        </div>
-
-        <div class="stat-detail-charts">
-            <div class="stat-detail-breakdown">
-                <h4>❌ Top annullatori</h4>
-                <div class="sdb-rows">
-                    ${_clientRows(topCancellers, c => `${c.cancelled} cancellaz.`)}
-                </div>
-            </div>
-            <div class="stat-detail-breakdown">
-                <h4>⭐ Più fedeli (0 cancellazioni)</h4>
-                <div class="sdb-rows">
-                    ${_clientRows(mostLoyal, c => `${c.total} lezioni`)}
                 </div>
             </div>
         </div>
