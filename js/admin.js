@@ -6677,8 +6677,8 @@ function renderFatturatoDetail(panel) {
     }
 
     // ── Render ────────────────────────────────────────────────────────────────
-    const pastLabel   = isReale ? 'Pagato' : 'Incassato';
-    const futureLabel = isReale ? 'Pagato futuro' : 'Prenotato futuro';
+    const pastLabel   = isReale ? 'Incassato' : 'Prenotazioni fatte';
+    const futureLabel = isReale ? 'Incassato futuro' : 'Prenotazioni future';
 
     // KPI cards: in Reale nascondi "Pagato futuro" e "Stima futura"
     const kpiCards = `
