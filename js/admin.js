@@ -519,16 +519,21 @@ function updateStatsCards(filteredBookings, allBookings) {
     clientsChangeEl.textContent = filterLabel;
     clientsChangeEl.className = 'stat-change';
 
-    // Occupancy rate over the filter period
+    // Occupancy rate over the filter period (basato su gestione orari)
     const { from, to } = getFilterDateRange(currentFilter);
+    const overridesOcc = BookingStorage.getScheduleOverrides();
+    const dayNamesOcc = ['Domenica','Lunedì','Martedì','Mercoledì','Giovedì','Venerdì','Sabato'];
     let totalSlots = 0;
-    const cur = new Date(from); cur.setHours(0, 0, 0, 0);
-    const end = new Date(to); end.setHours(23, 59, 59, 999);
-    const dayNames = ['Domenica','Lunedì','Martedì','Mercoledì','Giovedì','Venerdì','Sabato'];
-    while (cur <= end) {
-        const slots = WEEKLY_SCHEDULE_TEMPLATE[dayNames[cur.getDay()]] || [];
-        slots.forEach(s => { totalSlots += SLOT_MAX_CAPACITY[s.type] || 0; });
-        cur.setDate(cur.getDate() + 1);
+    const curOcc = new Date(from); curOcc.setHours(0, 0, 0, 0);
+    const endOcc = new Date(to); endOcc.setHours(23, 59, 59, 999);
+    while (curOcc <= endOcc) {
+        const ds = `${curOcc.getFullYear()}-${String(curOcc.getMonth() + 1).padStart(2, '0')}-${String(curOcc.getDate()).padStart(2, '0')}`;
+        const daySlots = overridesOcc[ds] || WEEKLY_SCHEDULE_TEMPLATE[dayNamesOcc[curOcc.getDay()]] || [];
+        daySlots.forEach(s => {
+            if (s.type === 'group-class') totalSlots += 1;
+            else totalSlots += SLOT_MAX_CAPACITY[s.type] || 0;
+        });
+        curOcc.setDate(curOcc.getDate() + 1);
     }
     const occupancyRate = totalSlots > 0 ? Math.round((filteredBookings.length / totalSlots) * 100) : 0;
     document.getElementById('occupancyRate').textContent = `${occupancyRate}%`;
@@ -7586,66 +7591,83 @@ function renderOccupancyDetail(panel) {
     const today = new Date(now); today.setHours(0, 0, 0, 0);
     const MONTHS = ['Gen','Feb','Mar','Apr','Mag','Giu','Lug','Ago','Set','Ott','Nov','Dic'];
     const DAY_NAMES = ['Domenica','Lunedì','Martedì','Mercoledì','Giovedì','Venerdì','Sabato'];
+    const overrides = BookingStorage.getScheduleOverrides();
+
+    // Helper: capacità di uno slot in base al tipo
+    const slotCap = (type) => type === 'group-class' ? 1 : (SLOT_MAX_CAPACITY[type] || 0);
+
+    // Helper: slots di un giorno (override o template)
+    const daySlotsFor = (date) => {
+        const ds = `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}-${String(date.getDate()).padStart(2, '0')}`;
+        return overrides[ds] || WEEKLY_SCHEDULE_TEMPLATE[DAY_NAMES[date.getDay()]] || [];
+    };
 
     // ── Calcola capacità e prenotazioni per tipo per ogni mese (ultimi 12) ────
-    const trendLabels = [], ptTrend = [], sgTrend = [];
+    const trendLabels = [], ptTrend = [], sgTrend = [], gcTrend = [];
     for (let i = 11; i >= 0; i--) {
         const mFrom = new Date(now.getFullYear(), now.getMonth() - i, 1);
         const mTo   = new Date(now.getFullYear(), now.getMonth() - i + 1, 0, 23, 59, 59, 999);
         trendLabels.push(MONTHS[mFrom.getMonth()]);
-        let ptCap = 0, sgCap = 0;
+        let ptCap = 0, sgCap = 0, gcCap = 0;
         const c = new Date(mFrom);
         while (c <= mTo) {
-            (WEEKLY_SCHEDULE_TEMPLATE[DAY_NAMES[c.getDay()]] || []).forEach(s => {
-                if (s.type === 'personal-training') ptCap += SLOT_MAX_CAPACITY['personal-training'] || 0;
-                else if (s.type === 'small-group')  sgCap += SLOT_MAX_CAPACITY['small-group'] || 0;
+            daySlotsFor(c).forEach(s => {
+                if (s.type === 'personal-training') ptCap += slotCap('personal-training');
+                else if (s.type === 'small-group')  sgCap += slotCap('small-group');
+                else if (s.type === 'group-class')  gcCap += slotCap('group-class');
             });
             c.setDate(c.getDate() + 1);
         }
         const ptB = allBookings.filter(b => { const d = new Date(b.date+'T00:00:00'); return b.slotType==='personal-training' && d>=mFrom && d<=mTo; }).length;
         const sgB = allBookings.filter(b => { const d = new Date(b.date+'T00:00:00'); return b.slotType==='small-group'        && d>=mFrom && d<=mTo; }).length;
-        ptTrend.push(ptCap > 0 ? Math.round(ptB / ptCap * 100) : 0);
-        sgTrend.push(sgCap > 0 ? Math.round(sgB / sgCap * 100) : 0);
+        const gcB = allBookings.filter(b => { const d = new Date(b.date+'T00:00:00'); return b.slotType==='group-class'        && d>=mFrom && d<=mTo; }).length;
+        ptTrend.push(ptCap > 0 ? Math.min(100, Math.round(ptB / ptCap * 100)) : 0);
+        sgTrend.push(sgCap > 0 ? Math.min(100, Math.round(sgB / sgCap * 100)) : 0);
+        gcTrend.push(gcCap > 0 ? Math.min(100, Math.round(gcB / gcCap * 100)) : 0);
     }
 
     // ── Calcola capacità e prenotazioni per tipo nel periodo filtro ──────────
-    let ptSlots = 0, sgSlots = 0;
+    let ptSlots = 0, sgSlots = 0, gcSlots = 0;
     const c2 = new Date(from); c2.setHours(0,0,0,0);
     const e2 = new Date(to);   e2.setHours(23,59,59,999);
     while (c2 <= e2) {
-        (WEEKLY_SCHEDULE_TEMPLATE[DAY_NAMES[c2.getDay()]] || []).forEach(s => {
-            if (s.type === 'personal-training') ptSlots += SLOT_MAX_CAPACITY['personal-training'] || 0;
-            else if (s.type === 'small-group')  sgSlots += SLOT_MAX_CAPACITY['small-group'] || 0;
+        daySlotsFor(c2).forEach(s => {
+            if (s.type === 'personal-training') ptSlots += slotCap('personal-training');
+            else if (s.type === 'small-group')  sgSlots += slotCap('small-group');
+            else if (s.type === 'group-class')  gcSlots += slotCap('group-class');
         });
         c2.setDate(c2.getDate() + 1);
     }
     const periodBookings = allBookings.filter(b => { const d = new Date(b.date+'T00:00:00'); return d >= from && d <= to; });
     const ptB = periodBookings.filter(b => b.slotType === 'personal-training').length;
     const sgB = periodBookings.filter(b => b.slotType === 'small-group').length;
-    const ptRate = ptSlots > 0 ? Math.round(ptB / ptSlots * 100) : 0;
-    const sgRate = sgSlots > 0 ? Math.round(sgB / sgSlots * 100) : 0;
-    const totSlots = ptSlots + sgSlots;
-    const totRate  = totSlots > 0 ? Math.round((ptB + sgB) / totSlots * 100) : 0;
+    const gcB = periodBookings.filter(b => b.slotType === 'group-class').length;
+    const ptRate = ptSlots > 0 ? Math.min(100, Math.round(ptB / ptSlots * 100)) : 0;
+    const sgRate = sgSlots > 0 ? Math.min(100, Math.round(sgB / sgSlots * 100)) : 0;
+    const gcRate = gcSlots > 0 ? Math.min(100, Math.round(gcB / gcSlots * 100)) : 0;
+    const totSlots = ptSlots + sgSlots + gcSlots;
+    const totRate  = totSlots > 0 ? Math.min(100, Math.round((ptB + sgB + gcB) / totSlots * 100)) : 0;
 
     // ── Occupancy per giorno della settimana ─────────────────────────────────
     const DOW_ORDER = [1,2,3,4,5,6,0];
     const DOW_NAMES = ['Dom','Lun','Mar','Mer','Gio','Ven','Sab'];
     const dowLabels = DOW_ORDER.map(d => DOW_NAMES[d]);
-    // Conta occorrenze reali di ogni giorno della settimana nel periodo
-    const dowOccurrences = [0,0,0,0,0,0,0];
+    // Calcola capacità e prenotazioni per ogni giorno della settimana nel periodo
+    const dowCap = [0,0,0,0,0,0,0];
+    const dowBk  = [0,0,0,0,0,0,0];
     const tmp = new Date(from); tmp.setHours(0,0,0,0);
-    while (tmp <= e2) { dowOccurrences[tmp.getDay()]++; tmp.setDate(tmp.getDate()+1); }
-    const CAP_TYPES = Object.keys(SLOT_MAX_CAPACITY).filter(t => SLOT_MAX_CAPACITY[t] > 0);
-    const dowRates = DOW_ORDER.map(dow => {
-        const dayName  = ['Domenica','Lunedì','Martedì','Mercoledì','Giovedì','Venerdì','Sabato'][dow];
-        const daySlots = WEEKLY_SCHEDULE_TEMPLATE[dayName] || [];
-        const capPerDay = daySlots.reduce((s, sl) => s + (SLOT_MAX_CAPACITY[sl.type] || 0), 0);
-        const cap = capPerDay * dowOccurrences[dow];
-        const bk  = periodBookings.filter(b =>
-            new Date(b.date+'T00:00:00').getDay() === dow && CAP_TYPES.includes(b.slotType)
-        ).length;
-        return cap > 0 ? Math.min(100, Math.round(bk / cap * 100)) : 0;
+    while (tmp <= e2) {
+        const dow = tmp.getDay();
+        daySlotsFor(tmp).forEach(s => { dowCap[dow] += slotCap(s.type); });
+        tmp.setDate(tmp.getDate() + 1);
+    }
+    periodBookings.forEach(b => {
+        const dow = new Date(b.date + 'T00:00:00').getDay();
+        dowBk[dow]++;
     });
+    const dowRates = DOW_ORDER.map(dow =>
+        dowCap[dow] > 0 ? Math.min(100, Math.round(dowBk[dow] / dowCap[dow] * 100)) : 0
+    );
 
     panel.innerHTML = `
         <div class="stat-detail-header">
@@ -7665,8 +7687,12 @@ function renderOccupancyDetail(panel) {
                 <div class="stat-detail-kpi-value">${sgRate}%</div>
                 <div class="stat-detail-kpi-label">Lez. Gruppo</div>
             </div>
+            <div class="stat-detail-kpi stat-detail-kpi--actual">
+                <div class="stat-detail-kpi-value">${gcRate}%</div>
+                <div class="stat-detail-kpi-label">Slot prenotato</div>
+            </div>
             <div class="stat-detail-kpi">
-                <div class="stat-detail-kpi-value">${ptB + sgB}</div>
+                <div class="stat-detail-kpi-value">${ptB + sgB + gcB}</div>
                 <div class="stat-detail-kpi-label">Prenotazioni</div>
             </div>
         </div>
@@ -7683,7 +7709,11 @@ function renderOccupancyDetail(panel) {
         </div>
 
         <div class="stat-detail-charts">
-            <div class="stat-detail-chart-block" style="grid-column:1/-1">
+            <div class="stat-detail-chart-block">
+                <h4>Slot prenotato — ultimi 12 mesi</h4>
+                <canvas id="occGcChart" style="width:100%;display:block;"></canvas>
+            </div>
+            <div class="stat-detail-chart-block">
                 <h4>Occupazione per giorno della settimana</h4>
                 <canvas id="occDowChart" style="width:100%;display:block;"></canvas>
             </div>
@@ -7700,6 +7730,11 @@ function renderOccupancyDetail(panel) {
         if (sgCanvas) new SimpleChart(sgCanvas).drawBarChart(
             { labels: trendLabels, values: sgTrend, highlight: trendLabels.map((_, i) => i === 11) },
             { colors: ['#22c55e'], prefix: '', suffix: '%' }
+        );
+        const gcCanvas = document.getElementById('occGcChart');
+        if (gcCanvas) new SimpleChart(gcCanvas).drawBarChart(
+            { labels: trendLabels, values: gcTrend, highlight: trendLabels.map((_, i) => i === 11) },
+            { colors: ['#e63946'], prefix: '', suffix: '%' }
         );
         const dowCanvas = document.getElementById('occDowChart');
         if (dowCanvas) new SimpleChart(dowCanvas).drawBarChart(
