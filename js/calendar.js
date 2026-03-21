@@ -267,7 +267,7 @@ function createSlot(dateInfo, timeSlot) {
         if (isFull) slot.classList.add('slot-full');
         slot.innerHTML = `
             <div class="slot-type">${SLOT_NAMES[mainType]}</div>
-            ${!_isNonBookable(mainType) && remainingSpots > 0 ? `<div class="slot-spots ${spotsColorClass(remainingSpots)}">${remainingSpots} ${remainingSpots === 1 ? 'disponibile' : 'disponibili'}</div>` : ''}
+            ${!_isNonBookable(mainType) ? `<div class="slot-spots ${spotsColorClass(remainingSpots)}">${isFull ? 'Completo' : remainingSpots + (remainingSpots === 1 ? ' disponibile' : ' disponibili')}</div>` : ''}
         `;
         const bookable = !isFull && timeOk && !_isNonBookable(mainType);
         slot.style.cursor = bookable ? 'pointer' : 'not-allowed';
@@ -284,7 +284,7 @@ function createSlot(dateInfo, timeSlot) {
             half.className = `split-slot-half ${type}${full ? ' slot-full' : ''}`;
             half.innerHTML = `
                 <div class="slot-type">${SLOT_NAMES[type]}</div>
-                ${!_isNonBookable(type) && rem > 0 ? `<div class="slot-spots ${spotsColorClass(rem)}">${rem} disp.</div>` : ''}
+                ${!_isNonBookable(type) ? `<div class="slot-spots ${spotsColorClass(rem)}">${full ? 'Completo' : rem + ' disp.'}</div>` : ''}
             `;
             half.style.cursor = bookable ? 'pointer' : 'not-allowed';
             if (bookable) half.addEventListener('click', e => { e.stopPropagation(); selectSlot(dateInfo, timeSlot, type, rem); });

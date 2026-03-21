@@ -587,7 +587,8 @@ body.nav-open {
 .spots-red    { color: #dc2626; }
 
 .slot-full {
-    opacity: 0.5;
+    opacity: 0.45;
+    filter: grayscale(0.6);
     cursor: not-allowed;
 }
 
