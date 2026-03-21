@@ -453,20 +453,14 @@ function renderMobileSlots(dateInfo) {
         lessonStart.setHours(_tp2.startH, _tp2.startM, 0, 0);
         if ((now - lessonStart) > thirtyMinMs) return;
 
-        // Card tipo principale
-        const mainRemaining = BookingStorage.getRemainingSpots(dateInfo.formatted, scheduledSlot.time, scheduledSlot.type);
-        if (mainRemaining > 0 || _isNonBookable(scheduledSlot.type)) {
-            slotsList.appendChild(createMobileSlotCard(dateInfo, scheduledSlot));
-        }
+        // Card tipo principale — mostra sempre (anche se completo)
+        slotsList.appendChild(createMobileSlotCard(dateInfo, scheduledSlot));
 
         // Card tipi extra diversi dal principale
         const extras = scheduledSlot.extras || [];
         const extraTypes = [...new Set(extras.map(e => e.type).filter(t => t !== scheduledSlot.type))];
         extraTypes.forEach(extraType => {
-            const extraRemaining = BookingStorage.getRemainingSpots(dateInfo.formatted, scheduledSlot.time, extraType);
-            if (extraRemaining > 0) {
-                slotsList.appendChild(createMobileSlotCard(dateInfo, { ...scheduledSlot, type: extraType }));
-            }
+            slotsList.appendChild(createMobileSlotCard(dateInfo, { ...scheduledSlot, type: extraType }));
         });
     });
 
@@ -503,7 +497,7 @@ function createMobileSlotCard(dateInfo, scheduledSlot) {
     slotCard.innerHTML = `
         <div class="mobile-slot-header">
             <span class="mobile-slot-time">🕐 ${timeSlot}</span>
-            ${!_isNonBookable(slotType) ? `<span class="mobile-slot-available ${spotsColorClass(remainingSpots)}">${remainingSpots} ${remainingSpots === 1 ? 'disponibile' : 'disponibili'}</span>` : ''}
+            ${!_isNonBookable(slotType) ? `<span class="mobile-slot-available ${spotsColorClass(remainingSpots)}">${isFull ? 'COMPLETO' : remainingSpots + (remainingSpots === 1 ? ' disponibile' : ' disponibili')}</span>` : ''}
         </div>
         <div class="mobile-slot-type">${SLOT_NAMES[slotType]}</div>
     `;
