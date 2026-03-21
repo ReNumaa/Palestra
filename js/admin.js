@@ -164,7 +164,9 @@ function getFilterLabel(filter) {
     }
 }
 
+let _filterSwitching = false;
 async function setAnalyticsFilter(filter, btn) {
+    if (_filterSwitching) return;
     currentFilter = filter;
     document.querySelectorAll('.filter-btn').forEach(b => b.classList.remove('active'));
     btn.classList.add('active');
@@ -182,14 +184,16 @@ async function setAnalyticsFilter(filter, btn) {
     } else {
         customDates.style.display = 'none';
     }
-    // Disabilita i pulsanti durante il caricamento
-    document.querySelectorAll('.filter-btn').forEach(b => b.disabled = true);
-    btn.style.opacity = '0.6';
+    _filterSwitching = true;
+    const allBtns = document.querySelectorAll('.filter-btn');
+    allBtns.forEach(b => b.disabled = true);
     try {
         await loadDashboardData();
+    } catch (e) {
+        console.error('[Stats] Errore cambio filtro:', e);
     } finally {
-        document.querySelectorAll('.filter-btn').forEach(b => b.disabled = false);
-        btn.style.opacity = '';
+        allBtns.forEach(b => b.disabled = false);
+        _filterSwitching = false;
     }
 }
 
@@ -417,10 +421,12 @@ async function loadDashboardData() {
             to.getTime(),
             twelveMonthsAhead.getTime()
         ));
-        const freshData = await BookingStorage.fetchForAdmin(
+        const fetchPromise = BookingStorage.fetchForAdmin(
             _localDateStr(extFrom),
             _localDateStr(extTo)
         );
+        const timeoutPromise = new Promise(resolve => setTimeout(() => resolve(null), 10000));
+        const freshData = await Promise.race([fetchPromise, timeoutPromise]);
         // Scarta la risposta se nel frattempo è arrivata una richiesta più recente
         if (seq !== _loadDashboardSeq) return;
         // freshData = null su errore Supabase → mantieni dati precedenti
