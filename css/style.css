@@ -591,6 +591,10 @@ body.nav-open {
     cursor: not-allowed;
 }
 
+.cleaning.slot-full {
+    opacity: 1;
+}
+
 /* Split slot: due tipi nella stessa cella del calendario */
 .calendar-slot.split-slot {
     display: flex;
@@ -897,6 +901,10 @@ body.nav-open {
 .mobile-slot-card.slot-full {
     opacity: 0.5;
     cursor: not-allowed;
+}
+
+.mobile-slot-card.cleaning.slot-full {
+    opacity: 1;
 }
 
 .mobile-slot-card.selected {
