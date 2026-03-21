@@ -7603,12 +7603,14 @@ function renderOccupancyDetail(panel) {
         return overrides[ds] || [];
     };
 
-    // ── Calcola capacità e prenotazioni per tipo per ogni mese (ultimi 12) ────
-    const trendLabels = [], ptTrend = [], sgTrend = [], gcTrend = [];
-    for (let i = 11; i >= 0; i--) {
+    // ── Calcola capacità e prenotazioni per tipo per ogni mese (ultimi 12 + successivo) ──
+    const trendLabels = [], ptTrend = [], sgTrend = [], gcTrend = [], trendHighlight = [];
+    for (let i = 11; i >= -1; i--) {
         const mFrom = new Date(now.getFullYear(), now.getMonth() - i, 1);
         const mTo   = new Date(now.getFullYear(), now.getMonth() - i + 1, 0, 23, 59, 59, 999);
-        trendLabels.push(MONTHS[mFrom.getMonth()]);
+        const label = MONTHS[mFrom.getMonth()] + (mFrom.getFullYear() !== now.getFullYear() ? ` '${String(mFrom.getFullYear()).slice(2)}` : '');
+        trendLabels.push(label);
+        trendHighlight.push(i === 0);
         let ptCap = 0, sgCap = 0, gcCap = 0;
         const c = new Date(mFrom);
         while (c <= mTo) {
@@ -7700,18 +7702,18 @@ function renderOccupancyDetail(panel) {
 
         <div class="stat-detail-charts">
             <div class="stat-detail-chart-block">
-                <h4>Autonomia — ultimi 12 mesi</h4>
+                <h4>Autonomia — ultimi 12 mesi + successivo</h4>
                 <canvas id="occPtChart" style="width:100%;display:block;"></canvas>
             </div>
             <div class="stat-detail-chart-block">
-                <h4>Lezioni di Gruppo — ultimi 12 mesi</h4>
+                <h4>Lezioni di Gruppo — ultimi 12 mesi + successivo</h4>
                 <canvas id="occSgChart" style="width:100%;display:block;"></canvas>
             </div>
         </div>
 
         <div class="stat-detail-charts">
             <div class="stat-detail-chart-block">
-                <h4>Slot prenotato — ultimi 12 mesi</h4>
+                <h4>Slot prenotato — ultimi 12 mesi + successivo</h4>
                 <canvas id="occGcChart" style="width:100%;display:block;"></canvas>
             </div>
             <div class="stat-detail-chart-block">
@@ -7724,17 +7726,17 @@ function renderOccupancyDetail(panel) {
     requestAnimationFrame(() => {
         const ptCanvas = document.getElementById('occPtChart');
         if (ptCanvas) new SimpleChart(ptCanvas).drawBarChart(
-            { labels: trendLabels, values: ptTrend, highlight: trendLabels.map((_, i) => i === 11) },
+            { labels: trendLabels, values: ptTrend, highlight: trendHighlight },
             { colors: ['#3b82f6'], prefix: '', suffix: '%' }
         );
         const sgCanvas = document.getElementById('occSgChart');
         if (sgCanvas) new SimpleChart(sgCanvas).drawBarChart(
-            { labels: trendLabels, values: sgTrend, highlight: trendLabels.map((_, i) => i === 11) },
+            { labels: trendLabels, values: sgTrend, highlight: trendHighlight },
             { colors: ['#22c55e'], prefix: '', suffix: '%' }
         );
         const gcCanvas = document.getElementById('occGcChart');
         if (gcCanvas) new SimpleChart(gcCanvas).drawBarChart(
-            { labels: trendLabels, values: gcTrend, highlight: trendLabels.map((_, i) => i === 11) },
+            { labels: trendLabels, values: gcTrend, highlight: trendHighlight },
             { colors: ['#e63946'], prefix: '', suffix: '%' }
         );
         const dowCanvas = document.getElementById('occDowChart');
