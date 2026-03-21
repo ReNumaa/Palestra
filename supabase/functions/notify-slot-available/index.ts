@@ -25,7 +25,7 @@ Deno.serve(async (req) => {
         return new Response(null, { status: 204, headers: corsHeaders });
     }
     try {
-        const { date_display, time, exclude_user_id, date } = await req.json();
+        const { date_display, time, exclude_user_id, date, spots_available, max_capacity } = await req.json();
 
         if (!date_display || !time) {
             return new Response(JSON.stringify({ ok: false, error: "date_display e time sono obbligatori" }), {
@@ -57,9 +57,19 @@ Deno.serve(async (req) => {
         if (error) throw error;
 
         const startTime = time.split(" - ")[0]?.trim() ?? time;
+        const giorni = ["domenica","lunedì","martedì","mercoledì","giovedì","venerdì","sabato"];
+        let dayName = "";
+        if (date) {
+            const dt = new Date(date + "T00:00:00");
+            dayName = giorni[dt.getDay()];
+        }
+        const spotsInfo = spots_available && max_capacity ? ` (${spots_available}/${max_capacity})` : "";
+        const bodyText = dayName
+            ? `${dayName} ${date_display} alle ${startTime}${spotsInfo}`
+            : `${date_display} alle ${startTime}${spotsInfo}`;
         const payload = JSON.stringify({
-            title: "Slot Disponibile!",
-            body:  `${date_display} alle ${startTime} — prenota ora`,
+            title: "Slot libero disponibile",
+            body:  bodyText,
             tag:   `slot-available-${date_display}-${startTime}`.replace(/\s/g, "-"),
             url:   date ? `/index.html?date=${date}` : "/index.html",
         });
