@@ -519,20 +519,21 @@ function updateStatsCards(filteredBookings, allBookings) {
     clientsChangeEl.textContent = filterLabel;
     clientsChangeEl.className = 'stat-change';
 
-    // Occupancy rate over the filter period (basato su gestione orari)
+    // Occupancy rate over the filter period (basato solo su gestione orari)
     const { from, to } = getFilterDateRange(currentFilter);
     const overridesOcc = BookingStorage.getScheduleOverrides();
-    const dayNamesOcc = ['Domenica','Lunedì','Martedì','Mercoledì','Giovedì','Venerdì','Sabato'];
     let totalSlots = 0;
     const curOcc = new Date(from); curOcc.setHours(0, 0, 0, 0);
     const endOcc = new Date(to); endOcc.setHours(23, 59, 59, 999);
     while (curOcc <= endOcc) {
         const ds = `${curOcc.getFullYear()}-${String(curOcc.getMonth() + 1).padStart(2, '0')}-${String(curOcc.getDate()).padStart(2, '0')}`;
-        const daySlots = overridesOcc[ds] || WEEKLY_SCHEDULE_TEMPLATE[dayNamesOcc[curOcc.getDay()]] || [];
-        daySlots.forEach(s => {
-            if (s.type === 'group-class') totalSlots += 1;
-            else totalSlots += SLOT_MAX_CAPACITY[s.type] || 0;
-        });
+        const daySlots = overridesOcc[ds];
+        if (daySlots && daySlots.length > 0) {
+            daySlots.forEach(s => {
+                if (s.type === 'group-class') totalSlots += 1;
+                else totalSlots += SLOT_MAX_CAPACITY[s.type] || 0;
+            });
+        }
         curOcc.setDate(curOcc.getDate() + 1);
     }
     const occupancyRate = totalSlots > 0 ? Math.round((filteredBookings.length / totalSlots) * 100) : 0;
@@ -7596,10 +7597,10 @@ function renderOccupancyDetail(panel) {
     // Helper: capacità di uno slot in base al tipo
     const slotCap = (type) => type === 'group-class' ? 1 : (SLOT_MAX_CAPACITY[type] || 0);
 
-    // Helper: slots di un giorno (override o template)
+    // Helper: slots di un giorno (solo da gestione orari, no fallback template)
     const daySlotsFor = (date) => {
         const ds = `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}-${String(date.getDate()).padStart(2, '0')}`;
-        return overrides[ds] || WEEKLY_SCHEDULE_TEMPLATE[DAY_NAMES[date.getDay()]] || [];
+        return overrides[ds] || [];
     };
 
     // ── Calcola capacità e prenotazioni per tipo per ogni mese (ultimi 12) ────
