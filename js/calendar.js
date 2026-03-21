@@ -257,7 +257,7 @@ function createSlot(dateInfo, timeSlot) {
         lessonStart.setHours(_tp1.startH, _tp1.startM, 0, 0);
         timeOk = (new Date() - lessonStart) <= 30 * 60 * 1000;
     }
-    if (!timeOk) slot.style.opacity = '0.35';
+    if (!timeOk) { slot.style.opacity = '0.35'; slot.style.filter = 'grayscale(0.8)'; }
 
     if (!hasMixedExtras) {
         // Vista unificata (stesso tipo o nessun extra)
