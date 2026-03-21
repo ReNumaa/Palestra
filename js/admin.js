@@ -6617,18 +6617,27 @@ function renderFatturatoDetail(panel) {
         ? knownPeriodRev + Math.round(knownPeriodRev / periodScheduledDays * futureUnscheduledDays)
         : knownPeriodRev;
 
-    // ── Fatturato per tipo di pagamento (no credito) ───────────────────────
+    // ── Fatturato per tipo di pagamento (booking + crediti manuali) ─────────
     const PAY_METHODS = [
         { key: 'contanti',         label: 'Contanti',  color: '#22c55e' },
         { key: 'carta',            label: 'Carta',     color: '#3b82f6' },
         { key: 'iban',             label: 'Bonifico',  color: '#f59e0b' },
         { key: 'lezione-gratuita', label: 'Gratuita',  color: '#a855f7' },
     ];
+    // Somma crediti manuali nel periodo per metodo di pagamento
+    const creditByMethod = {};
+    _creditEntries.forEach(h => {
+        const d = new Date(h.date);
+        if (d >= from && d <= to && h.method) {
+            creditByMethod[h.method] = (creditByMethod[h.method] || 0) + h.amount;
+        }
+    });
     const payMethodStats = PAY_METHODS.map(({ key, label, color }) => {
-        const rev = periodBookings
+        const bookingRev = periodBookings
             .filter(b => b.paid && b.paymentMethod === key)
             .reduce(revFn, 0);
-        return { label, color, rev };
+        const creditRev = creditByMethod[key] || 0;
+        return { label, color, rev: bookingRev + creditRev };
     }).filter(m => m.rev > 0);
     const payMethodPieData = {
         labels: payMethodStats.map(m => m.label),
@@ -6683,10 +6692,6 @@ function renderFatturatoDetail(panel) {
         </div>
 
         <div class="stat-detail-chart-block stat-detail-type-section">
-            <h4>Fatturato per tipo di lezione</h4>
-            <canvas id="detailTypeChart" style="width:100%;display:block;"></canvas>
-        </div>
-        <div class="stat-detail-chart-block stat-detail-type-section">
             <h4>Fatturato per tipo di pagamento</h4>
             <canvas id="detailPayMethodChart" style="width:100%;display:block;"></canvas>
         </div>
@@ -6701,11 +6706,6 @@ function renderFatturatoDetail(panel) {
 
         const isMobilePie = window.innerWidth < 768;
         const pieH = isMobilePie ? 310 : 250;
-
-        const typeCanvas = document.getElementById('detailTypeChart');
-        if (typeCanvas && typeStats.length > 0) {
-            new SimpleChart(typeCanvas, { height: pieH }).drawPieChart(typePieData, { colors: pieColors, mobile: isMobilePie });
-        }
 
         const payCanvas = document.getElementById('detailPayMethodChart');
         if (payCanvas && payMethodStats.length > 0) {
