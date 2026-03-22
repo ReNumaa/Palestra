@@ -741,7 +741,7 @@ body.nav-open {
     color: var(--text-white);
     padding: 2rem 0;
     text-align: center;
-    margin-top: 3rem;
+    margin-top: auto;
 }
 
 /* Mobile View - Vertical Calendar */
