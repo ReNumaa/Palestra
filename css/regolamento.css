@@ -99,16 +99,22 @@
     grid-column: 1 / -1;
 }
 
+.rg-card-header {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    margin-bottom: 0.6rem;
+}
+
 .rg-card-icon {
-    font-size: 2rem;
-    margin-bottom: 0.75rem;
+    font-size: 1.5rem;
+    flex-shrink: 0;
 }
 
 .rg-card-title {
     font-size: 1.1rem;
     font-weight: 700;
     color: var(--dark-bg);
-    margin-bottom: 0.5rem;
 }
 
 .rg-card p {
