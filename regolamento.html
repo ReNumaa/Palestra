@@ -9,11 +9,11 @@
     <meta name="apple-mobile-web-app-capable" content="yes">
     <meta name="apple-mobile-web-app-status-bar-style" content="default">
     <meta name="apple-mobile-web-app-title" content="Palestra">
-    <title>Chi Sono – Thomas Bresciani</title>
+    <title>Regolamento – Thomas Bresciani</title>
     <link rel="icon" type="image/jpeg" href="images/logo-tb---nero.jpg">
     <link rel="stylesheet" href="css/style.css?v=8">
     <link rel="stylesheet" href="css/login.css?v=4">
-    <link rel="stylesheet" href="css/chi-sono.css?v=5">
+    <link rel="stylesheet" href="css/regolamento.css?v=1">
 </head>
 <body>
     <nav class="navbar">
@@ -24,7 +24,7 @@
             <div class="nav-right">
                 <ul class="nav-desktop-links">
                     <li><a href="/">Calendario</a></li>
-                    <li><a href="chi-sono.html" class="active">Chi sono</a></li>
+                    <li><a href="chi-sono.html">Chi sono</a></li>
                     <li><a href="dove-sono.html">Dove sono</a></li>
                     <li><a href="nutrizione.html">Nutrizione</a></li>
                 </ul>
@@ -45,115 +45,134 @@
     </nav>
 
     <!-- Hero -->
-    <section class="cs-hero">
+    <section class="rg-hero">
         <div class="container">
-            <img src="images/logo-tb---nero.jpg" alt="Thomas Bresciani" class="cs-hero-photo">
-            <h1 class="cs-hero-name">Thomas Bresciani</h1>
-            <p class="cs-hero-role">Personal Trainer · Sabbio Chiese (BS)</p>
-            <div class="cs-hero-stats">
-                <div class="cs-stat">
-                    <div class="cs-stat-number">10+</div>
-                    <div class="cs-stat-label">Anni di esperienza</div>
+            <div class="rg-hero-icon">📋</div>
+            <h1 class="rg-hero-title">Regolamento</h1>
+            <p class="rg-hero-sub">Come funziona la palestra e l'app di prenotazione</p>
+        </div>
+    </section>
+
+    <!-- Come funziona l'app -->
+    <section class="rg-section">
+        <div class="container">
+            <h2 class="rg-section-title">Come funziona <span class="rg-accent">l'app</span></h2>
+            <p class="rg-section-sub">Prenota, gestisci e paga i tuoi allenamenti in modo semplice</p>
+
+            <div class="rg-cards">
+                <div class="rg-card">
+                    <div class="rg-card-icon">📅</div>
+                    <h3 class="rg-card-title">Prenotazione</h3>
+                    <p>Dal calendario scegli il giorno e lo slot orario che preferisci. Ogni slot dura <strong>80 minuti</strong> (massimo 90). Una volta confermata, la prenotazione &egrave; immediatamente attiva.</p>
                 </div>
-                <div class="cs-stat">
-                    <div class="cs-stat-number">200+</div>
-                    <div class="cs-stat-label">Clienti seguiti</div>
+
+                <div class="rg-card">
+                    <div class="rg-card-icon">🎨</div>
+                    <h3 class="rg-card-title">Tipi di slot</h3>
+                    <p>Nel calendario vedrai slot di colori diversi:</p>
+                    <ul class="rg-list">
+                        <li><span class="rg-dot rg-dot-green"></span> <strong>Autonomia</strong> — ti alleni in autonomia seguendo la tua scheda (€5)</li>
+                        <li><span class="rg-dot rg-dot-yellow"></span> <strong>Lezione di Gruppo</strong> — allenamento di gruppo con l'istruttore (€10)</li>
+                        <li><span class="rg-dot rg-dot-red"></span> <strong>Slot prenotato</strong> — sessione dedicata con l'istruttore (€30)</li>
+                    </ul>
                 </div>
-                <div class="cs-stat">
-                    <div class="cs-stat-number">3</div>
-                    <div class="cs-stat-label">Titoli e qualifiche</div>
+
+                <div class="rg-card">
+                    <div class="rg-card-icon">💰</div>
+                    <h3 class="rg-card-title">Credito e pagamenti</h3>
+                    <p>Puoi ricaricare il tuo <strong>credito</strong> in anticipo e le prenotazioni verranno scalate automaticamente dal tuo saldo. In alternativa, puoi pagare di volta in volta in contanti, carta o bonifico.</p>
+                    <p>Nella sezione <strong>"Le mie prenotazioni"</strong> trovi sempre il riepilogo del tuo saldo, le transazioni e lo storico.</p>
+                </div>
+
+                <div class="rg-card">
+                    <div class="rg-card-icon">❌</div>
+                    <h3 class="rg-card-title">Annullamenti</h3>
+                    <p>Puoi annullare una prenotazione direttamente dall'app. Se la prenotazione era gi&agrave; stata pagata, il credito ti viene <strong>rimborsato automaticamente</strong> sul tuo saldo.</p>
+                    <p>Se annulli a ridosso dell'orario previsto, potrebbe essere applicata una <strong>mora del 50%</strong> sul costo dello slot.</p>
+                </div>
+
+                <div class="rg-card rg-card-highlight">
+                    <div class="rg-card-icon">🎁</div>
+                    <h3 class="rg-card-title">Bonus mensile</h3>
+                    <p>Ogni mese hai a disposizione <strong>1 bonus di annullamento gratuito</strong>. Ti permette di annullare una prenotazione senza alcuna penale, anche quando normalmente sarebbe prevista la mora.</p>
+                    <ul class="rg-list">
+                        <li>Il bonus si rinnova automaticamente il primo giorno di ogni mese</li>
+                        <li>Non &egrave; cumulabile: se non lo usi, non si somma al mese successivo</li>
+                        <li>Puoi usarlo una sola volta al mese, su qualsiasi tipo di slot</li>
+                    </ul>
                 </div>
             </div>
         </div>
     </section>
 
-    <!-- About -->
-    <section class="cs-section">
+    <!-- Regolamento palestra -->
+    <section class="rg-section rg-section-alt">
         <div class="container">
-            <h2 class="cs-section-title">Chi <span class="cs-accent">sono</span></h2>
-            <p class="cs-section-sub">Passione per lo sport, formazione accademica e oltre 10 anni di esperienza al servizio del tuo benessere.</p>
-            <div class="cs-about-grid">
-                <div class="cs-about-photo-placeholder">
-                    <img src="images/logo-tb---nero.jpg" alt="Thomas Bresciani">
-                </div>
-                <div class="cs-about-text">
-                    <p>
-                        Mi chiamo <strong>Thomas Bresciani</strong> e sono un Personal Trainer laureato, con oltre <strong>10 anni di esperienza</strong> nel settore del fitness, della salute e della preparazione fisica.
-                    </p>
-                    <p>
-                        Il mio percorso professionale nasce dalla passione per lo sport e per il benessere delle persone, che nel tempo ho trasformato in una professione supportata da una solida <strong>formazione accademica e tecnica</strong>.
-                    </p>
-                    <p>
-                        Nel mio lavoro unisco scienza dell'allenamento, esperienza pratica e attenzione alla persona, creando <strong>programmi personalizzati</strong> per aiutare ogni cliente a raggiungere i propri obiettivi.
-                    </p>
-                    <blockquote class="cs-quote">
-                        Credo che l'allenamento sia uno strumento potente per migliorare la qualit&agrave; della vita, e il mio obiettivo &egrave; accompagnare ogni persona in un percorso efficace, sicuro e sostenibile nel tempo.
-                    </blockquote>
-                </div>
-            </div>
-        </div>
-    </section>
+            <h2 class="rg-section-title">Regolamento <span class="rg-accent">palestra</span></h2>
+            <p class="rg-section-sub">Alcune regole semplici per allenarsi al meglio e in sicurezza</p>
 
-    <!-- Services -->
-    <section class="cs-section">
-        <div class="container">
-            <h2 class="cs-section-title">Come posso <span class="cs-accent">aiutarti</span></h2>
-            <p class="cs-section-sub">Programmi personalizzati per ogni obiettivo</p>
-            <div class="cs-services-grid">
-                <div class="cs-service-card">
-                    <div class="cs-service-icon">🎯</div>
-                    <div class="cs-service-name">Migliorare la forma fisica</div>
-                    <div class="cs-service-desc">Programmi su misura per ritrovare la tua migliore condizione fisica, con un approccio graduale e adatto al tuo livello di partenza.</div>
-                </div>
-                <div class="cs-service-card">
-                    <div class="cs-service-icon">💪</div>
-                    <div class="cs-service-name">Forza e performance</div>
-                    <div class="cs-service-desc">Aumenta la forza, la resistenza e le tue prestazioni sportive con allenamenti strutturati e progressivi.</div>
-                </div>
-                <div class="cs-service-card">
-                    <div class="cs-service-icon">🔥</div>
-                    <div class="cs-service-name">Dimagrimento sano</div>
-                    <div class="cs-service-desc">Protocolli specifici per la perdita di peso e la ricomposizione corporea, con un approccio sostenibile e basato sulla scienza.</div>
-                </div>
-                <div class="cs-service-card">
-                    <div class="cs-service-icon">🛡️</div>
-                    <div class="cs-service-name">Prevenzione infortuni</div>
-                    <div class="cs-service-desc">Lavoro mirato sulla mobilit&agrave; articolare, la postura e il rinforzo muscolare per prevenire infortuni e dolori.</div>
-                </div>
-                <div class="cs-service-card">
-                    <div class="cs-service-icon">🧘</div>
-                    <div class="cs-service-name">Benessere generale</div>
-                    <div class="cs-service-desc">Migliora la qualit&agrave; della vita attraverso l'esercizio fisico: pi&ugrave; energia, meno stress e un corpo che funziona meglio ogni giorno.</div>
-                </div>
-            </div>
-        </div>
-    </section>
-
-    <!-- Certifications -->
-    <section class="cs-section">
-        <div class="container">
-            <h2 class="cs-section-title">Formazione &amp; <span class="cs-accent">Qualifiche</span></h2>
-            <p class="cs-section-sub">Un percorso accademico e professionale solido, al servizio dei miei clienti</p>
-            <div class="cs-certs-list">
-                <div class="cs-cert-item">
-                    <div class="cs-cert-year">2019</div>
+            <div class="rg-rules">
+                <div class="rg-rule">
+                    <div class="rg-rule-icon">👟</div>
                     <div>
-                        <div class="cs-cert-name">Laurea in Scienze delle Attivit&agrave; Motorie e Sportive (L-22)</div>
-                        <div class="cs-cert-body">Universit&agrave; degli Studi di Brescia</div>
+                        <h4 class="rg-rule-title">Scarpe e abbigliamento</h4>
+                        <p>Utilizza scarpe pulite dedicate all'ambiente indoor oppure allenati in calze pulite. Porta sempre un asciugamano.</p>
                     </div>
                 </div>
-                <div class="cs-cert-item">
-                    <div class="cs-cert-year">2026</div>
+
+                <div class="rg-rule">
+                    <div class="rg-rule-icon">🏋️</div>
                     <div>
-                        <div class="cs-cert-name">Laurea Magistrale in Scienze dell'Esercizio Fisico per il Benessere e la Salute (LM-67)</div>
-                        <div class="cs-cert-body">Specializzazione in prevenzione, allenamento adattato e miglioramento della salute attraverso l'esercizio fisico</div>
+                        <h4 class="rg-rule-title">Attrezzi e bilancieri</h4>
+                        <p>Al termine dell'uso, riponi gli attrezzi al loro posto e scarica i bilancieri. Lo studio deve restare ordinato per tutti.</p>
                     </div>
                 </div>
-                <div class="cs-cert-item">
-                    <div class="cs-cert-year">FIPE</div>
+
+                <div class="rg-rule">
+                    <div class="rg-rule-icon">⏱️</div>
                     <div>
-                        <div class="cs-cert-name">Allenatore Personal Trainer di 1&deg; livello</div>
-                        <div class="cs-cert-body">FIPE — Federazione Italiana Pesistica, federazione sportiva riconosciuta dal CONI</div>
+                        <h4 class="rg-rule-title">Durata dello slot</h4>
+                        <p>Ogni slot dura <strong>80 minuti</strong>, con un massimo di 90 minuti. Rispetta gli orari per permettere a chi viene dopo di allenarsi senza ritardi.</p>
+                    </div>
+                </div>
+
+                <div class="rg-rule">
+                    <div class="rg-rule-icon">👤</div>
+                    <div>
+                        <h4 class="rg-rule-title">Primo allenamento</h4>
+                        <p>Il primo allenamento si svolge <strong>obbligatoriamente con l'istruttore</strong>, per impostare il programma e verificare la corretta esecuzione degli esercizi.</p>
+                    </div>
+                </div>
+
+                <div class="rg-rule">
+                    <div class="rg-rule-icon">🔑</div>
+                    <div>
+                        <h4 class="rg-rule-title">Accesso in autonomia</h4>
+                        <p>Puoi accedere in autonomia solo dopo aver ricevuto l'<strong>autorizzazione dell'istruttore</strong>, che valuta la tua preparazione tecnica e la capacit&agrave; di allenarti in sicurezza.</p>
+                    </div>
+                </div>
+
+                <div class="rg-rule">
+                    <div class="rg-rule-icon">🛡️</div>
+                    <div>
+                        <h4 class="rg-rule-title">Sicurezza</h4>
+                        <p>Segui sempre le indicazioni dell'istruttore. Non eseguire esercizi non prescritti o modificati autonomamente. In caso di malessere, interrompi l'attivit&agrave; e avvisa subito.</p>
+                    </div>
+                </div>
+
+                <div class="rg-rule">
+                    <div class="rg-rule-icon">🩺</div>
+                    <div>
+                        <h4 class="rg-rule-title">Idoneit&agrave; fisica</h4>
+                        <p>Per allenarti devi essere in condizioni fisiche idonee all'attivit&agrave; sportiva. Comunica eventuali problemi di salute o limitazioni fisiche prima di iniziare.</p>
+                    </div>
+                </div>
+
+                <div class="rg-rule">
+                    <div class="rg-rule-icon">🤝</div>
+                    <div>
+                        <h4 class="rg-rule-title">Rispetto</h4>
+                        <p>Mantieni un comportamento corretto e rispettoso verso l'istruttore, gli altri utenti e l'ambiente dello studio.</p>
                     </div>
                 </div>
             </div>
@@ -161,11 +180,11 @@
     </section>
 
     <!-- CTA -->
-    <section class="cs-cta">
+    <section class="rg-cta">
         <div class="container">
-            <h2>Pronto a iniziare?</h2>
-            <p>Prenota la tua prima sessione direttamente dal calendario. Il primo passo è sempre il più importante.</p>
-            <a href="/" class="cs-cta-btn">
+            <h2>Tutto chiaro?</h2>
+            <p>Se hai dubbi o domande, non esitare a contattarmi. Altrimenti, sei pronto per prenotare il tuo prossimo allenamento!</p>
+            <a href="/" class="rg-cta-btn">
                 <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" width="20" height="20"><rect x="3" y="4" width="18" height="18" rx="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/></svg>
                 Vai al Calendario
             </a>
@@ -210,7 +229,6 @@
             <li><a href="chi-sono.html">Chi sono</a></li>
             <li><a href="dove-sono.html">Dove sono</a></li>
             <li><a href="nutrizione.html">Nutrizione</a></li>
-            <li><a href="regolamento.html">Regolamento</a></li>
         </ul>
         <p class="nav-sidebar-credit">powered by <a href="https://t.me/Renuma" target="_blank" rel="noopener" class="credit-link" onclick="logCreditClick(event)">Andrea Pompili</a></p>
     </nav>
