@@ -1926,12 +1926,12 @@ function renderOccupancyDetail(panel) {
         const ptCanvas = document.getElementById('occPtChart');
         if (ptCanvas) new SimpleChart(ptCanvas).drawBarChart(
             { labels: trendLabels, values: ptTrend, highlight: trendHighlight },
-            { colors: ['#3b82f6'], prefix: '', suffix: '%' }
+            { colors: ['#22c55e'], prefix: '', suffix: '%' }
         );
         const sgCanvas = document.getElementById('occSgChart');
         if (sgCanvas) new SimpleChart(sgCanvas).drawBarChart(
             { labels: trendLabels, values: sgTrend, highlight: trendHighlight },
-            { colors: ['#22c55e'], prefix: '', suffix: '%' }
+            { colors: ['#f59e0b'], prefix: '', suffix: '%' }
         );
         const gcCanvas = document.getElementById('occGcChart');
         if (gcCanvas) new SimpleChart(gcCanvas).drawBarChart(
@@ -1941,7 +1941,7 @@ function renderOccupancyDetail(panel) {
         const dowCanvas = document.getElementById('occDowChart');
         if (dowCanvas) new SimpleChart(dowCanvas).drawBarChart(
             { labels: dowLabels, values: dowRates },
-            { colors: ['#f59e0b'], prefix: '', suffix: '%' }
+            { colors: ['#3b82f6'], prefix: '', suffix: '%' }
         );
     });
 }
