@@ -334,7 +334,15 @@
         }
         function _stopPolling() { if (_pollInterval) { clearInterval(_pollInterval); _pollInterval = null; } }
         document.addEventListener('visibilitychange', () => {
-            if (document.hidden) _stopPolling(); else { _startPolling(); _setupRealtime(); }
+            if (document.hidden) _stopPolling();
+            else {
+                _startPolling(); _setupRealtime();
+                // After returning from Stripe payment in PWA, re-sync credits immediately
+                if (window._topupPending) {
+                    window._topupPending = false;
+                    _debouncedFullSync();
+                }
+            }
         });
 
         // Supabase Realtime: aggiorna la lista prenotazioni in tempo reale.
@@ -1186,6 +1194,7 @@
                 const isPWA = window.matchMedia('(display-mode: standalone)').matches
                            || window.navigator.standalone === true;
                 if (isPWA) {
+                    window._topupPending = true;
                     window.open(result.url, '_blank');
                     closeTopUpModal();
                     btn.disabled = false;
