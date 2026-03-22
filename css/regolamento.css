@@ -122,6 +122,44 @@
     margin-bottom: 0;
 }
 
+/* Slot list */
+.rg-slot-list {
+    display: flex;
+    flex-direction: column;
+    gap: 0.6rem;
+    margin-top: 0.75rem;
+}
+
+.rg-slot-item {
+    background: rgba(0,0,0,0.03);
+    border-radius: 8px;
+    padding: 0.6rem 0.75rem;
+}
+
+.rg-slot-header {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    font-size: 0.9rem;
+    color: var(--dark-bg);
+}
+
+.rg-slot-price {
+    margin-left: auto;
+    font-size: 0.85rem;
+    font-weight: 700;
+    color: var(--primary-cyan);
+    white-space: nowrap;
+}
+
+.rg-slot-desc {
+    font-size: 0.82rem;
+    color: #777;
+    margin-top: 0.2rem;
+    padding-left: 1.6rem;
+    line-height: 1.5;
+}
+
 /* Lists */
 .rg-list {
     list-style: none;
