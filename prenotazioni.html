@@ -1181,8 +1181,19 @@
                     throw new Error(result.error || 'Errore nella creazione del pagamento');
                 }
 
-                // Redirect to Stripe Checkout
-                window.location.href = result.url;
+                // Open Stripe Checkout — in PWA standalone mode use window.open
+                // so the user stays in the app and the payment opens in the browser
+                const isPWA = window.matchMedia('(display-mode: standalone)').matches
+                           || window.navigator.standalone === true;
+                if (isPWA) {
+                    window.open(result.url, '_blank');
+                    closeTopUpModal();
+                    btn.disabled = false;
+                    btn.textContent = 'Procedi al pagamento';
+                    showToast('Completa il pagamento nel browser. Il credito verrà aggiornato automaticamente.', 'success', 6000);
+                } else {
+                    window.location.href = result.url;
+                }
             } catch (e) {
                 console.error('[TopUp] Error:', e);
                 errEl.textContent = e.message || 'Errore. Riprova.';
