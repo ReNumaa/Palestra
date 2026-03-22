@@ -3803,7 +3803,8 @@ canvas {
     gap: 0.2rem;
 }
 .registro-filter-group--sm  { min-width: 130px; }
-.registro-filter-group--search { flex: 1 1 100%; min-width: 160px; }
+.registro-search-row { display: flex; flex: 1 1 100%; gap: 0.5rem; align-items: flex-end; }
+.registro-filter-group--search { flex: 1; min-width: 160px; }
 .registro-filter-label {
     font-size: 0.7rem;
     color: #888;
