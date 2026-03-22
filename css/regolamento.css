@@ -99,6 +99,11 @@
     grid-column: 1 / -1;
 }
 
+.rg-card-accent {
+    border: 2px solid var(--primary-cyan);
+    background: linear-gradient(135deg, #f0fbff 0%, #fff 100%);
+}
+
 .rg-card-header {
     display: flex;
     align-items: center;
