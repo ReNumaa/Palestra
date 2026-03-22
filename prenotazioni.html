@@ -2,7 +2,7 @@
 <html lang="it">
 <head>
     <meta charset="UTF-8">
-    <meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self' 'unsafe-inline' cdn.jsdelivr.net; style-src 'self' 'unsafe-inline'; connect-src 'self' https://*.supabase.co wss://*.supabase.co; img-src 'self' data: https:; font-src 'self'; frame-src 'self' https://accounts.google.com; form-action 'self'">
+    <meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self' 'unsafe-inline' cdn.jsdelivr.net; style-src 'self' 'unsafe-inline'; connect-src 'self' https://*.supabase.co wss://*.supabase.co https://checkout.stripe.com; img-src 'self' data: https:; font-src 'self'; frame-src 'self' https://accounts.google.com https://checkout.stripe.com; form-action 'self' https://checkout.stripe.com">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
     <link rel="manifest" href="manifest.json?v=3">
     <meta name="theme-color" content="#00AEEF">
@@ -64,7 +64,10 @@
             <div class="preno-saldo-card">
                 <div class="preno-saldo-row">
                     <span class="preno-saldo-label">💳 Credito disponibile</span>
-                    <span class="preno-saldo-value preno-saldo-credit" id="prenoCreditAmount">€0,00</span>
+                    <span class="preno-saldo-credit-wrap">
+                        <span class="preno-saldo-value preno-saldo-credit" id="prenoCreditAmount">€0,00</span>
+                        <button id="btnTopUp" class="preno-topup-btn" style="display:none;" onclick="openTopUpModal()" title="Ricarica credito">+</button>
+                    </span>
                 </div>
                 <div class="preno-saldo-divider"></div>
                 <div class="preno-saldo-row">
@@ -192,6 +195,28 @@
         </div>
     </div>
 
+    <!-- Top-up modal (Stripe) -->
+    <div id="topUpModal" class="modal-overlay" style="display:none;" onclick="if(event.target===this)closeTopUpModal()">
+        <div class="modal-box">
+            <button class="modal-close" onclick="closeTopUpModal()">✕</button>
+            <h3 class="topup-title">Ricarica credito</h3>
+            <p class="topup-subtitle">Seleziona l'importo da ricaricare</p>
+            <div class="topup-amounts">
+                <button class="topup-amount-btn" onclick="selectTopUpAmount(50)">€50</button>
+                <button class="topup-amount-btn" onclick="selectTopUpAmount(100)">€100</button>
+                <button class="topup-amount-btn" onclick="selectTopUpAmount(150)">€150</button>
+                <button class="topup-amount-btn" onclick="selectTopUpAmount(200)">€200</button>
+            </div>
+            <div class="topup-custom-row">
+                <label for="topUpCustom">Altro importo (min. €50)</label>
+                <input type="number" id="topUpCustom" min="50" step="10" placeholder="€">
+            </div>
+            <div id="topUpError" class="edit-profile-error" style="display:none;"></div>
+            <button id="topUpConfirmBtn" class="btn-primary topup-confirm-btn" onclick="confirmTopUp()" disabled>Procedi al pagamento</button>
+            <p class="topup-note">Verrai reindirizzato a Stripe per completare il pagamento in sicurezza.</p>
+        </div>
+    </div>
+
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.99.1/dist/umd/supabase.min.js" integrity="sha384-nBSomYN4UWX4we7Pw5GsQDkjtwLh2Wde+3szWl5Lzf0zuN9XncHIZLNoucos4C7f" crossorigin="anonymous"></script>
     <script src="js/supabase-client.js?v=1"></script>
     <script src="js/ui.js?v=2"></script>
@@ -272,6 +297,7 @@
             _checkDebtAlert(user);
             _startPolling();
             _setupRealtime();
+            if (typeof _maybeShowTopUpBtn === 'function') _maybeShowTopUpBtn();
         }
 
         function _checkDebtAlert(user) {
@@ -1056,6 +1082,127 @@
             }
         });
 
+    </script>
+    <script>
+        // ── Stripe Top-Up ────────────────────────────────────────────────
+        const TOPUP_ALLOWED_UID = 'cf5f39f3-1581-40be-80e9-15b56acee337';
+        let _selectedTopUpAmount = 0;
+
+        // Show (+) button only for allowed user
+        function _maybeShowTopUpBtn() {
+            const user = getCurrentUser();
+            if (user && user.id === TOPUP_ALLOWED_UID) {
+                document.getElementById('btnTopUp').style.display = '';
+            }
+        }
+
+        function openTopUpModal() {
+            _selectedTopUpAmount = 0;
+            document.getElementById('topUpCustom').value = '';
+            document.getElementById('topUpError').style.display = 'none';
+            document.getElementById('topUpConfirmBtn').disabled = true;
+            document.querySelectorAll('.topup-amount-btn').forEach(b => b.classList.remove('active'));
+            document.getElementById('topUpModal').style.display = 'flex';
+        }
+
+        function closeTopUpModal() {
+            document.getElementById('topUpModal').style.display = 'none';
+        }
+
+        function selectTopUpAmount(amount) {
+            _selectedTopUpAmount = amount;
+            document.getElementById('topUpCustom').value = '';
+            document.getElementById('topUpError').style.display = 'none';
+            document.getElementById('topUpConfirmBtn').disabled = false;
+            document.querySelectorAll('.topup-amount-btn').forEach(b => {
+                b.classList.toggle('active', parseInt(b.textContent.replace('€', '')) === amount);
+            });
+        }
+
+        // Custom amount input
+        document.addEventListener('DOMContentLoaded', () => {
+            const customInput = document.getElementById('topUpCustom');
+            if (customInput) {
+                customInput.addEventListener('input', () => {
+                    const val = parseInt(customInput.value);
+                    document.querySelectorAll('.topup-amount-btn').forEach(b => b.classList.remove('active'));
+                    if (val >= 50) {
+                        _selectedTopUpAmount = val;
+                        document.getElementById('topUpConfirmBtn').disabled = false;
+                        document.getElementById('topUpError').style.display = 'none';
+                    } else {
+                        _selectedTopUpAmount = 0;
+                        document.getElementById('topUpConfirmBtn').disabled = true;
+                    }
+                });
+            }
+        });
+
+        async function confirmTopUp() {
+            const errEl = document.getElementById('topUpError');
+            const btn = document.getElementById('topUpConfirmBtn');
+
+            if (_selectedTopUpAmount < 50) {
+                errEl.textContent = 'Importo minimo: €50';
+                errEl.style.display = 'block';
+                return;
+            }
+
+            const user = getCurrentUser();
+            if (!user) {
+                errEl.textContent = 'Sessione scaduta. Ricarica la pagina.';
+                errEl.style.display = 'block';
+                return;
+            }
+
+            btn.disabled = true;
+            btn.textContent = 'Caricamento...';
+
+            try {
+                const { data: { session } } = await supabaseClient.auth.getSession();
+                if (!session) throw new Error('Sessione non valida');
+
+                const res = await fetch(SUPABASE_URL + '/functions/v1/create-checkout', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'Authorization': 'Bearer ' + session.access_token,
+                    },
+                    body: JSON.stringify({
+                        amount: _selectedTopUpAmount,
+                        user_id: user.id,
+                        user_email: user.email,
+                        user_name: user.name,
+                    }),
+                });
+
+                const result = await res.json();
+                if (!res.ok || !result.url) {
+                    throw new Error(result.error || 'Errore nella creazione del pagamento');
+                }
+
+                // Redirect to Stripe Checkout
+                window.location.href = result.url;
+            } catch (e) {
+                console.error('[TopUp] Error:', e);
+                errEl.textContent = e.message || 'Errore. Riprova.';
+                errEl.style.display = 'block';
+                btn.disabled = false;
+                btn.textContent = 'Procedi al pagamento';
+            }
+        }
+
+        // Check URL for top-up success/cancel
+        (function checkTopUpReturn() {
+            const params = new URLSearchParams(window.location.search);
+            if (params.get('topup') === 'success') {
+                window.history.replaceState({}, '', window.location.pathname);
+                setTimeout(() => showToast('Pagamento ricevuto! Il credito verrà aggiornato a breve.', 'success', 5000), 1000);
+            } else if (params.get('topup') === 'cancel') {
+                window.history.replaceState({}, '', window.location.pathname);
+                setTimeout(() => showToast('Pagamento annullato.', 'error', 3000), 1000);
+            }
+        })();
     </script>
     <script src="js/sw-update.js"></script>
     <script src="js/pwa-install.js"></script>
