@@ -2191,3 +2191,171 @@ async function downloadWeeklyReport() {
 }
 
 // ── End Weekly Report ────────────────────────────────────────────────────────
+
+// ── Fiscal Report (all card/bank-transfer payments) ─────────────────────────
+
+async function downloadFiscalReport() {
+    const btn = document.getElementById('fiscalReportBtn');
+    const origLabel = btn?.innerHTML;
+    if (btn) { btn.innerHTML = '⏳ Generazione...'; btn.disabled = true; }
+
+    try {
+        await Promise.all([
+            ManualDebtStorage.syncFromSupabase(),
+            CreditStorage.syncFromSupabase(),
+            UserStorage.syncUsersFromSupabase(),
+        ]);
+
+        const REPORT_METHODS = new Set(['carta', 'iban']);
+        const METHOD_LABEL_REPORT = { carta: 'Carta', iban: 'Bonifico' };
+
+        // Fetch ALL bookings (no date filter)
+        const allBookings = await BookingStorage.fetchForAdmin(null, null);
+        const cardBookings = (allBookings || []).filter(b =>
+            b.paid && REPORT_METHODS.has(b.paymentMethod) && b.status !== 'cancelled'
+        );
+
+        // Manual debts paid with carta/iban
+        const allDebts = ManualDebtStorage._getAll();
+        const manualCardPayments = [];
+        Object.values(allDebts).forEach(d => {
+            (d.history || []).filter(h => {
+                if (h.amount >= 0) return false;
+                return REPORT_METHODS.has(h.method || '');
+            }).forEach(h => {
+                manualCardPayments.push({
+                    name: d.name, email: d.email, date: h.date,
+                    type: 'Saldo debito manuale', amount: Math.abs(h.amount),
+                    method: h.method
+                });
+            });
+        });
+
+        // Manual credits paid with carta/iban
+        const allCredits = CreditStorage._getAll();
+        const manualCreditPayments = [];
+        Object.values(allCredits).forEach(c => {
+            (c.history || []).filter(h => {
+                if (h.amount <= 0) return false;
+                if (h.hiddenRefund) return false;
+                if ((h.note || '').startsWith('Rimborso')) return false;
+                return REPORT_METHODS.has(h.method || '');
+            }).forEach(h => {
+                manualCreditPayments.push({
+                    name: c.name, email: c.email, date: h.date,
+                    type: 'Credito manuale', amount: h.amount,
+                    method: h.method
+                });
+            });
+        });
+
+        // User map for codice fiscale / address lookup
+        const allUsers = UserStorage.getAll();
+        const userMap = {};
+        allUsers.forEach(u => { if (u.email) userMap[u.email.toLowerCase()] = u; });
+
+        const SLOT_LABEL = {
+            'personal-training': 'Personal Training',
+            'small-group':       'Small Group',
+            'group-class':       'Lezione di Gruppo'
+        };
+
+        function splitName(fullName) {
+            if (!fullName) return { nome: '', cognome: '' };
+            const parts = (fullName || '').trim().split(/\s+/);
+            if (parts.length <= 1) return { nome: parts[0] || '', cognome: '' };
+            return { nome: parts[0], cognome: parts.slice(1).join(' ') };
+        }
+
+        function fmtDateTime(iso) {
+            if (!iso) return '';
+            const d = new Date(iso);
+            return isNaN(d) ? iso : d.toLocaleString('it-IT');
+        }
+
+        // Build rows
+        const rows = [];
+
+        cardBookings.forEach(b => {
+            const user = userMap[(b.email || '').toLowerCase()];
+            const { nome, cognome } = splitName(b.name);
+            const addr = [user?.indirizzoVia, user?.indirizzoPaese, user?.indirizzoCap].filter(Boolean).join(', ');
+            rows.push({
+                nome, cognome,
+                cf: user?.codiceFiscale || '',
+                indirizzo: addr,
+                data: fmtDateTime(b.paidAt || b.date + 'T12:00:00'),
+                sortKey: b.paidAt || b.date,
+                tipo: SLOT_LABEL[b.slotType] || b.slotType || '',
+                metodo: METHOD_LABEL_REPORT[b.paymentMethod] || b.paymentMethod,
+                importo: SLOT_PRICES[b.slotType] || 0
+            });
+        });
+
+        manualCardPayments.forEach(p => {
+            const user = userMap[(p.email || '').toLowerCase()];
+            const { nome, cognome } = splitName(p.name);
+            const addr = [user?.indirizzoVia, user?.indirizzoPaese, user?.indirizzoCap].filter(Boolean).join(', ');
+            rows.push({
+                nome, cognome,
+                cf: user?.codiceFiscale || '',
+                indirizzo: addr,
+                data: fmtDateTime(p.date),
+                sortKey: p.date || '',
+                tipo: p.type,
+                metodo: METHOD_LABEL_REPORT[p.method] || p.method,
+                importo: p.amount
+            });
+        });
+
+        manualCreditPayments.forEach(p => {
+            const user = userMap[(p.email || '').toLowerCase()];
+            const { nome, cognome } = splitName(p.name);
+            const addr = [user?.indirizzoVia, user?.indirizzoPaese, user?.indirizzoCap].filter(Boolean).join(', ');
+            rows.push({
+                nome, cognome,
+                cf: user?.codiceFiscale || '',
+                indirizzo: addr,
+                data: fmtDateTime(p.date),
+                sortKey: p.date || '',
+                tipo: p.type,
+                metodo: METHOD_LABEL_REPORT[p.method] || p.method,
+                importo: p.amount
+            });
+        });
+
+        // Sort by date ascending
+        rows.sort((a, b) => (a.sortKey || '').localeCompare(b.sortKey || ''));
+
+        // Build XLSX
+        const sheetData = [
+            ['Nome', 'Cognome', 'Codice Fiscale', 'Indirizzo', 'Data e Ora Pagamento', 'Tipo di Pagamento', 'Metodo Pagamento', 'Importo (€)'],
+            ...rows.map(r => [r.nome, r.cognome, r.cf, r.indirizzo, r.data, r.tipo, r.metodo, r.importo])
+        ];
+
+        const wb = XLSX.utils.book_new();
+        const ws = XLSX.utils.aoa_to_sheet(sheetData);
+        ws['!cols'] = [
+            { wch: 18 }, { wch: 20 }, { wch: 20 }, { wch: 35 }, { wch: 22 }, { wch: 22 }, { wch: 18 }, { wch: 12 }
+        ];
+        XLSX.utils.book_append_sheet(wb, ws, 'Pagamenti Carta e Bonifico');
+
+        const today = new Date();
+        const pad = n => String(n).padStart(2, '0');
+        const dateFmt = `${pad(today.getDate())}-${pad(today.getMonth() + 1)}-${today.getFullYear()}`;
+        XLSX.writeFile(wb, `TB_Report_Fiscale_${dateFmt}.xlsx`);
+
+        if (typeof showToast === 'function') {
+            showToast(`Report fiscale scaricato: ${rows.length} pagamenti carta/bonifico`, 'success');
+        }
+    } catch (err) {
+        console.error('[FiscalReport] Error:', err);
+        if (typeof showToast === 'function') {
+            showToast('Errore durante la generazione del report fiscale', 'error');
+        }
+    } finally {
+        if (btn) { btn.disabled = false; btn.innerHTML = origLabel || '🧾 Scarica report fiscale'; }
+    }
+}
+
+// ── End Fiscal Report ────────────────────────────────────────────────────────
