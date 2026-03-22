@@ -314,7 +314,7 @@ function createClientCard(client, index) {
     if (displayDebt   > 0) statsHTML += `<span class="cstat unpaid">€${displayDebt} da pagare</span>`;
     if (displayCredit > 0) statsHTML += `<span class="cstat credit">💳 +€${displayCredit}</span>`;
 
-    const methodLabel = m => ({ contanti: '💵 Contanti', carta: '💳 Carta', iban: '🏦 Bonifico', credito: '✨ Credito', 'lezione-gratuita': '🎁 Gratuita' }[m] || '—');
+    const methodLabel = m => ({ contanti: '💵 Contanti', carta: '💳 Carta', iban: '🏦 Bonifico', credito: '✨ Credito', stripe: '💳 Stripe', 'lezione-gratuita': '🎁 Gratuita' }[m] || '—');
     const fmtPaidAt = iso => {
         if (!iso) return '<span style="color:#ccc">—</span>';
         const d = new Date(iso);
@@ -365,7 +365,7 @@ function createClientCard(client, index) {
     const matchCli = (w, e) =>
         (normCPhone && normalizePhone(w) === normCPhone) ||
         (client.email && e && e.toLowerCase() === client.email.toLowerCase());
-    const txMethodMap = { contanti: '💵 Contanti', carta: '💳 Carta', iban: '🏦 Bonifico', credito: '💳 Credito', 'lezione-gratuita': '🎁 Gratuita' };
+    const txMethodMap = { contanti: '💵 Contanti', carta: '💳 Carta', iban: '🏦 Bonifico', credito: '💳 Credito', stripe: '💳 Stripe', 'lezione-gratuita': '🎁 Gratuita' };
     const txEntries = [];
 
     // 1. Paid bookings

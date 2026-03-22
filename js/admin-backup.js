@@ -540,7 +540,7 @@ async function exportData() {
         'cancellation_requested': 'Annullamento richiesto'
     };
     const METHOD_LABEL = {
-        contanti: 'Contanti', carta: 'Carta', iban: 'Bonifico', credito: 'Credito', 'lezione-gratuita': 'Gratuita'
+        contanti: 'Contanti', carta: 'Carta', iban: 'Bonifico', credito: 'Credito', stripe: 'Stripe', 'lezione-gratuita': 'Gratuita'
     };
     const DAYS = ['Domenica','Lunedì','Martedì','Mercoledì','Giovedì','Venerdì','Sabato'];
 

@@ -667,7 +667,7 @@
                 return true;
             }
 
-            const methodMap = { contanti: '💵 Contanti', carta: '💳 Carta', iban: '🏦 Bonifico', credito: '💳 Credito', 'lezione-gratuita': '🎁 Gratuita' };
+            const methodMap = { contanti: '💵 Contanti', carta: '💳 Carta', iban: '🏦 Bonifico', credito: '💳 Credito', stripe: '💳 Stripe', 'lezione-gratuita': '🎁 Gratuita' };
 
             // 1. Tutte le prenotazioni pagate — prezzo pieno, singole (le cancellate non compaiono)
             BookingStorage.getAllBookings()
