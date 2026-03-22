@@ -1,0 +1,333 @@
+/* ===== Nutrizione Page ===== */
+
+/* Hero */
+.nt-hero {
+    background: linear-gradient(135deg, var(--dark-bg) 0%, #111 50%, #1a2a2a 100%);
+    color: white;
+    padding: 4rem 0 3.5rem;
+    text-align: center;
+    position: relative;
+    overflow: hidden;
+}
+
+.nt-hero::before {
+    content: '';
+    position: absolute;
+    top: -80px;
+    right: -80px;
+    width: 360px;
+    height: 360px;
+    background: radial-gradient(circle, rgba(0,174,239,0.12) 0%, transparent 70%);
+    pointer-events: none;
+}
+
+.nt-hero-icon {
+    font-size: 3.5rem;
+    margin-bottom: 1rem;
+}
+
+.nt-hero-title {
+    font-size: 2.8rem;
+    font-weight: 800;
+    letter-spacing: 2px;
+    margin-bottom: 0.5rem;
+    line-height: 1.1;
+}
+
+.nt-hero-sub {
+    font-size: 1.05rem;
+    color: var(--primary-cyan);
+    letter-spacing: 3px;
+    text-transform: uppercase;
+    font-weight: 600;
+}
+
+/* Sections */
+.nt-section {
+    padding: 4rem 0;
+}
+
+.nt-section-alt {
+    background: white;
+}
+
+.nt-section-title {
+    font-size: 1.8rem;
+    font-weight: 800;
+    color: var(--dark-bg);
+    text-align: center;
+    margin-bottom: 0.5rem;
+}
+
+.nt-section-sub {
+    text-align: center;
+    color: #777;
+    font-size: 0.95rem;
+    margin-bottom: 3rem;
+}
+
+.nt-accent {
+    color: var(--primary-cyan);
+}
+
+/* Intro */
+.nt-intro {
+    max-width: 680px;
+    margin: 0 auto;
+    text-align: center;
+}
+
+.nt-intro p {
+    color: #444;
+    line-height: 1.85;
+    margin-bottom: 1.25rem;
+    font-size: 1rem;
+}
+
+.nt-lead {
+    font-size: 1.1rem !important;
+}
+
+.nt-highlight {
+    font-size: 1.4rem !important;
+    font-weight: 800;
+    color: var(--primary-cyan) !important;
+    margin: 1.5rem 0 !important;
+}
+
+/* Method */
+.nt-method {
+    max-width: 680px;
+    margin: 0 auto;
+    text-align: center;
+}
+
+.nt-method p {
+    color: #444;
+    line-height: 1.85;
+    margin-bottom: 1.25rem;
+    font-size: 1rem;
+}
+
+.nt-quote {
+    background: linear-gradient(135deg, var(--primary-cyan), var(--primary-cyan-dark));
+    color: white;
+    padding: 1.25rem 1.5rem;
+    border-radius: 12px;
+    font-size: 1.05rem;
+    font-style: italic;
+    line-height: 1.7;
+    margin-top: 1.5rem;
+    position: relative;
+}
+
+.nt-quote::before {
+    content: '\201C';
+    font-size: 3.5rem;
+    line-height: 0;
+    vertical-align: -0.65rem;
+    margin-right: 0.25rem;
+    opacity: 0.5;
+    font-family: Georgia, serif;
+}
+
+/* Steps */
+.nt-steps {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 2rem;
+    max-width: 800px;
+    margin: 0 auto;
+}
+
+.nt-step-card {
+    background: white;
+    border-radius: 16px;
+    padding: 2rem 1.5rem;
+    text-align: center;
+    box-shadow: 0 4px 20px rgba(0,0,0,0.08);
+    border: 1px solid #f0f0f0;
+    position: relative;
+    transition: transform 0.2s, box-shadow 0.2s;
+}
+
+.nt-step-card:hover {
+    transform: translateY(-4px);
+    box-shadow: 0 8px 32px rgba(0,174,239,0.15);
+}
+
+.nt-step-number {
+    position: absolute;
+    top: -14px;
+    left: 50%;
+    transform: translateX(-50%);
+    width: 28px;
+    height: 28px;
+    background: var(--primary-cyan);
+    color: white;
+    border-radius: 50%;
+    font-size: 0.85rem;
+    font-weight: 800;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    box-shadow: 0 2px 8px rgba(0,174,239,0.4);
+}
+
+.nt-step-icon {
+    font-size: 2.5rem;
+    margin-bottom: 0.75rem;
+}
+
+.nt-step-title {
+    font-size: 1.1rem;
+    font-weight: 700;
+    color: var(--dark-bg);
+    margin-bottom: 0.3rem;
+}
+
+.nt-step-with {
+    font-size: 0.82rem;
+    color: var(--primary-cyan);
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+    margin-bottom: 1rem;
+}
+
+.nt-step-list {
+    list-style: none;
+    padding: 0;
+    margin: 0;
+    text-align: left;
+}
+
+.nt-step-list li {
+    color: #555;
+    font-size: 0.9rem;
+    line-height: 1.6;
+    padding: 0.35rem 0;
+    padding-left: 1.4rem;
+    position: relative;
+}
+
+.nt-step-list li::before {
+    content: '✓';
+    position: absolute;
+    left: 0;
+    color: var(--primary-cyan);
+    font-weight: 700;
+}
+
+/* CTA */
+.nt-cta {
+    background: linear-gradient(135deg, var(--dark-bg) 0%, #1a2a2a 100%);
+    color: white;
+    padding: 4rem 0;
+    text-align: center;
+}
+
+.nt-cta-icon {
+    font-size: 2.5rem;
+    margin-bottom: 1rem;
+}
+
+.nt-cta h2 {
+    font-size: 2rem;
+    font-weight: 800;
+    margin-bottom: 0.75rem;
+}
+
+.nt-cta p {
+    font-size: 1rem;
+    opacity: 0.8;
+    margin-bottom: 0.5rem;
+    max-width: 480px;
+    margin-left: auto;
+    margin-right: auto;
+}
+
+.nt-cta-emphasis {
+    font-size: 1.15rem !important;
+    font-weight: 700;
+    color: var(--primary-cyan) !important;
+    opacity: 1 !important;
+    margin-bottom: 2rem !important;
+}
+
+.nt-cta-btn {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.6rem;
+    background: #25D366;
+    color: white;
+    text-decoration: none;
+    padding: 1rem 2rem;
+    border-radius: 50px;
+    font-size: 1rem;
+    font-weight: 700;
+    transition: all 0.2s;
+    box-shadow: 0 4px 20px rgba(37,211,102,0.4);
+}
+
+.nt-cta-btn:hover {
+    background: #20bd5a;
+    transform: translateY(-2px);
+    box-shadow: 0 8px 28px rgba(37,211,102,0.5);
+}
+
+/* Responsive */
+@media (max-width: 768px) {
+    .nt-hero {
+        padding: 2.5rem 0 2rem;
+    }
+
+    .nt-hero-icon {
+        font-size: 2.5rem;
+    }
+
+    .nt-hero-title {
+        font-size: 2rem;
+        letter-spacing: 1px;
+    }
+
+    .nt-hero-sub {
+        font-size: 0.82rem;
+        letter-spacing: 2px;
+    }
+
+    .nt-section {
+        padding: 2.5rem 0;
+    }
+
+    .nt-section-title {
+        font-size: 1.4rem;
+    }
+
+    .nt-section-sub {
+        margin-bottom: 1.75rem;
+    }
+
+    .nt-highlight {
+        font-size: 1.2rem !important;
+    }
+
+    .nt-steps {
+        grid-template-columns: 1fr;
+        gap: 1.5rem;
+    }
+
+    .nt-step-card {
+        padding: 1.5rem 1.25rem;
+    }
+
+    .nt-cta h2 {
+        font-size: 1.5rem;
+    }
+}
+
+@media (min-width: 769px) {
+    .nt-hero-title {
+        font-size: 2.4rem;
+    }
+}
