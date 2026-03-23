@@ -430,7 +430,6 @@
                 }
                 updateNavAuth();
             }
-            if (!getCurrentUser()) { window.location.href = 'login.html'; return; }
             await Promise.all([
                 BookingStorage.syncFromSupabase(),
                 BookingStorage.syncAppSettingsFromSupabase(),
@@ -438,8 +437,10 @@
                 ManualDebtStorage.syncFromSupabase(),
                 BonusStorage.syncFromSupabase(),
             ]);
-            // Applica credito alle lezioni passate non ancora pagate
-            try { await _applyCreditToPastBookings(); } catch (e) { console.warn('[boot] applyCreditToPastBookings failed:', e); }
+            // Applica credito alle lezioni passate non ancora pagate (solo se loggato)
+            if (getCurrentUser()) {
+                try { await _applyCreditToPastBookings(); } catch (e) { console.warn('[boot] applyCreditToPastBookings failed:', e); }
+            }
             if (document.readyState === 'loading') {
                 document.addEventListener('DOMContentLoaded', _initPrenoPage);
             } else {
@@ -463,7 +464,6 @@
                     if (refreshed.session) { await _loadProfile(refreshed.session.user.id); updateNavAuth(); }
                 } catch {}
             }
-            if (!getCurrentUser()) { window.location.href = 'login.html'; return; }
             await Promise.all([
                 BookingStorage.syncFromSupabase(),
                 BookingStorage.syncAppSettingsFromSupabase(),
@@ -471,7 +471,9 @@
                 ManualDebtStorage.syncFromSupabase(),
                 BonusStorage.syncFromSupabase(),
             ]);
-            try { await _applyCreditToPastBookings(); } catch (e) { console.warn('[pageshow] applyCreditToPastBookings failed:', e); }
+            if (getCurrentUser()) {
+                try { await _applyCreditToPastBookings(); } catch (e) { console.warn('[pageshow] applyCreditToPastBookings failed:', e); }
+            }
             _initPrenoPage();
         });
 
