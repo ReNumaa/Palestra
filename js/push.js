@@ -14,9 +14,6 @@ async function registerPushSubscription() {
     const reg = await navigator.serviceWorker.ready;
     const appKey = urlBase64ToUint8Array(VAPID_PUBLIC_KEY);
 
-    // Rileva se la cache è stata cancellata (localStorage svuotato) → forza nuova subscription
-    const hadLocalBackup = !!localStorage.getItem('push_subscription');
-
     async function _subscribe() {
         let sub = await reg.pushManager.getSubscription();
         if (sub) {
@@ -32,14 +29,8 @@ async function registerPushSubscription() {
                     sub = null;
                 }
             }
-            // Se non c'è backup locale (cache cancellata/reinstallazione), forza nuova subscription
-            // per evitare endpoint stale
-            if (sub && !hadLocalBackup) {
-                console.log('[Push] Nessun backup locale — forzo rinnovo subscription');
-                await sub.unsubscribe();
-                sub = null;
-            }
         }
+        // Se non esiste subscription, ne crea una nuova
         if (!sub) {
             sub = await reg.pushManager.subscribe({ userVisibleOnly: true, applicationServerKey: appKey });
         }
