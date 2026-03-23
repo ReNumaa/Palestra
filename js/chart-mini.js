@@ -413,7 +413,8 @@ class SimpleChart {
             ctx.fillStyle = '#333';
             ctx.font = '11px sans-serif';
             const pct = Math.round((data.values[i] / total) * 100);
-            ctx.fillText(`${label} (${pct}%)`, lx + 14, ly + 9);
+            const valPrefix = options.prefix ?? '€';
+            ctx.fillText(`${label} — ${valPrefix}${data.values[i]} (${pct}%)`, lx + 14, ly + 9);
             ly += legendItemH;
         });
     }

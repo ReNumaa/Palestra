@@ -822,6 +822,17 @@ function renderFatturatoDetail(panel) {
         }
     }
 
+    // Bridge: collega la linea actual alla linea forecast/estimate nel punto di transizione
+    // Con groupDays=1 il caso "straddles" non scatta mai, quindi serve un ponte esplicito
+    for (let g = 0; g < groups - 1; g++) {
+        if (fActual[g] != null && fActual[g + 1] == null) {
+            // Ultimo punto actual → primo punto forecast: imposta forecast qui per collegare le linee
+            if (fForecast[g] == null) fForecast[g] = fActual[g];
+            if (fEstimate[g + 1] != null && fEstimate[g] == null) fEstimate[g] = fActual[g];
+            break;
+        }
+    }
+
     // ── Fatturato per tipo di lezione ─────────────────────────────────────────
     const typeConfig = [
         { key: 'personal-training', label: 'Autonomia' },
