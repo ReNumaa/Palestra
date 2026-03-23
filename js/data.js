@@ -309,15 +309,14 @@ class BookingStorage {
 
             // ── ADMIN o UTENTE: SELECT bookings reali ─────────────────────────────────
             // Admin: finestra operativa (6 mesi passati + 3 futuri) per contenere localStorage.
+            // Utente: ultime 4 settimane + prossimi 3 mesi (storico vecchio non serve).
             // Query complete (senza limite) per stats/export avvengono tramite fetchForAdmin().
             let qBookings = supabaseClient.from('bookings').select('*').order('created_at', { ascending: false });
-            if (isAdmin) {
-                const pastD   = new Date(); pastD.setDate(pastD.getDate() - 180);
-                const futureD = new Date(); futureD.setDate(futureD.getDate() + 90);
-                qBookings = qBookings
-                    .gte('date', _localDateStr(pastD))
-                    .lte('date', _localDateStr(futureD));
-            }
+            const pastD   = new Date(); pastD.setDate(pastD.getDate() - (isAdmin ? 180 : 28));
+            const futureD = new Date(); futureD.setDate(futureD.getDate() + 90);
+            qBookings = qBookings
+                .gte('date', _localDateStr(pastD))
+                .lte('date', _localDateStr(futureD));
             const fetchBookings = qBookings;
 
             // Utente non-admin: richiede anche la disponibilità aggregata in parallelo
