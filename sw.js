@@ -1,4 +1,4 @@
-const CACHE_NAME = 'palestra-v124';
+const CACHE_NAME = 'palestra-v125';
 
 const APP_SHELL = [
     '/',
@@ -107,16 +107,16 @@ self.addEventListener('fetch', event => {
                     caches.open(CACHE_NAME).then(cache => cache.put(request, clone));
                     return response;
                 })
-                .catch(() => caches.match(request))
+                .catch(() => caches.match(request, { ignoreSearch: true }))
         );
         return;
     }
 
-    // JS: Stale-While-Revalidate (carica subito dalla cache, aggiorna in background)
-    // L'utente vede la pagina istantaneamente; al prossimo accesso avrà il JS aggiornato.
-    if (url.pathname.endsWith('.js')) {
+    // JS + CSS: Stale-While-Revalidate (carica subito dalla cache, aggiorna in background)
+    // ignoreSearch: true → ?v=5 matcha il file cachato senza query string
+    if (url.pathname.endsWith('.js') || url.pathname.endsWith('.css')) {
         event.respondWith(
-            caches.match(request).then(cached => {
+            caches.match(request, { ignoreSearch: true }).then(cached => {
                 const networkFetch = fetch(request).then(response => {
                     if (response.ok) {
                         const clone = response.clone();
@@ -130,9 +130,9 @@ self.addEventListener('fetch', event => {
         return;
     }
 
-    // Cache First per CSS, immagini e altri asset statici
+    // Cache First per immagini e altri asset statici
     event.respondWith(
-        caches.match(request).then(cached => {
+        caches.match(request, { ignoreSearch: true }).then(cached => {
             if (cached) return cached;
             return fetch(request).then(response => {
                 if (response.ok) {
