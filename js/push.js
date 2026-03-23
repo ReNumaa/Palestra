@@ -14,6 +14,9 @@ async function registerPushSubscription() {
     const reg = await navigator.serviceWorker.ready;
     const appKey = urlBase64ToUint8Array(VAPID_PUBLIC_KEY);
 
+    // Rileva se la cache è stata cancellata (localStorage svuotato) → forza nuova subscription
+    const hadLocalBackup = !!localStorage.getItem('push_subscription');
+
     async function _subscribe() {
         let sub = await reg.pushManager.getSubscription();
         if (sub) {
@@ -28,6 +31,13 @@ async function registerPushSubscription() {
                     await sub.unsubscribe();
                     sub = null;
                 }
+            }
+            // Se non c'è backup locale (cache cancellata/reinstallazione), forza nuova subscription
+            // per evitare endpoint stale
+            if (sub && !hadLocalBackup) {
+                console.log('[Push] Nessun backup locale — forzo rinnovo subscription');
+                await sub.unsubscribe();
+                sub = null;
             }
         }
         if (!sub) {
@@ -76,6 +86,35 @@ async function savePushSubscription(subscription) {
         userEmail = u?.email ?? null;
     }
 
+    // Se l'utente non è ancora autenticato, ritenta dopo 3 secondi (una sola volta)
+    if (!userId && typeof supabaseClient !== 'undefined') {
+        console.log('[Push] Utente non ancora autenticato — ritento fra 3s');
+        setTimeout(async () => {
+            try {
+                const { data: { session } } = await supabaseClient.auth.getSession();
+                const retryUserId = session?.user?.id ?? null;
+                const retryEmail  = session?.user?.email ?? null;
+                if (retryUserId) {
+                    await _doSavePush(json, retryUserId, retryEmail);
+                } else {
+                    console.warn('[Push] Retry fallito — utente ancora non autenticato');
+                }
+            } catch (e) {
+                console.warn('[Push] Retry savePushSubscription fallito:', e);
+            }
+        }, 3000);
+        // Salva comunque in locale come backup
+        localStorage.setItem('push_subscription', JSON.stringify({
+            endpoint: json.endpoint, p256dh: json.keys.p256dh, auth: json.keys.auth,
+            user_email: userEmail, saved_at: new Date().toISOString()
+        }));
+        return;
+    }
+
+    await _doSavePush(json, userId, userEmail);
+}
+
+async function _doSavePush(json, userId, userEmail) {
     // Salva su Supabase via RPC (SECURITY DEFINER — bypassa RLS)
     if (typeof supabaseClient !== 'undefined' && userId) {
         const { error } = await supabaseClient.rpc('save_push_subscription', {
@@ -87,7 +126,6 @@ async function savePushSubscription(subscription) {
         });
         if (error) {
             console.warn('[Push] Supabase RPC error:', error.message, error);
-            // Mostra avviso visibile: l'utente ha abilitato le notifiche ma non sono state salvate
             const toastFn = typeof showToast === 'function' ? showToast : null;
             toastFn?.('Notifiche attivate, ma non salvate sul server. Riprova.', 'warning');
         } else {
