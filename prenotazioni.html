@@ -140,7 +140,10 @@
     <div id="weeklyChartModal" class="modal-overlay" style="display:none;" onclick="if(event.target===this)closeWeeklyChartModal()">
         <div class="modal-box" style="max-width:520px;">
             <button class="modal-close" onclick="closeWeeklyChartModal()">✕</button>
-            <h3 style="margin:0 0 1rem;font-size:1.1rem;font-weight:700;">Allenamenti settimanali</h3>
+            <div style="display:flex;align-items:center;justify-content:space-between;margin:0 0 1rem;flex-wrap:wrap;gap:0.5rem;">
+                <h3 id="chartViewTitle" style="margin:0;font-size:1.1rem;font-weight:700;">Allenamenti settimanali</h3>
+                <button id="chartToggleBtn" onclick="toggleChartView()" style="background:none;border:1.5px solid #e0e0e0;color:#666;font-size:0.72rem;font-weight:600;padding:0.18rem 0.55rem;border-radius:20px;cursor:pointer;white-space:nowrap;">Vista mensile</button>
+            </div>
             <canvas id="weeklyChartCanvas" style="width:100%;height:250px;"></canvas>
             <div style="display:flex;gap:1rem;justify-content:center;margin-top:0.75rem;font-size:0.75rem;color:#888;">
                 <span><span style="display:inline-block;width:10px;height:10px;border-radius:2px;background:#3b82f6;margin-right:4px;vertical-align:middle;"></span>Passati</span>
@@ -1000,14 +1003,99 @@
         }
 
         // ── Edit profile modal ────────────────────────────────────────────
-        // ── Weekly training chart ──────────────────────────────────────
+        // ── Weekly / Monthly training chart ──────────────────────────────
+        let _chartView = 'weekly'; // 'weekly' | 'monthly'
+
         function openWeeklyChartModal() {
+            _chartView = 'weekly';
             document.getElementById('weeklyChartModal').style.display = 'flex';
-            setTimeout(renderWeeklyChart, 50);
+            _updateChartToggleUI();
+            setTimeout(renderCurrentChart, 50);
         }
         function closeWeeklyChartModal() {
             document.getElementById('weeklyChartModal').style.display = 'none';
         }
+        function toggleChartView() {
+            _chartView = _chartView === 'weekly' ? 'monthly' : 'weekly';
+            _updateChartToggleUI();
+            renderCurrentChart();
+        }
+        function _updateChartToggleUI() {
+            document.getElementById('chartViewTitle').textContent =
+                _chartView === 'weekly' ? 'Allenamenti settimanali' : 'Allenamenti mensili';
+            document.getElementById('chartToggleBtn').textContent =
+                _chartView === 'weekly' ? 'Vista mensile' : 'Vista settimanale';
+        }
+        function renderCurrentChart() {
+            _chartView === 'weekly' ? renderWeeklyChart() : renderMonthlyChart();
+        }
+
+        function renderMonthlyChart() {
+            const { upcoming, past } = getUserBookings();
+            const all = [...past, ...upcoming].filter(b => b.status !== 'cancelled');
+
+            const today = new Date();
+            today.setHours(0, 0, 0, 0);
+            const monthMap = {};
+
+            all.forEach(b => {
+                const d = new Date(b.date + 'T00:00:00');
+                const key = d.getFullYear() + '-' + String(d.getMonth() + 1).padStart(2, '0');
+                if (!monthMap[key]) monthMap[key] = { past: 0, future: 0 };
+                if (d < today) monthMap[key].past++;
+                else monthMap[key].future++;
+            });
+
+            const MESI = ['Gen','Feb','Mar','Apr','Mag','Giu','Lug','Ago','Set','Ott','Nov','Dic'];
+            const nowMonth = today.getMonth();
+            const nowYear = today.getFullYear();
+
+            const labels = [], pastVals = [], futureVals = [], highlight = [];
+            for (let i = -5; i <= 4; i++) {
+                const m = new Date(nowYear, nowMonth + i, 1);
+                const key = m.getFullYear() + '-' + String(m.getMonth() + 1).padStart(2, '0');
+                labels.push(MESI[m.getMonth()]);
+                pastVals.push((monthMap[key]?.past) || 0);
+                futureVals.push((monthMap[key]?.future) || 0);
+                highlight.push(i === 0);
+            }
+
+            const canvas = document.getElementById('weeklyChartCanvas');
+            const chart = new SimpleChart(canvas, { height: 250 });
+            const values = pastVals.map((p, i) => p + futureVals[i]);
+            chart.drawBarChart(
+                { labels, values, highlight },
+                { prefix: '', suffix: '', colors: ['#3b82f6'] }
+            );
+
+            // Overlay future portion in red
+            const ctx = chart.ctx;
+            const cw = canvas.width / 2;
+            const ch = canvas.height / 2;
+            const pad = { top: 24, right: 16, bottom: 44, left: 52 };
+            const chartW = cw - pad.left - pad.right;
+            const chartH = ch - pad.top - pad.bottom;
+            const n = values.length;
+            const maxVal = Math.max(...values, 1);
+            const step = Math.ceil(maxVal / 5) || 1;
+            const axisMax = step * 5;
+            const slotW = chartW / n;
+            const barW = Math.min(slotW * 0.7, 40);
+
+            futureVals.forEach((fv, i) => {
+                if (fv <= 0) return;
+                const totalH = (values[i] / axisMax) * chartH;
+                const futH = (fv / axisMax) * chartH;
+                const x = pad.left + i * slotW + (slotW - barW) / 2;
+                const y = pad.top + chartH - totalH;
+                ctx.fillStyle = '#e63946';
+                ctx.beginPath();
+                if (ctx.roundRect) ctx.roundRect(x, y, barW, futH, [3, 3, 0, 0]);
+                else ctx.rect(x, y, barW, futH);
+                ctx.fill();
+            });
+        }
+
         function renderWeeklyChart() {
             const { upcoming, past } = getUserBookings();
             const all = [...past, ...upcoming].filter(b => b.status !== 'cancelled');
