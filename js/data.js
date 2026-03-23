@@ -278,7 +278,7 @@ class BookingStorage {
     // - Anon: RPC availability only (no personal data)
     static _syncRetryTimer = null;
 
-    static async syncFromSupabase() {
+    static async syncFromSupabase({ ownOnly = false } = {}) {
         if (typeof supabaseClient === 'undefined') return;
         try {
             const user    = typeof getCurrentUser === 'function' ? getCurrentUser() : null;
@@ -312,6 +312,10 @@ class BookingStorage {
             // Utente: ultime 4 settimane + prossimi 3 mesi (storico vecchio non serve).
             // Query complete (senza limite) per stats/export avvengono tramite fetchForAdmin().
             let qBookings = supabaseClient.from('bookings').select('*').order('created_at', { ascending: false });
+            // ownOnly: filtra per user_id server-side (es. prenotazioni.html — anche admin vedono solo i propri)
+            if (ownOnly && user) {
+                qBookings = qBookings.eq('user_id', user.id);
+            }
             const pastD   = new Date(); pastD.setDate(pastD.getDate() - (isAdmin ? 180 : 28));
             const futureD = new Date(); futureD.setDate(futureD.getDate() + 90);
             qBookings = qBookings

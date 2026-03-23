@@ -354,7 +354,7 @@
             clearTimeout(_rtSyncTimer);
             _rtSyncTimer = setTimeout(async () => {
                 await Promise.all([
-                    BookingStorage.syncFromSupabase(),
+                    BookingStorage.syncFromSupabase({ ownOnly: true }),
                     CreditStorage.syncFromSupabase(),
                     ManualDebtStorage.syncFromSupabase(),
                     BonusStorage.syncFromSupabase(),
@@ -401,7 +401,7 @@
                     if (data?.bookings_paid > 0) {
                         console.log('[apply_credit_to_past_bookings]', data);
                         await Promise.all([
-                            BookingStorage.syncFromSupabase(),
+                            BookingStorage.syncFromSupabase({ ownOnly: true }),
                             CreditStorage.syncFromSupabase(),
                         ]);
                     }
@@ -431,7 +431,7 @@
                 updateNavAuth();
             }
             await Promise.all([
-                BookingStorage.syncFromSupabase(),
+                BookingStorage.syncFromSupabase({ ownOnly: true }),
                 BookingStorage.syncAppSettingsFromSupabase(),
                 CreditStorage.syncFromSupabase(),
                 ManualDebtStorage.syncFromSupabase(),
@@ -465,7 +465,7 @@
                 } catch {}
             }
             await Promise.all([
-                BookingStorage.syncFromSupabase(),
+                BookingStorage.syncFromSupabase({ ownOnly: true }),
                 BookingStorage.syncAppSettingsFromSupabase(),
                 CreditStorage.syncFromSupabase(),
                 ManualDebtStorage.syncFromSupabase(),
@@ -795,7 +795,7 @@
                         return;
                     }
                     await Promise.all([
-                        BookingStorage.syncFromSupabase(),
+                        BookingStorage.syncFromSupabase({ ownOnly: true }),
                         CreditStorage.syncFromSupabase(),
                     ]);
                 } catch (e) {
@@ -850,7 +850,7 @@
                         return;
                     }
                     await Promise.all([
-                        BookingStorage.syncFromSupabase(),
+                        BookingStorage.syncFromSupabase({ ownOnly: true }),
                         CreditStorage.syncFromSupabase(),
                         BonusStorage.syncFromSupabase(),
                     ]);
@@ -900,7 +900,7 @@
                         return;
                     }
                     await Promise.all([
-                        BookingStorage.syncFromSupabase(),
+                        BookingStorage.syncFromSupabase({ ownOnly: true }),
                         CreditStorage.syncFromSupabase(),
                         ManualDebtStorage.syncFromSupabase(),
                     ]);
@@ -938,7 +938,7 @@
                         alert('⚠️ Errore: ' + error.message);
                         return;
                     }
-                    await BookingStorage.syncFromSupabase();
+                    await BookingStorage.syncFromSupabase({ ownOnly: true });
                 } catch (e) {
                     console.error('[requestCancellation] exception:', e);
                     alert('⚠️ Errore di rete. Riprova.');
