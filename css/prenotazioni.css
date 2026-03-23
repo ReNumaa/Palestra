@@ -66,6 +66,11 @@
     border-color: #aaa;
 }
 
+.preno-chart-btn {
+    margin-left: auto;
+    flex-shrink: 0;
+}
+
 @media (max-width: 480px) {
     .preno-edit-label { display: none; }
 }
