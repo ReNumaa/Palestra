@@ -647,7 +647,7 @@ function closeSearchDropdown() {
     if (dropdown) dropdown.style.display = 'none';
 }
 
-function liveSearchDebtor() {
+var liveSearchDebtor = _debounce(function() {
     const query = document.getElementById('debtorSearchInput').value.trim();
     const dropdown = document.getElementById('debtorSearchDropdown');
 
@@ -677,7 +677,7 @@ function liveSearchDebtor() {
     }
 
     dropdown.style.display = 'block';
-}
+}, 200);
 
 function selectDebtorFromDropdown(index) {
     const dropdown = document.getElementById('debtorSearchDropdown');

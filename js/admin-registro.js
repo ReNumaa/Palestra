@@ -1,6 +1,8 @@
 // REGISTRO / LOG DB
 // ══════════════════════════════════════════════════════════════════════════════
 
+var _debouncedRegistroFilter = _debounce(() => applyRegistroFilters(), 250);
+
 let _registroState = {
     range:      'all',
     customFrom: null,

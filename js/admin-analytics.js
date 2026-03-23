@@ -482,10 +482,9 @@ function updatePopularTimes(bookings) {
     const maxPopular = top5[0][1];
     const maxUnpopular = bottom5[bottom5.length - 1][1] || 1;
 
-    top5.forEach(([time, count]) => {
+    const popularHtml = top5.map(([time, count]) => {
         const percentage = (count / maxPopular) * 100;
-        popularContainer.innerHTML += `
-            <div class="time-bar">
+        return `<div class="time-bar">
                 <div class="time-label">${time}</div>
                 <div class="time-progress">
                     <div class="time-progress-fill" style="width: ${percentage}%">
@@ -494,11 +493,11 @@ function updatePopularTimes(bookings) {
                 </div>
             </div>`;
     });
+    popularContainer.innerHTML = popularHtml.join('');
 
-    bottom5.forEach(([time, count]) => {
+    const unpopularHtml = bottom5.map(([time, count]) => {
         const percentage = (count / maxUnpopular) * 100;
-        unpopularContainer.innerHTML += `
-            <div class="time-bar">
+        return `<div class="time-bar">
                 <div class="time-label">${time}</div>
                 <div class="time-progress">
                     <div class="time-progress-fill time-progress-fill--low" style="width: ${percentage}%">
@@ -507,6 +506,7 @@ function updatePopularTimes(bookings) {
                 </div>
             </div>`;
     });
+    unpopularContainer.innerHTML = unpopularHtml.join('');
 }
 
 // ── Statistics Detail Panel ──────────────────────────────────────────────────

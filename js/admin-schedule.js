@@ -50,7 +50,7 @@ function renderScheduleManager() {
         const daySlots = overrides[dateInfo.formatted] || [];
         const hasSlots = daySlots.length > 0;
         const hasMissingClient = daySlots.some(s => s.type === SLOT_TYPES.GROUP_CLASS && !s.client);
-        html += `<button class="schedule-day-tab ${isActive} ${hasSlots ? 'has-slots' : ''} ${hasMissingClient ? 'missing-client' : ''}" onclick="selectScheduleDate('${dateInfo.formatted}', '${dateInfo.dayName}')">
+        html += `<button class="schedule-day-tab ${isActive} ${hasSlots ? 'has-slots' : ''} ${hasMissingClient ? 'missing-client' : ''}" data-date="${dateInfo.formatted}" onclick="selectScheduleDate('${dateInfo.formatted}', '${dateInfo.dayName}')">
             <div class="admin-day-name">${dateInfo.dayName}</div>
             <div class="admin-day-date">${dateInfo.date.getDate()}</div>
             <div class="admin-day-count">${monthNames[dateInfo.date.getMonth()]}</div>
@@ -122,7 +122,7 @@ function importWeekTemplate(weekOffset) {
         }
     });
 
-    BookingStorage.saveScheduleOverrides(overrides);
+    BookingStorage.saveScheduleOverrides(overrides, weekDates.map(d => d.formatted));
     renderScheduleManager();
 }
 
@@ -135,7 +135,7 @@ function clearWeekSchedule(weekOffset) {
     const weekDates = getScheduleWeekDates(weekOffset);
     const overrides = BookingStorage.getScheduleOverrides();
     weekDates.forEach(dateInfo => { delete overrides[dateInfo.formatted]; });
-    BookingStorage.saveScheduleOverrides(overrides);
+    BookingStorage.saveScheduleOverrides(overrides, weekDates.map(d => d.formatted));
     selectedScheduleDate = null;
     renderScheduleManager();
 }
@@ -143,7 +143,13 @@ function clearWeekSchedule(weekOffset) {
 function selectScheduleDate(dateFormatted, dayName) {
     const weekDates = getScheduleWeekDates(scheduleWeekOffset);
     selectedScheduleDate = weekDates.find(d => d.formatted === dateFormatted);
-    renderScheduleManager();
+
+    // Aggiorna solo i tab attivi + slot, senza ricostruire l'intera UI della settimana
+    document.querySelectorAll('.schedule-day-tab').forEach(tab => {
+        tab.classList.toggle('active', tab.dataset.date === dateFormatted);
+    });
+
+    renderAllTimeSlots();
 }
 
 // All possible time slots — 80 min each, 05:20 → 21:20
@@ -181,7 +187,7 @@ function saveScheduleForDate(dateFormatted, dayName, slots) {
         overrides[dateFormatted] = slots;
     }
 
-    BookingStorage.saveScheduleOverrides(overrides);
+    BookingStorage.saveScheduleOverrides(overrides, [dateFormatted]);
 }
 
 function renderAllTimeSlots() {
@@ -600,7 +606,7 @@ function sanitizeSlotId(timeSlot) {
 const _clientSearchResults = {};
 
 // Called on input — searches registered users and renders the dropdown list
-function searchClientsForSlot(timeSlot, query) {
+var searchClientsForSlot = _debounce(function(timeSlot, query) {
     const safeId = sanitizeSlotId(timeSlot);
     const resultsDiv = document.getElementById(`client-results-${safeId}`);
     if (!resultsDiv) return;
@@ -625,7 +631,7 @@ function searchClientsForSlot(timeSlot, query) {
             <span class="slot-client-result-sub">${user.whatsapp || user.email}</span>
         </div>
     `).join('');
-}
+}, 250);
 
 // Formats YYYY-MM-DD to display string (e.g. "Lunedì 26 Febbraio 2026")
 function formatAdminBookingDate(dateStr) {
@@ -680,7 +686,7 @@ async function selectSlotClient(timeSlot, index) {
     // Store client and bookingId in the override for display purposes
     slot.client = { name: user.name, email: user.email, whatsapp: user.whatsapp || '' };
     slot.bookingId = result.booking.id;
-    BookingStorage.saveScheduleOverrides(overrides);
+    BookingStorage.saveScheduleOverrides(overrides, [selectedScheduleDate.formatted]);
     renderAllTimeSlots();
 }
 
@@ -702,7 +708,7 @@ function clearSlotClient(timeSlot) {
         // Booking not found in cache — just clear the slot
         delete slot.client;
         delete slot.bookingId;
-        BookingStorage.saveScheduleOverrides(overrides);
+        BookingStorage.saveScheduleOverrides(overrides, [selectedScheduleDate.formatted]);
         renderAllTimeSlots();
         return;
     }
@@ -719,7 +725,7 @@ function clearSlotClient(timeSlot) {
         if (ds) {
             const s = ds.find(x => x.time === timeSlot);
             if (s) { delete s.client; delete s.bookingId; }
-            BookingStorage.saveScheduleOverrides(ov);
+            BookingStorage.saveScheduleOverrides(ov, [selectedScheduleDate.formatted]);
         }
         renderAllTimeSlots();
     };

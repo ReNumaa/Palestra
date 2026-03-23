@@ -109,7 +109,7 @@ function getAllClients() {
     return Object.values(clientsMap).sort((a, b) => a.name.localeCompare(b.name));
 }
 
-function liveSearchClients() {
+var liveSearchClients = _debounce(function() {
     const query = document.getElementById('clientSearchInput').value.trim();
     const dropdown = document.getElementById('clientsSearchDropdown');
     if (!query) {
@@ -136,7 +136,7 @@ function liveSearchClients() {
         dropdown._matches = matches;
     }
     dropdown.style.display = 'block';
-}
+}, 200);
 
 function closeClientsSearchDropdown() {
     const dropdown = document.getElementById('clientsSearchDropdown');

@@ -1,3 +1,12 @@
+// Utility debounce: ritarda l'esecuzione finché non passa `delay` ms senza nuove chiamate.
+function _debounce(fn, delay) {
+    let timer;
+    return function (...args) {
+        clearTimeout(timer);
+        timer = setTimeout(() => fn.apply(this, args), delay);
+    };
+}
+
 // Restituisce la data locale corrente (o di un oggetto Date) come "YYYY-MM-DD".
 // Usa il fuso locale del browser, non UTC — evita l'off-by-one dopo le 23:00 CET.
 function _localDateStr(d = new Date()) {
@@ -245,6 +254,7 @@ function getWeeklySchedule() {
     }
     // Outdated version or format — reset template and overrides
     localStorage.removeItem('scheduleOverrides');
+    BookingStorage._scheduleOverridesCache = null;
     _lsSet('weeklyScheduleTemplate', JSON.stringify(DEFAULT_WEEKLY_SCHEDULE));
     _lsSet('scheduleVersion', SCHEDULE_VERSION);
     return DEFAULT_WEEKLY_SCHEDULE;
@@ -621,7 +631,7 @@ class BookingStorage {
         if (!slot) return false;
         if (!slot.extras) slot.extras = [];
         slot.extras.push({ type: extraType });
-        this.saveScheduleOverrides(overrides);
+        this.saveScheduleOverrides(overrides, [date]);
         return true;
     }
 
@@ -642,7 +652,7 @@ class BookingStorage {
         if (effectiveCap - bookedCount <= 0) return false; // tutti i posti occupati
         const idx = slot.extras.map(e => e.type).lastIndexOf(extraType);
         slot.extras.splice(idx, 1);
-        this.saveScheduleOverrides(overrides);
+        this.saveScheduleOverrides(overrides, [date]);
         return true;
     }
 
@@ -720,7 +730,7 @@ class BookingStorage {
                 slot.type = SLOT_TYPES.SMALL_GROUP;
                 delete slot.client;
                 delete slot.bookingId;
-                this.saveScheduleOverrides(overrides);
+                this.saveScheduleOverrides(overrides, [booking.date]);
             }
         }
         return true;
@@ -755,7 +765,7 @@ class BookingStorage {
                     slot.type = SLOT_TYPES.SMALL_GROUP;
                     delete slot.client;
                     delete slot.bookingId;
-                    this.saveScheduleOverrides(overrides);
+                    this.saveScheduleOverrides(overrides, [booking.date]);
                 }
             }
         }
@@ -809,7 +819,7 @@ class BookingStorage {
                     slot.type = SLOT_TYPES.SMALL_GROUP;
                     delete slot.client;
                     delete slot.bookingId;
-                    this.saveScheduleOverrides(overrides);
+                    this.saveScheduleOverrides(overrides, [booking.date]);
                 }
             }
         }
@@ -1015,7 +1025,10 @@ class BookingStorage {
                 }
             }
         }
-        if (changed) _lsSet('scheduleOverrides', JSON.stringify(overrides));
+        if (changed) {
+            this._scheduleOverridesCache = overrides;
+            _lsSet('scheduleOverrides', JSON.stringify(overrides));
+        }
     }
 
     static initializeDemoData() {
@@ -1176,48 +1189,80 @@ class BookingStorage {
     // ── Helpers per scheduleOverrides ────────────────────────────────────────
     // Accesso centralizzato: quando si passa a Supabase si cambiano solo questi
 
+    static _scheduleOverridesCache = null;
+
     static getScheduleOverrides() {
-        try { return JSON.parse(localStorage.getItem('scheduleOverrides') || '{}'); } catch { return {}; }
+        if (this._scheduleOverridesCache) return this._scheduleOverridesCache;
+        try {
+            this._scheduleOverridesCache = JSON.parse(localStorage.getItem('scheduleOverrides') || '{}');
+        } catch {
+            this._scheduleOverridesCache = {};
+        }
+        return this._scheduleOverridesCache;
     }
 
-    static saveScheduleOverrides(overrides) {
+    // Salva solo le date specificate (default: tutte).
+    // changedDates: array di date YYYY-MM-DD che sono cambiate, oppure null per sync completo.
+    static saveScheduleOverrides(overrides, changedDates) {
+        this._scheduleOverridesCache = overrides;
         _lsSet('scheduleOverrides', JSON.stringify(overrides));
         if (typeof supabaseClient === 'undefined') return;
-        // UPSERT atomico: usa onConflict(date, time) per evitare la finestra di race
-        // condition che il vecchio DELETE+INSERT causava (altro device vede 0 slot)
+
+        // Se changedDates è specificato, sincronizza solo quelle date (molto più veloce)
+        const datesToSync = changedDates || Object.keys(overrides);
+
         const rows = [];
-        for (const [dateStr, slots] of Object.entries(overrides)) {
-            for (const slot of slots) {
-                const row = {
-                    date: dateStr, time: slot.time, slot_type: slot.type, extras: slot.extras || [],
-                    client_name:     slot.client?.name || null,
-                    client_email:    slot.client?.email || null,
-                    client_whatsapp: slot.client?.whatsapp || null,
-                    booking_id:      slot.bookingId || null,
-                };
-                rows.push(row);
+        for (const dateStr of datesToSync) {
+            const slots = overrides[dateStr];
+            if (slots && slots.length > 0) {
+                for (const slot of slots) {
+                    rows.push({
+                        date: dateStr, time: slot.time, slot_type: slot.type, extras: slot.extras || [],
+                        client_name:     slot.client?.name || null,
+                        client_email:    slot.client?.email || null,
+                        client_whatsapp: slot.client?.whatsapp || null,
+                        booking_id:      slot.bookingId || null,
+                    });
+                }
             }
         }
-        // Calcola le combinazioni (date, time) attive per eliminare le vecchie
-        const activeKeys = new Set(rows.map(r => `${r.date}|${r.time}`));
+
         (async () => {
             try {
-                // 1. Upsert le righe attuali (crea o aggiorna)
                 if (rows.length > 0) {
                     const { error } = await supabaseClient.from('schedule_overrides')
                         .upsert(rows, { onConflict: 'date,time' });
                     if (error) { console.error('[Supabase] saveScheduleOverrides upsert error:', error.message); return; }
                 }
-                // 2. Elimina le righe che non sono più nell'override set
-                const { data: existing } = await supabaseClient.from('schedule_overrides')
-                    .select('id, date, time');
-                if (existing) {
-                    const toDelete = existing
-                        .filter(r => !activeKeys.has(`${r.date}|${r.time}`))
-                        .map(r => r.id);
-                    if (toDelete.length > 0) {
-                        await supabaseClient.from('schedule_overrides')
-                            .delete().in('id', toDelete);
+                // Elimina le date svuotate e gli slot rimossi dalle date cambiate
+                if (changedDates) {
+                    for (const dateStr of datesToSync) {
+                        const activeTimesForDate = (overrides[dateStr] || []).map(s => s.time);
+                        const { data: existing } = await supabaseClient.from('schedule_overrides')
+                            .select('id, time').eq('date', dateStr);
+                        if (existing) {
+                            const toDelete = existing
+                                .filter(r => !activeTimesForDate.includes(r.time))
+                                .map(r => r.id);
+                            if (toDelete.length > 0) {
+                                await supabaseClient.from('schedule_overrides')
+                                    .delete().in('id', toDelete);
+                            }
+                        }
+                    }
+                } else {
+                    // Sync completo (importa settimana, clear, ecc.)
+                    const activeKeys = new Set(rows.map(r => `${r.date}|${r.time}`));
+                    const { data: existing } = await supabaseClient.from('schedule_overrides')
+                        .select('id, date, time');
+                    if (existing) {
+                        const toDelete = existing
+                            .filter(r => !activeKeys.has(`${r.date}|${r.time}`))
+                            .map(r => r.id);
+                        if (toDelete.length > 0) {
+                            await supabaseClient.from('schedule_overrides')
+                                .delete().in('id', toDelete);
+                        }
                     }
                 }
             } catch (e) { console.error('[Supabase] saveScheduleOverrides exception:', e); }
@@ -1258,6 +1303,7 @@ class BookingStorage {
                     ManualDebtStorage._cache = {};
                     BonusStorage._cache = {};
                     localStorage.removeItem('scheduleOverrides');
+                    BookingStorage._scheduleOverridesCache = null;
                     _lsSet('dataLastCleared', remoteClearedAt);
                     _lsSet('dataClearedByUser', 'true');
                     console.log('[Supabase] clearAllData ricevuto da remoto — tutte le cache svuotate');
@@ -1310,6 +1356,7 @@ class BookingStorage {
                     if (r.booking_id) slot.bookingId = r.booking_id;
                     overrides[r.date].push(slot);
                 }
+                BookingStorage._scheduleOverridesCache = overrides;
                 _lsSet('scheduleOverrides', JSON.stringify(overrides));
             }
 

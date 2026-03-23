@@ -518,7 +518,7 @@
                         <div class="registro-search-row">
                             <div class="registro-filter-group registro-filter-group--search">
                                 <label class="registro-filter-label">Cerca cliente</label>
-                                <input type="text" id="registroSearch" placeholder="Nome, telefono, email..." oninput="applyRegistroFilters()">
+                                <input type="text" id="registroSearch" placeholder="Nome, telefono, email..." oninput="_debouncedRegistroFilter()">
                             </div>
                             <div class="registro-filter-group">
                                 <label class="registro-filter-label">&nbsp;</label>
