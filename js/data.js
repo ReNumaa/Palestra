@@ -1275,15 +1275,8 @@ class BookingStorage {
     static async syncAppSettingsFromSupabase() {
         if (typeof supabaseClient === 'undefined') return;
         try {
-            const [
-                { data: clearedRow },
-                { data: creditsData,   error: e1 },
-                { data: histData },
-                { data: debtsData,     error: e3 },
-                { data: bonusesData,   error: e4 },
-                { data: overridesData, error: e5 },
-                { data: settingsData,  error: e6 },
-            ] = await Promise.all([
+            // Promise.allSettled: ogni query è indipendente — se una fallisce le altre vanno avanti
+            const _results = await Promise.allSettled([
                 supabaseClient.from('app_settings').select('value').eq('key', 'data_cleared_at').maybeSingle(),
                 supabaseClient.from('credits').select('id, name, whatsapp, email, balance, free_balance'),
                 supabaseClient.from('credit_history').select('credit_id, amount, note, created_at, method').order('created_at', { ascending: true }),
@@ -1292,6 +1285,14 @@ class BookingStorage {
                 supabaseClient.from('schedule_overrides').select('date, time, slot_type, extras, client_name, client_email, client_whatsapp, booking_id').order('date').order('time'),
                 supabaseClient.from('settings').select('key, value'),
             ]);
+            const _v = (i) => _results[i].status === 'fulfilled' ? _results[i].value : { data: null, error: 'rejected' };
+            const { data: clearedRow }              = _v(0);
+            const { data: creditsData,  error: e1 } = _v(1);
+            const { data: histData }                = _v(2);
+            const { data: debtsData,    error: e3 } = _v(3);
+            const { data: bonusesData,  error: e4 } = _v(4);
+            const { data: overridesData, error: e5 } = _v(5);
+            const { data: settingsData, error: e6 } = _v(6);
 
             // 1. Propaga clearAllData: data_cleared_at ancora su app_settings per la propagazione Realtime
             const remoteClearedAt = clearedRow?.value?.ts || null;
