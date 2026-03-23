@@ -999,6 +999,11 @@
                 }
             }
 
+            // Warning documento non firmato (solo admin può impostare il flag)
+            if (!user.documento_firmato) {
+                html += `<a href="modulo_personal_training.pdf" download class="preno-cert-warning preno-cert-expiring preno-cert-clickable" style="text-decoration:none;display:block">📝 Porta documento firmato — scarica modulo</a>`;
+            }
+
             el.innerHTML = html;
         }
 

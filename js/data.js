@@ -2278,6 +2278,7 @@ class UserStorage {
                     indirizzoVia: row.indirizzo_via ?? existing.indirizzoVia ?? null,
                     indirizzoPaese: row.indirizzo_paese ?? existing.indirizzoPaese ?? null,
                     indirizzoCap: row.indirizzo_cap ?? existing.indirizzoCap ?? null,
+                    documentoFirmato: row.documento_firmato ?? existing.documentoFirmato ?? false,
                 };
             });
 

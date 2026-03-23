@@ -308,6 +308,8 @@ function createClientCard(client, index) {
     const bonusDisplay = `<span class="cedit-cert-badge ${bonus > 0 ? 'cedit-cert-ok' : 'cedit-cert-expiring'}">🎟️ Bonus ${bonus}/1</span>`;
     const certDisplay  = _mkBadge(certScad,  '🏥 Imposta scadenza certificato medico', '🏥 Cert. scaduto il', '⏳ Cert. scade il', '✅ Cert. valido fino al');
     const assicDisplay = _mkBadge(assicScad2, '📋 Imposta scadenza assicurazione',      '📋 Assic. scaduta il', '⏳ Assic. scade il', '📋 Assic. valida fino al');
+    const docFirmato2  = userRecord?.documentoFirmato || false;
+    const docDisplay   = `<span class="cedit-cert-badge ${docFirmato2 ? 'cedit-cert-ok' : 'cedit-cert-expired'}">${docFirmato2 ? '✅ Documento firmato' : '📝 Documento non firmato'}</span>`;
 
     // Unifica: "da pagare" = booking non pagati + debito manuale - credito
     const grossDebt    = Math.round((totalUnpaid + manualDebt) * 100) / 100;
@@ -475,7 +477,7 @@ function createClientCard(client, index) {
                 <div class="client-contacts">
                     <span>📱 ${_escHtml((client.whatsapp || '').replace(/^\+39\s*/, ''))}</span>
                     ${client.email ? `<span>✉️ ${_escHtml(client.email)}</span>` : ''}
-                    ${certDisplay}${assicDisplay}${bonusDisplay}
+                    ${certDisplay}${assicDisplay}${bonusDisplay}${docDisplay}
                 </div>
             </div>
             <div class="client-stats-block">${statsHTML}</div>
@@ -514,6 +516,7 @@ function openEditClientPopup(index, whatsapp, email, name) {
     const via        = userRecord?.indirizzoVia || '';
     const paese      = userRecord?.indirizzoPaese || '';
     const cap        = userRecord?.indirizzoCap || '';
+    const docFirmato = userRecord?.documentoFirmato || false;
 
     // Remove existing popup if any
     document.getElementById('editClientPopupOverlay')?.remove();
@@ -552,6 +555,7 @@ function openEditClientPopup(index, whatsapp, email, name) {
                         <label class="edit-client-popup-flex1">Cert. Medico<input type="date" id="cedit-cert-${index}" value="${certScad}"></label>
                         <label class="edit-client-popup-flex1">Assicurazione<input type="date" id="cedit-assic-${index}" value="${assicScad}"></label>
                     </div>
+                    <label class="cedit-checkbox-label"><input type="checkbox" id="cedit-docfirmato-${index}" ${docFirmato ? 'checked' : ''}> Documento firmato</label>
                 </div>
             </div>
             <div class="edit-client-popup-actions">
@@ -639,6 +643,7 @@ function _saveClientEditLocalProfile(index, oldWhatsapp, oldEmail, newName, newW
         if (ef.via !== undefined)   users[userIdx].indirizzoVia    = ef.via || null;
         if (ef.paese !== undefined) users[userIdx].indirizzoPaese  = ef.paese || null;
         if (ef.cap !== undefined)   users[userIdx].indirizzoCap    = ef.cap || null;
+        if (ef.documentoFirmato !== undefined) users[userIdx].documentoFirmato = !!ef.documentoFirmato;
 
         _saveUsers(users);
 
@@ -651,6 +656,7 @@ function _saveClientEditLocalProfile(index, oldWhatsapp, oldEmail, newName, newW
         if (ef.via !== undefined)   _supaFields.indirizzo_via    = ef.via || null;
         if (ef.paese !== undefined) _supaFields.indirizzo_paese  = ef.paese || null;
         if (ef.cap !== undefined)   _supaFields.indirizzo_cap    = ef.cap || null;
+        if (ef.documentoFirmato !== undefined) _supaFields.documento_firmato = !!ef.documentoFirmato;
         // Usa i VECCHI valori per trovare il record nel DB (non i nuovi che non esistono ancora)
         _updateSupabaseProfile(oldEmail, normOld, _supaFields);
 
@@ -689,6 +695,7 @@ async function saveClientEdit(index, oldWhatsapp, oldEmail) {
     const newVia      = (document.getElementById(`cedit-via-${index}`)?.value || '').trim();
     const newPaese    = (document.getElementById(`cedit-paese-${index}`)?.value || '').trim();
     const newCap      = (document.getElementById(`cedit-cap-${index}`)?.value || '').trim();
+    const newDocFirmato = document.getElementById(`cedit-docfirmato-${index}`)?.checked || false;
     if (!newName) { alert('Il nome è obbligatorio.'); return; }
 
     const normOld      = normalizePhone(oldWhatsapp);
@@ -730,7 +737,7 @@ async function saveClientEdit(index, oldWhatsapp, oldEmail) {
 
         closeEditClientPopup();
         // Continua con profilo locale + cert/assic (sotto)
-        _saveClientEditLocalProfile(index, oldWhatsapp, oldEmail, newName, newWhatsapp, newEmail, newCert, newAssic, normOld, normNewPhone, { cf: newCf, via: newVia, paese: newPaese, cap: newCap });
+        _saveClientEditLocalProfile(index, oldWhatsapp, oldEmail, newName, newWhatsapp, newEmail, newCert, newAssic, normOld, normNewPhone, { cf: newCf, via: newVia, paese: newPaese, cap: newCap, documentoFirmato: newDocFirmato });
         return;
     }
 
@@ -767,7 +774,7 @@ async function saveClientEdit(index, oldWhatsapp, oldEmail) {
 
     // Profilo locale + cert/assic + sessione
     closeEditClientPopup();
-    _saveClientEditLocalProfile(index, oldWhatsapp, oldEmail, newName, newWhatsapp, newEmail, newCert, newAssic, normOld, normNewPhone);
+    _saveClientEditLocalProfile(index, oldWhatsapp, oldEmail, newName, newWhatsapp, newEmail, newCert, newAssic, normOld, normNewPhone, { cf: newCf, via: newVia, paese: newPaese, cap: newCap, documentoFirmato: newDocFirmato });
 }
 
 async function deleteClientData(index, whatsapp, email) {
