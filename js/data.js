@@ -500,20 +500,31 @@ class BookingStorage {
             } catch { /* fallback: nessun profilo trovato → null */ }
         }
         const maxCap = overrideCapacity || BookingStorage.getEffectiveCapacity(booking.date, booking.time, booking.slotType);
-        const { data, error } = await supabaseClient.rpc('book_slot_atomic', {
-            p_local_id:     booking.id,
-            p_user_id:      bookingUserId,
-            p_date:         booking.date,
-            p_time:         booking.time,
-            p_slot_type:    booking.slotType,
-            p_max_capacity: maxCap,
-            p_name:         booking.name,
-            p_email:        booking.email,
-            p_whatsapp:     booking.whatsapp,
-            p_notes:        booking.notes || '',
-            p_created_at:   booking.createdAt,
-            p_date_display: booking.dateDisplay || ''
-        });
+        // Timeout 15s per evitare che il bottone resti bloccato su rete lenta
+        const _abortCtrl = new AbortController();
+        const _abortTimer = setTimeout(() => _abortCtrl.abort(), 15000);
+        let data, error;
+        try {
+            ({ data, error } = await supabaseClient.rpc('book_slot_atomic', {
+                p_local_id:     booking.id,
+                p_user_id:      bookingUserId,
+                p_date:         booking.date,
+                p_time:         booking.time,
+                p_slot_type:    booking.slotType,
+                p_max_capacity: maxCap,
+                p_name:         booking.name,
+                p_email:        booking.email,
+                p_whatsapp:     booking.whatsapp,
+                p_notes:        booking.notes || '',
+                p_created_at:   booking.createdAt,
+                p_date_display: booking.dateDisplay || ''
+            }).abortSignal(_abortCtrl.signal));
+        } catch (e) {
+            clearTimeout(_abortTimer);
+            console.error('[Supabase] book_slot_atomic timeout/abort:', e.message);
+            return { ok: false, error: 'server_error', booking };
+        }
+        clearTimeout(_abortTimer);
         if (error) {
             console.error('[Supabase] book_slot_atomic error:', error.message);
             return { ok: false, error: 'server_error', booking };

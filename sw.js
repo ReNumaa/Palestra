@@ -1,4 +1,4 @@
-const CACHE_NAME = 'palestra-v114';
+const CACHE_NAME = 'palestra-v115';
 
 const APP_SHELL = [
     '/',
@@ -106,7 +106,22 @@ self.addEventListener('fetch', event => {
         return;
     }
 
-    // Cache First per CSS, JS, immagini
+    // JS: Network First (riceve sempre il codice aggiornato, fallback cache se offline)
+    // CSS/immagini: Cache First (cambiano meno spesso)
+    if (url.pathname.endsWith('.js')) {
+        event.respondWith(
+            fetch(request)
+                .then(response => {
+                    const clone = response.clone();
+                    caches.open(CACHE_NAME).then(cache => cache.put(request, clone));
+                    return response;
+                })
+                .catch(() => caches.match(request))
+        );
+        return;
+    }
+
+    // Cache First per CSS, immagini e altri asset statici
     event.respondWith(
         caches.match(request).then(cached => {
             if (cached) return cached;
