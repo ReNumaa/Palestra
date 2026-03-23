@@ -951,7 +951,10 @@ function renderFatturatoDetail(panel) {
             <div class="stat-detail-kpi stat-detail-kpi--projected">
                 <div class="stat-detail-kpi-value">€${scheduleEstimate}</div>
                 <div class="stat-detail-kpi-label">Stima futura</div>
-            </div>` : ''}
+            </div>` : `<div class="stat-detail-kpi stat-detail-kpi--actual">
+                <div class="stat-detail-kpi-value">€${payMethodStats.filter(m => ['Contanti','Carta','Bonifico'].includes(m.label)).reduce((s, m) => s + m.rev, 0)}</div>
+                <div class="stat-detail-kpi-label">Fatturato reale</div>
+            </div>`}
             <div class="stat-detail-kpi">
                 <div class="stat-detail-kpi-value">€${weeklyAvg}</div>
                 <div class="stat-detail-kpi-label">Media settimanale</div>
@@ -983,6 +986,14 @@ function renderFatturatoDetail(panel) {
         ${isReale ? `<div class="stat-detail-chart-block stat-detail-type-section">
             <h4>Fatturato per tipo di pagamento</h4>
             <canvas id="detailPayMethodChart" style="width:100%;display:block;"></canvas>
+            ${payMethodStats.length > 0 ? `<div class="stat-detail-breakdown" style="margin-top:0.5rem">
+                <div class="sdb-rows">
+                    ${payMethodStats.map(m => `<div class="sdb-row">
+                        <span class="sdb-label"><span style="display:inline-block;width:10px;height:10px;border-radius:50%;background:${m.color};margin-right:6px"></span>${m.label}</span>
+                        <span class="sdb-value sdb-bold">€${m.rev}</span>
+                    </div>`).join('')}
+                </div>
+            </div>` : ''}
         </div>` : `<div class="stat-detail-chart-block stat-detail-type-section">
             <h4>Fatturato per tipo di lezione</h4>
             <canvas id="detailTypeChart" style="width:100%;display:block;"></canvas>
