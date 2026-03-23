@@ -307,19 +307,27 @@ function toggleDebtorsList() {
 function getDebtors() {
     const allBookings = BookingStorage.getAllBookings();
     const debtorsMap = {};
+    // Indici O(1) per evitare il loop annidato su ogni booking
+    const phoneIdx = {};
+    const emailIdx = {};
+
+    function _findKey(normPhone, email) {
+        if (normPhone && phoneIdx[normPhone]) return phoneIdx[normPhone];
+        const el = email ? email.toLowerCase() : '';
+        if (el && emailIdx[el]) return emailIdx[el];
+        return null;
+    }
+    function _registerKey(key, normPhone, email) {
+        if (normPhone) phoneIdx[normPhone] = key;
+        const el = email ? email.toLowerCase() : '';
+        if (el) emailIdx[el] = key;
+    }
 
     // Group unpaid past bookings by contact, matching by phone OR email
     allBookings.forEach(booking => {
         if (!booking.paid && bookingHasPassed(booking) && booking.status !== 'cancelled') {
             const normPhone = normalizePhone(booking.whatsapp);
-
-            let matchedKey = null;
-            for (const [k, debtor] of Object.entries(debtorsMap)) {
-                const phoneMatch = normPhone && normalizePhone(debtor.whatsapp) === normPhone;
-                const emailMatch = booking.email && debtor.email &&
-                    booking.email.toLowerCase() === debtor.email.toLowerCase();
-                if (phoneMatch || emailMatch) { matchedKey = k; break; }
-            }
+            let matchedKey = _findKey(normPhone, booking.email);
 
             if (!matchedKey) {
                 matchedKey = normPhone || booking.email;
@@ -327,6 +335,7 @@ function getDebtors() {
                     name: booking.name, whatsapp: booking.whatsapp, email: booking.email,
                     unpaidBookings: [], manualDebt: 0, totalAmount: 0
                 };
+                _registerKey(matchedKey, normPhone, booking.email);
             }
 
             const price = SLOT_PRICES[booking.slotType];
@@ -338,19 +347,14 @@ function getDebtors() {
     // Merge in manual debts (not tied to bookings)
     ManualDebtStorage.getAllWithBalance().forEach(debt => {
         const normPhone = normalizePhone(debt.whatsapp);
-        let matchedKey = null;
-        for (const [k, debtor] of Object.entries(debtorsMap)) {
-            const phoneMatch = normPhone && normalizePhone(debtor.whatsapp) === normPhone;
-            const emailMatch = debt.email && debtor.email &&
-                debt.email.toLowerCase() === debtor.email.toLowerCase();
-            if (phoneMatch || emailMatch) { matchedKey = k; break; }
-        }
+        let matchedKey = _findKey(normPhone, debt.email);
         if (!matchedKey) {
             matchedKey = normPhone || debt.email;
             debtorsMap[matchedKey] = {
                 name: debt.name, whatsapp: debt.whatsapp, email: debt.email,
                 unpaidBookings: [], manualDebt: 0, totalAmount: 0
             };
+            _registerKey(matchedKey, normPhone, debt.email);
         }
         debtorsMap[matchedKey].manualDebt = debt.balance;
         debtorsMap[matchedKey].totalAmount += debt.balance;

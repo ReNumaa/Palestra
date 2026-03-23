@@ -69,19 +69,29 @@ function toggleAnagFilter() {
 function getAllClients() {
     const allBookings = BookingStorage.getAllBookings();
     const clientsMap = {};
+    // Indici O(1) per evitare il loop annidato su ogni booking
+    const phoneIndex = {};   // normPhone → key in clientsMap
+    const emailIndex = {};   // email.lower → key in clientsMap
+
+    function _findKey(normPhone, email) {
+        if (normPhone && phoneIndex[normPhone]) return phoneIndex[normPhone];
+        const emailLow = email ? email.toLowerCase() : '';
+        if (emailLow && emailIndex[emailLow]) return emailIndex[emailLow];
+        return null;
+    }
+    function _registerKey(key, normPhone, email) {
+        if (normPhone) phoneIndex[normPhone] = key;
+        const emailLow = email ? email.toLowerCase() : '';
+        if (emailLow) emailIndex[emailLow] = key;
+    }
 
     allBookings.forEach(booking => {
         const normPhone = normalizePhone(booking.whatsapp);
-        let matchedKey = null;
-        for (const [k, client] of Object.entries(clientsMap)) {
-            const phoneMatch = normPhone && normalizePhone(client.whatsapp) === normPhone;
-            const emailMatch = booking.email && client.email &&
-                booking.email.toLowerCase() === client.email.toLowerCase();
-            if (phoneMatch || emailMatch) { matchedKey = k; break; }
-        }
+        let matchedKey = _findKey(normPhone, booking.email);
         if (!matchedKey) {
             matchedKey = normPhone || booking.email;
             clientsMap[matchedKey] = { name: booking.name, whatsapp: booking.whatsapp, email: booking.email, bookings: [] };
+            _registerKey(matchedKey, normPhone, booking.email);
         }
         clientsMap[matchedKey].bookings.push(booking);
     });
@@ -89,16 +99,12 @@ function getAllClients() {
     // Include registered users even without bookings
     UserStorage.getAll().forEach(user => {
         const normPhone = normalizePhone(user.whatsapp);
-        let found = false;
-        for (const client of Object.values(clientsMap)) {
-            const phoneMatch = normPhone && normalizePhone(client.whatsapp) === normPhone;
-            const emailMatch = user.email && client.email &&
-                user.email.toLowerCase() === client.email.toLowerCase();
-            if (phoneMatch || emailMatch) { found = true; break; }
-        }
-        if (!found) {
+        if (!_findKey(normPhone, user.email)) {
             const key = normPhone || user.email;
-            if (key) clientsMap[key] = { name: user.name, whatsapp: user.whatsapp || '', email: user.email || '', bookings: [] };
+            if (key) {
+                clientsMap[key] = { name: user.name, whatsapp: user.whatsapp || '', email: user.email || '', bookings: [] };
+                _registerKey(key, normPhone, user.email);
+            }
         }
     });
 

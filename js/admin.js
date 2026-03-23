@@ -202,25 +202,19 @@ function switchTab(tabName) {
         window.scrollTo({ top: 0 });
     }
 
-    // Load specific data based on tab
-    if (tabName === 'analytics') {
-        // Aspetta il layout del browser (canvas necessita offsetWidth > 0)
-        requestAnimationFrame(() => requestAnimationFrame(() => loadDashboardData()));
-    } else if (tabName === 'bookings') {
-        renderAdminCalendar();
-    } else if (tabName === 'payments') {
-        renderPaymentsTab();
-    } else if (tabName === 'clients') {
-        renderClientsTab();
-    } else if (tabName === 'schedule') {
-        renderScheduleManager();
-    } else if (tabName === 'settings') {
-        renderSettingsTab();
-    } else if (tabName === 'registro') {
-        renderRegistroTab();
-    } else if (tabName === 'messaggi') {
-        renderMessaggiTab();
-    }
+    // Carica i dati del tab in modo asincrono: il browser renderizza prima il tab
+    // (mostra il contenuto/spinner) e poi esegue il lavoro pesante senza congelare la UI.
+    const loader = {
+        analytics: () => requestAnimationFrame(() => requestAnimationFrame(() => loadDashboardData())),
+        bookings:  () => renderAdminCalendar(),
+        payments:  () => renderPaymentsTab(),
+        clients:   () => renderClientsTab(),
+        schedule:  () => renderScheduleManager(),
+        settings:  () => renderSettingsTab(),
+        registro:  () => renderRegistroTab(),
+        messaggi:  () => renderMessaggiTab(),
+    }[tabName];
+    if (loader) setTimeout(loader, 0);
 }
 
 function hideDashboard() {
