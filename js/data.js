@@ -510,9 +510,9 @@ class BookingStorage {
             } catch { /* fallback: nessun profilo trovato → null */ }
         }
         const maxCap = overrideCapacity || BookingStorage.getEffectiveCapacity(booking.date, booking.time, booking.slotType);
-        // Timeout 15s per evitare che il bottone resti bloccato su rete lenta
+        // Timeout 45s per evitare che il bottone resti bloccato su rete lenta
         const _abortCtrl = new AbortController();
-        const _abortTimer = setTimeout(() => _abortCtrl.abort(), 15000);
+        const _abortTimer = setTimeout(() => _abortCtrl.abort(), 45000);
         let data, error;
         try {
             ({ data, error } = await supabaseClient.rpc('book_slot_atomic', {

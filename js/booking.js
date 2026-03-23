@@ -163,13 +163,16 @@ async function handleBookingSubmit(e) {
     if (submitBtn.disabled) return;
     submitBtn.disabled = true;
 
-    // Safety timeout: se qualcosa va storto, dopo 30s il bottone si sblocca comunque
+    // Avviso connessione lenta dopo 15s, sblocco forzato dopo 50s
+    const _slowTimer = setTimeout(() => {
+        showToast('Connessione lenta, attendi...', 'warning', 8000);
+    }, 15000);
     const _safetyTimer = setTimeout(() => {
-        console.warn('[Booking] safety timeout — sblocco bottone dopo 30s');
+        console.warn('[Booking] safety timeout — sblocco bottone dopo 50s');
         setLoading(submitBtn, false);
         submitBtn.disabled = false;
         showToast('La richiesta sta impiegando troppo. Riprova.', 'error');
-    }, 30000);
+    }, 50000);
 
     try {
 
@@ -393,6 +396,7 @@ async function handleBookingSubmit(e) {
         console.error('[Booking] errore imprevisto durante la prenotazione:', err);
         showToast('Errore durante la prenotazione. Riprova.', 'error');
     } finally {
+        clearTimeout(_slowTimer);
         clearTimeout(_safetyTimer);
         setLoading(submitBtn, false);
         submitBtn.disabled = false;

@@ -445,9 +445,9 @@
             } else {
                 _initPrenoPage();
             }
-            // Push: ri-registra silenziosamente se già concesso (la richiesta permesso è su index.html)
-            if (typeof registerPushSubscription === 'function' && typeof Notification !== 'undefined' && Notification.permission === 'granted') {
-                registerPushSubscription();
+            // Push: mostra banner se permesso non ancora concesso, altrimenti ri-registra
+            if (typeof promptPushPermission === 'function' && getCurrentUser()) {
+                setTimeout(promptPushPermission, 1500);
             }
         }
         _boot();

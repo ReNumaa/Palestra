@@ -908,6 +908,8 @@
                     await Promise.all([BookingStorage.syncFromSupabase(), CreditStorage.syncFromSupabase()]);
                 }
             }
+            // Push: mostra banner se permesso non ancora concesso
+            if (typeof promptPushPermission === 'function') setTimeout(promptPushPermission, 1500);
             if (typeof loadDashboardData === 'function') loadDashboardData();
             if (typeof renderAdminCalendar === 'function') renderAdminCalendar();
             if (typeof renderScheduleManager === 'function') renderScheduleManager();
