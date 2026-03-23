@@ -214,7 +214,11 @@
     <script src="js/auth.js?v=22"></script>
     <script src="js/push.js?v=14"></script>
     <script>
-        // Avvia la sessione Supabase, sincronizza i booking, poi re-renderizza il calendario
+        // Renderizza il calendario subito con i dati in localStorage (se presenti),
+        // poi sincronizza da Supabase e re-renderizza con i dati aggiornati.
+        if (typeof renderCalendar === 'function') renderCalendar();
+        if (typeof renderMobileCalendar === 'function') renderMobileCalendar();
+
         (async function () {
             await initAuth();
             await Promise.all([
