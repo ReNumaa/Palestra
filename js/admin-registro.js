@@ -475,6 +475,15 @@ function registroPrevPage() {
     if (_registroState.page > 0) { _registroState.page--; renderRegistroTable(); }
 }
 
+// ── Toggle pannello filtri (mobile) ──────────────────────────────────────
+function toggleRegistroFiltersPanel() {
+    const body = document.getElementById('registroFiltersBody');
+    const icon = document.getElementById('registroFiltersToggleIcon');
+    if (!body) return;
+    body.classList.toggle('open');
+    if (icon) icon.classList.toggle('open');
+}
+
 // ── Entry point chiamato da switchTab ──────────────────────────────────────
 function renderRegistroTab() {
     applyRegistroFilters();

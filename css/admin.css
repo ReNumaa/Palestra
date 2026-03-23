@@ -4040,7 +4040,49 @@ canvas {
     font-variant-numeric: tabular-nums;
 }
 
+/* Toggle filtri mobile */
+.registro-filters-toggle {
+    display: none;
+    width: 100%;
+    background: none;
+    border: none;
+    padding: 0.5rem 0;
+    font-size: 0.95rem;
+    font-weight: 700;
+    color: var(--primary-cyan);
+    cursor: pointer;
+    font-family: inherit;
+    text-align: left;
+    align-items: center;
+    gap: 0.4rem;
+}
+.registro-filters-toggle-icon {
+    font-size: 0.7rem;
+    transition: transform 0.25s ease;
+    display: inline-block;
+}
+.registro-filters-toggle-icon.open {
+    transform: rotate(180deg);
+}
+.registro-filters-body {
+    display: flex;
+    flex-direction: column;
+    gap: 0.85rem;
+}
+
 @media (max-width: 640px) {
+    .registro-filters-toggle { display: flex; }
+    .registro-filters-body {
+        overflow: hidden;
+        max-height: 0;
+        opacity: 0;
+        transition: max-height 0.3s ease, opacity 0.2s ease;
+    }
+    .registro-filters-body.open {
+        max-height: 800px;
+        opacity: 1;
+    }
+    .registro-filters { padding: 0.6rem 1rem; }
     .registro-filter-row { flex-direction: column; }
     .registro-filter-group--sm,
     .registro-filter-group--search { min-width: unset; width: 100%; }

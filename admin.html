@@ -452,6 +452,10 @@
 
                 <!-- Filter bar -->
                 <div class="registro-filters">
+                    <button class="registro-filters-toggle" id="registroFiltersToggle" onclick="toggleRegistroFiltersPanel()">
+                        🔍 Filtri <span class="registro-filters-toggle-icon" id="registroFiltersToggleIcon">▼</span>
+                    </button>
+                    <div class="registro-filters-body" id="registroFiltersBody">
                     <!-- Periodo -->
                     <div class="registro-filter-row">
                         <div class="registro-filter-group" style="width:100%;">
@@ -526,6 +530,7 @@
                             </div>
                         </div>
                     </div>
+                    </div><!-- /registro-filters-body -->
                 </div>
 
                 <!-- Table -->
