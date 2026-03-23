@@ -138,19 +138,12 @@ class SimpleChart {
                 if (ctx.roundRect) ctx.roundRect(x, y, barW, barH, [3, 3, 0, 0]);
                 else ctx.rect(x, y, barW, barH);
                 ctx.fill();
-                if (v > 0 && barH > 14) {
-                    ctx.fillStyle = '#fff';
+                if (v > 0) {
+                    ctx.fillStyle = '#333';
                     ctx.textAlign = 'center';
-                    const lines = data.valueLabels?.[i] || [`${options.prefix ?? '€'}${v}${options.suffix ?? ''}`];
-                    if (lines.length > 1 && barH > 28) {
-                        ctx.font = 'bold 9px sans-serif';
-                        ctx.fillText(lines[0], x + barW / 2, y + 10);
-                        ctx.font = '8px sans-serif';
-                        ctx.fillText(lines[1], x + barW / 2, y + 20);
-                    } else {
-                        ctx.font = 'bold 9px sans-serif';
-                        ctx.fillText(lines[0], x + barW / 2, y + 11);
-                    }
+                    ctx.font = 'bold 9px sans-serif';
+                    const label = data.valueLabels?.[i]?.[0] || `${options.prefix ?? '€'}${v}${options.suffix ?? ''}`;
+                    ctx.fillText(label, x + barW / 2, y - 4);
                 }
             });
 
