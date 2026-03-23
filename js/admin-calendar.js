@@ -317,6 +317,12 @@ function _buildParticipantCard(booking) {
         cfBadge = `<div class="cert-expired-badge cert-expired-badge--clickable" style="background:#fef3c7;border-color:#fde68a;color:#92400e;border-left:3px solid #f59e0b" onclick="openEditClientPopup(0,'${waE}','${emE}','${nmE2}')">📋 Completa anagrafica</div>`;
     }
 
+    // Documento firmato
+    let docBadge = '';
+    if (!userRecord?.documentoFirmato) {
+        docBadge = `<div class="cert-expired-badge cert-expired-badge--clickable" onclick="openEditClientPopup(0,'${waE}','${emE}','${nmE2}')">📝 Documento non firmato</div>`;
+    }
+
     let assicBadge = '';
     if (!assicScad) {
         assicBadge = `<div class="cert-expired-badge cert-expired-badge--clickable" style="background:#fef3c7;border-color:#fde68a;color:#92400e;border-left:3px solid #f59e0b" onclick="openAssicModal(this,'${emE}','${waE}','${nmE2}')">📋 Imposta Assicurazione</div>`;
@@ -337,7 +343,7 @@ function _buildParticipantCard(booking) {
                 <div class="participant-name">${_escHtml(booking.name)}</div>
                 <div class="participant-contact">📱 ${_escHtml(booking.whatsapp)}</div>
                 ${booking.notes ? `<div class="participant-notes">📝 ${_escHtml(booking.notes)}</div>` : ''}
-                ${cancelPendingBadge}${certBadge}${cfBadge}${assicBadge}
+                ${cancelPendingBadge}${certBadge}${cfBadge}${assicBadge}${docBadge}
                 ${hasDebts ? `<div class="debt-warning" onclick="openDebtPopup('${wa}','${em}','${nm}')">⚠️ Da pagare: €${unpaidAmount}</div>` : ''}
                 ${!isCancelPending ? (isPaid
                     ? `<div class="payment-status paid">✓ Pagato</div>`
