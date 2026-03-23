@@ -2,8 +2,35 @@
 let debtorsListVisible = false;
 let creditsListVisible = false;
 
-function renderPaymentsTab() {
+async function renderPaymentsTab() {
+    // SEMPRE il vecchio codice JS (sicuro e testato)
     const debtors = getDebtors();
+
+    // ── Shadow mode: confronta RPC vs JS in background (solo log, nessun effetto sulla UI) ──
+    if (typeof supabaseClient !== 'undefined') {
+        supabaseClient.rpc('get_debtors', { p_slot_prices: SLOT_PRICES }).then(({ data, error }) => {
+            if (error) { console.warn('[RPC shadow] get_debtors error:', error.message); return; }
+            if (!data) { console.warn('[RPC shadow] get_debtors: nessun dato'); return; }
+            // Confronta: stessi debitori, stessi importi?
+            const jsMap = {};
+            debtors.forEach(d => { jsMap[d.email?.toLowerCase() || d.name] = d.totalAmount; });
+            const rpcMap = {};
+            data.forEach(d => { rpcMap[d.email?.toLowerCase() || d.name] = d.totalAmount; });
+            const allKeys = new Set([...Object.keys(jsMap), ...Object.keys(rpcMap)]);
+            const diffs = [];
+            allKeys.forEach(k => {
+                const jsVal = jsMap[k] ?? 'ASSENTE';
+                const rpcVal = rpcMap[k] ?? 'ASSENTE';
+                if (jsVal !== rpcVal) diffs.push({ contatto: k, js: jsVal, rpc: rpcVal });
+            });
+            if (diffs.length === 0) {
+                console.log(`%c[RPC shadow] ✅ get_debtors: IDENTICI (${debtors.length} debitori)`, 'color:green;font-weight:bold');
+            } else {
+                console.warn(`[RPC shadow] ⚠️ get_debtors: ${diffs.length} differenze trovate:`, diffs);
+            }
+        }).catch(() => {});
+    }
+
     const totalUnpaid = debtors.reduce((sum, debtor) => sum + debtor.totalAmount, 0);
     // Net debts against credit balance: only show as creditor if credit > debt
     // NB: getUnpaidAmountForContact include GIÀ ManualDebtStorage.getBalance(),
