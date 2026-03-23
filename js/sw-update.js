@@ -30,8 +30,8 @@
     }
 
     navigator.serviceWorker.register('/sw.js', { updateViaCache: 'none' }).then(reg => {
-        // Controlla aggiornamenti ogni 60 secondi
-        setInterval(() => reg.update(), 60 * 1000);
+        // Controlla aggiornamenti ogni 15 secondi (temporaneo — riportare a 60s fra qualche giorno)
+        setInterval(() => reg.update(), 15 * 1000);
 
         // Nuovo SW trovato (installing o waiting)
         function onNewSW(worker) {
