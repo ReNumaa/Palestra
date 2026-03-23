@@ -1003,18 +1003,15 @@
         // ── Weekly training chart ──────────────────────────────────────
         function openWeeklyChartModal() {
             document.getElementById('weeklyChartModal').style.display = 'flex';
-            document.body.style.overflow = 'hidden';
-            setTimeout(renderWeeklyChart, 50); // allow modal to paint first
+            setTimeout(renderWeeklyChart, 50);
         }
         function closeWeeklyChartModal() {
             document.getElementById('weeklyChartModal').style.display = 'none';
-            document.body.style.overflow = '';
         }
         function renderWeeklyChart() {
             const { upcoming, past } = getUserBookings();
             const all = [...past, ...upcoming].filter(b => b.status !== 'cancelled');
 
-            // Build map: weekMonday ISO string -> { past: count, future: count }
             const today = new Date();
             today.setHours(0, 0, 0, 0);
             const weekMap = {};
@@ -1022,7 +1019,7 @@
             all.forEach(b => {
                 const d = new Date(b.date + 'T00:00:00');
                 const monday = new Date(d);
-                const day = monday.getDay() || 7; // Sun=7
+                const day = monday.getDay() || 7;
                 monday.setDate(monday.getDate() - day + 1);
                 const key = monday.toISOString().slice(0, 10);
                 if (!weekMap[key]) weekMap[key] = { past: 0, future: 0 };
@@ -1030,13 +1027,13 @@
                 else weekMap[key].future++;
             });
 
-            // Generate 10 weeks: 5 past + current + 4 future
+            // 8 weeks: 4 past + current + 3 future
             const nowMonday = new Date(today);
             const nowDay = nowMonday.getDay() || 7;
             nowMonday.setDate(nowMonday.getDate() - nowDay + 1);
 
             const labels = [], pastVals = [], futureVals = [], highlight = [];
-            for (let i = -5; i <= 4; i++) {
+            for (let i = -4; i <= 3; i++) {
                 const mon = new Date(nowMonday);
                 mon.setDate(mon.getDate() + i * 7);
                 const key = mon.toISOString().slice(0, 10);
@@ -1051,14 +1048,13 @@
             const canvas = document.getElementById('weeklyChartCanvas');
             const chart = new SimpleChart(canvas, { height: 250 });
 
-            // Use stacked values for bar chart
             const values = pastVals.map((p, i) => p + futureVals[i]);
             chart.drawBarChart(
                 { labels, values, highlight },
                 { prefix: '', suffix: '', colors: ['#3b82f6'] }
             );
 
-            // Overlay future portion on top of each bar
+            // Overlay future portion in red on top of each bar
             const ctx = chart.ctx;
             const cw = canvas.width / 2;
             const ch = canvas.height / 2;
