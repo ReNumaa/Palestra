@@ -1,6 +1,6 @@
 # TB Training — Diario di Sviluppo & Roadmap
 
-> Documento aggiornato al 16/03/2026 (sessione 40)
+> Documento aggiornato al 21/03/2026 (sessione 50)
 > Prototipo: sistema di prenotazione palestra, frontend-only con localStorage
 > Supabase CLI installato, schema SQL definito, accesso dati centralizzato
 > Supabase cloud attivo (tabelle create), Google OAuth funzionante, numeri normalizzati E.164
@@ -25,6 +25,16 @@
 > **SESSIONE 38**: badge notifica dumbbell, rotazione VAPID keys, tab admin "Messaggi" per invio push personalizzate
 > **SESSIONE 39**: indirizzo residenza, controllo dati carta/bonifico, fix Google OAuth, schema hardening (FK/audit/locking), fix import backup Nextcloud, export CSV
 > **SESSIONE 40**: report settimanale (fix timezone, crediti manuali, method in credit_history), popup modifica cliente, restyling tab Clienti (stat cards, filtro anagrafica), ricerca unificata dropdown, modifica/elimina crediti e debiti in Pagamenti, navigazione settimana auto-hide
+> **SESSIONE 41**: cutoff prenotazione (inizio lezione + 30 min client+server), fix badge notifica "Prenotazione confermata" (path + icona monocromatica)
+> **SESSIONE 42**: fix 52 utenti fantasma (trigger handle_new_user rotto), health check/fix admin, filtri clienti indipendenti, fix modifica cliente con filtri attivi
+> **SESSIONE 43**: fix assegnazione cliente a slot (invalid_capacity), persistenza client in schedule_overrides su Supabase, fix annullamento booking da Gestione Orari (removeBookingById + clearSlotClient con popup bonus/mora), fix apply_credit email case-insensitive
+> **SESSIONE 44**: fix link conferma email registrazione (emailRedirectTo + auto-login dopo conferma), conferma manuale utenti bloccati, configurazione Site URL produzione
+> **SESSIONE 45**: notifica push admin su nuova prenotazione (Edge Function notify-admin-booking), fix apply_credit email case-insensitive
+> **SESSIONE 46**: fix annullamento admin che non persisteva su Supabase (bug reference-sharing _cache in deleteBooking/replaceAllBookings)
+> **SESSIONE 47**: ripristino bottone elimina dati cliente nel popup Modifica contatto, fix deleteClientData con filtro attivo (lookup per email/whatsapp invece di index)
+> **SESSIONE 48**: 3 settimane standard configurabili/rinominabili in Impostazioni, popup editor (simile a Gestione Orari), Realtime sync tabella settings tra dispositivi, fix backup (export/import settimane standard)
+> **SESSIONE 49**: fix bottone "Conferma Prenotazione" che restava disabilitato (grigio) dopo errori — reset in openBookingModal, try/catch/finally su async submit
+> **SESSIONE 50**: migliora notifica push "slot disponibile" — titolo "Slot libero disponibile", body con nome giorno e posti disponibili (es. "martedì 24 marzo alle 18:00 (4/5)")
 
 ---
 
@@ -1530,6 +1540,393 @@ Regex: `.replace(/\S+/g, w => w[0].toUpperCase() + w.slice(1).toLowerCase())`
 
 ---
 
+### 4.53 Cutoff prenotazione e fix notifica conferma (sessione 41, mar 2026)
+
+**Contesto:** il cutoff per prenotare usava la fine della lezione meno 30 minuti, ma il requisito era inizio lezione + 30 minuti. Inoltre la notifica push "Prenotazione confermata" mostrava una campanella generica su Android invece del badge dumbbell.
+
+**Cosa è stato fatto:**
+
+1. **Cutoff prenotazione: inizio lezione + 30 minuti**
+   - **Vecchio comportamento**: si poteva prenotare finché `(fine_lezione - now) >= 30 min` — di fatto permetteva prenotazioni fino a metà lezione per slot lunghi
+   - **Nuovo comportamento**: si può prenotare finché `(now - inizio_lezione) <= 30 min`
+   - **Client JS — `booking.js`**: check al submit ora usa `startH/startM` invece di `endH/endM`, confronto invertito
+   - **Client JS — `calendar.js`**: aggiornati 3 punti che controllavano la visibilità/cliccabilità degli slot nel calendario
+     - `createSlot()` (desktop): slot non cliccabile dopo inizio + 30 min
+     - `renderMobileSlots()`: slot nascosto dalla lista mobile dopo inizio + 30 min
+     - `createMobileSlotCard()`: card non cliccabile dopo inizio + 30 min
+   - **Server SQL — migration `20260316100000_book_slot_time_cutoff.sql`**: nuova versione di `book_slot_atomic` con check server-side
+     - Estrae orario di inizio da `p_time` (formato `"HH:MM - HH:MM"`) via `split_part`
+     - Converte in timestamptz con timezone `Europe/Rome`
+     - Ritorna errore `too_late` se `now() > inizio + 30 min`
+   - **Client error handling**: aggiunta gestione errore `too_late` dal server con toast dedicato
+
+2. **Fix badge notifica "Prenotazione confermata"**
+   - **Problema**: su Android appariva una campanella generica invece del manubrio
+   - **Causa 1 — badge sbagliato**: `booking.js` usava `logo-tb---nero.jpg` come badge (immagine a colori, non monocromatica) — Android richiede un'icona con alpha channel per il badge
+   - **Causa 2 — path errato**: `booking.js` usava il prefisso `/Palestra/images/...` che dava 404, mentre il service worker usava correttamente `/images/...`
+   - **Fix**: badge cambiato in `/images/badge-mono-96.png` (icona monocromatica dumbbell, stessa usata dal SW per i reminder) e rimosso prefisso `/Palestra/` da icon e badge
+
+**File modificati/creati:**
+- `js/booking.js` — cutoff inizio+30min al submit, gestione errore `too_late`, fix path icon/badge notifica
+- `js/calendar.js` — cutoff inizio+30min in 3 punti (desktop slot, mobile lista, mobile card)
+- `supabase/migrations/20260316100000_book_slot_time_cutoff.sql` — check server-side in `book_slot_atomic`
+
+**Migrazioni SQL da eseguire su Supabase:**
+1. `20260316100000_book_slot_time_cutoff.sql` — aggiorna `book_slot_atomic` con controllo orario inizio + 30 min
+
+---
+
+### 4.54 Fix utenti fantasma, health check admin e UX filtri clienti (sessione 42, mar 2026)
+
+**Contesto:** 52 utenti registrati risultavano invisibili nella lista clienti admin. La causa: il trigger `handle_new_user` (che crea il profilo in `profiles` alla registrazione) era rotto da una migrazione precedente (`indirizzo_residenza.sql`) che aveva rimosso `SET search_path = public` e non gestiva i conflitti sulla colonna `whatsapp` (unique constraint). Di conseguenza il trigger falliva silenziosamente e l'utente rimaneva "fantasma" — presente in `auth.users` ma senza riga in `profiles`.
+
+**Cosa è stato fatto:**
+
+1. **Diagnosi e backfill dei 52 profili mancanti**
+   - Query diagnostica: `SELECT au.email FROM auth.users au LEFT JOIN profiles p ON au.id = p.id WHERE p.id IS NULL` → 52 righe
+   - **Migration `20260317000000_fix_missing_profiles.sql`**:
+     - DO block che itera sui ghost users e crea i profili mancanti usando `raw_user_meta_data` (nome, email, whatsapp, codice_fiscale, indirizzo)
+     - Gestione conflitto whatsapp: se il numero è già usato, inserisce con whatsapp vuoto
+     - Collega le booking orfane ai nuovi profili (`UPDATE bookings SET user_id = p.id WHERE email match`)
+   - **Trigger `handle_new_user` riscritto**: ripristinato `SET search_path = public`, aggiunto pre-check whatsapp uniqueness prima dell'INSERT, catch specifico per `unique_violation` e `OTHERS` con logging
+
+2. **Self-healing profilo utente (`js/auth.js`)**
+   - `updateUserProfile()` cambiato da `.update().eq('id')` a `.upsert({ id, ... })` — se il profilo manca (ghost user residuo), lo ricrea automaticamente al primo salvataggio
+   - Fallback `_currentUser` arricchito con tutti i campi profilo (codice_fiscale, indirizzo_*, cert, insurance) dalla session metadata
+
+3. **Health Check e Health Fix in admin Impostazioni**
+   - **Migration `20260317100000_health_check.sql`** — due nuove RPC:
+     - `admin_health_check()`: read-only, controlla 6 tipi di anomalia:
+       - Utenti fantasma (auth.users senza profilo)
+       - Booking orfane (user_id → profilo inesistente)
+       - Email mismatch (email booking ≠ email profilo collegato)
+       - Credits/manual_debts/bonuses con user_id orfano
+     - `admin_health_fix()`: fix conservativo (non cancella MAI dati):
+       - Ghost users → crea profilo mancante
+       - Booking orfane → scollega user_id (la booking resta intatta)
+       - Email mismatch → allinea email booking al profilo (autoritativo)
+       - Credits/debts/bonuses orfani → scollega user_id
+   - **UI in `admin.html`**: sezione "Verifica integrità dati" nel tab Impostazioni con pulsanti "Verifica" e "Correggi anomalie"
+   - **`js/admin.js`**: funzioni `runHealthCheck()` (mostra risultati con badge OK/warning per check) e `runHealthFix()` (confirm dialog, esegue fix, ri-sincronizza cache)
+
+4. **Filtri clienti indipendenti (cert/assic/anag)**
+   - **Problema**: i filtri 🏥 Senza certificato / 📋 Senza assicurazione / 📝 Senza anagrafica funzionavano solo se "Mostra lista" era attivo
+   - **Fix in `renderClientsTab()`**: aggiunta variabile `hasFilter` — se almeno un filtro è attivo, la lista si visualizza subito senza dover cliccare "Mostra lista"
+
+5. **Fix modifica cliente con filtri attivi**
+   - **Problema**: `openEditClientPopup(index)` riceveva l'indice della lista filtrata ma cercava in `getAllClients()` (lista completa) → modificava il profilo sbagliato
+   - **Fix**: il popup ora trova il cliente per email/whatsapp invece che per indice:
+     ```javascript
+     const client = clients.find(c =>
+         (email && c.email && c.email.toLowerCase() === email.toLowerCase()) ||
+         (whatsapp && c.whatsapp && normalizePhone(c.whatsapp) === normalizePhone(whatsapp))
+     ) || clients[index];
+     ```
+
+6. **Fix modifica nome senza WhatsApp**
+   - Rimosso requisito WhatsApp obbligatorio nella validazione del nome cliente — ora è sufficiente il solo nome
+
+**File modificati/creati:**
+- `supabase/migrations/20260317000000_fix_missing_profiles.sql` — backfill 52 profili + fix trigger
+- `supabase/migrations/20260317100000_health_check.sql` — RPC health check + health fix
+- `js/auth.js` — upsert profilo self-healing, fallback currentUser arricchito
+- `js/admin.js` — health check/fix UI, filtri indipendenti, fix edit con filtri, validazione nome
+- `admin.html` — sezione health check in Impostazioni, version bump
+
+**Migrazioni SQL da eseguire su Supabase:**
+1. `20260317000000_fix_missing_profiles.sql` — backfill profili mancanti + fix trigger handle_new_user
+2. `20260317100000_health_check.sql` — RPC admin_health_check + admin_health_fix
+
+---
+
+### 4.55 Fix slot assignment, persistenza client e annullamento da Gestione Orari (sessione 43, mar 2026)
+
+**Contesto:** assegnare un cliente a uno slot prenotato in Gestione Orari falliva con `invalid_capacity`. Dopo il fix, il cliente scompariva al refresh della pagina. Inoltre, rimuovere un cliente dallo slot non annullava la prenotazione su Supabase.
+
+**Cosa è stato fatto:**
+
+1. **Fix `invalid_capacity` per assegnazione cliente a slot**
+   - **Problema:** `selectSlotClient` hardcodava `slotType: SLOT_TYPES.GROUP_CLASS` (capacità base 0 in `SLOT_MAX_CAPACITY`), quindi `book_slot_atomic` rifiutava sempre con `invalid_capacity`
+   - **Fix 1:** usa `slot.type` (il tipo effettivo dello slot dalla schedule override) invece di hardcodare `GROUP_CLASS`
+   - **Fix 2:** aggiunto parametro `overrideCapacity` a `saveBooking()` — `selectSlotClient` passa `currentCount + 1` per garantire che l'admin possa sempre assegnare un cliente
+
+2. **Persistenza client association in `schedule_overrides`**
+   - **Problema:** `saveScheduleOverrides` salvava su Supabase solo `date, time, slot_type, extras` — i campi `client` e `bookingId` venivano persi al refresh
+   - **Migration `20260317210000_schedule_overrides_client_fields.sql`**: aggiunge 4 colonne a `schedule_overrides`:
+     - `client_name TEXT`
+     - `client_email TEXT`
+     - `client_whatsapp TEXT`
+     - `booking_id TEXT`
+   - **Save (`saveScheduleOverrides`)**: include sempre `client_name/email/whatsapp` e `booking_id` nella row upsert, impostando `null` esplicitamente quando il client è rimosso (prima ometteva i campi → Supabase manteneva i valori vecchi)
+   - **Load (`syncAppSettingsFromSupabase`)**: SELECT e mapping aggiornati per ricostruire `slot.client` e `slot.bookingId` dalla tabella
+
+3. **Fix annullamento booking da `clearSlotClient`**
+   - **Bug 1 — `removeBookingById` non sincronizzava su Supabase:** `getAllBookings()` restituiva `this._cache` (riferimento diretto). Le mutazioni in-place rendevano il diff in `replaceAllBookings` invisibile (prev e new puntavano agli stessi oggetti). Fix: `removeBookingById` ora crea un array completamente nuovo via `map()`, così il vecchio cache resta intatto per il confronto
+   - **Bug 2 — campi client non azzerati nell'upsert:** quando si rimuoveva il client con `delete slot.client`, i campi non venivano inclusi nella row di upsert → Supabase manteneva i valori vecchi. Fix: invio esplicito di `null` per tutti i campi client/booking_id
+
+4. **Conferme per inserimento e cancellazione in Gestione Orari**
+   - **Inserimento:** `confirm()` prima di creare la prenotazione (mostra nome cliente, slot e data)
+   - **Cancellazione:** stessa logica di `deleteBooking` in tab Prenotazioni:
+     - **Oltre 24h:** `confirm()` semplice + rimborso completo se pagato
+     - **Entro 24h:** popup con opzioni bonus/mora (stessa UI `cancel-popup` delle Prenotazioni)
+   - Bonus "Sì" auto-seleziona "Senza mora"; mora addebita 50% o rimborsa 50%
+
+5. **Fix `apply_credit_to_past_bookings` — email case-insensitive**
+   - **Migration `20260317200000_fix_apply_credit_email_match.sql`**: il lookup sulla tabella `credits` usava `email = v_email` (case-sensitive), mentre i bookings usavano `lower(email)`. Fix: `WHERE lower(trim(email)) = v_email` anche nel SELECT su `credits`
+
+**File modificati/creati:**
+- `js/data.js` — `saveBooking` con `overrideCapacity`, `saveScheduleOverrides` con campi client sempre inclusi, `syncAppSettingsFromSupabase` con mapping client, `removeBookingById` con array nuovo via `map()`
+- `js/admin.js` — `selectSlotClient` con `slot.type` + confirm + override capacità, `clearSlotClient` con logica cancellazione completa (24h threshold, popup bonus/mora)
+- `admin.html` — version bump data.js e admin.js
+- `supabase/migrations/20260317200000_fix_apply_credit_email_match.sql` — fix email case-insensitive in RPC
+- `supabase/migrations/20260317210000_schedule_overrides_client_fields.sql` — 4 nuove colonne su schedule_overrides
+
+**Migrazioni SQL da eseguire su Supabase:**
+1. `20260317200000_fix_apply_credit_email_match.sql` — fix email matching case-insensitive in `apply_credit_to_past_bookings`
+2. `20260317210000_schedule_overrides_client_fields.sql` — aggiunge colonne `client_name`, `client_email`, `client_whatsapp`, `booking_id` a `schedule_overrides`
+
+---
+
+### 4.56 Fix link conferma email e configurazione Site URL (sessione 44, mar 2026)
+
+**Contesto:** una nuova utente (Emanuela Zappini) non riusciva ad accedere dopo la registrazione. Aveva cliccato il link di conferma email ma non funzionava, e il login con credenziali restituiva "Email not confirmed". Un secondo utente (Massimiliano Dalò) aveva lo stesso problema.
+
+**Diagnosi:**
+- `confirmed_at` era NULL per entrambi gli utenti in `auth.users`
+- Il **Site URL** nel dashboard Supabase puntava ancora a un URL non corretto → il link di conferma nell'email reindirizzava nel nulla
+- Il codice di registrazione non specificava `emailRedirectTo` → Supabase usava il Site URL di default
+- Non c'era gestione del callback di conferma email in `login.html` → anche se il link avesse funzionato, non ci sarebbe stato auto-login
+
+**Cosa è stato fatto:**
+
+1. **Conferma manuale utenti bloccati**
+   - Emanuela Zappini (`b6461979-3684-4dcb-9fbb-b164862c23fa`): confermata via SQL `UPDATE auth.users SET email_confirmed_at = now()`
+   - Massimiliano Dalò (`581ef39d-3b92-4fee-815f-370315912a55`): confermato con la stessa query
+   - Nota: `confirmed_at` è una colonna generata che si aggiorna automaticamente da `email_confirmed_at`
+
+2. **Configurazione Site URL produzione (dashboard Supabase)**
+   - **Site URL** → `https://thomasbresciani.com`
+   - **Redirect URLs** → `https://thomasbresciani.com/**` (aggiunto ai due esistenti: `/login.html` e `/`)
+
+3. **`emailRedirectTo` nella registrazione (`js/auth.js`)**
+   - Aggiunto `emailRedirectTo: window.location.origin + '/login.html'` nelle options di `signUp()`
+   - Il link di conferma nell'email ora reindirizza sempre a `login.html` sul dominio corretto
+
+4. **Gestione callback conferma email (`login.html`)**
+   - Rilevamento URL di conferma: controlla `type=signup` o `type=email_change` nell'hash dell'URL
+   - Flag `window._isEmailConfirmation` settato prima di `initAuth()`
+   - Dopo `initAuth()`, se è una conferma email e la sessione è attiva → auto-redirect a `index.html`
+   - L'utente viene loggato automaticamente dopo aver cliccato il link di conferma
+
+**Flusso conferma email dopo il fix:**
+1. Utente si registra → Supabase invia email con link a `https://thomasbresciani.com/login.html#access_token=...&type=signup`
+2. Utente clicca il link → browser apre `login.html`
+3. Supabase SDK consuma il token automaticamente e crea la sessione
+4. `login.html` rileva `type=signup` nell'hash → auto-redirect a homepage
+5. L'utente è loggato e può usare l'app
+
+**File modificati:**
+- `js/auth.js` — aggiunto `emailRedirectTo` a `signUp()`
+- `login.html` — rilevamento callback conferma email + auto-redirect
+
+---
+
+### 4.57 Notifica push admin su nuova prenotazione e fix apply_credit (sessione 45, mar 2026)
+
+**Contesto:** l'admin voleva ricevere una push notification ogni volta che un utente effettua una nuova prenotazione, con nome del cliente e occupazione dello slot. Inoltre, la RPC `apply_credit_to_past_bookings` non trovava crediti per alcuni utenti a causa di un confronto email case-sensitive.
+
+**Cosa è stato fatto:**
+
+1. **Edge Function `notify-admin-booking`**
+   - Nuovo file: `supabase/functions/notify-admin-booking/index.ts`
+   - Invia push notification ai due admin hardcoded (`ac72d54b-...`, `cf5f39f3-...`)
+   - Titolo: nome del cliente (es. "Mario Rossi")
+   - Body: data, orario e occupazione slot (es. "Mer 18 Mar alle 06:00 (3/5)")
+   - Occupazione calcolata server-side: count bookings confirmed/cancellation_requested per lo slot
+   - CORS headers con `Authorization` per evitare blocco preflight dal browser
+   - Pattern identico a `notify-slot-available` (web-push, cleanup 410/404)
+
+2. **Client-side caller (`js/push.js`)**
+   - Nuova funzione `notifyAdminBooking(booking)` che chiama la Edge Function
+   - Calcola `max_capacity` con `BookingStorage.getEffectiveCapacity()` (gestisce extra spots)
+   - Header `Authorization: Bearer SUPABASE_ANON_KEY` per autenticazione Edge Function
+   - Log di debug per troubleshooting: log chiamata, risposta server, errori
+
+3. **Hook nel flusso di prenotazione (`js/booking.js`)**
+   - Chiamata `notifyAdminBooking(savedBooking)` subito dopo `notificaPrenotazione()` in `handleBookingSubmit()`
+   - Solo per prenotazioni utente (non per prenotazioni admin da admin.js)
+
+4. **Fix CORS Edge Function**
+   - Il primo deploy restituiva 401 (missing Authorization header) — aggiunto Bearer token nel fetch
+   - Il secondo tentativo falliva con errore CORS: `Access-Control-Allow-Headers` non includeva `authorization` — aggiunto e rideployato
+
+5. **Migration `20260317200000_fix_apply_credit_email_match.sql`**
+   - Fix `apply_credit_to_past_bookings`: il lookup sulla tabella `credits` usava `email = v_email` (case-sensitive) mentre i bookings usavano `lower(email)`. Se l'email nei credits aveva casing diverso, il credito non veniva trovato
+   - Fix: `WHERE lower(trim(email)) = v_email` nel SELECT su credits
+
+6. **Cache version bump su tutte le pagine**
+   - `push.js`: v11 → v14 su tutte le 6 pagine HTML
+   - `booking.js`: v16 → v18
+   - `sw.js`: v92 → v95
+
+**Bug risolti durante la sessione:**
+
+| Bug | Causa | Fix |
+|---|---|---|
+| Edge Function restituisce 401 | Mancava header `Authorization` nel fetch | Aggiunto `Bearer SUPABASE_ANON_KEY` |
+| CORS blocca il fetch | `Access-Control-Allow-Headers` non includeva `authorization` | Aggiunto nella Edge Function e rideployato |
+| Notifica non arriva da `prenotazioni.html` | `push.js` aveva versione cache vecchia (v11) | Bump a v13/v14 su tutte le pagine |
+| Credito non applicato per alcuni utenti | Confronto email case-sensitive in `apply_credit_to_past_bookings` | `lower(trim(email))` nel WHERE su credits |
+
+**File modificati/creati:**
+- `supabase/functions/notify-admin-booking/index.ts` — nuova Edge Function
+- `supabase/migrations/20260317200000_fix_apply_credit_email_match.sql` — fix email case-insensitive
+- `js/push.js` — funzione `notifyAdminBooking()` con log debug
+- `js/booking.js` — chiamata `notifyAdminBooking` dopo prenotazione
+- `index.html`, `prenotazioni.html`, `admin.html`, `login.html`, `chi-sono.html`, `dove-sono.html` — bump cache versions push.js
+- `sw.js` — bump cache v92 → v95
+
+---
+
+### 4.58 Fix annullamento admin non persistente su Supabase (sessione 46, mar 2026)
+
+**Contesto:** annullando una prenotazione dall'admin (sia >24h che <24h, con o senza mora/bonus), l'operazione sembrava funzionare nella UI ma dopo un refresh la prenotazione ricompariva come `confirmed`. Il database Supabase non veniva mai aggiornato.
+
+**Cosa è stato fatto:**
+
+1. **Root cause analysis**
+   - `deleteBooking()` in `admin.js` otteneva l'array prenotazioni con `BookingStorage.getAllBookings()`, che ritorna un **riferimento diretto** a `BookingStorage._cache`
+   - Le mutazioni in-place (`bookings[index].status = 'cancelled'`, ecc.) modificavano gli oggetti direttamente dentro `_cache`
+   - `replaceAllBookings(bookings)` faceva `const prev = [...this._cache]` per catturare lo stato precedente, ma `prev` conteneva riferimenti agli **stessi oggetti già mutati** — il diff (`p.status !== b.status`) risultava sempre `false`
+   - La RPC `admin_update_booking` non veniva mai chiamata → il database restava invariato
+
+2. **Fix: clone dell'array + creazione nuovi oggetti**
+   - `const bookings = [...BookingStorage.getAllBookings()]` — crea un nuovo array (diverso da `_cache`)
+   - `bookings[index] = { ...booking, status: 'cancelled', ... }` — crea un **nuovo oggetto** invece di mutare in-place
+   - Ora `_cache` mantiene i vecchi oggetti, `bookings` ha il nuovo oggetto; `replaceAllBookings` rileva correttamente il cambiamento e chiama la RPC
+
+3. **Entrambi i path corretti**
+   - Path >24h (semplice conferma): spread con nuovo oggetto
+   - Path <24h (popup mora/bonus): variabile `refundPct` locale + spread con nuovo oggetto — eliminata la mutazione in-place di `cancelledRefundPct`
+
+**File modificati:**
+- `js/admin.js` — `deleteBooking()`: clone array + spread oggetti in entrambi i path (>24h e <24h)
+
+---
+
+### 4.59 Ripristino bottone elimina dati cliente e fix filtro (sessione 47, mar 2026)
+
+**Contesto:** il bottone 🗑️ per eliminare tutti i dati di un cliente era scomparso dopo il refactoring del popup "Modifica contatto" (sessione 40). Inoltre, la funzione `deleteClientData()` usava `clients[index]` per trovare il cliente, causando l'eliminazione del cliente sbagliato quando era attivo un filtro nella tab Clienti.
+
+**Cosa è stato fatto:**
+
+1. **Ripristino bottone elimina nel popup Modifica contatto**
+   - Aggiunto bottone `🗑️ Elimina` con classe `btn-delete-client` nella sezione `edit-client-popup-actions` del popup
+   - Posizionato accanto a "Salva" e "Annulla", spinto a destra con `margin-left: auto` (CSS già esistente)
+   - Chiama `deleteClientData()` che richiede password "Palestra123" prima di procedere
+
+2. **Fix deleteClientData con filtro attivo**
+   - **Bug:** `deleteClientData()` usava `clients[index]` dove `index` era l'indice nella lista filtrata, ma `getAllClients()` restituisce tutti i clienti → l'indice non corrispondeva al cliente corretto
+   - **Fix:** sostituito `clients[index]` con lookup per email/whatsapp (stesso pattern di `openEditClientPopup`), con fallback a `clients[index]` se il match non viene trovato
+   - Pattern: `clients.find(c => (email && c.email.toLowerCase() === email.toLowerCase()) || (whatsapp && normalizePhone(c.whatsapp) === normalizePhone(whatsapp)))`
+
+**File modificati:**
+- `js/admin.js` — bottone elimina nel popup + fix lookup `deleteClientData`
+
+---
+
+### 4.60 Settimane standard configurabili e Realtime settings (sessione 48, mar 2026)
+
+**Contesto:** la settimana standard (template usato dal bottone "Importa settimana standard" in Gestione Orari) era hardcoded in `DEFAULT_WEEKLY_SCHEDULE` dentro `data.js`. L'admin non poteva modificarla senza toccare il codice. Inoltre, nessuna impostazione admin (soglia debiti, blocchi certificato/assicurazione) si sincronizzava in tempo reale tra dispositivi.
+
+**Cosa è stato fatto:**
+
+1. **3 settimane standard configurabili e rinominabili**
+   - Nuova classe `WeekTemplateStorage` in `data.js`: gestisce 3 template con nome, schedule e flag attiva
+   - Persistenza: localStorage (cache) + tabella `settings` su Supabase (via `_upsertSetting`)
+   - Inizializzazione: le 3 settimane partono come copia di `DEFAULT_WEEKLY_SCHEDULE`
+   - `getWeeklySchedule()` aggiornata per caricare dal template attivo invece che dall'hardcoded
+
+2. **Sezione "Settimane Standard" nel tab Impostazioni**
+   - 3 card con nome (rinominabile inline con ✏️), riepilogo slot colorato (🟢🟡🔴🧹), badge "Attiva"
+   - Bottone "Attiva" per scegliere quale template usare per l'import
+   - Bottone "Modifica" apre popup editor modale
+
+3. **Popup editor template (simile a Gestione Orari)**
+   - 7 tab giorno (Lun-Dom) con 12 fasce orarie ciascuna
+   - Ogni slot configurabile: Autonomia, Lezione di Gruppo, Slot prenotato, Pulizie, o nessuna lezione
+   - Salvataggio aggiorna il template e, se attivo, la variabile globale `WEEKLY_SCHEDULE_TEMPLATE`
+
+4. **CSS tema light coerente con Impostazioni**
+   - Card e popup inizialmente scritti in dark mode, corretti per tema bianco/grigio coerente col resto del tab
+
+5. **Realtime sync tabella `settings` tra dispositivi**
+   - **Bug preesistente:** nessuna impostazione (soglia debiti, blocchi cert/assic) si aggiornava in tempo reale — solo al refresh pagina
+   - Aggiunto listener Realtime sulla tabella `settings` in `admin.html` (canale `admin-rt`) e `index.html` (canale `appsettings-rt-calendar`)
+   - `admin.html`: dopo sync, ri-renderizza `renderSettingsTab()` e `renderScheduleManager()` se il tab è attivo
+   - Migration `20260321200000_settings_realtime.sql`: `alter publication supabase_realtime add table settings`
+
+6. **Backup completo (export/import)**
+   - Aggiunte chiavi `gym_week_templates` e `gym_active_week_template` a `BACKUP_KEYS`
+   - Aggiunto mapping in `_convertCronToAdminFormat()` per backup formato Nextcloud/cron
+   - Il backup automatico GitHub Actions (Nextcloud) già includeva la tabella `settings`
+
+7. **Integrazione con Gestione Orari**
+   - Il bottone "Importa settimana standard" ora mostra il nome del template attivo (es. "📥 Importa: Settimana Invernale")
+   - `importWeekTemplate()` usa `WEEKLY_SCHEDULE_TEMPLATE` che viene aggiornata automaticamente ad ogni cambio template
+
+**File modificati:**
+- `js/data.js` — `WeekTemplateStorage`, aggiornamento `getWeeklySchedule()`, sync Supabase
+- `js/admin.js` — UI templates, popup editor, `_getActiveTemplateName()`, fix backup keys/mapping
+- `admin.html` — sezione HTML Settimane Standard, listener Realtime `settings`, re-render settings tab
+- `index.html` — listener Realtime `settings`
+- `css/admin.css` — stili card template + popup editor (tema light)
+- `supabase/migrations/20260321200000_settings_realtime.sql` — Realtime per tabella settings
+
+---
+
+### 4.61 Fix bottone "Conferma Prenotazione" bloccato (sessione 49, mar 2026)
+
+**Contesto:** alcuni utenti riportavano il bottone "Conferma Prenotazione" grigio e non cliccabile. Il problema si risolveva solo chiudendo e riaprendo l'app (refresh completo del DOM).
+
+**Causa:** in `handleBookingSubmit()` il bottone viene disabilitato subito (riga 160) per prevenire doppi click. In alcuni percorsi d'errore il bottone non veniva mai riabilitato:
+- Percorso "lezione iniziata da più di 30 minuti": `closeBookingModal()` veniva chiamato senza `submitBtn.disabled = false`
+- Eccezioni non gestite nelle chiamate async (`saveBooking`, `fulfill_pending_cancellation`, `showConfirmation`): nessun try/catch, quindi il bottone restava disabled
+
+**Cosa è stato fatto:**
+
+1. **Reset bottone in `openBookingModal()`** — ogni volta che il modal si apre, il submit button viene riabilitato e lo stato di loading resettato. Copre qualsiasi caso "stuck" da submit precedenti.
+
+2. **`submitBtn.disabled = false` nel percorso "too late"** — aggiunto prima di `closeBookingModal()` per completezza.
+
+3. **Try/catch/finally sulla parte async** — l'intera sezione da `saveBooking()` alla fine è ora wrappata in try/catch/finally. Il `finally` garantisce che `setLoading(false)` e `submitBtn.disabled = false` vengano sempre eseguiti, anche in caso di eccezioni impreviste.
+
+**File modificati:**
+- `js/booking.js` — fix `handleBookingSubmit()` e `openBookingModal()`
+
+---
+
+### 4.62 Migliora notifica push slot disponibile (sessione 50, mar 2026)
+
+**Contesto:** la notifica push inviata quando si libera un posto in uno slot pieno aveva titolo generico ("Slot Disponibile!") e body senza nome del giorno né indicazione dei posti rimasti.
+
+**Cosa è stato fatto:**
+
+1. **Titolo aggiornato** — da "Slot Disponibile!" a "Slot libero disponibile"
+2. **Nome giorno nel body** — il giorno della settimana (es. "martedì") viene calcolato dalla data nella Edge Function e preposto al messaggio
+3. **Posti disponibili nel body** — il client calcola `spotsAvailable` e `maxCapacity` e li passa alla Edge Function, che li mostra nel formato `(4/5)`
+4. **Rimosso "prenota ora"** dal messaggio per renderlo più pulito
+
+**Esempio notifica risultante:**
+- Titolo: `Slot libero disponibile`
+- Body: `martedì 24 marzo alle 18:00 (4/5)`
+
+**File modificati:**
+- `js/push.js` — aggiunto invio `spots_available` e `max_capacity` alla Edge Function
+- `supabase/functions/notify-slot-available/index.ts` — nuovo titolo, calcolo giorno settimana, formato posti disponibili
+
+---
+
 ### 4.12 Notifiche (pianificate, non ancora implementate)
 
 - Il form di prenotazione simula l'invio di un messaggio WhatsApp (solo `console.log`)
@@ -2252,6 +2649,89 @@ Sul free tier non ci sono backup automatici scaricabili. I dati dei clienti (pre
 | 🟡 Media | Configurare backup settimanale via GitHub Actions + pg_dump | 30 minuti |
 
 **Conclusione:** il progetto è pienamente compatibile con il free tier di Supabase per le dimensioni di una palestra locale. Con le tre azioni sopra, tutti i rischi concreti vengono eliminati o mitigati — costo totale: **€0/mese**.
+
+---
+
+## 12. Sessione 23 marzo 2026 — Fix stabilità PWA e bottone prenotazione
+
+### 12.1 Fix bottone "Conferma prenotazione" bloccato
+
+**Problema:** molti utenti riportavano il tasto conferma prenotazione che si "impallava", costringendoli a chiudere e riaprire l'app.
+
+**Cause identificate:**
+- Nessun timeout sulle chiamate Supabase RPC (`book_slot_atomic`): su rete lenta il `fetch` restava appeso indefinitamente
+- Il `try/catch/finally` non copriva l'intero flusso di `handleBookingSubmit` — errori nella fase di validazione (righe 164-319) lasciavano il bottone disabilitato
+- Il duplicate check Supabase (query `bookings`) non aveva timeout
+
+**Fix applicati:**
+- **Timeout 45s** con `AbortController` sulla RPC `book_slot_atomic` in `data.js`
+- **Timeout 10s** con `AbortController` sul duplicate check in `booking.js`
+- **try/catch/finally globale** che wrappa l'intera funzione `handleBookingSubmit` dal momento della disabilitazione del bottone
+- **Avviso "Connessione lenta, attendi..."** dopo 15 secondi (toast warning)
+- **Safety timeout 50s** che sblocca il bottone forzatamente se tutto il resto fallisce
+
+### 12.2 Service Worker — strategia caching JS
+
+**Problema:** gli utenti non ricevevano aggiornamenti JS (Cache First serviva sempre la versione vecchia), poi il passaggio a Network First causava calendario vuoto su rete lenta.
+
+**Evoluzione:**
+1. **Cache First** (originale) → utenti bloccati su JS vecchio
+2. **Network First** (primo fix) → calendario vuoto su rete lenta perché aspettava il server
+3. **Stale-While-Revalidate** (fix definitivo) → serve dalla cache istantaneamente, aggiorna in background
+
+**Fix aggiuntivo critico:** aggiunto `{ ignoreSearch: true }` a tutti i `caches.match()`. Il SW pre-cachava `/js/calendar.js` ma l'HTML richiedeva `/js/calendar.js?v=5` — il query string impediva il match e la cache non veniva mai usata per i nuovi utenti.
+
+### 12.3 Crash data.js per nuovi utenti (BUG PRINCIPALE)
+
+**Problema:** tutti i nuovi iscritti vedevano il calendario completamente vuoto — nessun giorno, nessuno slot, nessun bottone "Accedi".
+
+**Causa:** in `data.js` riga 257, la funzione `getWeeklySchedule()` (chiamata a riga 264 durante l'inizializzazione del modulo) faceva riferimento a `BookingStorage._scheduleOverridesCache = null` — ma la classe `BookingStorage` era definita solo a riga 267. Per gli utenti esistenti non crashava perché il `return` avveniva prima (localStorage popolato). Per i nuovi utenti (localStorage vuoto) il codice arrivava alla riga 257 → `ReferenceError: Cannot access 'BookingStorage' before initialization` → tutto il JS si bloccava.
+
+**Fix:** rimossa la riga `BookingStorage._scheduleOverridesCache = null` da `getWeeklySchedule()` (non necessaria, la proprietà statica è già `null` per default nella definizione della classe).
+
+### 12.4 Sync Supabase resiliente
+
+**Problema:** `syncAppSettingsFromSupabase()` usava `Promise.all` per 7 query parallele. Se una qualsiasi falliva (timeout, RLS, rete), tutte le altre venivano scartate — incluso `schedule_overrides` che serve per il calendario.
+
+**Fix:** sostituito `Promise.all` con `Promise.allSettled`. Ogni query è indipendente: se `credits` o `credit_history` falliscono, `schedule_overrides` e `settings` vengono caricati comunque.
+
+### 12.5 Calendario visibile senza login
+
+**Problema:** `prenotazioni.html` redirigeva a `login.html` se l'utente non era loggato. Il calendario su `index.html` aspettava il completamento di `initAuth()` (fino a 6-8 secondi per utenti non autenticati) prima di renderizzare.
+
+**Fix:**
+- Rimosso il redirect a `login.html` da `prenotazioni.html` — il calendario è visibile a tutti, la prenotazione richiede login (gestito dal modale con banner "Accedi/Registrati")
+- Aggiunto render immediato del calendario da localStorage prima del boot async in `index.html`
+
+### 12.6 Push notifications
+
+**Problema:** le notifiche push non arrivavano dopo aver disattivato/riattivato le notifiche di Chrome. Il banner "Abilita notifiche" appariva solo su `index.html`.
+
+**Fix:**
+- `promptPushPermission()` aggiunta anche a `prenotazioni.html` e `admin.html`
+- Committata la migration SQL `push_subscription_cleanup` che elimina le subscription stale (stesso push-service origin, endpoint diverso)
+- Committate le modifiche a `push.js`: retry auth dopo 3s, rinnovo forzato subscription se localStorage vuoto
+
+### 12.7 Service Worker update
+
+**Configurazione attuale:**
+- Check aggiornamenti **una sola volta all'apertura** dell'app (non più polling ogni 15/60s)
+- Bump `CACHE_NAME` ad ogni deploy (regola documentata in memoria Claude)
+- CSS incluso nella strategia Stale-While-Revalidate insieme ai JS
+
+### 12.8 Riepilogo file modificati
+
+| File | Modifiche |
+|---|---|
+| `js/booking.js` | try/catch/finally globale, safety timeout, avviso connessione lenta |
+| `js/data.js` | Fix crash `BookingStorage` before init, timeout `AbortController` su RPC, `Promise.allSettled` |
+| `js/push.js` | Retry auth, rinnovo subscription, backup localStorage |
+| `js/sw-update.js` | Check aggiornamenti solo all'apertura |
+| `sw.js` | Stale-While-Revalidate per JS/CSS, `ignoreSearch: true`, bump cache |
+| `index.html` | Render calendario immediato prima del boot async |
+| `prenotazioni.html` | Rimosso redirect login, aggiunto `promptPushPermission` |
+| `admin.html` | Aggiunto `promptPushPermission` |
+| `supabase/migrations/20260323100000_push_subscription_cleanup.sql` | Cleanup endpoint stale |
 
 ---
 
