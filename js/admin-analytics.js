@@ -566,6 +566,8 @@ function renderFatturatoDetail(panel) {
     const { from, to } = getFilterDateRange(currentFilter);
     const now   = new Date();
     const today = new Date(now); today.setHours(0, 0, 0, 0);
+    // In Reale i pagamenti di oggi sono già incassati → confine = domani
+    const pastCutoff = isReale ? new Date(today.getTime() + 86400000) : today;
 
     // ── Credit top-ups (solo in modalità Reale) ─────────────────────────────
     // Crediti aggiunti dall'admin = soldi reali prepagati dal cliente.
@@ -610,20 +612,21 @@ function renderFatturatoDetail(panel) {
         return d >= from && d <= to;
     });
 
-    // Past bookings (before today) + crediti passati + more passate
-    const pastBookings   = periodBookings.filter(b => new Date(b.date + 'T00:00:00') < today);
-    const pastRevenue    = pastBookings.reduce(revFn, 0) + creditInRange(from, new Date(today.getTime() - 1)) + moraInRange(from, new Date(today.getTime() - 1));
+    // Past bookings (before pastCutoff) + crediti passati + more passate
+    const pastBookings   = periodBookings.filter(b => new Date(b.date + 'T00:00:00') < pastCutoff);
+    const pastRevenue    = pastBookings.reduce(revFn, 0) + creditInRange(from, new Date(pastCutoff.getTime() - 1)) + moraInRange(from, new Date(pastCutoff.getTime() - 1));
 
     // Future confirmed bookings in period + crediti futuri + more future
-    const futureBookings = periodBookings.filter(b => new Date(b.date + 'T00:00:00') >= today);
-    const futureRevenue  = futureBookings.reduce(revFn, 0) + creditInRange(today, to) + moraInRange(today, to);
+    const futureBookings = periodBookings.filter(b => new Date(b.date + 'T00:00:00') >= pastCutoff);
+    const futureRevenue  = futureBookings.reduce(revFn, 0) + creditInRange(pastCutoff, to) + moraInRange(pastCutoff, to);
 
     // Linear projection for remaining days (based on past daily rate)
     const periodStart    = from.getTime();
     const yesterday      = new Date(today); yesterday.setDate(yesterday.getDate() - 1);
-    const yesterdayCapDate = new Date(Math.min(yesterday.getTime(), to.getTime()));
-    yesterdayCapDate.setHours(0, 0, 0, 0); // normalizza a mezzanotte per divisione esatta
-    const daysElapsed    = today <= from ? 1 : Math.max(1, Math.round((yesterdayCapDate.getTime() - periodStart) / 86400000) + 1);
+    const lastPastDay    = new Date(pastCutoff); lastPastDay.setDate(lastPastDay.getDate() - 1);
+    const elapsedCapDate = new Date(Math.min(lastPastDay.getTime(), to.getTime()));
+    elapsedCapDate.setHours(0, 0, 0, 0);
+    const daysElapsed    = pastCutoff <= from ? 1 : Math.max(1, Math.round((elapsedCapDate.getTime() - periodStart) / 86400000) + 1);
     const totalDays      = Math.max(1, Math.ceil((to.getTime() - periodStart) / 86400000));
     const daysRemaining  = Math.max(0, totalDays - daysElapsed);
     const dailyRate      = pastRevenue / daysElapsed;
@@ -649,11 +652,11 @@ function renderFatturatoDetail(panel) {
     // Current-month projection for dashed extension
     const cmFrom    = new Date(now.getFullYear(), now.getMonth(), 1);
     const cmTo      = new Date(now.getFullYear(), now.getMonth() + 1, 0, 23, 59, 59, 999);
-    const cmActual  = allBookings.filter(b => { const d = new Date(b.date + 'T00:00:00'); return d >= cmFrom && d < today; }).reduce(revFn, 0)
-        + creditInRange(cmFrom, new Date(today.getTime() - 1)) + moraInRange(cmFrom, new Date(today.getTime() - 1));
-    const cmFuture  = allBookings.filter(b => { const d = new Date(b.date + 'T00:00:00'); return d >= today && d <= cmTo; }).reduce(revFn, 0)
-        + creditInRange(today, cmTo) + moraInRange(today, cmTo);
-    const cmElapsed = Math.max(1, Math.round((Math.min(yesterday.getTime(), cmTo.getTime()) - cmFrom.getTime()) / 86400000) + 1);
+    const cmActual  = allBookings.filter(b => { const d = new Date(b.date + 'T00:00:00'); return d >= cmFrom && d < pastCutoff; }).reduce(revFn, 0)
+        + creditInRange(cmFrom, new Date(pastCutoff.getTime() - 1)) + moraInRange(cmFrom, new Date(pastCutoff.getTime() - 1));
+    const cmFuture  = allBookings.filter(b => { const d = new Date(b.date + 'T00:00:00'); return d >= pastCutoff && d <= cmTo; }).reduce(revFn, 0)
+        + creditInRange(pastCutoff, cmTo) + moraInRange(pastCutoff, cmTo);
+    const cmElapsed = Math.max(1, Math.round((Math.min(lastPastDay.getTime(), cmTo.getTime()) - cmFrom.getTime()) / 86400000) + 1);
     const cmDays    = Math.ceil((cmTo.getTime() - cmFrom.getTime()) / 86400000);
     const cmRate    = cmActual / cmElapsed;
     const cmLinear  = Math.round(cmRate * Math.max(0, cmDays - cmElapsed));
@@ -710,7 +713,7 @@ function renderFatturatoDetail(panel) {
                 const ds = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(day).padStart(2, '0')}`;
                 const hasSlots = overrides[ds] && overrides[ds].length > 0;
                 if (hasSlots) schDays++;
-                else if (dayDate >= today) futUnschDays++;
+                else if (dayDate >= pastCutoff) futUnschDays++;
             }
             const knownRev = barValues[barValues.length - 1] + barProjected[barProjected.length - 1];
             if (schDays > 0 && futUnschDays > 0) {
@@ -738,8 +741,8 @@ function renderFatturatoDetail(panel) {
     const groups     = Math.ceil(totalDays / groupDays);
     const fActual = [], fForecast = [], fEstimate = [], fLabels = [];
 
-    const todayGroupIdx = (today >= from && today <= to)
-        ? Math.floor((today.getTime() - periodStart) / (86400000 * groupDays))
+    const todayGroupIdx = (pastCutoff >= from && pastCutoff <= to)
+        ? Math.floor((pastCutoff.getTime() - periodStart) / (86400000 * groupDays))
         : null;
 
     // Revenue maps by date (booking + credit top-ups)
@@ -747,22 +750,22 @@ function renderFatturatoDetail(panel) {
     const futureRevByDate = {};
     allBookings.forEach(b => {
         const d = new Date(b.date + 'T00:00:00');
-        if (d >= from && d < today)  revByDate[b.date]       = (revByDate[b.date] || 0)       + (SLOT_PRICES[b.slotType] || 0);
-        if (d >= today && d >= from && d <= to) futureRevByDate[b.date] = (futureRevByDate[b.date] || 0) + (SLOT_PRICES[b.slotType] || 0);
+        if (d >= from && d < pastCutoff)  revByDate[b.date]       = (revByDate[b.date] || 0)       + (SLOT_PRICES[b.slotType] || 0);
+        if (d >= pastCutoff && d >= from && d <= to) futureRevByDate[b.date] = (futureRevByDate[b.date] || 0) + (SLOT_PRICES[b.slotType] || 0);
     });
     // Aggiungi crediti alle mappe per data (solo in modalità Reale)
     _creditEntries.forEach(h => {
         const d = new Date(h.date);
         const ds = d.toISOString().split('T')[0];
-        if (d >= from && d < today)              revByDate[ds]       = (revByDate[ds] || 0)       + h.amount;
-        else if (d >= today && d >= from && d <= to) futureRevByDate[ds] = (futureRevByDate[ds] || 0) + h.amount;
+        if (d >= from && d < pastCutoff)              revByDate[ds]       = (revByDate[ds] || 0)       + h.amount;
+        else if (d >= pastCutoff && d >= from && d <= to) futureRevByDate[ds] = (futureRevByDate[ds] || 0) + h.amount;
     });
     // Aggiungi more alle mappe per data
     _moraEntries.forEach(h => {
         const d = new Date(h.date);
         const ds = d.toISOString().split('T')[0];
-        if (d >= from && d < today)              revByDate[ds]       = (revByDate[ds] || 0)       + h.amount;
-        else if (d >= today && d >= from && d <= to) futureRevByDate[ds] = (futureRevByDate[ds] || 0) + h.amount;
+        if (d >= from && d < pastCutoff)              revByDate[ds]       = (revByDate[ds] || 0)       + h.amount;
+        else if (d >= pastCutoff && d >= from && d <= to) futureRevByDate[ds] = (futureRevByDate[ds] || 0) + h.amount;
     });
 
     let cumRev = 0, cumFuture = 0, cumEstExtra = 0;
@@ -775,13 +778,13 @@ function renderFatturatoDetail(panel) {
         let unschInGroup = 0;
         for (let dd = 0; dd < groupDays; dd++) {
             const day = new Date(periodStart + (g * groupDays + dd) * 86400000);
-            if (day < today || day > to) continue;
+            if (day < pastCutoff || day > to) continue;
             const ds = `${day.getFullYear()}-${String(day.getMonth() + 1).padStart(2, '0')}-${String(day.getDate()).padStart(2, '0')}`;
             if (!overrides[ds] || overrides[ds].length === 0) unschInGroup++;
         }
         cumEstExtra += unschInGroup * avgRevPerSchedDay;
 
-        if (gEnd < today) {
+        if (gEnd < pastCutoff) {
             // Fully past — actual only
             let gRev = 0;
             for (let dd = 0; dd < groupDays; dd++) {
@@ -792,7 +795,7 @@ function renderFatturatoDetail(panel) {
             fActual.push(cumRev);
             fForecast.push(null);
             fEstimate.push(null);
-        } else if (gStart >= today) {
+        } else if (gStart >= pastCutoff) {
             // Fully future — confirmed bookings cumulative
             let gFutureRev = 0;
             for (let dd = 0; dd < groupDays; dd++) {
@@ -804,12 +807,12 @@ function renderFatturatoDetail(panel) {
             fForecast.push(pastRevenue + cumFuture);
             fEstimate.push(cumEstExtra > 0 ? pastRevenue + cumFuture + Math.round(cumEstExtra) : null);
         } else {
-            // Straddles today — partial actual + start of forecast (connect both lines)
+            // Straddles pastCutoff — partial actual + start of forecast (connect both lines)
             let gRev = 0, gFutureRev = 0;
             for (let dd = 0; dd < groupDays; dd++) {
                 const day = new Date(periodStart + (g * groupDays + dd) * 86400000);
-                if (day < today) gRev       += revByDate[day.toISOString().split('T')[0]] || 0;
-                else             gFutureRev += futureRevByDate[day.toISOString().split('T')[0]] || 0;
+                if (day < pastCutoff) gRev       += revByDate[day.toISOString().split('T')[0]] || 0;
+                else                  gFutureRev += futureRevByDate[day.toISOString().split('T')[0]] || 0;
             }
             cumRev    += gRev;
             cumFuture += gFutureRev;
@@ -873,7 +876,7 @@ function renderFatturatoDetail(panel) {
         const hasSlots = schedOverrides[ds] && schedOverrides[ds].length > 0;
         if (hasSlots) {
             periodScheduledDays++;
-        } else if (day >= today) {
+        } else if (day >= pastCutoff) {
             futureUnscheduledDays++;
         }
     }
