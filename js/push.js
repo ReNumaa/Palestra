@@ -276,15 +276,48 @@ if ('Notification' in window && Notification.permission === 'granted') {
     navigator.serviceWorker?.ready.then(() => registerPushSubscription());
 }
 
+// Rileva iOS
+function _isIOS() {
+    return /iPad|iPhone|iPod/.test(navigator.userAgent) || (navigator.platform === 'MacIntel' && navigator.maxTouchPoints > 1);
+}
+// Rileva se la PWA è installata (standalone / display-mode)
+function _isStandalone() {
+    return window.matchMedia('(display-mode: standalone)').matches || navigator.standalone === true;
+}
+
 // Mostra banner "Abilita notifiche" ad ogni apertura finché non viene accettato o negato dal browser.
 // Chiamata da index.html dopo initAuth().
 async function promptPushPermission() {
     if (!('Notification' in window) || !('PushManager' in window)) return;
+
+    // Su iOS le push funzionano SOLO se la PWA è installata (aggiunta alla Home).
+    // Se non è installata, non mostrare il banner push — mostra invece un invito a installare.
+    if (_isIOS() && !_isStandalone()) {
+        // Non mostrare il banner notifiche — verrà gestito dal banner installazione PWA
+        return;
+    }
+
     if (Notification.permission === 'granted') {
+        localStorage.setItem('push_permission_granted', '1');
         await registerPushSubscription();
         return;
     }
-    if (Notification.permission === 'denied') return;
+    if (Notification.permission === 'denied') {
+        localStorage.removeItem('push_permission_granted');
+        return;
+    }
+
+    // Su iOS il permission state può resettarsi a 'default' tra le sessioni.
+    // Se l'utente aveva già concesso il permesso, ri-registra senza mostrare il banner.
+    if (localStorage.getItem('push_permission_granted') === '1') {
+        const permission = await Notification.requestPermission();
+        if (permission === 'granted') {
+            await registerPushSubscription();
+        } else {
+            localStorage.removeItem('push_permission_granted');
+        }
+        return;
+    }
 
     const existing = document.getElementById('pushBanner');
     if (existing) return;
@@ -307,6 +340,9 @@ async function promptPushPermission() {
     document.getElementById('pushBannerYes').addEventListener('click', async () => {
         banner.remove();
         const permission = await Notification.requestPermission();
-        if (permission === 'granted') await registerPushSubscription();
+        if (permission === 'granted') {
+            localStorage.setItem('push_permission_granted', '1');
+            await registerPushSubscription();
+        }
     });
 }
