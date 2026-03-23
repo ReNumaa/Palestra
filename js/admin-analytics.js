@@ -1914,10 +1914,6 @@ function renderOccupancyDetail(panel) {
                 <div class="stat-detail-kpi-value">${sgRate}%</div>
                 <div class="stat-detail-kpi-label">Lez. Gruppo</div>
             </div>
-            <div class="stat-detail-kpi stat-detail-kpi--actual">
-                <div class="stat-detail-kpi-value">${gcRate}%</div>
-                <div class="stat-detail-kpi-label">Slot prenotato</div>
-            </div>
             <div class="stat-detail-kpi">
                 <div class="stat-detail-kpi-value">${ptB + sgB + gcB}</div>
                 <div class="stat-detail-kpi-label">Prenotazioni</div>
@@ -1937,10 +1933,6 @@ function renderOccupancyDetail(panel) {
 
         <div class="stat-detail-charts">
             <div class="stat-detail-chart-block">
-                <h4>Slot prenotato — ultimi 12 mesi + successivo</h4>
-                <canvas id="occGcChart" style="width:100%;display:block;"></canvas>
-            </div>
-            <div class="stat-detail-chart-block">
                 <h4>Occupazione per giorno della settimana</h4>
                 <canvas id="occDowChart" style="width:100%;display:block;"></canvas>
             </div>
@@ -1957,11 +1949,6 @@ function renderOccupancyDetail(panel) {
         if (sgCanvas) new SimpleChart(sgCanvas).drawBarChart(
             { labels: trendLabels, values: sgTrend, highlight: trendHighlight },
             { colors: ['#f59e0b'], prefix: '', suffix: '%' }
-        );
-        const gcCanvas = document.getElementById('occGcChart');
-        if (gcCanvas) new SimpleChart(gcCanvas).drawBarChart(
-            { labels: trendLabels, values: gcTrend, highlight: trendHighlight },
-            { colors: ['#e63946'], prefix: '', suffix: '%' }
         );
         const dowCanvas = document.getElementById('occDowChart');
         if (dowCanvas) new SimpleChart(dowCanvas).drawBarChart(
