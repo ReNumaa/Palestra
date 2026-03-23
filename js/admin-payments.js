@@ -3,33 +3,17 @@ let debtorsListVisible = false;
 let creditsListVisible = false;
 
 async function renderPaymentsTab() {
-    // SEMPRE il vecchio codice JS (sicuro e testato)
-    const debtors = getDebtors();
-
-    // ── Shadow mode: confronta RPC vs JS in background (solo log, nessun effetto sulla UI) ──
+    // RPC server-side (veloce, dati freschi), fallback al JS locale se non disponibile
+    let debtors;
     if (typeof supabaseClient !== 'undefined') {
-        supabaseClient.rpc('get_debtors', { p_slot_prices: SLOT_PRICES }).then(({ data, error }) => {
-            if (error) { console.warn('[RPC shadow] get_debtors error:', error.message); return; }
-            if (!data) { console.warn('[RPC shadow] get_debtors: nessun dato'); return; }
-            // Confronta: stessi debitori, stessi importi?
-            const jsMap = {};
-            debtors.forEach(d => { jsMap[d.email?.toLowerCase() || d.name] = d.totalAmount; });
-            const rpcMap = {};
-            data.forEach(d => { rpcMap[d.email?.toLowerCase() || d.name] = d.totalAmount; });
-            const allKeys = new Set([...Object.keys(jsMap), ...Object.keys(rpcMap)]);
-            const diffs = [];
-            allKeys.forEach(k => {
-                const jsVal = jsMap[k] ?? 'ASSENTE';
-                const rpcVal = rpcMap[k] ?? 'ASSENTE';
-                if (jsVal !== rpcVal) diffs.push({ contatto: k, js: jsVal, rpc: rpcVal });
+        try {
+            const { data, error } = await supabaseClient.rpc('get_debtors', {
+                p_slot_prices: SLOT_PRICES
             });
-            if (diffs.length === 0) {
-                console.log(`%c[RPC shadow] ✅ get_debtors: IDENTICI (${debtors.length} debitori)`, 'color:green;font-weight:bold');
-            } else {
-                console.warn(`[RPC shadow] ⚠️ get_debtors: ${diffs.length} differenze trovate:`, diffs);
-            }
-        }).catch(() => {});
+            if (!error && data) debtors = data;
+        } catch (_) { /* Supabase non raggiungibile — usa fallback JS */ }
     }
+    if (!debtors) debtors = getDebtors();
 
     const totalUnpaid = debtors.reduce((sum, debtor) => sum + debtor.totalAmount, 0);
     // Net debts against credit balance: only show as creditor if credit > debt
@@ -451,8 +435,11 @@ function createDebtorCard(debtor, cardId) {
         `);
     });
     if (debtor.manualDebt > 0) {
-        const record = ManualDebtStorage.getRecord(debtor.whatsapp, debtor.email);
-        const allEntries = record ? [...record.history].reverse().filter(e => e.amount > 0) : [];
+        // manualDebtHistory dalla RPC server-side; fallback al cache locale
+        const historySource = debtor.manualDebtHistory
+            || ManualDebtStorage.getRecord(debtor.whatsapp, debtor.email)?.history
+            || [];
+        const allEntries = [...historySource].reverse().filter(e => e.amount > 0);
         allEntries.forEach(entry => {
             const d = new Date(entry.date);
             const dateStr = `${d.getDate()}/${d.getMonth()+1}/${d.getFullYear()}`;
