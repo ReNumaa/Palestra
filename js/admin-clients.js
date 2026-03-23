@@ -671,6 +671,8 @@ function _saveClientEditLocalProfile(index, oldWhatsapp, oldEmail, newName, newW
 
     openClientIndex = null;
     renderClientsTab();
+    // Aggiorna anche la vista giornaliera admin (badge cert/doc/assic)
+    if (typeof renderAdminDayView === 'function' && window._currentAdminDate) renderAdminDayView(window._currentAdminDate);
     // Se c'era una ricerca attiva, riesegui con il nome aggiornato
     const searchInput = document.getElementById('clientSearchInput');
     if (searchInput && searchInput.value.trim()) {
