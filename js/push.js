@@ -29,6 +29,17 @@ async function registerPushSubscription() {
                     sub = null;
                 }
             }
+            // Confronta con backup locale: se l'endpoint è diverso, la subscription
+            // è stata rigenerata dal browser (es. dopo toggle notifiche).
+            // In quel caso è già nuova e va bene. Se invece è uguale ma le notifiche
+            // erano state disattivate e riattivate, l'endpoint potrebbe essere morto.
+            // Controlliamo se il permesso era stato revocato in precedenza.
+            if (sub && localStorage.getItem('push_permission_was_denied') === '1') {
+                console.log('[Push] Permesso era stato revocato — forzo rinnovo subscription');
+                localStorage.removeItem('push_permission_was_denied');
+                await sub.unsubscribe();
+                sub = null;
+            }
         }
         // Se non esiste subscription, ne crea una nuova
         if (!sub) {
@@ -262,9 +273,16 @@ async function notifyAdminCancellation(booking, { withBonus = false, withMora = 
     }
 }
 
-// Se permesso già concesso, registra silenziosamente ad ogni apertura
-if ('Notification' in window && Notification.permission === 'granted') {
-    navigator.serviceWorker?.ready.then(() => registerPushSubscription());
+// Ad ogni apertura: traccia stato permesso e registra subscription
+if ('Notification' in window) {
+    if (Notification.permission === 'granted') {
+        navigator.serviceWorker?.ready.then(() => registerPushSubscription());
+    } else if (Notification.permission === 'denied') {
+        // Segna che il permesso è stato revocato — quando verrà riattivato,
+        // forzeremo il rinnovo della subscription (l'endpoint vecchio è morto)
+        localStorage.setItem('push_permission_was_denied', '1');
+        localStorage.removeItem('push_permission_granted');
+    }
 }
 
 // Rileva iOS
@@ -294,6 +312,7 @@ async function promptPushPermission() {
         return;
     }
     if (Notification.permission === 'denied') {
+        localStorage.setItem('push_permission_was_denied', '1');
         localStorage.removeItem('push_permission_granted');
         return;
     }
