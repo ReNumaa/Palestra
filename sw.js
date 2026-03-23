@@ -1,4 +1,4 @@
-const CACHE_NAME = 'palestra-v117';
+const CACHE_NAME = 'palestra-v119';
 
 const APP_SHELL = [
     '/',
@@ -28,12 +28,18 @@ const APP_SHELL = [
 ];
 
 // Installazione: cacha ogni file singolarmente — se uno manca non blocca tutto
+// Usa cache:'reload' per bypassare la HTTP cache del browser e ottenere file freschi
 self.addEventListener('install', event => {
     event.waitUntil(
         caches.open(CACHE_NAME).then(cache =>
             Promise.allSettled(
                 APP_SHELL.map(url =>
-                    cache.add(url).catch(() => console.warn('[SW] Skip:', url))
+                    fetch(url, { cache: 'reload' })
+                        .then(res => {
+                            if (res.ok) return cache.put(url, res);
+                            console.warn('[SW] Skip (not ok):', url);
+                        })
+                        .catch(() => console.warn('[SW] Skip:', url))
                 )
             )
         ).then(() => self.skipWaiting())
@@ -106,17 +112,20 @@ self.addEventListener('fetch', event => {
         return;
     }
 
-    // JS: Network First (riceve sempre il codice aggiornato, fallback cache se offline)
-    // CSS/immagini: Cache First (cambiano meno spesso)
+    // JS: Stale-While-Revalidate (carica subito dalla cache, aggiorna in background)
+    // L'utente vede la pagina istantaneamente; al prossimo accesso avrà il JS aggiornato.
     if (url.pathname.endsWith('.js')) {
         event.respondWith(
-            fetch(request)
-                .then(response => {
-                    const clone = response.clone();
-                    caches.open(CACHE_NAME).then(cache => cache.put(request, clone));
+            caches.match(request).then(cached => {
+                const networkFetch = fetch(request).then(response => {
+                    if (response.ok) {
+                        const clone = response.clone();
+                        caches.open(CACHE_NAME).then(cache => cache.put(request, clone));
+                    }
                     return response;
-                })
-                .catch(() => caches.match(request))
+                });
+                return cached || networkFetch;
+            })
         );
         return;
     }
