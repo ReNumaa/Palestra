@@ -55,6 +55,7 @@
                     <div class="preno-header-top">
                         <h1 class="preno-title" id="prenoUserName">Le mie prenotazioni</h1>
                         <button class="preno-edit-btn" onclick="openEditProfileModal()">✏️<span class="preno-edit-label"> Modifica profilo</span></button>
+                        <button class="preno-edit-btn" onclick="openWeeklyChartModal()">📊<span class="preno-edit-label"> Allenamenti</span></button>
                     </div>
                     <p class="preno-subtitle" id="prenoUserEmail"></p>
                 </div>
@@ -134,6 +135,19 @@
         </ul>
         <p class="nav-sidebar-credit">powered by <a href="https://t.me/Renuma" target="_blank" rel="noopener" class="credit-link" onclick="logCreditClick(event)">Andrea Pompili</a></p>
     </nav>
+
+    <!-- Weekly chart modal -->
+    <div id="weeklyChartModal" class="modal-overlay" style="display:none;" onclick="if(event.target===this)closeWeeklyChartModal()">
+        <div class="modal-box" style="max-width:520px;">
+            <button class="modal-close" onclick="closeWeeklyChartModal()">✕</button>
+            <h3 style="margin:0 0 1rem;font-size:1.1rem;font-weight:700;">Allenamenti settimanali</h3>
+            <canvas id="weeklyChartCanvas" style="width:100%;height:250px;"></canvas>
+            <div style="display:flex;gap:1rem;justify-content:center;margin-top:0.75rem;font-size:0.75rem;color:#888;">
+                <span><span style="display:inline-block;width:10px;height:10px;border-radius:2px;background:#3b82f6;margin-right:4px;vertical-align:middle;"></span>Passati</span>
+                <span><span style="display:inline-block;width:10px;height:10px;border-radius:2px;background:#e63946;margin-right:4px;vertical-align:middle;"></span>Futuri</span>
+            </div>
+        </div>
+    </div>
 
     <!-- Edit profile modal -->
     <div id="editProfileModal" class="modal-overlay" style="display:none;" onclick="if(event.target===this)closeEditProfileModal()">
@@ -223,6 +237,7 @@
     <script src="js/data.js?v=60"></script>
     <script src="js/auth.js?v=22"></script>
     <script src="js/push.js?v=14"></script>
+    <script src="js/chart-mini.js?v=12"></script>
     <script>
         // ── Guard async: aspetta la sessione Supabase prima di controllare ─
 
@@ -985,6 +1000,92 @@
         }
 
         // ── Edit profile modal ────────────────────────────────────────────
+        // ── Weekly training chart ──────────────────────────────────────
+        function openWeeklyChartModal() {
+            document.getElementById('weeklyChartModal').style.display = 'flex';
+            document.body.style.overflow = 'hidden';
+            setTimeout(renderWeeklyChart, 50); // allow modal to paint first
+        }
+        function closeWeeklyChartModal() {
+            document.getElementById('weeklyChartModal').style.display = 'none';
+            document.body.style.overflow = '';
+        }
+        function renderWeeklyChart() {
+            const { upcoming, past } = getUserBookings();
+            const all = [...past, ...upcoming].filter(b => b.status !== 'cancelled');
+
+            // Build map: weekMonday ISO string -> { past: count, future: count }
+            const today = new Date();
+            today.setHours(0, 0, 0, 0);
+            const weekMap = {};
+
+            all.forEach(b => {
+                const d = new Date(b.date + 'T00:00:00');
+                const monday = new Date(d);
+                const day = monday.getDay() || 7; // Sun=7
+                monday.setDate(monday.getDate() - day + 1);
+                const key = monday.toISOString().slice(0, 10);
+                if (!weekMap[key]) weekMap[key] = { past: 0, future: 0 };
+                if (d < today) weekMap[key].past++;
+                else weekMap[key].future++;
+            });
+
+            // Generate 10 weeks: 5 past + current + 4 future
+            const nowMonday = new Date(today);
+            const nowDay = nowMonday.getDay() || 7;
+            nowMonday.setDate(nowMonday.getDate() - nowDay + 1);
+
+            const labels = [], pastVals = [], futureVals = [], highlight = [];
+            for (let i = -5; i <= 4; i++) {
+                const mon = new Date(nowMonday);
+                mon.setDate(mon.getDate() + i * 7);
+                const key = mon.toISOString().slice(0, 10);
+                const dd = String(mon.getDate()).padStart(2, '0');
+                const mm = String(mon.getMonth() + 1).padStart(2, '0');
+                labels.push(`${dd}/${mm}`);
+                pastVals.push((weekMap[key]?.past) || 0);
+                futureVals.push((weekMap[key]?.future) || 0);
+                highlight.push(i === 0);
+            }
+
+            const canvas = document.getElementById('weeklyChartCanvas');
+            const chart = new SimpleChart(canvas, { height: 250 });
+
+            // Use stacked values for bar chart
+            const values = pastVals.map((p, i) => p + futureVals[i]);
+            chart.drawBarChart(
+                { labels, values, highlight },
+                { prefix: '', suffix: '', colors: ['#3b82f6'] }
+            );
+
+            // Overlay future portion on top of each bar
+            const ctx = chart.ctx;
+            const cw = canvas.width / 2;
+            const ch = canvas.height / 2;
+            const pad = { top: 24, right: 16, bottom: 44, left: 52 };
+            const chartW = cw - pad.left - pad.right;
+            const chartH = ch - pad.top - pad.bottom;
+            const n = values.length;
+            const maxVal = Math.max(...values, 1);
+            const step = Math.ceil(maxVal / 5) || 1;
+            const axisMax = step * 5;
+            const slotW = chartW / n;
+            const barW = Math.min(slotW * 0.7, 40);
+
+            futureVals.forEach((fv, i) => {
+                if (fv <= 0) return;
+                const totalH = (values[i] / axisMax) * chartH;
+                const futH = (fv / axisMax) * chartH;
+                const x = pad.left + i * slotW + (slotW - barW) / 2;
+                const y = pad.top + chartH - totalH;
+                ctx.fillStyle = '#e63946';
+                ctx.beginPath();
+                if (ctx.roundRect) ctx.roundRect(x, y, barW, futH, [3, 3, 0, 0]);
+                else ctx.rect(x, y, barW, futH);
+                ctx.fill();
+            });
+        }
+
         async function openEditProfileModal() {
             const user = getCurrentUser();
             if (!user) return;
