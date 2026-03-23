@@ -1074,33 +1074,91 @@ function updateDebtTotal() {
     selectAll.checked = all.length > 0 && checked.length === all.length;
 }
 
+function onAmountInput() {
+    const amountInput = document.getElementById('debtAmountInput');
+    const amountPaid = parseFloat(amountInput.value) || 0;
+
+    // Calcola disponibilità = importo inserito + credito esistente
+    const existingCredit = currentDebtContact
+        ? (CreditStorage.getBalance(currentDebtContact.whatsapp, currentDebtContact.email) || 0)
+        : 0;
+    let available = Math.round((amountPaid + existingCredit) * 100) / 100;
+
+    // Auto-seleziona lezioni passate (rosso chiaro) dalla più vecchia alla più recente
+    const allItems = document.querySelectorAll('#debtPopupList .debt-popup-item');
+    allItems.forEach(item => {
+        const cb = item.querySelector('.debt-item-check');
+        if (!cb) return;
+        const isPast = item.classList.contains('debt-popup-item--past');
+        if (isPast) {
+            const price = Number(cb.dataset.price);
+            if (available >= price && amountPaid > 0) {
+                cb.checked = true;
+                available = Math.round((available - price) * 100) / 100;
+            } else {
+                cb.checked = false;
+            }
+        }
+    });
+
+    // Aggiorna totali senza resettare l'importo
+    const checked = document.querySelectorAll('.debt-item-check:checked');
+    const all = document.querySelectorAll('.debt-item-check');
+    const dueTotal = Array.from(checked).reduce((sum, cb) => sum + Number(cb.dataset.price), 0);
+    document.getElementById('debtSelectedTotal').textContent = `€${dueTotal}`;
+
+    const selectAll = document.getElementById('debtSelectAll');
+    selectAll.indeterminate = checked.length > 0 && checked.length < all.length;
+    selectAll.checked = all.length > 0 && checked.length === all.length;
+
+    updateCreditPreview();
+}
+
 function updateCreditPreview() {
     const checked = document.querySelectorAll('.debt-item-check:checked');
     const dueTotal = Array.from(checked).reduce((sum, cb) => sum + Number(cb.dataset.price), 0);
     const amountInput = document.getElementById('debtAmountInput');
     const amountPaid = amountInput ? (parseFloat(amountInput.value) || 0) : dueTotal;
-    const creditDelta = Math.round((amountPaid - dueTotal) * 100) / 100;
+
+    // Considera il credito esistente per i messaggi di preview
+    const existingCredit = currentDebtContact
+        ? (CreditStorage.getBalance(currentDebtContact.whatsapp, currentDebtContact.email) || 0)
+        : 0;
+    const cashNeeded = Math.round(Math.max(0, dueTotal - existingCredit) * 100) / 100;
+    const excessCredit = Math.round((amountPaid - cashNeeded) * 100) / 100;
 
     const creditRow = document.getElementById('debtCreditRow');
     const creditMsg = document.getElementById('debtCreditMsg');
     if (creditRow && creditMsg) {
-        if (checked.length > 0 && creditDelta > 0) {
+        if (amountPaid > 0 && checked.length === 0) {
+            // Credito puro: nessuna lezione selezionata, importo inserito
             creditRow.style.display = 'flex';
-            creditMsg.innerHTML = `✨ Verrà aggiunto <strong>€${creditDelta}</strong> di credito`;
+            creditMsg.innerHTML = `✨ Verrà aggiunto <strong>€${amountPaid}</strong> di credito`;
             creditRow.className = 'debt-credit-row debt-credit-row--positive';
-        } else if (checked.length > 0 && amountPaid > 0 && creditDelta < 0) {
+        } else if (checked.length > 0 && excessCredit > 0) {
             creditRow.style.display = 'flex';
-            creditMsg.innerHTML = `⚠️ Importo inferiore al dovuto (–€${Math.abs(creditDelta)})`;
+            creditMsg.innerHTML = `✨ Verrà aggiunto <strong>€${excessCredit}</strong> di credito`;
+            creditRow.className = 'debt-credit-row debt-credit-row--positive';
+        } else if (checked.length > 0 && amountPaid > 0 && amountPaid < cashNeeded) {
+            const shortage = Math.round((cashNeeded - amountPaid) * 100) / 100;
+            creditRow.style.display = 'flex';
+            creditMsg.innerHTML = `⚠️ Importo inferiore al dovuto (–€${shortage})`;
             creditRow.className = 'debt-credit-row debt-credit-row--warning';
         } else {
             creditRow.style.display = 'none';
         }
     }
 
-    const activeMethodBtn = document.querySelector('#debtPopupModal .debt-method-btn.active');
-    const isFreeLessonMethod = activeMethodBtn?.dataset.method === 'lezione-gratuita';
+    const methodSelect = document.getElementById('debtMethodSelect');
+    const isFreeLessonMethod = methodSelect && methodSelect.value === 'lezione-gratuita';
     const payBtn = document.getElementById('debtPayBtn');
-    if (payBtn) payBtn.disabled = checked.length === 0 || (!isFreeLessonMethod && amountPaid <= 0);
+    if (payBtn) {
+        if (isFreeLessonMethod) {
+            payBtn.disabled = checked.length === 0;
+        } else {
+            payBtn.disabled = amountPaid <= 0;
+        }
+    }
 }
 
 function toggleAllDebts(checked) {
@@ -1127,11 +1185,16 @@ function onPaymentMethodChange(select) {
 
 async function paySelectedDebts() {
     const checked = document.querySelectorAll('.debt-item-check:checked');
-    if (checked.length === 0) return;
-
     const methodSelect = document.getElementById('debtMethodSelect');
     const paymentMethod = methodSelect ? methodSelect.value : '';
     if (!paymentMethod) { showToast('Seleziona un metodo di pagamento', 'error'); return; }
+
+    const isFreeLesson = paymentMethod === 'lezione-gratuita';
+    const amountInput = document.getElementById('debtAmountInput');
+    const amountPaid = isFreeLesson ? 0 : (amountInput ? (parseFloat(amountInput.value) || 0) : 0);
+
+    // Nessuna lezione selezionata e nessun importo: niente da fare
+    if (checked.length === 0 && amountPaid <= 0) return;
 
     // Controllo dati per carta/bonifico
     if (paymentMethod === 'carta' || paymentMethod === 'iban') {
@@ -1141,10 +1204,6 @@ async function paySelectedDebts() {
             catch { return; }
         }
     }
-
-    const isFreeLesson = paymentMethod === 'lezione-gratuita';
-    const amountInput = document.getElementById('debtAmountInput');
-    const amountPaid = isFreeLesson ? 0 : (amountInput ? (parseFloat(amountInput.value) || 0) : 0);
 
     // Separa checkbox debito manuale da checkbox prenotazioni
     const bookings = BookingStorage.getAllBookings();
@@ -1176,7 +1235,8 @@ async function paySelectedDebts() {
         if (!isFreeLesson && amountPaid > 0 && contact) {
             const methodLabel = { contanti: 'Contanti', carta: 'Carta', iban: 'Bonifico' }[paymentMethod] || paymentMethod;
             if (creditDelta > 0) {
-                await CreditStorage.addCredit(contact.whatsapp, contact.email, contact.name, creditDelta, `Pagamento in acconto di €${amountPaid}`, amountPaid, false, false, null, paymentMethod);
+                const creditNote = dueTotal > 0 ? `Pagamento in acconto di €${amountPaid}` : `Credito aggiunto`;
+                await CreditStorage.addCredit(contact.whatsapp, contact.email, contact.name, creditDelta, creditNote, amountPaid, false, false, null, paymentMethod);
                 // Reconcile via RPC dopo aggiunta credito
                 if (typeof supabaseClient !== 'undefined' && contact.email) {
                     await supabaseClient.rpc('apply_credit_to_past_bookings', {
