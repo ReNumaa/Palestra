@@ -254,7 +254,6 @@ function getWeeklySchedule() {
     }
     // Outdated version or format — reset template and overrides
     localStorage.removeItem('scheduleOverrides');
-    BookingStorage._scheduleOverridesCache = null;
     _lsSet('weeklyScheduleTemplate', JSON.stringify(DEFAULT_WEEKLY_SCHEDULE));
     _lsSet('scheduleVersion', SCHEDULE_VERSION);
     return DEFAULT_WEEKLY_SCHEDULE;
