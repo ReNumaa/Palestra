@@ -368,7 +368,7 @@ async function runHealthCheck() {
         // Mostra bottone fix solo se ci sono anomalie
         fixBtn.style.display = totalIssues > 0 ? '' : 'none';
     } catch (e) {
-        resultEl.innerHTML = `<div style="color:#dc2626">Errore: ${e.message}</div>`;
+        resultEl.innerHTML = `<div style="color:#dc2626">Errore: ${_escHtml(e.message)}</div>`;
         resultEl.style.display = 'block';
     } finally {
         btn.disabled = false;
@@ -419,7 +419,7 @@ async function runHealthFix() {
         ]);
         showToast('Integrità dati corretta.', 'success');
     } catch (e) {
-        resultEl.innerHTML = `<div style="color:#dc2626">Errore: ${e.message}</div>`;
+        resultEl.innerHTML = `<div style="color:#dc2626">Errore: ${_escHtml(e.message)}</div>`;
         resultEl.style.display = 'block';
     } finally {
         btn.disabled = false;
