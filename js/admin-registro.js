@@ -178,6 +178,8 @@ function buildRegistroEntries() {
     // 3. Storico debiti manuali
     const allDebts = ManualDebtStorage._getAll();
     for (const record of Object.values(allDebts)) {
+        const creditCoversDebt = record.balance === 0
+            || CreditStorage.getBalance(record.whatsapp, record.email) >= record.balance;
         for (const h of (record.history || [])) {
             const ts     = h.date ? new Date(h.date) : new Date();
             const isDebt = (h.amount || 0) > 0;
@@ -195,8 +197,8 @@ function buildRegistroEntries() {
                 timestamp:     ts,
                 amount:        Math.abs(h.amount || 0),
                 paymentMethod: isDebt ? null : (h.method || null),
-                bookingStatus: isDebt ? (record.balance === 0 ? 'paid' : 'debt') : 'paid',
-                bookingPaid:   isDebt ? (record.balance === 0 ? true : null) : true,
+                bookingStatus: isDebt ? (creditCoversDebt ? 'paid' : 'debt') : 'paid',
+                bookingPaid:   isDebt ? (creditCoversDebt ? true : null) : true,
             });
         }
     }
