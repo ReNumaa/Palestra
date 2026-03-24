@@ -1002,7 +1002,7 @@
 
             // Warning documento non firmato (solo admin può impostare il flag)
             if (!user.documento_firmato) {
-                html += `<a href="modulo_personal_training.pdf" download class="preno-cert-warning preno-cert-expiring preno-cert-clickable" style="text-decoration:none;display:block">📝 Porta documento firmato — Scarica modulo</a>`;
+                html += `<a href="modulo_personal_training.pdf" target="_blank" rel="noopener" class="preno-cert-warning preno-cert-expiring preno-cert-clickable" style="text-decoration:none;display:block">📝 Porta documento firmato — Apri modulo</a>`;
             }
 
             el.innerHTML = html;
