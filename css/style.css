@@ -743,6 +743,54 @@ body.nav-open {
     text-align: center;
     margin-top: auto;
 }
+.footer-links {
+    margin-top: 0.5rem;
+    font-size: 0.85rem;
+    opacity: 0.7;
+}
+.footer-links a {
+    color: var(--text-white);
+    text-decoration: none;
+}
+.footer-links a:hover {
+    text-decoration: underline;
+}
+
+/* Legal pages (Privacy, Termini) */
+.legal-page {
+    padding: 3rem 0 2rem;
+}
+.legal-page h1 {
+    font-size: 2rem;
+    margin-bottom: 0.5rem;
+    color: var(--primary-blue);
+}
+.legal-updated {
+    color: #888;
+    font-size: 0.85rem;
+    margin-bottom: 2rem;
+}
+.legal-page h2 {
+    font-size: 1.2rem;
+    margin-top: 2rem;
+    margin-bottom: 0.75rem;
+    color: var(--text-dark);
+}
+.legal-page p,
+.legal-page ul {
+    line-height: 1.7;
+    margin-bottom: 0.75rem;
+    color: #444;
+}
+.legal-page ul {
+    padding-left: 1.5rem;
+}
+.legal-page li {
+    margin-bottom: 0.4rem;
+}
+.legal-page a {
+    color: var(--primary-blue);
+}
 
 /* Mobile View - Vertical Calendar */
 .mobile-calendar {
