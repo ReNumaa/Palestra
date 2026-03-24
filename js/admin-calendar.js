@@ -282,7 +282,9 @@ function removeExtraSpotFromSlot(date, time, extraType) {
 function _buildParticipantCard(booking) {
     const isPaid = booking.paid || false;
     const isCancelPending = booking.status === 'cancellation_requested';
-    const unpaidAmount = getUnpaidAmountForContact(booking.whatsapp, booking.email);
+    const grossDebt = getUnpaidAmountForContact(booking.whatsapp, booking.email);
+    const creditBalance = CreditStorage.getBalance(booking.whatsapp, booking.email);
+    const unpaidAmount = Math.round(Math.max(0, grossDebt - creditBalance) * 100) / 100;
     const hasDebts = unpaidAmount > 0;
     const cancelPendingBadge = isCancelPending
         ? `<div class="admin-cancel-pending-badge">⏳ Annullamento richiesto</div>` : '';
