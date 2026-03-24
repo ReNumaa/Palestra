@@ -1,4 +1,4 @@
-const CACHE_NAME = 'palestra-v136';
+const CACHE_NAME = 'palestra-v137';
 
 const APP_SHELL = [
     '/',
@@ -25,6 +25,8 @@ const APP_SHELL = [
     '/js/sw-update.js',
     '/images/logo-tb---nero.jpg',
     '/manifest.json',
+    '/privacy.html',
+    '/termini.html',
 ];
 
 // Installazione: cacha ogni file singolarmente — se uno manca non blocca tutto
