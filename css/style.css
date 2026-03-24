@@ -743,12 +743,16 @@ body.nav-open {
     text-align: center;
     margin-top: auto;
 }
-.footer a {
-    color: var(--text-white);
+.footer-links {
+    margin-top: 0.4rem;
+    font-size: 0.85rem;
+}
+.footer-links a {
+    color: #ffffff;
     text-decoration: none;
     opacity: 0.7;
 }
-.footer a:hover {
+.footer-links a:hover {
     opacity: 1;
     text-decoration: underline;
 }
