@@ -561,7 +561,7 @@ function showConfirmation(booking) {
                 </div>
             </div>
         </div>
-        <button onclick="document.getElementById('bookingModal').classList.remove('active');document.getElementById('bookingForm').style.display='';document.getElementById('confirmationMessage').style.display='none';" class="btn btn-primary" style="margin-top:1.2rem;width:100%;">← Torna al calendario</button>
+        <button onclick="document.getElementById('bookingModal').classList.remove('active');document.getElementById('bookingForm').style.display='';document.getElementById('confirmationMessage').style.display='none';" class="btn btn-primary" style="margin-top:1.2rem;width:100%;background-color:#fff;color:var(--primary-cyan);border:2px solid var(--primary-cyan);">← Torna al calendario</button>
     `;
     confirmationDiv.style.display = 'block';
 }
