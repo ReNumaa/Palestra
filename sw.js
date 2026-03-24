@@ -1,4 +1,4 @@
-const CACHE_NAME = 'palestra-v146';
+const CACHE_NAME = 'palestra-v147';
 
 const APP_SHELL = [
     '/',
@@ -114,20 +114,19 @@ self.addEventListener('fetch', event => {
         return;
     }
 
-    // JS + CSS: Stale-While-Revalidate (carica subito dalla cache, aggiorna in background)
+    // JS + CSS: Network First (scarica sempre il fresco, fallback cache se offline)
     // ignoreSearch: true → ?v=5 matcha il file cachato senza query string
     if (url.pathname.endsWith('.js') || url.pathname.endsWith('.css')) {
         event.respondWith(
-            caches.match(request, { ignoreSearch: true }).then(cached => {
-                const networkFetch = fetch(request).then(response => {
+            fetch(request)
+                .then(response => {
                     if (response.ok) {
                         const clone = response.clone();
                         caches.open(CACHE_NAME).then(cache => cache.put(request, clone));
                     }
                     return response;
-                });
-                return cached || networkFetch;
-            })
+                })
+                .catch(() => caches.match(request, { ignoreSearch: true }))
         );
         return;
     }
