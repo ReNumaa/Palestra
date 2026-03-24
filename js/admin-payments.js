@@ -7,9 +7,9 @@ async function renderPaymentsTab() {
     let debtors;
     if (typeof supabaseClient !== 'undefined') {
         try {
-            const { data, error } = await supabaseClient.rpc('get_debtors', {
+            const { data, error } = await _rpcWithTimeout(supabaseClient.rpc('get_debtors', {
                 p_slot_prices: SLOT_PRICES
-            });
+            }));
             if (!error && data) debtors = data;
         } catch (_) { /* Supabase non raggiungibile — usa fallback JS */ }
     }
@@ -77,10 +77,10 @@ function deleteManualDebtEntry(whatsapp, email, entryDate) {
     if (typeof supabaseClient !== 'undefined') {
         (async () => {
             try {
-                const { data, error } = await supabaseClient.rpc('admin_delete_debt_entry', {
+                const { data, error } = await _rpcWithTimeout(supabaseClient.rpc('admin_delete_debt_entry', {
                     p_email:      (email || '').toLowerCase(),
                     p_entry_date: entryDate,
-                });
+                }));
                 if (error) {
                     console.error('[Supabase] admin_delete_debt_entry error:', error.message);
                     alert('⚠️ Errore: ' + error.message);
@@ -179,7 +179,7 @@ async function saveEditEntry() {
         };
         if (type === 'credit') params.p_new_method = newMethod;
 
-        const { data, error } = await supabaseClient.rpc(rpcName, params);
+        const { data, error } = await _rpcWithTimeout(supabaseClient.rpc(rpcName, params));
         if (error) {
             console.error(`[${rpcName}] error:`, error.message);
             alert('⚠️ Errore: ' + error.message);
@@ -209,10 +209,10 @@ function deleteCreditEntryFromCard(whatsapp, email, entryDate) {
     if (typeof supabaseClient !== 'undefined') {
         (async () => {
             try {
-                const { data, error } = await supabaseClient.rpc('admin_delete_credit_entry', {
+                const { data, error } = await _rpcWithTimeout(supabaseClient.rpc('admin_delete_credit_entry', {
                     p_email:      (email || '').toLowerCase(),
                     p_entry_date: entryDate,
-                });
+                }));
                 if (error) {
                     console.error('[Supabase] admin_delete_credit_entry error:', error.message);
                     alert('⚠️ Errore: ' + error.message);
@@ -902,14 +902,14 @@ async function saveManualEntry() {
                 // Cancella debounce pendenti PRIMA della RPC per evitare sovrascritture
 
 
-                const { data, error } = await supabaseClient.rpc('admin_add_debt', {
+                const { data, error } = await _rpcWithTimeout(supabaseClient.rpc('admin_add_debt', {
                     p_email:      email.toLowerCase(),
                     p_whatsapp:   whatsapp || null,
                     p_name:       name,
                     p_amount:     amount,
                     p_note:       note || 'Debito manuale',
                     p_method:     method,
-                });
+                }));
                 if (error) {
                     console.error('[Supabase] admin_add_debt error:', error.message, error.code);
                     alert('⚠️ Errore durante l\'aggiunta del debito: ' + error.message);
@@ -931,7 +931,7 @@ async function saveManualEntry() {
         const slotPrices = { 'personal-training': 5, 'small-group': 10, 'group-class': 30 };
 
         (async () => {
-            const { data, error } = await supabaseClient.rpc('admin_add_credit', {
+            const { data, error } = await _rpcWithTimeout(supabaseClient.rpc('admin_add_credit', {
                 p_email:       email.toLowerCase(),
                 p_whatsapp:    whatsapp || null,
                 p_name:        name,
@@ -940,7 +940,7 @@ async function saveManualEntry() {
                 p_method:      method,
                 p_free_lesson: isFreeLesson,
                 p_slot_prices: slotPrices,
-            });
+            }));
 
             if (error) {
                 console.error('[Supabase] admin_add_credit error:', error.message, error.code);
@@ -1267,10 +1267,10 @@ async function paySelectedDebts() {
                 await CreditStorage.addCredit(contact.whatsapp, contact.email, contact.name, creditDelta, creditNote, amountPaid, false, false, null, paymentMethod);
                 // Reconcile via RPC dopo aggiunta credito
                 if (typeof supabaseClient !== 'undefined' && contact.email) {
-                    await supabaseClient.rpc('apply_credit_to_past_bookings', {
+                    await _rpcWithTimeout(supabaseClient.rpc('apply_credit_to_past_bookings', {
                         p_email: contact.email,
                         p_slot_prices: { 'personal-training': 5, 'small-group': 10, 'group-class': 30 }
-                    });
+                    }));
                 }
             } else {
                 await CreditStorage.addCredit(contact.whatsapp, contact.email, contact.name, 0, `${methodLabel} ricevuto`, amountPaid, false, false, null, paymentMethod);
@@ -1286,7 +1286,7 @@ async function paySelectedDebts() {
     closeDebtPopup();
 
     (async () => {
-        const { data, error } = await supabaseClient.rpc('admin_pay_bookings', {
+        const { data, error } = await _rpcWithTimeout(supabaseClient.rpc('admin_pay_bookings', {
             p_booking_sb_ids:     sbIds,
             p_email:              contact.email.toLowerCase(),
             p_whatsapp:           contact.whatsapp || null,
@@ -1295,7 +1295,7 @@ async function paySelectedDebts() {
             p_amount_paid:        amountPaid,
             p_manual_debt_offset: manualDebtOffset,
             p_slot_prices:        { 'personal-training': 5, 'small-group': 10, 'group-class': 30 },
-        });
+        }));
         if (error) {
             console.error('[Supabase] admin_pay_bookings error:', error.message);
             alert('⚠️ Errore: ' + error.message);

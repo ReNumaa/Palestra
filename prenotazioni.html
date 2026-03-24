@@ -799,11 +799,11 @@
                     ? ((booking.creditApplied || 0) > 0 ? booking.creditApplied : price)
                     : 0;
                 try {
-                    const { data, error } = await supabaseClient.rpc('cancel_booking_with_refund', {
+                    const { data, error } = await _rpcWithTimeout(supabaseClient.rpc('cancel_booking_with_refund', {
                         p_booking_id:    booking._sbId,
                         p_credit_amount: creditToRefund,
                         p_credit_note:   creditToRefund > 0 ? `Rimborso annullamento ${booking.date} ${booking.time}` : '',
-                    });
+                    }));
                     if (error) {
                         console.error('[cancelDirect] RPC error:', error.message);
                         alert('⚠️ Errore: ' + error.message);
@@ -852,13 +852,13 @@
                     ? ((booking.creditApplied || 0) > 0 ? booking.creditApplied : price)
                     : 0;
                 try {
-                    const { data, error } = await supabaseClient.rpc('cancel_booking_with_refund', {
+                    const { data, error } = await _rpcWithTimeout(supabaseClient.rpc('cancel_booking_with_refund', {
                         p_booking_id:    booking._sbId,
                         p_credit_amount: creditToRefund,
                         p_credit_note:   creditToRefund > 0 ? `Rimborso annullamento ${booking.date} ${booking.time}` : '',
                         p_use_bonus:     true,
                         p_with_bonus:    true,
-                    });
+                    }));
                     if (error) {
                         console.error('[cancelWithBonus] RPC error:', error.message);
                         alert('⚠️ Errore: ' + error.message);
@@ -905,14 +905,14 @@
             if (typeof supabaseClient !== 'undefined' && booking._sbId) {
                 const wasPaid = booking.paid || (booking.creditApplied || 0) > 0;
                 try {
-                    const { data, error } = await supabaseClient.rpc('cancel_booking_with_refund', {
+                    const { data, error } = await _rpcWithTimeout(supabaseClient.rpc('cancel_booking_with_refund', {
                         p_booking_id:       booking._sbId,
                         p_credit_amount:    wasPaid ? refund : 0,
                         p_credit_note:      wasPaid ? `Rimborso parziale 50% — annullamento con mora ${booking.date} ${booking.time}` : '',
                         p_with_penalty:     true,
                         p_mora_debt_amount: !wasPaid ? mora : 0,
                         p_mora_debt_note:   !wasPaid ? `Mora 50% annullamento tardivo ${booking.date} ${booking.time}` : '',
-                    });
+                    }));
                     if (error) {
                         console.error('[cancel_booking_with_refund] error:', error.message);
                         alert('⚠️ Errore: ' + error.message);
@@ -949,9 +949,9 @@
             const booking = BookingStorage.getAllBookings().find(b => b.id === id);
             if (typeof supabaseClient !== 'undefined' && booking?._sbId) {
                 try {
-                    const { error } = await supabaseClient.rpc('user_request_cancellation', {
+                    const { error } = await _rpcWithTimeout(supabaseClient.rpc('user_request_cancellation', {
                         p_booking_id: booking._sbId,
-                    });
+                    }));
                     if (error) {
                         console.error('[requestCancellation] RPC error:', error.message);
                         alert('⚠️ Errore: ' + error.message);

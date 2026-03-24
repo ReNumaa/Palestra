@@ -710,13 +710,13 @@ async function saveClientEdit(index, oldWhatsapp, oldEmail) {
         if (saveBtn) { saveBtn.disabled = true; saveBtn.textContent = 'Salvataggio...'; }
 
         try {
-            const { data, error } = await supabaseClient.rpc('admin_rename_client', {
+            const { data, error } = await _rpcWithTimeout(supabaseClient.rpc('admin_rename_client', {
                 p_old_email:    oldEmail || '',
                 p_old_whatsapp: normOld || null,
                 p_new_name:     newName,
                 p_new_email:    newEmail,
                 p_new_whatsapp: normNewPhone,
-            });
+            }));
             if (error) {
                 console.error('[Supabase] admin_rename_client error:', error.message);
                 alert('⚠️ Errore durante l\'aggiornamento: ' + error.message);
@@ -841,7 +841,7 @@ async function deleteClientData(index, whatsapp, email) {
     // 5. Supabase: elimina dati dal DB via RPC admin
     if (typeof supabaseClient !== 'undefined' && clientEmail) {
         try {
-            const { data, error } = await supabaseClient.rpc('admin_delete_client_data', { p_email: clientEmail });
+            const { data, error } = await _rpcWithTimeout(supabaseClient.rpc('admin_delete_client_data', { p_email: clientEmail }));
             if (error) console.error('[deleteClientData] RPC error:', error.message);
             else console.log('[deleteClientData] Supabase:', data);
         } catch (e) { console.error('[deleteClientData] Supabase error:', e); }
@@ -941,13 +941,13 @@ async function saveBookingRowEdit(bookingId, clientIndex) {
         (async () => {
             try {
                 const newPaidAtRaw = document.getElementById(`bedit-paidat-${bookingId}`)?.value;
-                const { data, error } = await supabaseClient.rpc('admin_change_payment_method', {
+                const { data, error } = await _rpcWithTimeout(supabaseClient.rpc('admin_change_payment_method', {
                     p_booking_id:  booking._sbId,
                     p_new_paid:    newPaid,
                     p_new_method:  newMethod || null,
                     p_new_paid_at: newPaidAtRaw ? new Date(newPaidAtRaw).toISOString() : null,
                     p_slot_prices: slotPrices,
-                });
+                }));
                 if (error) {
                     if (error.message.includes('insufficient_credit')) {
                         const bal = data?.balance ?? '?';
@@ -1061,10 +1061,10 @@ function deleteBookingFromClients(bookingId, bookingName) {
         // Operazione atomica server-side: delete + rimborso in una transazione
         (async () => {
             try {
-                const { data, error } = await supabaseClient.rpc('admin_delete_booking_with_refund', {
+                const { data, error } = await _rpcWithTimeout(supabaseClient.rpc('admin_delete_booking_with_refund', {
                     p_booking_id:  b._sbId,
                     p_slot_prices: slotPrices,
-                });
+                }));
                 if (error) {
                     console.error('[Supabase] admin_delete_booking_with_refund error:', error.message);
                     alert('⚠️ Errore durante l\'eliminazione: ' + error.message);
@@ -1117,10 +1117,10 @@ async function deleteTxEntry(type, idOrDate, whatsappOrName, index, email) {
         const slotPrices = { 'personal-training': 5, 'small-group': 10, 'group-class': 30 };
 
         if (typeof supabaseClient !== 'undefined' && b._sbId) {
-            const { data, error } = await supabaseClient.rpc('admin_delete_booking_with_refund', {
+            const { data, error } = await _rpcWithTimeout(supabaseClient.rpc('admin_delete_booking_with_refund', {
                 p_booking_id:  b._sbId,
                 p_slot_prices: slotPrices,
-            });
+            }));
             if (error) {
                 console.error('[deleteTxEntry] booking RPC error:', error.message);
                 alert('⚠️ Errore: ' + error.message);
@@ -1146,10 +1146,10 @@ async function deleteTxEntry(type, idOrDate, whatsappOrName, index, email) {
     } else if (type === 'credit') {
         // idOrDate = entryDate ISO, whatsappOrName = whatsapp, email = email
         if (typeof supabaseClient !== 'undefined') {
-            const { data, error } = await supabaseClient.rpc('admin_delete_credit_entry', {
+            const { data, error } = await _rpcWithTimeout(supabaseClient.rpc('admin_delete_credit_entry', {
                 p_email:      (email || '').toLowerCase(),
                 p_entry_date: idOrDate,
-            });
+            }));
             if (error) {
                 console.error('[deleteTxEntry] credit RPC error:', error.message);
                 alert('⚠️ Errore: ' + error.message);
@@ -1171,10 +1171,10 @@ async function deleteTxEntry(type, idOrDate, whatsappOrName, index, email) {
     } else if (type === 'debt') {
         // idOrDate = entryDate ISO, whatsappOrName = whatsapp, email = email
         if (typeof supabaseClient !== 'undefined') {
-            const { data, error } = await supabaseClient.rpc('admin_delete_debt_entry', {
+            const { data, error } = await _rpcWithTimeout(supabaseClient.rpc('admin_delete_debt_entry', {
                 p_email:      (email || '').toLowerCase(),
                 p_entry_date: idOrDate,
-            });
+            }));
             if (error) {
                 console.error('[deleteTxEntry] debt RPC error:', error.message);
                 alert('⚠️ Errore: ' + error.message);
