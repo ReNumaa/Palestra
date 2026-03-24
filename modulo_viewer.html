@@ -93,36 +93,8 @@
     })();
 
     function stampaPDF() {
-        var isIOS = /iPad|iPhone|iPod/.test(navigator.userAgent) ||
-                    (navigator.platform === 'MacIntel' && navigator.maxTouchPoints > 1);
-
-        if (isIOS) {
-            // Su iOS apriamo il PDF direttamente — Safari mostra il suo viewer con opzione condividi/stampa
-            window.location.href = 'modulo_personal_training.pdf';
-            return;
-        }
-
-        // Desktop/Android: stampa il PDF tramite iframe nascosto
-        var printFrame = document.getElementById('printFrame');
-        if (!printFrame) {
-            printFrame = document.createElement('iframe');
-            printFrame.id = 'printFrame';
-            printFrame.style.position = 'fixed';
-            printFrame.style.right = '0';
-            printFrame.style.bottom = '0';
-            printFrame.style.width = '0';
-            printFrame.style.height = '0';
-            printFrame.style.border = 'none';
-            printFrame.src = 'modulo_personal_training.pdf';
-            document.body.appendChild(printFrame);
-            printFrame.onload = function() {
-                printFrame.contentWindow.focus();
-                printFrame.contentWindow.print();
-            };
-        } else {
-            printFrame.contentWindow.focus();
-            printFrame.contentWindow.print();
-        }
+        // Apre il PDF nel viewer nativo del browser — ha sempre i controlli di stampa
+        window.open('modulo_personal_training.pdf', '_blank');
     }
     </script>
 </body>
