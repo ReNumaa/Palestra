@@ -6,11 +6,11 @@ const supabaseClient = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_
     auth: {
         // Previeni deadlock in PWA: navigator.locks può restare bloccato quando
         // l'OS sospende l'app in background durante un token refresh.
-        // Usiamo il lock con timeout: se non si acquisisce entro 2s, esegui senza lock.
+        // Usiamo il lock con timeout: se non si acquisisce entro 1s, esegui senza lock.
         lock: async (name, acquireTimeout, fn) => {
             if (navigator?.locks) {
                 const ac = new AbortController();
-                const timer = setTimeout(() => ac.abort(), acquireTimeout || 2000);
+                const timer = setTimeout(() => ac.abort(), acquireTimeout || 1000);
                 try {
                     return await navigator.locks.request(name, { signal: ac.signal }, fn);
                 } catch (e) {
