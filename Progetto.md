@@ -812,11 +812,14 @@ Gestione Orari fix, conferma email, notifica admin booking, annullamento persist
 | Priorita | Task |
 |---|---|
 | Alta | Attivare Stripe (account + deploy Edge Functions) |
-| Alta | Configurare Uptime Robot |
 | Media | Upload foto certificato medico (Supabase Storage) |
-| Media | Email notifiche automatiche (Edge Function cron) |
-| Bassa | Notifiche WhatsApp (whatsapp-web.js) |
 | Bassa | Abbonamenti / pacchetti lezioni |
+
+### Non previsti
+
+- ~~Email notifiche automatiche~~ — le push notification coprono gia il caso d'uso (promemoria 25h + 1h)
+- ~~Notifiche WhatsApp~~ — non necessarie
+- ~~Uptime Robot~~ — la palestra ha utenti attivi ogni settimana, Supabase non va mai in pausa
 
 ---
 
