@@ -824,9 +824,9 @@
                 }
             } else {
                 if (booking.slotType === 'group-class') {
-                    BookingStorage.cancelAndConvertSlot(id);
+                    await BookingStorage.cancelAndConvertSlot(id);
                 } else {
-                    BookingStorage.cancelDirectly(id);
+                    await BookingStorage.cancelDirectly(id);
                 }
             }
             if (typeof notifySlotAvailable === 'function') notifySlotAvailable(booking);
@@ -879,7 +879,7 @@
                     return;
                 }
             } else {
-                BookingStorage.cancelWithBonus(id);
+                await BookingStorage.cancelWithBonus(id);
             }
             if (typeof notifySlotAvailable === 'function') notifySlotAvailable(booking);
             if (typeof notifyAdminCancellation === 'function') notifyAdminCancellation(booking, { withBonus: true });
@@ -929,7 +929,7 @@
                     return;
                 }
             } else {
-                BookingStorage.cancelWithPenalty(id);
+                await BookingStorage.cancelWithPenalty(id);
             }
 
             if (typeof notifySlotAvailable === 'function') notifySlotAvailable(booking);

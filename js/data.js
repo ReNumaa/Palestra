@@ -660,7 +660,7 @@ class BookingStorage {
 
     // Cancella direttamente una prenotazione (small-group, autonomia) senza conversione slot
     // Usato quando il cliente annulla con più di 24h di anticipo
-    static cancelDirectly(id) {
+    static async cancelDirectly(id) {
         const all = this.getAllBookings();
         const booking = all.find(b => b.id === id);
         if (!booking || booking.status !== 'confirmed') return false;
@@ -680,7 +680,7 @@ class BookingStorage {
             ? (savedCreditApplied > 0 ? savedCreditApplied : (SLOT_PRICES[slotType] || 0))
             : 0;
         if (creditToRefund > 0) {
-            CreditStorage.addCredit(
+            await CreditStorage.addCredit(
                 booking.whatsapp, booking.email, booking.name,
                 creditToRefund,
                 `Rimborso annullamento ${booking.date} ${booking.time}`,
@@ -693,7 +693,7 @@ class BookingStorage {
     // Cancella immediatamente uno "Slot prenotato" e converte lo slot in "Lezione di Gruppo"
     // Usato quando il cliente annulla con più di 24h di anticipo
     // Supabase migration: sostituire le due operazioni con una RPC atomica
-    static cancelAndConvertSlot(id) {
+    static async cancelAndConvertSlot(id) {
         const all = this.getAllBookings();
         const booking = all.find(b => b.id === id);
         if (!booking || booking.status !== 'confirmed') return false;
@@ -715,7 +715,7 @@ class BookingStorage {
             ? (savedCreditApplied2 > 0 ? savedCreditApplied2 : (SLOT_PRICES[slotType] || 0))
             : 0;
         if (creditToRefund > 0) {
-            CreditStorage.addCredit(
+            await CreditStorage.addCredit(
                 booking.whatsapp, booking.email, booking.name,
                 creditToRefund,
                 `Rimborso annullamento ${booking.date} ${booking.time}`,
@@ -740,7 +740,7 @@ class BookingStorage {
 
     // Cancella una prenotazione non annullabile usando il bonus giornaliero.
     // Rimborsa il credito (come cancelDirectly) e consuma il bonus (1 → 0).
-    static cancelWithBonus(id) {
+    static async cancelWithBonus(id) {
         const all = this.getAllBookings();
         const booking = all.find(b => b.id === id);
         if (!booking || booking.status !== 'confirmed') return false;
@@ -775,7 +775,7 @@ class BookingStorage {
             ? (savedCreditApplied3 > 0 ? savedCreditApplied3 : (SLOT_PRICES[slotType] || 0))
             : 0;
         if (creditToRefund > 0) {
-            CreditStorage.addCredit(
+            await CreditStorage.addCredit(
                 booking.whatsapp, booking.email, booking.name,
                 creditToRefund,
                 `Rimborso annullamento con bonus ${booking.date} ${booking.time}`,
@@ -795,7 +795,7 @@ class BookingStorage {
 
     // Annulla con mora del 50%: rimborso immediato al 50% del prezzo
     // Usato quando il cliente è nella finestra ristretta e la modalità è 'penalty-50'
-    static cancelWithPenalty(id) {
+    static async cancelWithPenalty(id) {
         const all = this.getAllBookings();
         const booking = all.find(b => b.id === id);
         if (!booking || booking.status !== 'confirmed') return false;
@@ -830,7 +830,7 @@ class BookingStorage {
         if (mora > 0) {
             if (wasPaid) {
                 // Era stata pagata: rimborsa solo il 50% (il restante 50% è la mora)
-                CreditStorage.addCredit(
+                await CreditStorage.addCredit(
                     booking.whatsapp, booking.email, booking.name,
                     mora,
                     `Rimborso parziale 50% — annullamento con mora ${booking.date} ${booking.time}`,
@@ -838,7 +838,7 @@ class BookingStorage {
                 );
             } else {
                 // Non era stata pagata: addebita il 50% come mora (il restante 50% è condonato)
-                ManualDebtStorage.addDebt(
+                await ManualDebtStorage.addDebt(
                     booking.whatsapp, booking.email, booking.name,
                     mora,
                     `Mora 50% annullamento tardivo ${booking.date} ${booking.time}`,
@@ -861,7 +861,7 @@ class BookingStorage {
     }
 
     // Quando arriva una nuova prenotazione, cancella la prima richiesta pendente per quello slot (FIFO)
-    static fulfillPendingCancellations(date, time) {
+    static async fulfillPendingCancellations(date, time) {
         const all = this.getAllBookings();
         const pending = all
             .filter(b => b.date === date && b.time === time &&
@@ -888,7 +888,7 @@ class BookingStorage {
         // Rimborso credito: prezzo pieno per qualsiasi metodo di pagamento (contanti, carta, iban, credito)
         const creditToRefund = wasPaid ? (SLOT_PRICES[slotType] || 0) : 0;
         if (creditToRefund > 0) {
-            CreditStorage.addCredit(
+            await CreditStorage.addCredit(
                 toCancel.whatsapp,
                 toCancel.email,
                 toCancel.name,
@@ -1917,7 +1917,8 @@ class ManualDebtStorage {
         }
     }
 
-    // Elimina una singola voce di debito manuale per data (ISO string) e ricalcola il saldo
+    // Elimina una singola voce di debito manuale per data (ISO string) e ricalcola il saldo.
+    // Rimuove anche eventuali voci di saldamento orfane (amount < 0) se la somma diventa negativa.
     static async deleteDebtEntry(whatsapp, email, entryDate) {
         const all = this._getAll();
         const key = this._findKey(whatsapp, email);
@@ -1925,6 +1926,20 @@ class ManualDebtStorage {
         const idx = all[key].history.findIndex(e => e.date === entryDate && e.amount > 0);
         if (idx === -1) return false;
         all[key].history.splice(idx, 1);
+
+        // Se la somma è negativa, rimuovi voci negative orfane (più recenti prima)
+        let sum = all[key].history.reduce((s, e) => s + e.amount, 0);
+        if (sum < 0) {
+            let excess = -sum;
+            for (let i = all[key].history.length - 1; i >= 0 && excess > 0; i--) {
+                if (all[key].history[i].amount < 0) {
+                    excess += all[key].history[i].amount;
+                    if (excess < 0) excess = 0;
+                    all[key].history.splice(i, 1);
+                }
+            }
+        }
+
         all[key].balance = Math.round(
             Math.max(0, all[key].history.reduce((s, e) => s + e.amount, 0)) * 100
         ) / 100;
