@@ -939,28 +939,34 @@ async function saveBookingRowEdit(bookingId, clientIndex) {
         // ── Percorso Supabase: RPC atomica ────────────────────────────────────
         const slotPrices = { 'personal-training': 5, 'small-group': 10, 'group-class': 30 };
         (async () => {
-            const newPaidAtRaw = document.getElementById(`bedit-paidat-${bookingId}`)?.value;
-            const { data, error } = await supabaseClient.rpc('admin_change_payment_method', {
-                p_booking_id:  booking._sbId,
-                p_new_paid:    newPaid,
-                p_new_method:  newMethod || null,
-                p_new_paid_at: newPaidAtRaw ? new Date(newPaidAtRaw).toISOString() : null,
-                p_slot_prices: slotPrices,
-            });
-            if (error) {
-                if (error.message.includes('insufficient_credit')) {
-                    const bal = data?.balance ?? '?';
-                    alert(`Credito insufficiente (€${bal} < €${price})`);
-                } else {
-                    console.error('[Supabase] admin_change_payment_method error:', error.message);
-                    alert('⚠️ Errore: ' + error.message);
+            try {
+                const newPaidAtRaw = document.getElementById(`bedit-paidat-${bookingId}`)?.value;
+                const { data, error } = await supabaseClient.rpc('admin_change_payment_method', {
+                    p_booking_id:  booking._sbId,
+                    p_new_paid:    newPaid,
+                    p_new_method:  newMethod || null,
+                    p_new_paid_at: newPaidAtRaw ? new Date(newPaidAtRaw).toISOString() : null,
+                    p_slot_prices: slotPrices,
+                });
+                if (error) {
+                    if (error.message.includes('insufficient_credit')) {
+                        const bal = data?.balance ?? '?';
+                        alert(`Credito insufficiente (€${bal} < €${price})`);
+                    } else {
+                        console.error('[Supabase] admin_change_payment_method error:', error.message);
+                        alert('⚠️ Errore: ' + error.message);
+                    }
+                    return;
                 }
-                if (_saveBtn) _saveBtn.disabled = false;
-                return;
-            }
 
-            await Promise.all([BookingStorage.syncFromSupabase(), CreditStorage.syncFromSupabase(), ManualDebtStorage.syncFromSupabase()]);
-            renderClientsTab();
+                await Promise.all([BookingStorage.syncFromSupabase(), CreditStorage.syncFromSupabase(), ManualDebtStorage.syncFromSupabase()]);
+                renderClientsTab();
+            } catch (ex) {
+                console.error('[saveBookingRowEdit] unexpected error:', ex);
+                alert('⚠️ Errore imprevisto. Riprova.');
+            } finally {
+                if (_saveBtn) _saveBtn.disabled = false;
+            }
         })();
         return;
     }
@@ -1054,22 +1060,28 @@ function deleteBookingFromClients(bookingId, bookingName) {
     if (typeof supabaseClient !== 'undefined' && b._sbId) {
         // Operazione atomica server-side: delete + rimborso in una transazione
         (async () => {
-            const { data, error } = await supabaseClient.rpc('admin_delete_booking_with_refund', {
-                p_booking_id:  b._sbId,
-                p_slot_prices: slotPrices,
-            });
-            if (error) {
-                console.error('[Supabase] admin_delete_booking_with_refund error:', error.message);
-                alert('⚠️ Errore durante l\'eliminazione: ' + error.message);
-                return;
-            }
-            console.log('[admin_delete_booking_with_refund]', data);
+            try {
+                const { data, error } = await supabaseClient.rpc('admin_delete_booking_with_refund', {
+                    p_booking_id:  b._sbId,
+                    p_slot_prices: slotPrices,
+                });
+                if (error) {
+                    console.error('[Supabase] admin_delete_booking_with_refund error:', error.message);
+                    alert('⚠️ Errore durante l\'eliminazione: ' + error.message);
+                    return;
+                }
+                console.log('[admin_delete_booking_with_refund]', data);
 
-            await Promise.all([
-                BookingStorage.syncFromSupabase(),
-                CreditStorage.syncFromSupabase(),
-            ]);
-            renderClientsTab();
+                await Promise.all([
+                    BookingStorage.syncFromSupabase(),
+                    CreditStorage.syncFromSupabase(),
+                ]);
+                renderClientsTab();
+            } catch (ex) {
+                console.error('[deleteBookingFromClients] unexpected error:', ex);
+                alert('⚠️ Errore imprevisto. Riprova.');
+                renderClientsTab();
+            }
         })();
     } else {
         // Fallback client-side (offline)

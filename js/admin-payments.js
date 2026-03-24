@@ -76,23 +76,28 @@ function deleteManualDebtEntry(whatsapp, email, entryDate) {
     if (!confirm('Eliminare questa voce di debito manuale?')) return;
     if (typeof supabaseClient !== 'undefined') {
         (async () => {
-            const { data, error } = await supabaseClient.rpc('admin_delete_debt_entry', {
-                p_email:      (email || '').toLowerCase(),
-                p_entry_date: entryDate,
-            });
-            if (error) {
-                console.error('[Supabase] admin_delete_debt_entry error:', error.message);
-                alert('⚠️ Errore: ' + error.message);
-                return;
+            try {
+                const { data, error } = await supabaseClient.rpc('admin_delete_debt_entry', {
+                    p_email:      (email || '').toLowerCase(),
+                    p_entry_date: entryDate,
+                });
+                if (error) {
+                    console.error('[Supabase] admin_delete_debt_entry error:', error.message);
+                    alert('⚠️ Errore: ' + error.message);
+                    return;
+                }
+                if (!data?.success) {
+                    alert('⚠️ Voce non trovata.');
+                    return;
+                }
+                console.log('[admin_delete_debt_entry]', data);
+                await ManualDebtStorage.syncFromSupabase();
+                renderPaymentsTab();
+                showToast('Voce eliminata.', 'success');
+            } catch (ex) {
+                console.error('[deleteManualDebtEntry] unexpected error:', ex);
+                alert('⚠️ Errore imprevisto. Riprova.');
             }
-            if (!data?.success) {
-                alert('⚠️ Voce non trovata.');
-                return;
-            }
-            console.log('[admin_delete_debt_entry]', data);
-            await ManualDebtStorage.syncFromSupabase();
-            renderPaymentsTab();
-            showToast('Voce eliminata.', 'success');
         })();
     } else {
         const ok = ManualDebtStorage.deleteDebtEntry(whatsapp, email, entryDate);
@@ -203,23 +208,28 @@ function deleteCreditEntryFromCard(whatsapp, email, entryDate) {
     if (!confirm('Eliminare questa voce di credito?')) return;
     if (typeof supabaseClient !== 'undefined') {
         (async () => {
-            const { data, error } = await supabaseClient.rpc('admin_delete_credit_entry', {
-                p_email:      (email || '').toLowerCase(),
-                p_entry_date: entryDate,
-            });
-            if (error) {
-                console.error('[Supabase] admin_delete_credit_entry error:', error.message);
-                alert('⚠️ Errore: ' + error.message);
-                return;
+            try {
+                const { data, error } = await supabaseClient.rpc('admin_delete_credit_entry', {
+                    p_email:      (email || '').toLowerCase(),
+                    p_entry_date: entryDate,
+                });
+                if (error) {
+                    console.error('[Supabase] admin_delete_credit_entry error:', error.message);
+                    alert('⚠️ Errore: ' + error.message);
+                    return;
+                }
+                if (!data?.success) {
+                    alert('⚠️ Voce non trovata.');
+                    return;
+                }
+                console.log('[admin_delete_credit_entry]', data);
+                await CreditStorage.syncFromSupabase();
+                renderPaymentsTab();
+                showToast('Voce di credito eliminata.', 'success');
+            } catch (ex) {
+                console.error('[deleteCreditEntryFromCard] unexpected error:', ex);
+                alert('⚠️ Errore imprevisto. Riprova.');
             }
-            if (!data?.success) {
-                alert('⚠️ Voce non trovata.');
-                return;
-            }
-            console.log('[admin_delete_credit_entry]', data);
-            await CreditStorage.syncFromSupabase();
-            renderPaymentsTab();
-            showToast('Voce di credito eliminata.', 'success');
         })();
     } else {
         const ok = CreditStorage.deleteCreditEntry(whatsapp, email, entryDate);

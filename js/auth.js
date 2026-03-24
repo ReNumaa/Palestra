@@ -174,11 +174,14 @@ async function initAuth() {
     }
 
     // Quando l'app PWA torna in foreground dopo un periodo in background,
-    // ri-valida la sessione (il token potrebbe essere scaduto e serve un refresh).
+    // ri-valida la sessione e ri-sincronizza i dati se è passato abbastanza tempo.
     if (!window._visibilityAuthActive) {
         window._visibilityAuthActive = true;
+        let _lastHiddenAt = 0;
         document.addEventListener('visibilitychange', async () => {
-            if (document.hidden) return;
+            if (document.hidden) { _lastHiddenAt = Date.now(); return; }
+            // Ri-sincronizza solo se l'app è stata in background per almeno 30 secondi
+            const bgSeconds = _lastHiddenAt ? (Date.now() - _lastHiddenAt) / 1000 : 0;
             // Attendi che il lock Supabase si liberi prima di tentare getSession
             await new Promise(r => setTimeout(r, 1000));
             try {
@@ -201,6 +204,18 @@ async function initAuth() {
                 } catch { /* rete assente */ }
             }
             updateNavAuth();
+
+            // Ri-sincronizza dati dopo background prolungato (≥30s)
+            if (bgSeconds >= 30 && typeof BookingStorage !== 'undefined') {
+                console.log(`[Auth] App in foreground dopo ${Math.round(bgSeconds)}s — re-sync dati`);
+                try {
+                    await BookingStorage.syncFromSupabase();
+                    if (typeof CreditStorage !== 'undefined') CreditStorage.syncFromSupabase();
+                    if (typeof ManualDebtStorage !== 'undefined') ManualDebtStorage.syncFromSupabase();
+                } catch (e) {
+                    console.warn('[Auth] re-sync foreground fallito:', e.message);
+                }
+            }
         });
     }
 
