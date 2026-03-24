@@ -183,7 +183,7 @@ async function initAuth() {
             // Ri-sincronizza solo se l'app è stata in background per almeno 30 secondi
             const bgSeconds = _lastHiddenAt ? (Date.now() - _lastHiddenAt) / 1000 : 0;
             // Attendi che il lock Supabase si liberi prima di tentare getSession
-            await new Promise(r => setTimeout(r, 1000));
+            await new Promise(r => setTimeout(r, 500));
             try {
                 const { data, error } = await supabaseClient.auth.getSession();
                 if (error) throw error;
