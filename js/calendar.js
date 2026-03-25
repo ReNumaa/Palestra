@@ -9,6 +9,10 @@ function spotsColorClass(n) {
     return 'spots-dark';
 }
 
+function _isLoggedIn() {
+    return typeof getCurrentUser === 'function' && getCurrentUser() != null;
+}
+
 function initCalendar() {
     renderCalendar();
     renderMobileCalendar();
@@ -255,37 +259,53 @@ function createSlot(dateInfo, timeSlot) {
         lessonStart.setHours(_tp1.startH, _tp1.startM, 0, 0);
         timeOk = (new Date() - lessonStart) <= 30 * 60 * 1000;
     }
-    if (!timeOk) { slot.style.opacity = '0.35'; slot.style.filter = 'grayscale(0.8)'; }
+    if (!timeOk && _isLoggedIn()) { slot.style.opacity = '0.35'; slot.style.filter = 'grayscale(0.8)'; }
 
     if (!hasMixedExtras) {
         // Vista unificata (stesso tipo o nessun extra)
+        const loggedIn = _isLoggedIn();
         const remainingSpots = BookingStorage.getRemainingSpots(dateInfo.formatted, timeSlot, mainType);
         const isFull = remainingSpots <= 0;
         slot.classList.add('has-booking', mainType);
-        if (isFull) slot.classList.add('slot-full');
+        if (loggedIn && isFull) slot.classList.add('slot-full');
         slot.innerHTML = `
             <div class="slot-type">${SLOT_NAMES[mainType]}</div>
-            ${!_isNonBookable(mainType) ? `<div class="slot-spots ${spotsColorClass(remainingSpots)}">${isFull ? 'Completo' : remainingSpots + (remainingSpots === 1 ? ' disponibile' : ' disponibili')}</div>` : ''}
+            ${loggedIn && !_isNonBookable(mainType) ? `<div class="slot-spots ${spotsColorClass(remainingSpots)}">${isFull ? 'Completo' : remainingSpots + (remainingSpots === 1 ? ' disponibile' : ' disponibili')}</div>` : ''}
         `;
-        const bookable = !isFull && timeOk && !_isNonBookable(mainType);
-        slot.style.cursor = bookable ? 'pointer' : 'not-allowed';
-        if (bookable) slot.addEventListener('click', () => selectSlot(dateInfo, timeSlot, mainType, remainingSpots));
+        if (loggedIn) {
+            const bookable = !isFull && timeOk && !_isNonBookable(mainType);
+            slot.style.cursor = bookable ? 'pointer' : 'not-allowed';
+            if (bookable) slot.addEventListener('click', () => selectSlot(dateInfo, timeSlot, mainType, remainingSpots));
+        } else if (!_isNonBookable(mainType) && timeOk) {
+            slot.style.cursor = 'pointer';
+            slot.addEventListener('click', () => selectSlot(dateInfo, timeSlot, mainType, remainingSpots));
+        } else {
+            slot.style.cursor = 'default';
+        }
     } else {
         // Vista divisa: metà sinistra = tipo principale, metà destra = extra diversi
         slot.classList.add('has-booking', 'split-slot');
 
+        const loggedInSplit = _isLoggedIn();
         const buildHalf = (type) => {
             const rem = BookingStorage.getRemainingSpots(dateInfo.formatted, timeSlot, type);
             const full = rem <= 0;
-            const bookable = !full && timeOk && !_isNonBookable(type);
             const half = document.createElement('div');
-            half.className = `split-slot-half ${type}${full ? ' slot-full' : ''}`;
+            half.className = `split-slot-half ${type}${loggedInSplit && full ? ' slot-full' : ''}`;
             half.innerHTML = `
                 <div class="slot-type">${SLOT_NAMES[type]}</div>
-                ${!_isNonBookable(type) ? `<div class="slot-spots ${spotsColorClass(rem)}">${full ? 'Completo' : rem + ' disp.'}</div>` : ''}
+                ${loggedInSplit && !_isNonBookable(type) ? `<div class="slot-spots ${spotsColorClass(rem)}">${full ? 'Completo' : rem + ' disp.'}</div>` : ''}
             `;
-            half.style.cursor = bookable ? 'pointer' : 'not-allowed';
-            if (bookable) half.addEventListener('click', e => { e.stopPropagation(); selectSlot(dateInfo, timeSlot, type, rem); });
+            if (loggedInSplit) {
+                const bookable = !full && timeOk && !_isNonBookable(type);
+                half.style.cursor = bookable ? 'pointer' : 'not-allowed';
+                if (bookable) half.addEventListener('click', e => { e.stopPropagation(); selectSlot(dateInfo, timeSlot, type, rem); });
+            } else if (!_isNonBookable(type) && timeOk) {
+                half.style.cursor = 'pointer';
+                half.addEventListener('click', e => { e.stopPropagation(); selectSlot(dateInfo, timeSlot, type, rem); });
+            } else {
+                half.style.cursor = 'default';
+            }
             return half;
         };
 
@@ -476,12 +496,11 @@ function createMobileSlotCard(dateInfo, scheduledSlot) {
 
     const timeSlot = scheduledSlot.time;
     const slotType = scheduledSlot.type;
-    const bookings = BookingStorage.getBookingsForSlot(dateInfo.formatted, timeSlot);
+    const loggedIn = _isLoggedIn();
     const remainingSpots = BookingStorage.getRemainingSpots(dateInfo.formatted, timeSlot, slotType);
-    const maxCapacity = SLOT_MAX_CAPACITY[slotType];
     const isFull = remainingSpots <= 0;
 
-    if (isFull) {
+    if (loggedIn && isFull) {
         slotCard.classList.add('slot-full');
     }
 
@@ -498,26 +517,35 @@ function createMobileSlotCard(dateInfo, scheduledSlot) {
     slotCard.innerHTML = `
         <div class="mobile-slot-header">
             <span class="mobile-slot-time">🕐 ${timeSlot}</span>
-            ${!_isNonBookable(slotType) ? `<span class="mobile-slot-available ${spotsColorClass(remainingSpots)}">${isFull ? 'Completo' : remainingSpots + (remainingSpots === 1 ? ' disponibile' : ' disponibili')}</span>` : ''}
+            ${loggedIn && !_isNonBookable(slotType) ? `<span class="mobile-slot-available ${spotsColorClass(remainingSpots)}">${isFull ? 'Completo' : remainingSpots + (remainingSpots === 1 ? ' disponibile' : ' disponibili')}</span>` : ''}
         </div>
         <div class="mobile-slot-type">${SLOT_NAMES[slotType]}</div>
     `;
 
     // Allow booking if not full and less than 30 min have passed since lesson start
     const _tp3 = _parseSlotTime(timeSlot);
-    let bookable = false;
+    let timeOk = false;
     if (_tp3) {
         const lessonStart = new Date(dateInfo.date);
         lessonStart.setHours(_tp3.startH, _tp3.startM, 0, 0);
-        bookable = !isFull && (new Date() - lessonStart) <= 30 * 60 * 1000;
+        timeOk = (new Date() - lessonStart) <= 30 * 60 * 1000;
     }
 
-    if (bookable) {
+    if (loggedIn) {
+        const bookable = !isFull && timeOk;
+        if (bookable) {
+            slotCard.addEventListener('click', () => {
+                selectMobileSlot(dateInfo, timeSlot, slotType, remainingSpots, slotCard);
+            });
+        } else {
+            slotCard.style.cursor = 'not-allowed';
+        }
+    } else if (!_isNonBookable(slotType) && timeOk) {
         slotCard.addEventListener('click', () => {
             selectMobileSlot(dateInfo, timeSlot, slotType, remainingSpots, slotCard);
         });
     } else {
-        slotCard.style.cursor = 'not-allowed';
+        slotCard.style.cursor = 'default';
     }
 
     return slotCard;
