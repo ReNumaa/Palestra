@@ -273,6 +273,30 @@ async function notifyAdminCancellation(booking, { withBonus = false, withMora = 
     }
 }
 
+// Notifica admin dopo una nuova registrazione
+async function notifyAdminNewClient(name) {
+    console.log('[Push] notifyAdminNewClient chiamata', name);
+    if (typeof SUPABASE_URL === 'undefined') {
+        console.warn('[Push] SUPABASE_URL non definito — notifica admin saltata');
+        return;
+    }
+
+    try {
+        const resp = await fetch(`${SUPABASE_URL}/functions/v1/notify-admin-new-client`, {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                'Authorization': 'Bearer ' + SUPABASE_ANON_KEY,
+            },
+            body: JSON.stringify({ name }),
+        });
+        const result = await resp.json();
+        console.log('[Push] notifyAdminNewClient response:', resp.status, result);
+    } catch (e) {
+        console.warn('[Push] notifyAdminNewClient error:', e);
+    }
+}
+
 // Ad ogni apertura: traccia stato permesso e registra subscription
 if ('Notification' in window) {
     if (Notification.permission === 'granted') {

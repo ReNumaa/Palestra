@@ -376,6 +376,7 @@
             try {
                 const result = await registerUser(name, email, whatsapp, password, codiceFiscale, { via, paese, cap });
                 if (result.ok) {
+                    notifyAdminNewClient(name);
                     document.getElementById('registerForm').style.display = 'none';
                     document.getElementById('registerSuccess').style.display = 'block';
                 } else {

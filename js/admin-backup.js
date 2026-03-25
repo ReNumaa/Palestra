@@ -120,6 +120,7 @@ function _convertCronToAdminFormat(cron) {
             indirizzoVia: p.indirizzo_via || null,
             indirizzoPaese: p.indirizzo_paese || null,
             indirizzoCap: p.indirizzo_cap || null,
+            documentoFirmato: p.documento_firmato || false,
         })));
     }
     // Tabelle raw per Supabase restore diretto
@@ -445,6 +446,7 @@ function importBackup(input) {
                                     indirizzo_via: p.indirizzo_via || null,
                                     indirizzo_paese: p.indirizzo_paese || null,
                                     indirizzo_cap: p.indirizzo_cap || null,
+                                    documento_firmato: p.documento_firmato || false,
                                 }).eq('email', (p.email || '').toLowerCase()));
                             }
                         }
