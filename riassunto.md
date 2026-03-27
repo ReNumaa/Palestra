@@ -191,3 +191,33 @@
 - Nuova colonna `push_enabled` su profiles: sincronizzata dal client ad ogni apertura via RPC `set_push_enabled`
 - Icona 🔕 accanto al nome in admin calendario se le notifiche non sono attive; nessuna icona se attive
 - Incluso in backup restore profili
+
+## Task: Fix cancellazione prenotazioni admin — popup chiude prima del salvataggio Supabase
+**Data:** 2026-03-27
+**Durata stimata:** ~20 min Claude + ~5 min prompt utente
+
+### Modifiche effettuate
+- Riscritto `deleteBooking()` in admin-calendar.js per usare la RPC atomica `cancel_booking_with_refund` invece di `replaceAllBookings()` fire-and-forget
+- Il popup ora aspetta la risposta Supabase prima di chiudersi, mostrando "Salvataggio..." sul bottone Conferma
+- Toast verde "Prenotazione annullata con successo" dopo il salvataggio
+- In caso di errore: toast rosso + bottoni riabilitati per riprovare
+- Per lezioni già passate (`isPast`): niente rimborso credito né mora, solo annullamento + azzeramento pagamento
+- Fallback locale mantenuto per modalità offline (senza Supabase)
+- Sync completo (bookings + crediti + debiti + bonus) dopo RPC prima di aggiornare la UI
+
+### Decisioni prese
+- Usata la RPC `cancel_booking_with_refund` (già esistente, atomica server-side) invece di operazioni client-side separate: previene stati parziali
+- Per slot passati: il rimborso non ha senso (la lezione è già avvenuta), quindi si cancella solo e si azzera il pagamento — come suggerito dall'utente
+- Bottoni disabilitati durante il salvataggio: previene doppi click
+
+### File toccati
+- `js/admin-calendar.js` — riscrittura completa di `deleteBooking()`: helper `_cancelViaRpc` (async, RPC + sync) e `_cancelLocal` (fallback offline)
+- `sw.js` — cache bump v176 → v177
+
+### Consumo risorse (solo per progetti cliente)
+| Voce | Valore |
+|------|--------|
+| Tempo task Claude | ~20 min |
+| Tempo prompt utente (stimato) | ~5 min |
+| Token input (stimati) | ~150k |
+| Token output (stimati) | ~15k |

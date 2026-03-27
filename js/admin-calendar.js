@@ -577,31 +577,105 @@ function deleteBooking(bookingId, bookingName) {
     const msToLesson = lessonStart ? lessonStart - new Date() : Infinity;
     const ONE_DAY = 24 * 60 * 60 * 1000;
     const isWithin24h = msToLesson <= ONE_DAY;
+    const isPast = lessonStart ? lessonStart < new Date() : false;
 
-    // > 24h: semplice conferma
-    if (!isWithin24h) {
-        if (!confirm(`Confermare l'annullamento della prenotazione di ${bookingName}?`)) return;
-
-        // Rimborso completo se aveva pagato
+    // Helper: esegue la cancellazione via RPC Supabase (atomica) e aggiorna UI
+    async function _cancelViaRpc(opts = {}) {
+        const { useBonus = false, withMora = false } = opts;
         const isCancellationPending = booking.status === 'cancellation_requested';
         const wasPaid = !isCancellationPending && (booking.paid || (booking.creditApplied || 0) > 0);
-        if (wasPaid) {
-            const creditToRefund = (booking.creditApplied || 0) > 0 ? booking.creditApplied : price;
-            CreditStorage.addCredit(
-                booking.whatsapp, booking.email, booking.name,
-                creditToRefund, `Rimborso lezione ${booking.date}`,
-                null, false, false, null, booking.paymentMethod || ''
-            );
+
+        // Se lezione già passata: niente rimborso, solo annullamento + azzeramento pagamento
+        let creditAmount = 0;
+        let creditNote = '';
+        let moraDebtAmount = 0;
+        let moraDebtNote = '';
+
+        if (!isPast) {
+            if (withMora) {
+                if (wasPaid) {
+                    creditAmount = Math.round(price * 0.5 * 100) / 100;
+                    creditNote = `Rimborso parziale 50% — annullamento con mora ${booking.date} ${booking.time}`;
+                } else {
+                    moraDebtAmount = Math.round(price * 0.5 * 100) / 100;
+                    moraDebtNote = `Mora 50% annullamento tardivo ${booking.date} ${booking.time}`;
+                }
+            } else {
+                if (wasPaid) {
+                    creditAmount = (booking.creditApplied || 0) > 0 ? booking.creditApplied : price;
+                    creditNote = `Rimborso lezione ${booking.date}`;
+                }
+            }
+        }
+
+        const { data, error } = await _rpcWithTimeout(supabaseClient.rpc('cancel_booking_with_refund', {
+            p_booking_id:       booking._sbId,
+            p_credit_amount:    creditAmount,
+            p_credit_note:      creditNote,
+            p_use_bonus:        useBonus,
+            p_with_bonus:       useBonus,
+            p_with_penalty:     withMora,
+            p_mora_debt_amount: moraDebtAmount,
+            p_mora_debt_note:   moraDebtNote,
+        }));
+
+        if (error) throw new Error(error.message);
+        if (data && !data.success) throw new Error(data.error || 'Errore sconosciuto');
+
+        // Sync per riallineare cache locale con Supabase
+        await Promise.all([
+            BookingStorage.syncFromSupabase(),
+            creditAmount > 0 ? CreditStorage.syncFromSupabase() : Promise.resolve(),
+            moraDebtAmount > 0 ? ManualDebtStorage.syncFromSupabase() : Promise.resolve(),
+            useBonus ? BonusStorage.syncFromSupabase() : Promise.resolve(),
+        ]);
+
+        if (typeof notifySlotAvailable === 'function') notifySlotAvailable(booking);
+        if (selectedAdminDay) renderAdminDayView(selectedAdminDay);
+        if (typeof showToast === 'function') showToast('✅ Prenotazione annullata con successo.', 'success', 4000);
+    }
+
+    // Helper: fallback locale (offline / senza _sbId)
+    function _cancelLocal(opts = {}) {
+        const { useBonus = false, withMora = false, refundPct = 100 } = opts;
+        const isCancellationPending = booking.status === 'cancellation_requested';
+        const wasPaid = !isCancellationPending && (booking.paid || (booking.creditApplied || 0) > 0);
+
+        if (useBonus) {
+            BonusStorage.useBonus(booking.whatsapp, booking.email, booking.name);
+        }
+
+        // Se lezione già passata: niente rimborso
+        if (!isPast) {
+            if (withMora) {
+                if (wasPaid) {
+                    const refund = Math.round(price * 0.5 * 100) / 100;
+                    CreditStorage.addCredit(booking.whatsapp, booking.email, booking.name,
+                        refund, `Rimborso parziale 50% — annullamento con mora ${booking.date} ${booking.time}`,
+                        null, false, false, null, booking.paymentMethod || '');
+                } else {
+                    ManualDebtStorage.addDebt(booking.whatsapp, booking.email, booking.name,
+                        Math.round(price * 0.5 * 100) / 100,
+                        `Mora 50% annullamento tardivo ${booking.date} ${booking.time}`);
+                }
+            } else {
+                if (wasPaid) {
+                    const creditToRefund = (booking.creditApplied || 0) > 0 ? booking.creditApplied : price;
+                    CreditStorage.addCredit(booking.whatsapp, booking.email, booking.name,
+                        creditToRefund, `Rimborso lezione ${booking.date}`,
+                        null, false, false, null, booking.paymentMethod || '');
+                }
+            }
         }
 
         bookings[index] = {
-            ...booking,
+            ...bookings[index],
             cancelledPaymentMethod: booking.paymentMethod,
             cancelledPaidAt: booking.paidAt,
             status: 'cancelled',
             cancelledAt: new Date().toISOString(),
-            cancelledWithBonus: false,
-            cancelledRefundPct: 100,
+            cancelledWithBonus: useBonus,
+            cancelledRefundPct: refundPct,
             paid: false,
             paymentMethod: null,
             paidAt: null,
@@ -610,6 +684,23 @@ function deleteBooking(bookingId, bookingName) {
         BookingStorage.replaceAllBookings(bookings);
         if (typeof notifySlotAvailable === 'function') notifySlotAvailable(booking);
         if (selectedAdminDay) renderAdminDayView(selectedAdminDay);
+        if (typeof showToast === 'function') showToast('✅ Prenotazione annullata con successo.', 'success', 4000);
+    }
+
+    const useSupabase = typeof supabaseClient !== 'undefined' && booking._sbId;
+
+    // > 24h: semplice conferma
+    if (!isWithin24h) {
+        if (!confirm(`Confermare l'annullamento della prenotazione di ${bookingName}?`)) return;
+
+        if (useSupabase) {
+            _cancelViaRpc({ useBonus: false, withMora: false, refundPct: 100 }).catch(err => {
+                console.error('[deleteBooking] RPC error:', err);
+                if (typeof showToast === 'function') showToast('⚠️ Errore: ' + err.message, 'error', 5000);
+            });
+        } else {
+            _cancelLocal({ useBonus: false, withMora: false, refundPct: 100 });
+        }
         return;
     }
 
@@ -683,64 +774,36 @@ function deleteBooking(bookingId, bookingName) {
     overlay.querySelector('.cancel-popup-btn--cancel').addEventListener('click', closePopup);
     overlay.addEventListener('click', e => { e.stopPropagation(); });
 
-    overlay.querySelector('.cancel-popup-btn--confirm').addEventListener('click', () => {
+    overlay.querySelector('.cancel-popup-btn--confirm').addEventListener('click', async () => {
         const useBonus = selectedBonus;
         const withMora = selectedMode === 'mora';
-
-        if (useBonus) {
-            BonusStorage.useBonus(booking.whatsapp, booking.email, booking.name);
-        }
-
         const isCancellationPending = booking.status === 'cancellation_requested';
         const wasPaid = !isCancellationPending && (booking.paid || (booking.creditApplied || 0) > 0);
-        let refundPct;
+        const refundPct = withMora ? (wasPaid ? 50 : 0) : 100;
 
-        if (withMora) {
-            // Con mora: rimborso 50% se pagato, oppure addebita mora se non pagato
-            if (wasPaid) {
-                const refund = Math.round(price * 0.5 * 100) / 100;
-                CreditStorage.addCredit(
-                    booking.whatsapp, booking.email, booking.name,
-                    refund, `Rimborso parziale 50% — annullamento con mora ${booking.date} ${booking.time}`,
-                    null, false, false, null, booking.paymentMethod || ''
-                );
-            } else {
-                ManualDebtStorage.addDebt(booking.whatsapp, booking.email, booking.name,
-                    mora, `Mora 50% annullamento tardivo ${booking.date} ${booking.time}`);
+        // Disabilita bottoni durante il salvataggio
+        const confirmBtn = overlay.querySelector('.cancel-popup-btn--confirm');
+        const cancelBtn = overlay.querySelector('.cancel-popup-btn--cancel');
+        confirmBtn.disabled = true;
+        confirmBtn.textContent = 'Salvataggio...';
+        cancelBtn.disabled = true;
+
+        if (useSupabase) {
+            try {
+                await _cancelViaRpc({ useBonus, withMora, refundPct });
+                closePopup();
+            } catch (err) {
+                console.error('[deleteBooking] RPC error:', err);
+                if (typeof showToast === 'function') showToast('⚠️ Errore: ' + err.message, 'error', 5000);
+                // Riabilita bottoni per riprovare
+                confirmBtn.disabled = false;
+                confirmBtn.textContent = 'Conferma';
+                cancelBtn.disabled = false;
             }
-            refundPct = wasPaid ? 50 : 0;
         } else {
-            // Senza mora: rimborso completo se pagato
-            if (wasPaid) {
-                const creditToRefund = (booking.creditApplied || 0) > 0 ? booking.creditApplied : price;
-                CreditStorage.addCredit(
-                    booking.whatsapp, booking.email, booking.name,
-                    creditToRefund, `Rimborso lezione ${booking.date}`,
-                    null, false, false, null, booking.paymentMethod || ''
-                );
-            }
-            refundPct = 100;
+            _cancelLocal({ useBonus, withMora, refundPct });
+            closePopup();
         }
-
-        bookings[index] = {
-            ...bookings[index],
-            cancelledPaymentMethod: booking.paymentMethod,
-            cancelledPaidAt: booking.paidAt,
-            status: 'cancelled',
-            cancelledAt: new Date().toISOString(),
-            cancelledWithBonus: useBonus,
-            cancelledRefundPct: refundPct,
-            paid: false,
-            paymentMethod: null,
-            paidAt: null,
-            creditApplied: 0,
-        };
-        BookingStorage.replaceAllBookings(bookings);
-
-        if (typeof notifySlotAvailable === 'function') notifySlotAvailable(booking);
-        if (selectedAdminDay) renderAdminDayView(selectedAdminDay);
-
-        closePopup();
     });
 }
 
