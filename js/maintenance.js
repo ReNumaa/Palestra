@@ -46,8 +46,8 @@
         overlay.style.cssText = 'position:fixed;inset:0;z-index:99999;background:rgba(0,0,0,0.92);display:flex;flex-direction:column;align-items:center;justify-content:center;padding:2rem;text-align:center;';
         overlay.innerHTML = `
             <div style="max-width:420px;">
-                <div style="font-size:3rem;margin-bottom:1rem;">🔧</div>
-                <h2 style="color:#fff;font-size:1.5rem;margin:0 0 1rem;">Manutenzione in corso</h2>
+                <img src="images/logo-tb---nero.jpg" alt="Thomas Bresciani" style="width:80px;height:80px;border-radius:50%;margin-bottom:1.25rem;object-fit:cover;">
+                <h2 style="color:#fff;font-size:1.5rem;margin:0 0 1rem;">Sistema in manutenzione</h2>
                 <p style="color:#9ca3af;font-size:1rem;line-height:1.6;margin:0;">${_esc(message)}</p>
             </div>`;
         document.body.appendChild(overlay);
