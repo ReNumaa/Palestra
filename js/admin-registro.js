@@ -520,6 +520,7 @@ function toggleRegistroFiltersPanel() {
 // ── Entry point chiamato da switchTab ──────────────────────────────────────
 function renderRegistroTab() {
     applyRegistroFilters();
+    if (typeof loadMessaggi === 'function') loadMessaggi();
 }
 
 // ── Export Excel della vista filtrata ─────────────────────────────────────
@@ -601,5 +602,96 @@ function exportRegistro() {
         btn.innerHTML = '✅ Scaricato!';
         setTimeout(() => { btn.innerHTML = orig; }, 2500);
     }
+}
+
+// ══════════════════════════════════════════════════════════════════════════════
+// STORICO MESSAGGI / NOTIFICHE ADMIN
+// ══════════════════════════════════════════════════════════════════════════════
+
+let _messaggiCache = [];
+let _messaggiFiltered = [];
+let _messaggiPage = 0;
+const MESSAGGI_PAGE_SIZE = 50;
+
+const _MSG_TYPE_LABELS = {
+    booking:               '✔️ Prenotazione',
+    cancellation:          '❌ Annullamento',
+    proximity:             '📍 Arrivo',
+    proximity_no_booking:  '📍 Senza prenot.',
+    new_client:            '🆕 Nuovo iscritto',
+    broadcast:             '📢 Broadcast',
+};
+
+async function loadMessaggi() {
+    if (typeof supabaseClient === 'undefined') return;
+    try {
+        const { data, error } = await supabaseClient
+            .from('admin_messages')
+            .select('*')
+            .order('created_at', { ascending: false })
+            .limit(500);
+        if (error) { console.warn('[Messaggi] load error:', error.message); return; }
+        _messaggiCache = data || [];
+        renderMessaggiTable();
+    } catch (e) {
+        console.warn('[Messaggi] load exception:', e);
+    }
+}
+
+function renderMessaggiTable() {
+    const typeFilter = document.getElementById('msgFilterType')?.value || '';
+    const dateFilter = document.getElementById('msgFilterDate')?.value || '';
+
+    _messaggiFiltered = _messaggiCache.filter(m => {
+        if (typeFilter && m.type !== typeFilter) return false;
+        if (dateFilter && m.date !== dateFilter) return false;
+        return true;
+    });
+
+    _messaggiPage = 0;
+    _renderMessaggiPage();
+}
+
+function _renderMessaggiPage() {
+    const tbody = document.getElementById('messaggiTableBody');
+    if (!tbody) return;
+
+    const start = _messaggiPage * MESSAGGI_PAGE_SIZE;
+    const page = _messaggiFiltered.slice(start, start + MESSAGGI_PAGE_SIZE);
+
+    if (page.length === 0) {
+        tbody.innerHTML = '<tr><td colspan="5" class="registro-empty">Nessun messaggio trovato</td></tr>';
+    } else {
+        tbody.innerHTML = page.map(m => {
+            const dt = new Date(m.created_at);
+            const dateStr = `${String(dt.getDate()).padStart(2,'0')}/${String(dt.getMonth()+1).padStart(2,'0')}/${dt.getFullYear()}`;
+            const timeStr = `${String(dt.getHours()).padStart(2,'0')}:${String(dt.getMinutes()).padStart(2,'0')}`;
+            const typeLabel = _MSG_TYPE_LABELS[m.type] || m.type;
+            return `<tr>
+                <td>${dateStr} ${timeStr}</td>
+                <td>${typeLabel}</td>
+                <td>${_escHtml(m.title)}</td>
+                <td>${_escHtml(m.body)}</td>
+                <td>${_escHtml(m.client_name || '')}</td>
+            </tr>`;
+        }).join('');
+    }
+
+    // Pagination
+    const total = _messaggiFiltered.length;
+    const totalPages = Math.ceil(total / MESSAGGI_PAGE_SIZE) || 1;
+    const infoEl = document.getElementById('messaggiPaginationInfo');
+    if (infoEl) infoEl.textContent = `${_messaggiPage + 1} / ${totalPages} (${total})`;
+    const prevBtn = document.getElementById('messaggiPrevBtn');
+    const nextBtn = document.getElementById('messaggiNextBtn');
+    if (prevBtn) prevBtn.disabled = _messaggiPage === 0;
+    if (nextBtn) nextBtn.disabled = start + MESSAGGI_PAGE_SIZE >= total;
+}
+
+function messaggiPrevPage() {
+    if (_messaggiPage > 0) { _messaggiPage--; _renderMessaggiPage(); }
+}
+function messaggiNextPage() {
+    if ((_messaggiPage + 1) * MESSAGGI_PAGE_SIZE < _messaggiFiltered.length) { _messaggiPage++; _renderMessaggiPage(); }
 }
 

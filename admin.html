@@ -606,6 +606,44 @@
                     <button class="registro-pag-btn" onclick="registroNextPage()" id="registroNextBtn" disabled>Succ →</button>
                 </div>
 
+                <!-- Sezione Messaggi separata -->
+                <div class="dashboard-card" style="margin-top:24px">
+                    <h3 style="margin:0 0 16px;font-size:17px;font-weight:700">📩 Storico notifiche</h3>
+                    <div style="display:flex;gap:8px;margin-bottom:12px;flex-wrap:wrap">
+                        <select id="msgFilterType" onchange="renderMessaggiTable()" style="padding:8px 12px;border-radius:8px;border:1px solid #e5e7eb;font-size:13px">
+                            <option value="">Tutti i tipi</option>
+                            <option value="booking">✔️ Prenotazioni</option>
+                            <option value="cancellation">❌ Annullamenti</option>
+                            <option value="proximity">📍 Arrivi</option>
+                            <option value="proximity_no_booking">📍 Senza prenotazione</option>
+                            <option value="new_client">🆕 Nuovi iscritti</option>
+                        </select>
+                        <input type="date" id="msgFilterDate" onchange="renderMessaggiTable()" style="padding:8px 12px;border-radius:8px;border:1px solid #e5e7eb;font-size:13px">
+                        <button onclick="document.getElementById('msgFilterType').value='';document.getElementById('msgFilterDate').value='';renderMessaggiTable()" style="padding:8px 12px;border-radius:8px;border:1px solid #e5e7eb;background:#fff;cursor:pointer;font-size:13px">Reset</button>
+                    </div>
+                    <div style="overflow-x:auto">
+                        <table class="registro-table" style="font-size:13px">
+                            <thead>
+                                <tr>
+                                    <th>Data/Ora</th>
+                                    <th>Tipo</th>
+                                    <th>Titolo</th>
+                                    <th>Dettaglio</th>
+                                    <th>Cliente</th>
+                                </tr>
+                            </thead>
+                            <tbody id="messaggiTableBody">
+                                <tr><td colspan="5" class="registro-empty">Caricamento...</td></tr>
+                            </tbody>
+                        </table>
+                    </div>
+                    <div class="registro-pagination">
+                        <button class="registro-pag-btn" onclick="messaggiPrevPage()" id="messaggiPrevBtn" disabled>← Prec</button>
+                        <span class="registro-pag-info" id="messaggiPaginationInfo">—</span>
+                        <button class="registro-pag-btn" onclick="messaggiNextPage()" id="messaggiNextBtn" disabled>Succ →</button>
+                    </div>
+                </div>
+
             </div>
             <!-- End Tab: Registro -->
 
@@ -921,7 +959,7 @@
     <script src="js/admin-settings.js?v=1"></script>
     <script src="js/admin-payments.js?v=1"></script>
     <script src="js/admin-clients.js?v=1"></script>
-    <script src="js/admin-registro.js?v=1"></script>
+    <script src="js/admin-registro.js?v=2"></script>
     <script src="js/admin-messaggi.js?v=1"></script>
     <script src="js/maintenance.js?v=1"></script>
     <script>

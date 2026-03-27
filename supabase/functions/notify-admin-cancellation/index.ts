@@ -90,6 +90,19 @@ Deno.serve(async (req) => {
             }
         }
 
+        // Salva nel registro messaggi
+        await supabase.from("admin_messages").insert({
+            type: "cancellation",
+            title,
+            body: `${date_display} alle ${startTime} (${occupancy}/${capacity})`,
+            client_name: name,
+            date,
+            time,
+            slot_type,
+            sent_count: sent,
+            extra: { with_bonus, with_mora },
+        });
+
         console.log(`[notify-admin-cancellation] ${sent} notifiche inviate per ${title} — ${date_display} ${startTime}`);
         return new Response(JSON.stringify({ ok: true, sent }), {
             headers: { ...corsHeaders, "Content-Type": "application/json" },

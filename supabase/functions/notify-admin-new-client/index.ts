@@ -70,6 +70,15 @@ Deno.serve(async (req) => {
             }
         }
 
+        // Salva nel registro messaggi
+        await supabase.from("admin_messages").insert({
+            type: "new_client",
+            title: "🆕 New entry!",
+            body: `${name} iscritto`,
+            client_name: name,
+            sent_count: sent,
+        });
+
         console.log(`[notify-admin-new-client] ${sent} notifiche inviate per ${name}`);
         return new Response(JSON.stringify({ ok: true, sent }), {
             headers: { ...corsHeaders, "Content-Type": "application/json" },

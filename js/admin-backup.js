@@ -131,6 +131,7 @@ function _convertCronToAdminFormat(cron) {
     if (Array.isArray(cron.credit_link_clicks)) data['_credit_link_clicks'] = JSON.stringify(cron.credit_link_clicks);
     if (Array.isArray(cron.profiles))           data['_profiles']           = JSON.stringify(cron.profiles);
     if (Array.isArray(cron.app_settings))       data['_app_settings']       = JSON.stringify(cron.app_settings);
+    if (Array.isArray(cron.admin_messages))    data['_admin_messages']     = JSON.stringify(cron.admin_messages);
 
     return {
         version: 2,
@@ -149,7 +150,7 @@ async function exportBackup(format = 'json') {
         try {
             const [bookingsRes, creditsRes, creditHistRes, debtsRes, bonusesRes,
                    overridesRes, profilesRes, settingsRes, pushSubsRes,
-                   auditRes, clicksRes, appSettingsRes] = await Promise.all([
+                   auditRes, clicksRes, appSettingsRes, adminMsgRes] = await Promise.all([
                 supabaseClient.from('bookings').select('*').order('created_at', { ascending: true }),
                 supabaseClient.from('credits').select('*').order('created_at', { ascending: true }),
                 supabaseClient.from('credit_history').select('*').order('created_at', { ascending: true }),
@@ -162,6 +163,7 @@ async function exportBackup(format = 'json') {
                 supabaseClient.from('admin_audit_log').select('*').order('created_at', { ascending: true }),
                 supabaseClient.from('credit_link_clicks').select('*'),
                 supabaseClient.from('app_settings').select('*'),
+                supabaseClient.from('admin_messages').select('*').order('created_at', { ascending: true }),
             ]);
             if (bookingsRes.data)    tables.bookings            = bookingsRes.data;
             if (creditsRes.data)     tables.credits             = creditsRes.data;
@@ -175,6 +177,7 @@ async function exportBackup(format = 'json') {
             if (auditRes.data)       tables.admin_audit_log     = auditRes.data;
             if (clicksRes.data)      tables.credit_link_clicks  = clicksRes.data;
             if (appSettingsRes.data) tables.app_settings        = appSettingsRes.data;
+            if (adminMsgRes.data)    tables.admin_messages      = adminMsgRes.data;
         } catch (e) {
             console.warn('[Backup] Errore fetch Supabase:', e.message);
         }
@@ -479,7 +482,16 @@ function importBackup(input) {
                         }
                     }
 
-                    // 12. Credit link clicks
+                    // 12. Admin messages
+                    if (backup.data._admin_messages) {
+                        const amRows = JSON.parse(backup.data._admin_messages || '[]');
+                        if (amRows.length > 0) {
+                            await supabaseClient.from('admin_messages').delete().neq('id', '00000000-0000-0000-0000-000000000000');
+                            promises.push(supabaseClient.from('admin_messages').insert(amRows));
+                        }
+                    }
+
+                    // 13. Credit link clicks
                     if (backup.data._credit_link_clicks) {
                         const clRows = JSON.parse(backup.data._credit_link_clicks || '[]');
                         if (clRows.length > 0) {

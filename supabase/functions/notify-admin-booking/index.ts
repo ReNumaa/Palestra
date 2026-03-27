@@ -85,6 +85,18 @@ Deno.serve(async (req) => {
             }
         }
 
+        // Salva nel registro messaggi
+        await supabase.from("admin_messages").insert({
+            type: "booking",
+            title: "✔️ " + name,
+            body: `${date_display} alle ${startTime} (${occupancy}/${capacity})`,
+            client_name: name,
+            date,
+            time,
+            slot_type,
+            sent_count: sent,
+        });
+
         console.log(`[notify-admin-booking] ${sent} notifiche inviate per ${name} — ${date_display} ${startTime}`);
         return new Response(JSON.stringify({ ok: true, sent }), {
             headers: { ...corsHeaders, "Content-Type": "application/json" },

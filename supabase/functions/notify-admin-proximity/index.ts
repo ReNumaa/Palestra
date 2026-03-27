@@ -82,7 +82,21 @@ Deno.serve(async (req) => {
             }
         }
 
-        console.log(`[notify-admin-proximity] ${sent} notifiche inviate — ${name} vicino alla palestra per ${startTime}`);
+        // Salva nel registro messaggi
+        const msgType = no_booking ? "proximity_no_booking" : "proximity";
+        const parsedPayload = JSON.parse(payload);
+        await supabase.from("admin_messages").insert({
+            type: msgType,
+            title: parsedPayload.title,
+            body: parsedPayload.body,
+            client_name: name,
+            date: date || null,
+            time: time || null,
+            slot_type: slot_type || null,
+            sent_count: sent,
+        });
+
+        console.log(`[notify-admin-proximity] ${sent} notifiche inviate — ${name} vicino alla palestra`);
         return new Response(JSON.stringify({ ok: true, sent }), {
             headers: { ...corsHeaders, "Content-Type": "application/json" },
         });
