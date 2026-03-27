@@ -644,6 +644,51 @@
                     </div>
                 </div>
 
+                <!-- Sezione Notifiche clienti separata -->
+                <div class="dashboard-card" style="margin-top:24px">
+                    <h3 style="margin:0 0 16px;font-size:17px;font-weight:700">📬 Notifiche ai clienti</h3>
+                    <div style="display:flex;gap:8px;margin-bottom:12px;flex-wrap:wrap">
+                        <select id="cnFilterType" onchange="renderClientNotifTable()" style="padding:8px 12px;border-radius:8px;border:1px solid #e5e7eb;font-size:13px">
+                            <option value="">Tutti i tipi</option>
+                            <option value="reminder_24h">⏰ Promemoria 24h</option>
+                            <option value="reminder_1h">⏰ Promemoria 1h</option>
+                            <option value="slot_available">🟢 Slot disponibile</option>
+                            <option value="broadcast">📢 Broadcast</option>
+                        </select>
+                        <select id="cnFilterStatus" onchange="renderClientNotifTable()" style="padding:8px 12px;border-radius:8px;border:1px solid #e5e7eb;font-size:13px">
+                            <option value="">Tutti gli stati</option>
+                            <option value="sent">✅ Inviata</option>
+                            <option value="failed">❌ Fallita</option>
+                            <option value="no_subscription">⚠️ No subscription</option>
+                        </select>
+                        <input type="text" id="cnFilterClient" placeholder="🔍 Cerca cliente..." oninput="_debouncedCnFilter()" style="padding:8px 12px;border-radius:8px;border:1px solid #e5e7eb;font-size:13px;min-width:160px">
+                        <input type="date" id="cnFilterDate" onchange="renderClientNotifTable()" style="padding:8px 12px;border-radius:8px;border:1px solid #e5e7eb;font-size:13px">
+                        <button onclick="document.getElementById('cnFilterType').value='';document.getElementById('cnFilterStatus').value='';document.getElementById('cnFilterClient').value='';document.getElementById('cnFilterDate').value='';renderClientNotifTable()" style="padding:8px 12px;border-radius:8px;border:1px solid #e5e7eb;background:#fff;cursor:pointer;font-size:13px">Reset</button>
+                    </div>
+                    <div style="overflow-x:auto">
+                        <table class="registro-table" style="font-size:13px">
+                            <thead>
+                                <tr>
+                                    <th>Data/Ora</th>
+                                    <th>Tipo</th>
+                                    <th>Cliente</th>
+                                    <th>Titolo</th>
+                                    <th>Dettaglio</th>
+                                    <th>Stato</th>
+                                </tr>
+                            </thead>
+                            <tbody id="clientNotifTableBody">
+                                <tr><td colspan="6" class="registro-empty">Caricamento...</td></tr>
+                            </tbody>
+                        </table>
+                    </div>
+                    <div class="registro-pagination">
+                        <button class="registro-pag-btn" onclick="cnPrevPage()" id="cnPrevBtn" disabled>← Prec</button>
+                        <span class="registro-pag-info" id="cnPaginationInfo">—</span>
+                        <button class="registro-pag-btn" onclick="cnNextPage()" id="cnNextBtn" disabled>Succ →</button>
+                    </div>
+                </div>
+
             </div>
             <!-- End Tab: Registro -->
 

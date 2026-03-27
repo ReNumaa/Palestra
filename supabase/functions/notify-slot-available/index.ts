@@ -74,7 +74,19 @@ Deno.serve(async (req) => {
             url:   date ? `/index.html?date=${date}` : "/index.html",
         });
 
+        // Recupera nomi utenti per il log
+        const subUserIds = [...new Set((subs ?? []).map((s: any) => s.user_id).filter(Boolean))];
+        let nameMap: Record<string, { name: string; email: string }> = {};
+        if (subUserIds.length > 0) {
+            const { data: profiles } = await supabase.from("profiles").select("id, name, email").in("id", subUserIds);
+            for (const p of profiles ?? []) {
+                nameMap[p.id] = { name: p.name || "", email: p.email || "" };
+            }
+        }
+
         let sent = 0;
+        const sentUserIds = new Set<string>();
+        const failedUsers: { id: string; error: string }[] = [];
         for (const sub of subs ?? []) {
             try {
                 await webpush.sendNotification(
@@ -82,12 +94,33 @@ Deno.serve(async (req) => {
                     payload,
                 );
                 sent++;
+                if (sub.user_id) sentUserIds.add(sub.user_id);
             } catch (e: any) {
                 console.error(`[Push] Errore ${sub.endpoint.slice(-30)}:`, e.message);
                 if (e.statusCode === 410 || e.statusCode === 404) {
                     await supabase.from("push_subscriptions").delete().eq("endpoint", sub.endpoint);
                 }
+                if (sub.user_id && !sentUserIds.has(sub.user_id)) {
+                    failedUsers.push({ id: sub.user_id, error: e.message });
+                }
             }
+        }
+
+        // Log notifiche client
+        const notifRows = [
+            ...[...sentUserIds].map(uid => ({
+                user_id: uid, user_name: nameMap[uid]?.name || "", user_email: nameMap[uid]?.email || "",
+                type: "slot_available", title: "Slot libero disponibile", body: bodyText,
+                status: "sent", booking_date: date || null, booking_time: time || null,
+            })),
+            ...failedUsers.filter(f => !sentUserIds.has(f.id)).map(f => ({
+                user_id: f.id, user_name: nameMap[f.id]?.name || "", user_email: nameMap[f.id]?.email || "",
+                type: "slot_available", title: "Slot libero disponibile", body: bodyText,
+                status: "failed", error: f.error, booking_date: date || null, booking_time: time || null,
+            })),
+        ];
+        if (notifRows.length > 0) {
+            await supabase.from("client_notifications").insert(notifRows);
         }
 
         console.log(`[notify-slot-available] ${sent} notifiche inviate per ${date_display} ${startTime}`);

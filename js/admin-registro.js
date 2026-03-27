@@ -521,6 +521,7 @@ function toggleRegistroFiltersPanel() {
 function renderRegistroTab() {
     applyRegistroFilters();
     if (typeof loadMessaggi === 'function') loadMessaggi();
+    if (typeof loadClientNotifications === 'function') loadClientNotifications();
 }
 
 // ── Export Excel della vista filtrata ─────────────────────────────────────
@@ -693,5 +694,112 @@ function messaggiPrevPage() {
 }
 function messaggiNextPage() {
     if ((_messaggiPage + 1) * MESSAGGI_PAGE_SIZE < _messaggiFiltered.length) { _messaggiPage++; _renderMessaggiPage(); }
+}
+
+// ══════════════════════════════════════════════════════════════════════════════
+// NOTIFICHE AI CLIENTI
+// ══════════════════════════════════════════════════════════════════════════════
+
+let _cnCache = [];
+let _cnFiltered = [];
+let _cnPage = 0;
+const CN_PAGE_SIZE = 50;
+
+var _debouncedCnFilter = _debounce(() => renderClientNotifTable(), 250);
+
+const _CN_TYPE_LABELS = {
+    reminder_24h:    '⏰ Promemoria 24h',
+    reminder_1h:     '⏰ Promemoria 1h',
+    slot_available:  '🟢 Slot disponibile',
+    broadcast:       '📢 Broadcast',
+};
+
+const _CN_STATUS_LABELS = {
+    sent:            '✅ Inviata',
+    failed:          '❌ Fallita',
+    no_subscription: '⚠️ No sub',
+};
+
+async function loadClientNotifications() {
+    if (typeof supabaseClient === 'undefined') return;
+    try {
+        const { data, error } = await supabaseClient
+            .from('client_notifications')
+            .select('*')
+            .order('created_at', { ascending: false })
+            .limit(1000);
+        if (error) { console.warn('[ClientNotif] load error:', error.message); return; }
+        _cnCache = data || [];
+        renderClientNotifTable();
+    } catch (e) {
+        console.warn('[ClientNotif] load exception:', e);
+    }
+}
+
+function renderClientNotifTable() {
+    const typeFilter = document.getElementById('cnFilterType')?.value || '';
+    const statusFilter = document.getElementById('cnFilterStatus')?.value || '';
+    const clientFilter = (document.getElementById('cnFilterClient')?.value || '').toLowerCase().trim();
+    const dateFilter = document.getElementById('cnFilterDate')?.value || '';
+
+    _cnFiltered = _cnCache.filter(n => {
+        if (typeFilter && n.type !== typeFilter) return false;
+        if (statusFilter && n.status !== statusFilter) return false;
+        if (dateFilter && n.booking_date !== dateFilter) return false;
+        if (clientFilter) {
+            const name = (n.user_name || '').toLowerCase();
+            const email = (n.user_email || '').toLowerCase();
+            if (!name.includes(clientFilter) && !email.includes(clientFilter)) return false;
+        }
+        return true;
+    });
+
+    _cnPage = 0;
+    _renderCnPage();
+}
+
+function _renderCnPage() {
+    const tbody = document.getElementById('clientNotifTableBody');
+    if (!tbody) return;
+
+    const start = _cnPage * CN_PAGE_SIZE;
+    const page = _cnFiltered.slice(start, start + CN_PAGE_SIZE);
+
+    if (page.length === 0) {
+        tbody.innerHTML = '<tr><td colspan="6" class="registro-empty">Nessuna notifica trovata</td></tr>';
+    } else {
+        tbody.innerHTML = page.map(n => {
+            const dt = new Date(n.created_at);
+            const dateStr = `${String(dt.getDate()).padStart(2,'0')}/${String(dt.getMonth()+1).padStart(2,'0')}/${dt.getFullYear()}`;
+            const timeStr = `${String(dt.getHours()).padStart(2,'0')}:${String(dt.getMinutes()).padStart(2,'0')}`;
+            const typeLabel = _CN_TYPE_LABELS[n.type] || n.type;
+            const statusLabel = _CN_STATUS_LABELS[n.status] || n.status;
+            const statusStyle = n.status === 'sent' ? 'color:#22c55e' : n.status === 'failed' ? 'color:#ef4444' : 'color:#eab308';
+            return `<tr>
+                <td>${dateStr} ${timeStr}</td>
+                <td>${typeLabel}</td>
+                <td>${_escHtml(n.user_name || '')}${n.user_email ? `<br><small style="color:#888">${_escHtml(n.user_email)}</small>` : ''}</td>
+                <td>${_escHtml(n.title)}</td>
+                <td>${_escHtml(n.body)}${n.error ? `<br><small style="color:#ef4444">${_escHtml(n.error)}</small>` : ''}</td>
+                <td style="${statusStyle};font-weight:600">${statusLabel}</td>
+            </tr>`;
+        }).join('');
+    }
+
+    const total = _cnFiltered.length;
+    const totalPages = Math.ceil(total / CN_PAGE_SIZE) || 1;
+    const infoEl = document.getElementById('cnPaginationInfo');
+    if (infoEl) infoEl.textContent = `${_cnPage + 1} / ${totalPages} (${total})`;
+    const prevBtn = document.getElementById('cnPrevBtn');
+    const nextBtn = document.getElementById('cnNextBtn');
+    if (prevBtn) prevBtn.disabled = _cnPage === 0;
+    if (nextBtn) nextBtn.disabled = start + CN_PAGE_SIZE >= total;
+}
+
+function cnPrevPage() {
+    if (_cnPage > 0) { _cnPage--; _renderCnPage(); }
+}
+function cnNextPage() {
+    if ((_cnPage + 1) * CN_PAGE_SIZE < _cnFiltered.length) { _cnPage++; _renderCnPage(); }
 }
 

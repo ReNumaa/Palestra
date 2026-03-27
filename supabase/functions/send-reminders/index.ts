@@ -36,15 +36,35 @@ function targetItaly(offsetMs: number): { date: string; totalMin: number } {
     };
 }
 
-async function sendPush(userId: string, payload: string) {
+async function sendPush(userId: string, payload: string, notifMeta?: { type: string; title: string; body: string; date?: string; time?: string }) {
     const { data: subs } = await supabase
         .from("push_subscriptions")
         .select("endpoint, p256dh, auth")
         .eq("user_id", userId);
 
-    if (!subs?.length) return 0;
+    // Recupera nome utente per il log
+    let userName = "";
+    let userEmail = "";
+    if (notifMeta) {
+        const { data: profile } = await supabase.from("profiles").select("name, email").eq("id", userId).single();
+        userName = profile?.name || "";
+        userEmail = profile?.email || "";
+    }
+
+    if (!subs?.length) {
+        // Nessuna subscription — log come non raggiungibile
+        if (notifMeta) {
+            await supabase.from("client_notifications").insert({
+                user_id: userId, user_name: userName, user_email: userEmail,
+                type: notifMeta.type, title: notifMeta.title, body: notifMeta.body,
+                status: "no_subscription", booking_date: notifMeta.date || null, booking_time: notifMeta.time || null,
+            });
+        }
+        return 0;
+    }
 
     let sent = 0;
+    let lastError = "";
     for (const sub of subs) {
         try {
             await webpush.sendNotification(
@@ -53,12 +73,25 @@ async function sendPush(userId: string, payload: string) {
             );
             sent++;
         } catch (e: any) {
+            lastError = e.message;
             console.error(`[Push] Errore ${sub.endpoint.slice(-30)}:`, e.message);
             if (e.statusCode === 410 || e.statusCode === 404) {
                 await supabase.from("push_subscriptions").delete().eq("endpoint", sub.endpoint);
             }
         }
     }
+
+    // Log notifica client
+    if (notifMeta) {
+        await supabase.from("client_notifications").insert({
+            user_id: userId, user_name: userName, user_email: userEmail,
+            type: notifMeta.type, title: notifMeta.title, body: notifMeta.body,
+            status: sent > 0 ? "sent" : "failed",
+            error: sent === 0 ? lastError : null,
+            booking_date: notifMeta.date || null, booking_time: notifMeta.time || null,
+        });
+    }
+
     return sent;
 }
 
@@ -91,7 +124,10 @@ Deno.serve(async (_req) => {
                 url:   "/prenotazioni.html",
             });
 
-            totalSent += await sendPush(b.user_id, payload);
+            totalSent += await sendPush(b.user_id, payload, {
+                type: "reminder_24h", title: "Promemoria Allenamento",
+                body: `Lezione domani alle ${startTime}`, date: date24h, time: b.time,
+            });
             await supabase.from("bookings").update({ reminder_24h_sent: true }).eq("id", b.id);
         }
 
@@ -119,7 +155,10 @@ Deno.serve(async (_req) => {
                 url:   "/prenotazioni.html",
             });
 
-            totalSent += await sendPush(b.user_id, payload);
+            totalSent += await sendPush(b.user_id, payload, {
+                type: "reminder_1h", title: "Promemoria Allenamento",
+                body: `Lezione fra 60 minuti (${startTime})`, date: date1h, time: b.time,
+            });
             await supabase.from("bookings").update({ reminder_1h_sent: true }).eq("id", b.id);
         }
 

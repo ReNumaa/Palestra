@@ -131,7 +131,8 @@ function _convertCronToAdminFormat(cron) {
     if (Array.isArray(cron.credit_link_clicks)) data['_credit_link_clicks'] = JSON.stringify(cron.credit_link_clicks);
     if (Array.isArray(cron.profiles))           data['_profiles']           = JSON.stringify(cron.profiles);
     if (Array.isArray(cron.app_settings))       data['_app_settings']       = JSON.stringify(cron.app_settings);
-    if (Array.isArray(cron.admin_messages))    data['_admin_messages']     = JSON.stringify(cron.admin_messages);
+    if (Array.isArray(cron.admin_messages))        data['_admin_messages']        = JSON.stringify(cron.admin_messages);
+    if (Array.isArray(cron.client_notifications)) data['_client_notifications'] = JSON.stringify(cron.client_notifications);
 
     return {
         version: 2,
@@ -178,6 +179,10 @@ async function exportBackup(format = 'json') {
             if (clicksRes.data)      tables.credit_link_clicks  = clicksRes.data;
             if (appSettingsRes.data) tables.app_settings        = appSettingsRes.data;
             if (adminMsgRes.data)    tables.admin_messages      = adminMsgRes.data;
+
+            // Client notifications
+            const cnRes = await supabaseClient.from('client_notifications').select('*').order('created_at', { ascending: true });
+            if (cnRes.data) tables.client_notifications = cnRes.data;
         } catch (e) {
             console.warn('[Backup] Errore fetch Supabase:', e.message);
         }
@@ -491,7 +496,16 @@ function importBackup(input) {
                         }
                     }
 
-                    // 13. Credit link clicks
+                    // 13. Client notifications
+                    if (backup.data._client_notifications) {
+                        const cnRows = JSON.parse(backup.data._client_notifications || '[]');
+                        if (cnRows.length > 0) {
+                            await supabaseClient.from('client_notifications').delete().neq('id', '00000000-0000-0000-0000-000000000000');
+                            promises.push(supabaseClient.from('client_notifications').insert(cnRows));
+                        }
+                    }
+
+                    // 14. Credit link clicks
                     if (backup.data._credit_link_clicks) {
                         const clRows = JSON.parse(backup.data._credit_link_clicks || '[]');
                         if (clRows.length > 0) {

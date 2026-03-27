@@ -124,6 +124,23 @@ Deno.serve(async (req) => {
         // Nomi di chi ha fallito (e non ha ricevuto su nessun device)
         const failed = [...failedUserIds].filter(id => !sentUserIds.has(id)).map(id => nameMap[id] || "Sconosciuto");
 
+        // Log notifiche client
+        const notifRows = [
+            ...[...sentUserIds].map(uid => ({
+                user_id: uid, user_name: nameMap[uid] || "", user_email: "",
+                type: "broadcast", title, body,
+                status: "sent", booking_date: date || null, booking_time: time || null,
+            })),
+            ...[...failedUserIds].filter(id => !sentUserIds.has(id)).map(uid => ({
+                user_id: uid, user_name: nameMap[uid] || "", user_email: "",
+                type: "broadcast", title, body,
+                status: "failed", booking_date: date || null, booking_time: time || null,
+            })),
+        ];
+        if (notifRows.length > 0) {
+            await supabase.from("client_notifications").insert(notifRows);
+        }
+
         console.log(`[send-admin-message] ${sent}/${subs.length} notifiche inviate (mode=${mode})`);
         return new Response(JSON.stringify({ ok: true, sent, recipients, failed }), {
             headers: { ...corsHeaders, "Content-Type": "application/json" },
