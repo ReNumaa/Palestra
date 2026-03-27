@@ -415,6 +415,7 @@ class BookingStorage {
             updatedAt:                row.updated_at || null,
             createdBy:                row.created_by || null,
             cancelledBy:              row.cancelled_by || null,
+            arrivedAt:                row.arrived_at || null,
         };
     }
 
@@ -2284,6 +2285,7 @@ class UserStorage {
                 return {
                     ...existing,
                     _fromSupabase: true,
+                    userId:   row.id || existing.userId || null,
                     name:     row.name     || existing.name     || '',
                     email:    row.email    || existing.email    || '',
                     whatsapp: row.whatsapp || existing.whatsapp || '',
@@ -2296,6 +2298,7 @@ class UserStorage {
                     indirizzoPaese: row.indirizzo_paese ?? existing.indirizzoPaese ?? null,
                     indirizzoCap: row.indirizzo_cap ?? existing.indirizzoCap ?? null,
                     documentoFirmato: row.documento_firmato ?? existing.documentoFirmato ?? false,
+                    geoEnabled: row.geo_enabled ?? existing.geoEnabled ?? false,
                 };
             });
 
@@ -2324,6 +2327,23 @@ class UserStorage {
             (u.whatsapp && u.whatsapp.replace(/\s/g, '').includes(q.replace(/\s/g, '')))
         );
     }
+}
+
+// ── Push-enabled users cache (per icone proximity in admin) ──────────────────
+// Set di user_id che hanno almeno una push subscription attiva
+let _pushEnabledUsers = new Set();
+async function syncPushEnabledUsers() {
+    if (typeof supabaseClient === 'undefined') return;
+    try {
+        const { data, error } = await supabaseClient.rpc('get_push_enabled_users');
+        if (error) { console.warn('[Push] get_push_enabled_users error:', error.message); return; }
+        _pushEnabledUsers = new Set((data || []).map(id => id));
+    } catch (e) {
+        console.warn('[Push] syncPushEnabledUsers exception:', e);
+    }
+}
+function hasPushEnabled(userId) {
+    return _pushEnabledUsers.has(userId);
 }
 
 // --- Flush pending credit/debt saves on page unload (critical for mobile PWA) ---

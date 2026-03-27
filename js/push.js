@@ -426,6 +426,10 @@ function _showGeoBanner() {
         navigator.geolocation.getCurrentPosition(
             () => {
                 localStorage.setItem('geo_permission_granted', '1');
+                // Salva geo_enabled nel profilo utente
+                if (typeof supabaseClient !== 'undefined') {
+                    supabaseClient.rpc('set_geo_enabled', { p_enabled: true }).catch(() => {});
+                }
                 // Prova ad avviare il watch se c'è già una prenotazione
                 const user = typeof getCurrentUser === 'function' ? getCurrentUser() : null;
                 _tryStartWatch(user);
@@ -457,6 +461,14 @@ function _startWatch(booking, user, sentKey) {
                 sessionStorage.setItem(sentKey, '1');
                 _stopProximityWatch();
                 console.log('[Proximity] Utente vicino — invio notifica admin');
+
+                // Segna arrivo nel database
+                const bookingDbId = booking._sbId || booking.id;
+                if (typeof supabaseClient !== 'undefined') {
+                    supabaseClient.rpc('mark_booking_arrived', { p_booking_id: bookingDbId }).catch(e => {
+                        console.warn('[Proximity] Errore mark_booking_arrived:', e);
+                    });
+                }
 
                 try {
                     await fetch(`${SUPABASE_URL}/functions/v1/notify-admin-proximity`, {

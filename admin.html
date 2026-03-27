@@ -934,6 +934,7 @@
                 UserStorage.syncUsersFromSupabase(),
                 ManualDebtStorage.syncFromSupabase(),
                 CreditStorage.syncFromSupabase(),
+                typeof syncPushEnabledUsers === 'function' ? syncPushEnabledUsers() : Promise.resolve(),
             ]);
             // Reconcile via RPC Supabase (non client-side, per evitare loop realtime)
             if (typeof supabaseClient !== 'undefined') {

@@ -278,6 +278,47 @@ function removeExtraSpotFromSlot(date, time, extraType) {
     if (window._currentAdminDate) renderAdminDayView(window._currentAdminDate);
 }
 
+// Helper: icona stato proximity (arrivo/GPS/notifiche)
+function _proximityIcon(booking, userRecord) {
+    // ✅ Arrivato (arrived_at è valorizzato)
+    if (booking.arrivedAt) {
+        return '<span title="Arrivato in palestra" style="color:#22c55e;font-size:14px">✅</span>';
+    }
+
+    // Controlla se lo slot è oggi e in corso o passato
+    const todayStr = typeof _localDateStr === 'function' ? _localDateStr() : new Date().toISOString().slice(0, 10);
+    const isToday = booking.date === todayStr;
+
+    if (!isToday) return ''; // non mostrare icone per giorni diversi da oggi
+
+    const userId = booking.userId;
+    const pushOk = userId && typeof hasPushEnabled === 'function' && hasPushEnabled(userId);
+    const geoOk = userRecord?.geoEnabled || false;
+
+    // ⚠️ Non ha notifiche o GPS abilitati
+    if (!pushOk || !geoOk) {
+        const missing = [];
+        if (!pushOk) missing.push('notifiche');
+        if (!geoOk) missing.push('GPS');
+        return `<span title="${missing.join(' e ')} non abilitati" style="color:#eab308;font-size:14px">⚠️</span>`;
+    }
+
+    // Controlla se lo slot è già iniziato
+    const startTime = (booking.time || '').split(' - ')[0]?.trim();
+    if (startTime) {
+        const [h, m] = startTime.split(':').map(Number);
+        const now = new Date();
+        const slotStart = new Date(now);
+        slotStart.setHours(h, m, 0, 0);
+        // Slot già iniziato da almeno 10 min e non arrivato
+        if ((now - slotStart) / 60000 > 10) {
+            return '<span title="Non arrivato" style="color:#ef4444;font-size:14px">❌</span>';
+        }
+    }
+
+    return ''; // slot futuro, ha GPS e push → nessuna icona
+}
+
 // Helper: HTML di una singola card partecipante
 function _buildParticipantCard(booking) {
     const isPaid = booking.paid || false;
@@ -342,7 +383,7 @@ function _buildParticipantCard(booking) {
         <div class="admin-participant-card${isCancelPending ? ' cancel-pending' : ''}">
             <button class="btn-delete-booking" onclick="deleteBooking('${booking.id}','${nm}')">✕</button>
             <div class="participant-card-content">
-                <div class="participant-name">${_escHtml(booking.name)}</div>
+                <div class="participant-name">${_escHtml(booking.name)} ${_proximityIcon(booking, userRecord)}</div>
                 <div class="participant-contact">📱 ${_escHtml(booking.whatsapp)}</div>
                 ${booking.notes ? `<div class="participant-notes">📝 ${_escHtml(booking.notes)}</div>` : ''}
                 ${cancelPendingBadge}${certBadge}${cfBadge}${assicBadge}${docBadge}
