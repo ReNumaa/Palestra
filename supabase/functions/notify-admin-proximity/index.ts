@@ -31,23 +31,32 @@ Deno.serve(async (req) => {
         return new Response(null, { status: 204, headers: corsHeaders });
     }
     try {
-        const { name, date, time, slot_type } = await req.json();
+        const { name, date, time, slot_type, no_booking } = await req.json();
 
-        if (!name || !time) {
-            return new Response(JSON.stringify({ ok: false, error: "name e time sono obbligatori" }), {
+        if (!name) {
+            return new Response(JSON.stringify({ ok: false, error: "name è obbligatorio" }), {
                 status: 400,
                 headers: { ...corsHeaders, "Content-Type": "application/json" },
             });
         }
 
-        const startTime = time.split(" - ")[0]?.trim() ?? time;
-
-        const payload = JSON.stringify({
-            title: `📍 ${name} sta arrivando`,
-            body:  `Lezione delle ${startTime}`,
-            tag:   `proximity-${date}-${startTime}-${name}`.replace(/\s/g, "-"),
-            url:   `/admin.html?date=${date}`,
-        });
+        let payload: string;
+        if (no_booking) {
+            payload = JSON.stringify({
+                title: `📍 ${name}`,
+                body:  `In palestra senza prenotazione`,
+                tag:   `proximity-nobook-${date}-${name}`.replace(/\s/g, "-"),
+                url:   `/admin.html?date=${date}`,
+            });
+        } else {
+            const startTime = time.split(" - ")[0]?.trim() ?? time;
+            payload = JSON.stringify({
+                title: `📍 ${name} sta arrivando`,
+                body:  `Lezione delle ${startTime}`,
+                tag:   `proximity-${date}-${startTime}-${name}`.replace(/\s/g, "-"),
+                url:   `/admin.html?date=${date}`,
+            });
+        }
 
         // Recupera push subscriptions degli admin
         const { data: subs, error: subsErr } = await supabase

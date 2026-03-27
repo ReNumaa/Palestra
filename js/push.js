@@ -421,11 +421,10 @@ function startProximityWatch() {
     }
 }
 
-// Avvia il watch GPS solo se c'è una prenotazione imminente
+// Avvia il watch GPS — con o senza prenotazione
 function _tryStartWatch(user) {
     const booking = _getUpcomingBooking();
-    if (!booking) return;
-    const sentKey = `proximity_sent_${booking.id}`;
+    const sentKey = booking ? `proximity_sent_${booking.id}` : `proximity_sent_nobook_${_localDateStr ? _localDateStr() : new Date().toISOString().slice(0,10)}`;
     if (sessionStorage.getItem(sentKey)) return;
     _startWatch(booking, user, sentKey);
 }
@@ -475,7 +474,7 @@ function _startWatch(booking, user, sentKey) {
     if (_proximityWatchId !== null) return;
     if (sessionStorage.getItem(sentKey)) return;
 
-    console.log('[Proximity] Watch attivato per prenotazione', booking.id);
+    console.log('[Proximity] Watch attivato', booking ? `per prenotazione ${booking.id}` : 'senza prenotazione');
 
     _proximityWatchId = navigator.geolocation.watchPosition(
         async (pos) => {
@@ -489,32 +488,66 @@ function _startWatch(booking, user, sentKey) {
             if (dist <= PROXIMITY_RADIUS_M) {
                 sessionStorage.setItem(sentKey, '1');
                 _stopProximityWatch();
-                console.log('[Proximity] Utente vicino — invio notifica admin');
 
-                // Segna arrivo nel database
-                const bookingDbId = booking._sbId || booking.id;
-                if (typeof supabaseClient !== 'undefined') {
-                    supabaseClient.rpc('mark_booking_arrived', { p_booking_id: bookingDbId }).catch(e => {
-                        console.warn('[Proximity] Errore mark_booking_arrived:', e);
-                    });
+                // Recupera nome utente
+                let userName = user?.name || 'Utente';
+                if (booking) userName = booking.name || userName;
+                if ((!userName || userName === 'Utente') && typeof supabaseClient !== 'undefined') {
+                    try {
+                        const { data: { session } } = await supabaseClient.auth.getSession();
+                        userName = session?.user?.user_metadata?.name || userName;
+                    } catch {}
                 }
 
-                try {
-                    await fetch(`${SUPABASE_URL}/functions/v1/notify-admin-proximity`, {
-                        method: 'POST',
-                        headers: {
-                            'Content-Type': 'application/json',
-                            'Authorization': 'Bearer ' + SUPABASE_ANON_KEY,
-                        },
-                        body: JSON.stringify({
-                            name: booking.name || user?.name || 'Utente',
-                            date: booking.date,
-                            time: booking.time,
-                            slot_type: booking.slotType || booking.slot_type || '',
-                        }),
-                    });
-                } catch (e) {
-                    console.warn('[Proximity] Errore invio notifica:', e);
+                if (booking) {
+                    // CON prenotazione: segna arrivo + notifica "sta arrivando"
+                    console.log('[Proximity] Utente vicino — invio notifica admin (con prenotazione)');
+                    const bookingDbId = booking._sbId || booking.id;
+                    if (typeof supabaseClient !== 'undefined') {
+                        supabaseClient.rpc('mark_booking_arrived', { p_booking_id: bookingDbId }).catch(e => {
+                            console.warn('[Proximity] Errore mark_booking_arrived:', e);
+                        });
+                    }
+                    try {
+                        await fetch(`${SUPABASE_URL}/functions/v1/notify-admin-proximity`, {
+                            method: 'POST',
+                            headers: {
+                                'Content-Type': 'application/json',
+                                'Authorization': 'Bearer ' + SUPABASE_ANON_KEY,
+                            },
+                            body: JSON.stringify({
+                                name: userName,
+                                date: booking.date,
+                                time: booking.time,
+                                slot_type: booking.slotType || booking.slot_type || '',
+                                no_booking: false,
+                            }),
+                        });
+                    } catch (e) {
+                        console.warn('[Proximity] Errore invio notifica:', e);
+                    }
+                } else {
+                    // SENZA prenotazione: notifica "in palestra senza prenotazione"
+                    console.log('[Proximity] Utente vicino SENZA prenotazione — invio notifica admin');
+                    const todayStr = typeof _localDateStr === 'function' ? _localDateStr() : new Date().toISOString().slice(0, 10);
+                    try {
+                        await fetch(`${SUPABASE_URL}/functions/v1/notify-admin-proximity`, {
+                            method: 'POST',
+                            headers: {
+                                'Content-Type': 'application/json',
+                                'Authorization': 'Bearer ' + SUPABASE_ANON_KEY,
+                            },
+                            body: JSON.stringify({
+                                name: userName,
+                                date: todayStr,
+                                time: '',
+                                slot_type: '',
+                                no_booking: true,
+                            }),
+                        });
+                    } catch (e) {
+                        console.warn('[Proximity] Errore invio notifica:', e);
+                    }
                 }
             }
         },
