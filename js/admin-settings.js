@@ -10,6 +10,70 @@ function renderSettingsTab() {
     renderCertBlockUI();
     renderAssicBlockUI();
     renderWeekTemplatesUI();
+    renderMaintenanceUI();
+}
+
+// ── Maintenance Mode ─────────────────────────────────────────────────────────
+
+async function renderMaintenanceUI() {
+    const toggle = document.getElementById('maintenanceModeToggle');
+    const text = document.getElementById('maintenanceModeText');
+    const adminToggle = document.getElementById('maintenanceAdminToggle');
+    const adminText = document.getElementById('maintenanceAdminText');
+    const msgInput = document.getElementById('maintenanceMessageInput');
+    if (!toggle) return;
+
+    try {
+        const { data } = await supabaseClient
+            .from('app_settings')
+            .select('key, value')
+            .in('key', ['maintenance_mode', 'maintenance_message', 'maintenance_admin']);
+        const flags = Object.fromEntries((data || []).map(r => [r.key, r.value]));
+
+        const modeOn = flags.maintenance_mode === true || flags.maintenance_mode === 'true';
+        toggle.checked = modeOn;
+        if (text) text.textContent = modeOn ? 'Attiva' : 'Non attiva';
+
+        const adminOn = flags.maintenance_admin === true || flags.maintenance_admin === 'true';
+        if (adminToggle) adminToggle.checked = adminOn;
+        if (adminText) adminText.textContent = adminOn ? 'Admin bloccato' : 'Admin accessibile';
+
+        if (msgInput) msgInput.value = (typeof flags.maintenance_message === 'string') ? flags.maintenance_message : '';
+    } catch (e) { console.warn('[Maintenance] renderUI error:', e); }
+}
+
+async function saveMaintenanceMode(val) {
+    const text = document.getElementById('maintenanceModeText');
+    if (text) text.textContent = val ? 'Attiva' : 'Non attiva';
+    const now = new Date().toISOString();
+    await supabaseClient.from('app_settings').upsert({ key: 'maintenance_mode', value: val, updated_at: now });
+    showToast(val ? '🔧 Manutenzione attivata' : '✅ Manutenzione disattivata', val ? 'error' : 'success');
+}
+
+async function saveMaintenanceAdmin(val) {
+    const toggle = document.getElementById('maintenanceAdminToggle');
+    if (val) {
+        const pwd = prompt('Inserisci la password per bloccare anche l\'admin:');
+        if (pwd !== 'Maldive') {
+            showToast('Password errata.', 'error');
+            if (toggle) toggle.checked = false;
+            return;
+        }
+    }
+    const text = document.getElementById('maintenanceAdminText');
+    if (text) text.textContent = val ? 'Admin bloccato' : 'Admin accessibile';
+    const now = new Date().toISOString();
+    await supabaseClient.from('app_settings').upsert({ key: 'maintenance_admin', value: val, updated_at: now });
+    showToast(val ? '⚠️ Admin bloccato — sblocca da Supabase' : '✅ Admin sbloccato', val ? 'error' : 'success');
+}
+
+async function saveMaintenanceMessage() {
+    const input = document.getElementById('maintenanceMessageInput');
+    const msg = (input?.value || '').trim();
+    const now = new Date().toISOString();
+    await supabaseClient.from('app_settings').upsert({ key: 'maintenance_message', value: msg, updated_at: now });
+    const savedMsg = document.getElementById('maintenanceMessageSaved');
+    if (savedMsg) { savedMsg.style.display = 'block'; setTimeout(() => { savedMsg.style.display = 'none'; }, 2000); }
 }
 
 function saveCancellationMode(mode) {

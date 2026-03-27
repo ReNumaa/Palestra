@@ -277,6 +277,45 @@
             <div id="tab-settings" class="tab-content">
                 <div class="dashboard-card settings-card">
 
+                    <!-- Modalità manutenzione -->
+                    <div class="settings-section">
+                        <h4 class="settings-section-title">🔧 Modalità manutenzione</h4>
+                        <p class="settings-section-desc">Quando attiva, gli utenti vedono un overlay "sistema non disponibile" su tutte le pagine. L'admin continua ad accedere normalmente.</p>
+                        <div class="cert-block-toggles">
+                            <div class="settings-section--inline" style="margin-bottom:0; padding-bottom:0; border-bottom:none;">
+                                <div class="debt-threshold-text">
+                                    <strong class="settings-option-body-strong">Attiva manutenzione</strong>
+                                    <span class="settings-section-desc" style="margin:0;">Blocca l'accesso agli utenti mostrando un messaggio di manutenzione.</span>
+                                </div>
+                                <label class="settings-toggle-wrap">
+                                    <input type="checkbox" id="maintenanceModeToggle" onchange="saveMaintenanceMode(this.checked)">
+                                    <span class="settings-toggle-track"><span class="settings-toggle-thumb"></span></span>
+                                    <span class="settings-toggle-text" id="maintenanceModeText"></span>
+                                </label>
+                            </div>
+                            <div class="settings-section--inline" style="margin-bottom:0; padding-bottom:0; border-bottom:none; margin-top:1rem;">
+                                <div class="debt-threshold-text">
+                                    <strong class="settings-option-body-strong">Blocca anche admin</strong>
+                                    <span class="settings-section-desc" style="margin:0;">Blocca anche l'interfaccia admin. Per sbloccare dovrai andare su Supabase.</span>
+                                </div>
+                                <label class="settings-toggle-wrap">
+                                    <input type="checkbox" id="maintenanceAdminToggle" onchange="saveMaintenanceAdmin(this.checked)">
+                                    <span class="settings-toggle-track"><span class="settings-toggle-thumb"></span></span>
+                                    <span class="settings-toggle-text" id="maintenanceAdminText"></span>
+                                </label>
+                            </div>
+                            <div style="margin-top:1rem;">
+                                <label style="font-size:0.85rem;color:#9ca3af;display:block;margin-bottom:0.4rem;">Messaggio personalizzato (opzionale)</label>
+                                <div style="display:flex;gap:0.5rem;align-items:center;">
+                                    <input type="text" id="maintenanceMessageInput" placeholder="Sistema temporaneamente non disponibile..." style="flex:1;padding:0.5rem 0.75rem;border-radius:8px;border:1px solid #333;background:#1a1a2e;color:#e0e0e0;font-size:0.9rem;">
+                                    <button class="debt-threshold-save-btn" onclick="saveMaintenanceMessage()">✅ Salva</button>
+                                    <span id="maintenanceMessageSaved" style="display:none; color:#16a34a; font-size:0.85rem;">Salvato</span>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                    <!-- End: modalità manutenzione -->
+
                     <!-- Soglia blocco prenotazioni -->
                     <div class="settings-section settings-section--inline">
                         <div class="debt-threshold-text">
@@ -884,6 +923,7 @@
     <script src="js/admin-clients.js?v=1"></script>
     <script src="js/admin-registro.js?v=1"></script>
     <script src="js/admin-messaggi.js?v=1"></script>
+    <script src="js/maintenance.js?v=1"></script>
     <script>
         // Avvia auth, sincronizza i booking da Supabase, poi aggiorna la dashboard
         (async function () {
