@@ -371,12 +371,18 @@ function startProximityWatch() {
     const alreadyGranted = localStorage.getItem('geo_permission_granted') === '1';
 
     if (alreadyGranted) {
-        // Permesso già dato — avvia watch solo se c'è una prenotazione
+        // Permesso già dato — assicura che geo_enabled sia salvato nel profilo
+        if (typeof supabaseClient !== 'undefined') {
+            supabaseClient.rpc('set_geo_enabled', { p_enabled: true }).catch(() => {});
+        }
         _tryStartWatch(user);
     } else if (navigator.permissions) {
         navigator.permissions.query({ name: 'geolocation' }).then(result => {
             if (result.state === 'granted') {
                 localStorage.setItem('geo_permission_granted', '1');
+                if (typeof supabaseClient !== 'undefined') {
+                    supabaseClient.rpc('set_geo_enabled', { p_enabled: true }).catch(() => {});
+                }
                 _tryStartWatch(user);
             } else if (result.state === 'denied') {
                 return;
