@@ -14,8 +14,11 @@ webpush.setVapidDetails("mailto:palestra@thomasbresciani.com", VAPID_PUBLIC_KEY,
 
 const supabase = createClient(SUPABASE_URL, SUPABASE_KEY);
 
-// Notifica solo a questo admin
-const ADMIN_UID = "cf5f39f3-1581-40be-80e9-15b56acee337";
+// Notifica a tutti gli admin
+const ADMIN_IDS = [
+    "ac72d54b-dea4-4159-9872-2bcb1662c486",  // Thomas
+    "cf5f39f3-1581-40be-80e9-15b56acee337",  // Andrea
+];
 
 const corsHeaders = {
     "Access-Control-Allow-Origin": "*",
@@ -46,11 +49,11 @@ Deno.serve(async (req) => {
             url:   `/admin.html?date=${date}`,
         });
 
-        // Recupera push subscriptions dell'admin
+        // Recupera push subscriptions degli admin
         const { data: subs, error: subsErr } = await supabase
             .from("push_subscriptions")
-            .select("endpoint, p256dh, auth")
-            .eq("user_id", ADMIN_UID);
+            .select("endpoint, p256dh, auth, user_id")
+            .in("user_id", ADMIN_IDS);
 
         if (subsErr) throw subsErr;
 
