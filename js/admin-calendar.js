@@ -316,7 +316,8 @@ function _proximityIcon(booking, userRecord) {
         }
     }
 
-    return ''; // slot futuro, ha GPS e push → nessuna icona
+    // 👍 Slot futuro, GPS e push attivi — tracciabile
+    return '<span title="GPS attivo, in attesa di arrivo" style="font-size:14px">👍</span>';
 }
 
 // Helper: HTML di una singola card partecipante
