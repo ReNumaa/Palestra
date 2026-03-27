@@ -868,7 +868,9 @@ function selectManualMethod(btn) {
     btn.classList.add('active');
 }
 
+let _savingManualEntry = false;
 async function saveManualEntry() {
+    if (_savingManualEntry) return;
     if (!_manualEntryContact) {
         alert('Seleziona un cliente dalla lista');
         document.getElementById('manualClientInput').focus();
@@ -893,15 +895,17 @@ async function saveManualEntry() {
     }
 
     const savedType = _manualEntryType;
-    closeManualEntryPopup();
 
-    if (_manualEntryType === 'debt') {
-        // Debito: operazione atomica server-side via RPC
-        (async () => {
+    // Blocca doppio click e mostra stato di caricamento
+    _savingManualEntry = true;
+    const saveBtn = document.getElementById('manualEntrySaveBtn');
+    const origBtnText = saveBtn ? saveBtn.textContent : '';
+    if (saveBtn) { saveBtn.textContent = 'Salvataggio...'; saveBtn.disabled = true; }
+
+    try {
+        if (savedType === 'debt') {
+            // Debito: operazione atomica server-side via RPC
             if (typeof supabaseClient !== 'undefined') {
-                // Cancella debounce pendenti PRIMA della RPC per evitare sovrascritture
-
-
                 const { data, error } = await _rpcWithTimeout(supabaseClient.rpc('admin_add_debt', {
                     p_email:      email.toLowerCase(),
                     p_whatsapp:   whatsapp || null,
@@ -912,7 +916,7 @@ async function saveManualEntry() {
                 }));
                 if (error) {
                     console.error('[Supabase] admin_add_debt error:', error.message, error.code);
-                    alert('⚠️ Errore durante l\'aggiunta del debito: ' + error.message);
+                    showToast('Errore: ' + error.message, 'error');
                     return;
                 }
                 console.log('[admin_add_debt]', data);
@@ -921,16 +925,16 @@ async function saveManualEntry() {
                 await ManualDebtStorage.addDebt(whatsapp, email, name, amount,
                     note || 'Debito manuale', method);
             }
+            closeManualEntryPopup();
+            showToast('Debito aggiunto con successo', 'success');
             renderPaymentsTab();
             debtorsListVisible = false;
             toggleDebtorsList();
-        })();
-    } else {
-        // Credito: operazione atomica server-side via RPC
-        const isFreeLesson = method === 'lezione-gratuita';
-        const slotPrices = { 'personal-training': 5, 'small-group': 10, 'group-class': 30 };
+        } else {
+            // Credito: operazione atomica server-side via RPC
+            const isFreeLesson = method === 'lezione-gratuita';
+            const slotPrices = { 'personal-training': 5, 'small-group': 10, 'group-class': 30 };
 
-        (async () => {
             const { data, error } = await _rpcWithTimeout(supabaseClient.rpc('admin_add_credit', {
                 p_email:       email.toLowerCase(),
                 p_whatsapp:    whatsapp || null,
@@ -944,7 +948,7 @@ async function saveManualEntry() {
 
             if (error) {
                 console.error('[Supabase] admin_add_credit error:', error.message, error.code);
-                alert('⚠️ Errore durante l\'aggiunta del credito: ' + error.message);
+                showToast('Errore: ' + error.message, 'error');
                 return;
             }
 
@@ -957,10 +961,18 @@ async function saveManualEntry() {
                 ManualDebtStorage.syncFromSupabase(),
             ]);
 
+            closeManualEntryPopup();
+            showToast('Credito aggiunto con successo', 'success');
             renderPaymentsTab();
             creditsListVisible = false;
             toggleCreditsList();
-        })();
+        }
+    } catch (err) {
+        console.error('[saveManualEntry] unexpected error:', err);
+        showToast('Errore di rete o timeout. Riprova.', 'error');
+    } finally {
+        _savingManualEntry = false;
+        if (saveBtn) { saveBtn.textContent = origBtnText; saveBtn.disabled = false; }
     }
 }
 
