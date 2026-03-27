@@ -585,26 +585,30 @@ function deleteBooking(bookingId, bookingName) {
         const isCancellationPending = booking.status === 'cancellation_requested';
         const wasPaid = !isCancellationPending && (booking.paid || (booking.creditApplied || 0) > 0);
 
-        // Se lezione già passata: niente rimborso, solo annullamento + azzeramento pagamento
+        // Se lezione già passata: rimborso credito se pagato, ma niente mora
         let creditAmount = 0;
         let creditNote = '';
         let moraDebtAmount = 0;
         let moraDebtNote = '';
 
-        if (!isPast) {
-            if (withMora) {
-                if (wasPaid) {
-                    creditAmount = Math.round(price * 0.5 * 100) / 100;
-                    creditNote = `Rimborso parziale 50% — annullamento con mora ${booking.date} ${booking.time}`;
-                } else {
-                    moraDebtAmount = Math.round(price * 0.5 * 100) / 100;
-                    moraDebtNote = `Mora 50% annullamento tardivo ${booking.date} ${booking.time}`;
-                }
+        if (isPast) {
+            // Lezione passata: restituisci il credito se era stato pagato, niente mora
+            if (wasPaid) {
+                creditAmount = (booking.creditApplied || 0) > 0 ? booking.creditApplied : price;
+                creditNote = `Annullamento lezione ${booking.date}`;
+            }
+        } else if (withMora) {
+            if (wasPaid) {
+                creditAmount = Math.round(price * 0.5 * 100) / 100;
+                creditNote = `Rimborso parziale 50% — annullamento con mora ${booking.date} ${booking.time}`;
             } else {
-                if (wasPaid) {
-                    creditAmount = (booking.creditApplied || 0) > 0 ? booking.creditApplied : price;
-                    creditNote = `Rimborso lezione ${booking.date}`;
-                }
+                moraDebtAmount = Math.round(price * 0.5 * 100) / 100;
+                moraDebtNote = `Mora 50% annullamento tardivo ${booking.date} ${booking.time}`;
+            }
+        } else {
+            if (wasPaid) {
+                creditAmount = (booking.creditApplied || 0) > 0 ? booking.creditApplied : price;
+                creditNote = `Rimborso lezione ${booking.date}`;
             }
         }
 
@@ -645,26 +649,31 @@ function deleteBooking(bookingId, bookingName) {
             BonusStorage.useBonus(booking.whatsapp, booking.email, booking.name);
         }
 
-        // Se lezione già passata: niente rimborso
-        if (!isPast) {
-            if (withMora) {
-                if (wasPaid) {
-                    const refund = Math.round(price * 0.5 * 100) / 100;
-                    CreditStorage.addCredit(booking.whatsapp, booking.email, booking.name,
-                        refund, `Rimborso parziale 50% — annullamento con mora ${booking.date} ${booking.time}`,
-                        null, false, false, null, booking.paymentMethod || '');
-                } else {
-                    ManualDebtStorage.addDebt(booking.whatsapp, booking.email, booking.name,
-                        Math.round(price * 0.5 * 100) / 100,
-                        `Mora 50% annullamento tardivo ${booking.date} ${booking.time}`);
-                }
+        // Se lezione già passata: restituisci credito se pagato, niente mora
+        if (isPast) {
+            if (wasPaid) {
+                const creditToRefund = (booking.creditApplied || 0) > 0 ? booking.creditApplied : price;
+                CreditStorage.addCredit(booking.whatsapp, booking.email, booking.name,
+                    creditToRefund, `Annullamento lezione ${booking.date}`,
+                    null, false, false, null, booking.paymentMethod || '');
+            }
+        } else if (withMora) {
+            if (wasPaid) {
+                const refund = Math.round(price * 0.5 * 100) / 100;
+                CreditStorage.addCredit(booking.whatsapp, booking.email, booking.name,
+                    refund, `Rimborso parziale 50% — annullamento con mora ${booking.date} ${booking.time}`,
+                    null, false, false, null, booking.paymentMethod || '');
             } else {
-                if (wasPaid) {
-                    const creditToRefund = (booking.creditApplied || 0) > 0 ? booking.creditApplied : price;
-                    CreditStorage.addCredit(booking.whatsapp, booking.email, booking.name,
-                        creditToRefund, `Rimborso lezione ${booking.date}`,
-                        null, false, false, null, booking.paymentMethod || '');
-                }
+                ManualDebtStorage.addDebt(booking.whatsapp, booking.email, booking.name,
+                    Math.round(price * 0.5 * 100) / 100,
+                    `Mora 50% annullamento tardivo ${booking.date} ${booking.time}`);
+            }
+        } else {
+            if (wasPaid) {
+                const creditToRefund = (booking.creditApplied || 0) > 0 ? booking.creditApplied : price;
+                CreditStorage.addCredit(booking.whatsapp, booking.email, booking.name,
+                    creditToRefund, `Rimborso lezione ${booking.date}`,
+                    null, false, false, null, booking.paymentMethod || '');
             }
         }
 
