@@ -278,11 +278,9 @@ function removeExtraSpotFromSlot(date, time, extraType) {
     if (window._currentAdminDate) renderAdminDayView(window._currentAdminDate);
 }
 
-// Helper: icona notifiche push attive/disattive
+// Helper: icona notifiche push (solo se disattivate)
 function _pushIcon(userRecord) {
-    if (userRecord?.pushEnabled) {
-        return '<span title="Notifiche attive" style="font-size:13px">🔔</span>';
-    }
+    if (userRecord?.pushEnabled) return '';
     return '<span title="Notifiche non attive" style="font-size:13px">🔕</span>';
 }
 
