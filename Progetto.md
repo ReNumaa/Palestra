@@ -207,6 +207,7 @@ Realtime
 | `insurance_history` | JSONB | |
 | `documento_firmato` | BOOLEAN | |
 | `geo_enabled` | BOOLEAN | Flag GPS abilitato nell'app |
+| `push_enabled` | BOOLEAN | Flag notifiche push attive |
 
 #### `credits`
 
@@ -303,6 +304,7 @@ Tutte le operazioni multi-step sono transazioni atomiche. Pattern: `SECURITY DEF
 | `save_push_subscription` | Salva subscription push |
 | `mark_booking_arrived` | Segna arrivo GPS proximity |
 | `set_geo_enabled` | Aggiorna flag GPS sul profilo |
+| `set_push_enabled` | Aggiorna flag push sul profilo |
 | `get_push_enabled_users` | Lista utenti con push attiva (per icone admin) |
 | `stripe_topup_credit` | Accredita ricarica Stripe (service_role only) |
 
@@ -405,7 +407,9 @@ Quando un utente con GPS abilitato si avvicina entro 200m dalla palestra (Via S.
 - **Senza prenotazione:** admin riceve "📍 Nome — In palestra senza prenotazione"
 - Banner "📍 Abilita la posizione" mostrato a tutti gli utenti non ancora abilitati
 - Flag `geo_enabled` su profilo, `arrived_at` su booking
-- Icone in admin calendario (solo oggi): ✅ arrivato, ⚠️ GPS/push mancanti, ❌ non arrivato (slot iniziato da 10+ min)
+- Icone in admin calendario (solo oggi): ✅ arrivato, ⚠️ GPS/push mancanti, ❌ non arrivato (slot iniziato da 10+ min), 👍🏻 GPS attivo in attesa
+- Icona 🔕 accanto al nome se notifiche push non attive (nessuna icona se attive)
+- Flag `push_enabled` su profilo, sincronizzato dal client ad ogni apertura
 
 ### Storico notifiche
 
@@ -471,7 +475,7 @@ Modifica: nome, WhatsApp, password, indirizzo, codice fiscale. Certificato e ass
 
 8 tab: Prenotazioni, Gestione Orari, Statistiche, Pagamenti, Registro, Clienti, Messaggi, Impostazioni (inclusa modalità manutenzione in fondo).
 
-- **Prenotazioni:** calendario con partecipanti, badge cert/assic/documento, checkbox pagamento, posti extra, popup annullamento, icone proximity (✅/⚠️/❌)
+- **Prenotazioni:** calendario con partecipanti, badge cert/assic/documento, checkbox pagamento, posti extra, popup annullamento, icone proximity (✅/⚠️/❌/👍🏻), icona 🔕 se push disattivate
 - **Gestione Orari:** 12 fasce/giorno, 3 settimane standard, override per data, assegnazione cliente
 - **Statistiche:** stat card, grafici trend/proiezione/pie, top/bottom clienti, filtri temporali
 - **Pagamenti:** debitori/creditori, popup "Da pagare", modifica storico, report XLSX
@@ -624,7 +628,7 @@ Dalla dashboard admin (tab Impostazioni) è possibile esportare/importare backup
 | 16-17 mar | Credit method, cutoff, edit entries, health check, ghost users |
 | 19-23 mar | Settings realtime, stripe_topup, push cleanup, documento_firmato |
 | 24-25 mar | Fix delete debt orfani, get_debtors manual-only, fix credits visibility, admin bypass cutoff, fix backup documento_firmato |
-| 27 mar | Fix saveManualEntry, track_actor (created_by/cancelled_by in bookings + RPC), fix stampa modulo PDF (iframe.print desktop, solo download iOS), modalità manutenzione (maintenance.js + toggle admin + Realtime), GPS proximity tracking (arrived_at, geo_enabled, notify-admin-proximity), storico notifiche admin (admin_messages), storico notifiche clienti (client_notifications) |
+| 27 mar | Fix saveManualEntry, track_actor (created_by/cancelled_by in bookings + RPC), fix stampa modulo PDF (iframe.print desktop, solo download iOS), modalità manutenzione (maintenance.js + toggle admin + Realtime), GPS proximity tracking (arrived_at, geo_enabled, notify-admin-proximity), storico notifiche admin (admin_messages), storico notifiche clienti (client_notifications), push_enabled su profili + icona 🔕 |
 
 ---
 

@@ -184,4 +184,10 @@
 - `supabase/migrations/20260327200000_proximity_tracking.sql` — arrived_at, geo_enabled, 3 RPC, get_all_profiles aggiornata
 - `supabase/migrations/20260327300000_admin_messages.sql` — tabella admin_messages
 - `supabase/migrations/20260327400000_client_notifications.sql` — tabella client_notifications
-- `sw.js` — cache bump v157 → v170
+- `supabase/migrations/20260327500000_push_enabled_profile.sql` — push_enabled su profiles + RPC + get_all_profiles
+- `sw.js` — cache bump v157 → v174
+
+#### Flag push_enabled + icona 🔕
+- Nuova colonna `push_enabled` su profiles: sincronizzata dal client ad ogni apertura via RPC `set_push_enabled`
+- Icona 🔕 accanto al nome in admin calendario se le notifiche non sono attive; nessuna icona se attive
+- Incluso in backup restore profili
