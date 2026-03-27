@@ -365,9 +365,7 @@ function startProximityWatch() {
     if (!('geolocation' in navigator)) return;
     if (typeof SUPABASE_URL === 'undefined') return;
 
-    // Non attivare per l'admin stesso — la notifica è PER l'admin
     const user = typeof getCurrentUser === 'function' ? getCurrentUser() : null;
-    if (user?.id === PROXIMITY_ADMIN_UID) return;
 
     // Controlla se il permesso GPS è già stato concesso
     const alreadyGranted = localStorage.getItem('geo_permission_granted') === '1';
