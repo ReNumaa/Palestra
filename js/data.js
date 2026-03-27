@@ -413,6 +413,8 @@ class BookingStorage {
             cancelledWithPenalty:     row.cancelled_with_penalty || false,
             cancelledRefundPct:       row.cancelled_refund_pct ?? null,
             updatedAt:                row.updated_at || null,
+            createdBy:                row.created_by || null,
+            cancelledBy:              row.cancelled_by || null,
         };
     }
 

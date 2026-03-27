@@ -3939,6 +3939,10 @@ canvas {
 }
 .registro-row:last-child td { border-bottom: none; }
 .registro-row:hover td { background: var(--light-gray); }
+.registro-admin td { background: #fff0f0; }
+.registro-admin:hover td { background: #ffe0e0; }
+.registro-system td { background: #f0fff0; }
+.registro-system:hover td { background: #e0ffe0; }
 
 .registro-ts {
     white-space: nowrap;

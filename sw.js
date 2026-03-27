@@ -1,4 +1,4 @@
-const CACHE_NAME = 'palestra-v154';
+const CACHE_NAME = 'palestra-v155';
 
 const APP_SHELL = [
     '/',
@@ -21,6 +21,7 @@ const APP_SHELL = [
     '/js/booking.js',
     '/js/auth.js',
     '/js/admin.js',
+    '/js/admin-registro.js',
     '/js/chart-mini.js',
     '/js/push.js',
     '/js/pwa-install.js',

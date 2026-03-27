@@ -25,6 +25,14 @@ function buildRegistroEntries() {
 
     const entries = [];
 
+    // Helper: determina se un'azione è stata fatta da admin
+    // (created_by/cancelled_by diverso da user_id = qualcun altro ha agito per conto dell'utente)
+    const _isAdminAction = (actorId, userId) => {
+        if (!actorId) return false;            // sconosciuto (dati vecchi) → non marcare
+        if (!userId) return !!actorId;         // booking anonimo ma con attore → admin
+        return actorId !== userId;             // attore diverso dal proprietario → admin
+    };
+
     // 1. Prenotazioni → eventi: created, paid, cancellation_requested, cancelled
     const bookings = BookingStorage.getAllBookings();
     for (const b of bookings) {
@@ -44,6 +52,9 @@ function buildRegistroEntries() {
         const createdAt = b.createdAt
             ? new Date(b.createdAt)
             : new Date((b.date || '2000-01-01') + 'T08:00:00');
+        const createdByAdmin   = _isAdminAction(b.createdBy, b.userId);
+        const cancelledByAdmin = _isAdminAction(b.cancelledBy, b.userId);
+
         entries.push({
             ...base,
             eventType:     'booking_created',
@@ -52,6 +63,7 @@ function buildRegistroEntries() {
             paymentMethod: b.paymentMethod || (b.status === 'cancelled' ? b.cancelledPaymentMethod : null) || null,
             bookingStatus: b.status,
             bookingPaid:   b.paid || (b.status === 'cancelled' && !!b.cancelledPaidAt),
+            actorType:     createdByAdmin ? 'admin' : 'user',
         });
 
         // Evento: pagamento ricevuto
@@ -67,6 +79,7 @@ function buildRegistroEntries() {
                 paymentMethod: paidMeth,
                 bookingStatus: b.status,
                 bookingPaid:   true,
+                actorType:     createdByAdmin ? 'admin' : 'user',
             });
         }
 
@@ -80,11 +93,16 @@ function buildRegistroEntries() {
                 paymentMethod: null,
                 bookingStatus: 'cancellation_requested',
                 bookingPaid:   b.paid,
+                actorType:     cancelledByAdmin ? 'admin' : 'user',
             });
         }
 
         // Evento: annullamento effettivo
         if (b.status === 'cancelled' && b.cancelledAt) {
+            // Se cancelledBy è null ma il booking aveva cancellationRequestedAt,
+            // è stato completato dal sistema (fulfill_pending_cancellation)
+            const cancelIsSystem = !b.cancelledBy && !!b.cancellationRequestedAt;
+
             entries.push({
                 ...base,
                 eventType:     'booking_cancelled',
@@ -93,6 +111,7 @@ function buildRegistroEntries() {
                 paymentMethod: null,
                 bookingStatus: 'cancelled',
                 bookingPaid:   false,
+                actorType:     cancelIsSystem ? 'system' : (cancelledByAdmin ? 'admin' : 'user'),
             });
 
             // Evento: mora trattenuta (annullamento con penalità su booking già pagato)
@@ -108,6 +127,7 @@ function buildRegistroEntries() {
                         paymentMethod: null,
                         bookingStatus: 'cancelled',
                         bookingPaid:   false,
+                        actorType:     cancelIsSystem ? 'system' : (cancelledByAdmin ? 'admin' : 'user'),
                     });
                 }
             }
@@ -122,6 +142,7 @@ function buildRegistroEntries() {
                     paymentMethod: null,
                     bookingStatus: 'cancelled',
                     bookingPaid:   false,
+                    actorType:     cancelledByAdmin ? 'admin' : 'user',
                 });
             }
         }
@@ -154,6 +175,11 @@ function buildRegistroEntries() {
                 }
             }
 
+            // Rimborsi da "annullamento soddisfatto" sono azioni di sistema,
+            // crediti manuali e altri rimborsi sono azioni admin
+            const isRefund = /^Rimborso/i.test(creditNote);
+            const isSystemRefund = isRefund && /annullamento soddisfatto/i.test(creditNote);
+
             entries.push({
                 bookingId:     h.bookingRef || null,
                 clientName:    record.name     || '—',
@@ -164,13 +190,14 @@ function buildRegistroEntries() {
                 slotType:      null,
                 slotLabel:     '',
                 notes:         creditNote,
-                eventType:     /^Rimborso/i.test(creditNote) ? 'booking_refund' : 'credit_added',
+                eventType:     isRefund ? 'booking_refund' : 'credit_added',
                 timestamp:     ts,
                 amount:        Math.abs(h.amount || 0),
                 paymentMethod: creditMethod,
                 freeLesson:    h.freeLesson || false,
                 bookingStatus: 'credit',
                 bookingPaid:   null,
+                actorType:     isSystemRefund ? 'system' : 'admin',
             });
         }
     }
@@ -196,6 +223,7 @@ function buildRegistroEntries() {
                 eventType:     isDebt ? (h.entryType === 'mora' ? 'cancellation_mora' : 'manual_debt') : 'manual_debt_paid',
                 timestamp:     ts,
                 amount:        Math.abs(h.amount || 0),
+                actorType:     'admin',
                 paymentMethod: isDebt ? null : (h.method || null),
                 bookingStatus: isDebt ? (creditCoversDebt ? 'paid' : 'debt') : 'paid',
                 bookingPaid:   isDebt ? (creditCoversDebt ? true : null) : true,
@@ -378,7 +406,10 @@ function renderRegistroTable() {
         const mi     = e.paymentMethod ? METHOD_ICON[e.paymentMethod]  || '' : '';
         const ml     = e.paymentMethod ? METHOD_LABEL[e.paymentMethod] || e.paymentMethod : '—';
         const amount = e.amount != null ? `€${Number(e.amount).toFixed(2)}` : '—';
-        return `<tr class="registro-row">
+        const rowCls = e.actorType === 'admin' ? 'registro-row registro-admin'
+                     : e.actorType === 'system' ? 'registro-row registro-system'
+                     : 'registro-row';
+        return `<tr class="${rowCls}">
             <td class="registro-ts">${fmtTs(e.timestamp)}</td>
             <td><span class="rtype-badge ${cfg.cls}">${cfg.icon} ${cfg.label}</span></td>
             <td class="registro-client">
@@ -534,7 +565,7 @@ function exportRegistro() {
     const sheetData = [
         ['Data/Ora Evento', 'Tipo Evento', 'Cliente', 'Telefono', 'Email',
          'Data Lezione', 'Ora Lezione', 'Tipo Lezione',
-         'Importo (€)', 'Metodo Pagamento', 'Stato', 'Note', 'Booking ID'],
+         'Importo (€)', 'Metodo Pagamento', 'Stato', 'Attore', 'Note', 'Booking ID'],
         ...data.map(e => [
             fmtTs(e.timestamp),
             EVENT_LABEL[e.eventType] || e.eventType,
@@ -547,6 +578,7 @@ function exportRegistro() {
             e.amount != null ? e.amount : '',
             METHOD_LABEL[e.paymentMethod] || e.paymentMethod || '',
             statusLabel(e),
+            e.actorType === 'admin' ? 'Admin' : e.actorType === 'system' ? 'Sistema' : 'Utente',
             e.notes     || '',
             e.bookingId || '',
         ]),
