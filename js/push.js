@@ -352,8 +352,8 @@ function _getUpcomingBooking() {
         const slotStart = new Date(now);
         slotStart.setHours(h, m, 0, 0);
         const diffMin = (slotStart - now) / 60000;
-        // Prenotazione che inizia tra -10 min (già iniziata da poco) e +120 min
-        if (diffMin >= -10 && diffMin <= 120) return b;
+        // Prenotazione che inizia tra -120 min (ritardatari) e +120 min (in anticipo)
+        if (diffMin >= -120 && diffMin <= 120) return b;
     }
     return null;
 }
