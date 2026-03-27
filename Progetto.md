@@ -1,6 +1,6 @@
 # TB Training — Documentazione Tecnica
 
-> Ultimo aggiornamento: 25 marzo 2026 (v2)
+> Ultimo aggiornamento: 27 marzo 2026 (v4)
 > Dominio: https://thomasbresciani.com — Repository: ReNumaa/Thomas-Bresciani
 > Progetto Supabase: `ppymuuyoveyyoswcimck` (Frankfurt, free tier)
 
@@ -22,8 +22,9 @@
 12. [Funzionalita — Lato Admin](#12-funzionalità--lato-admin)
 13. [Stripe — Ricarica Credito](#13-stripe--ricarica-credito)
 14. [Edge Functions](#14-edge-functions)
-15. [Migrazioni SQL](#15-migrazioni-sql)
-16. [Stato attuale e roadmap](#16-stato-attuale-e-roadmap)
+15. [Backup automatico](#15-backup-automatico)
+16. [Migrazioni SQL](#16-migrazioni-sql)
+17. [Stato attuale e roadmap](#17-stato-attuale-e-roadmap)
 
 ---
 
@@ -89,6 +90,7 @@ Thomas-Bresciani/
 │   ├── admin-settings.js   # Tab Impostazioni
 │   ├── chart-mini.js       # Libreria grafici Canvas
 │   ├── push.js             # Push notification subscription
+│   ├── maintenance.js      # Modalità manutenzione (overlay + Realtime)
 │   ├── pwa-install.js      # Banner installazione PWA
 │   ├── sw-update.js        # Auto-update service worker
 │   └── ui.js               # setLoading, showToast, _escHtml
@@ -99,6 +101,9 @@ Thomas-Bresciani/
 │       ├── send-reminders/
 │       ├── notify-slot-available/
 │       ├── notify-admin-booking/
+│       ├── notify-admin-cancellation/
+│       ├── notify-admin-new-client/
+│       ├── notify-admin-proximity/
 │       ├── send-admin-message/
 │       ├── create-checkout/
 │       └── stripe-webhook/
@@ -183,6 +188,9 @@ Realtime
 | `payment_method` | TEXT | contanti, carta, iban, credito, lezione-gratuita, stripe |
 | `credit_applied` | NUMERIC | |
 | `reminder_24h_sent`, `reminder_1h_sent` | BOOLEAN | |
+| `arrived_at` | TIMESTAMPTZ | Timestamp arrivo GPS proximity |
+| `created_by` | UUID | `auth.uid()` di chi ha creato il booking |
+| `cancelled_by` | UUID | `auth.uid()` di chi ha annullato il booking |
 | `updated_at`, `created_at` | TIMESTAMPTZ | |
 
 #### `profiles`
@@ -198,6 +206,7 @@ Realtime
 | `insurance_expiry` | DATE | |
 | `insurance_history` | JSONB | |
 | `documento_firmato` | BOOLEAN | |
+| `geo_enabled` | BOOLEAN | Flag GPS abilitato nell'app |
 
 #### `credits`
 
@@ -229,10 +238,16 @@ Override orari per data: `date`, `time`, `slot_type`, `extras` (JSONB), `client_
 
 Chiave-valore: `debt_threshold`, `cancellation_mode`, `cert_*`, `assic_*`, `gym_week_templates`, `gym_active_week_template`.
 
+#### `app_settings`
+
+Chiave-valore JSONB per flags applicativi: `data_cleared_at`, `maintenance_mode`, `maintenance_message`, `maintenance_admin`.
+
 #### Altre
 
 - `push_subscriptions` — subscription push per dispositivo
 - `admin_audit_log` — log audit operazioni admin
+- `admin_messages` — storico notifiche inviate agli admin (prenotazioni, annullamenti, proximity)
+- `client_notifications` — storico notifiche inviate ai clienti con stato invio/fallimento
 
 ### Trigger automatici
 
@@ -286,6 +301,9 @@ Tutte le operazioni multi-step sono transazioni atomiche. Pattern: `SECURITY DEF
 | `apply_credit_to_past_bookings` | Auto-paga dopo ricarica |
 | `get_or_reset_bonus` | Bonus giornaliero |
 | `save_push_subscription` | Salva subscription push |
+| `mark_booking_arrived` | Segna arrivo GPS proximity |
+| `set_geo_enabled` | Aggiorna flag GPS sul profilo |
+| `get_push_enabled_users` | Lista utenti con push attiva (per icone admin) |
 | `stripe_topup_credit` | Accredita ricarica Stripe (service_role only) |
 
 ### Pubbliche (anon)
@@ -372,9 +390,30 @@ Gli utenti vedono solo booking sintetici anonimi per la disponibilita calendario
 | `send-reminders` | pg_cron `*/5 * * * *` | Promemoria 25h e 1h (Europe/Rome) |
 | `notify-slot-available` | Client (annullamento) | Solo se slot era pieno |
 | `notify-admin-booking` | Client (prenotazione) | Nome + occupazione |
+| `notify-admin-cancellation` | Client (annullamento) | Nome + bonus/mora |
+| `notify-admin-new-client` | Client (registrazione) | Nome nuovo iscritto |
+| `notify-admin-proximity` | Client (GPS proximity) | Arrivo con/senza prenotazione |
 | `send-admin-message` | Admin (tab Messaggi) | 3 modalita destinatari |
 
 VAPID keys: public in `push.js`, private nei secrets Supabase.
+
+### GPS Proximity
+
+Quando un utente con GPS abilitato si avvicina entro 200m dalla palestra (Via S. Rocco, 1 — coords 45.6603, 10.4200):
+
+- **Con prenotazione:** admin riceve "📍 Nome sta arrivando — Lezione delle HH:MM" + `arrived_at` scritto nel booking
+- **Senza prenotazione:** admin riceve "📍 Nome — In palestra senza prenotazione"
+- Banner "📍 Abilita la posizione" mostrato a tutti gli utenti non ancora abilitati
+- Flag `geo_enabled` su profilo, `arrived_at` su booking
+- Icone in admin calendario (solo oggi): ✅ arrivato, ⚠️ GPS/push mancanti, ❌ non arrivato (slot iniziato da 10+ min)
+
+### Storico notifiche
+
+Tutte le notifiche (admin e client) vengono salvate nel database:
+
+- `admin_messages` — prenotazioni, annullamenti, proximity, nuovi iscritti
+- `client_notifications` — promemoria, slot disponibili, broadcast — con stato `sent`/`failed`/`no_subscription`
+- Visibili nel tab Registro: sezione "📩 Storico notifiche" e "📬 Notifiche ai clienti" con filtri e paginazione
 
 ---
 
@@ -385,6 +424,7 @@ VAPID keys: public in `push.js`, private nei secrets Supabase.
 | `index.html` | bookings, settings, schedule_overrides | — |
 | `admin.html` | bookings, credits, credit_history, manual_debts, bonuses, profiles, settings | 600ms |
 | `prenotazioni.html` | bookings, credits, credit_history, manual_debts, bonuses | 300ms |
+| Tutte le pagine | app_settings (maintenance) | 300ms |
 
 Tabelle devono essere nella publication `supabase_realtime`.
 
@@ -429,16 +469,33 @@ Modifica: nome, WhatsApp, password, indirizzo, codice fiscale. Certificato e ass
 
 ### Dashboard (`admin.html`)
 
-8 tab: Prenotazioni, Gestione Orari, Statistiche, Pagamenti, Registro, Clienti, Messaggi, Impostazioni.
+8 tab: Prenotazioni, Gestione Orari, Statistiche, Pagamenti, Registro, Clienti, Messaggi, Impostazioni (inclusa modalità manutenzione in fondo).
 
-- **Prenotazioni:** calendario con partecipanti, badge cert/assic/documento, checkbox pagamento, posti extra, popup annullamento
+- **Prenotazioni:** calendario con partecipanti, badge cert/assic/documento, checkbox pagamento, posti extra, popup annullamento, icone proximity (✅/⚠️/❌)
 - **Gestione Orari:** 12 fasce/giorno, 3 settimane standard, override per data, assegnazione cliente
 - **Statistiche:** stat card, grafici trend/proiezione/pie, top/bottom clienti, filtri temporali
 - **Pagamenti:** debitori/creditori, popup "Da pagare", modifica storico, report XLSX
-- **Registro:** event sourcing, 7+ tipi, filtri, export Excel
+- **Registro:** event sourcing, 7+ tipi, filtri, export Excel. Righe colorate per attore: rosso = admin, verde chiaro = sistema (fulfill automatico), bianco = utente. Sezioni separate: "📩 Storico notifiche admin" e "📬 Notifiche ai clienti" con filtri per tipo/stato/cliente/data
 - **Clienti:** ricerca, filtri (cert/assic/anagrafica), popup modifica, eliminazione
 - **Messaggi:** push a tutti / iscritti giorno / iscritti ora
-- **Impostazioni:** soglie, blocchi, backup/ripristino, health check
+- **Impostazioni:** soglie, blocchi, backup/ripristino, health check, modalità manutenzione
+
+### Modalità manutenzione
+
+Permette di rendere il sistema non disponibile direttamente dall'admin panel.
+
+| Flag (`app_settings`) | Effetto |
+|---|---|
+| `maintenance_mode` | Overlay "Sistema in manutenzione" su tutte le pagine utente |
+| `maintenance_admin` | Blocca anche l'interfaccia admin (sblocco solo da Supabase) |
+| `maintenance_message` | Messaggio personalizzato nell'overlay |
+
+- **Fail-open:** se la query fallisce, il sito funziona normalmente
+- **Realtime:** overlay appare/scompare in tempo reale via Supabase Realtime
+- **Admin bypass:** l'admin accede normalmente salvo `maintenance_admin = true`
+- **Password:** attivare "Blocca anche admin" richiede password di sicurezza
+- **Sblocco emergenza:** da Supabase Table Editor → `app_settings` → `maintenance_admin` → `false`
+- **Logo:** l'overlay mostra il logo di Thomas Bresciani
 
 ### Viewer emergenza (`viewer.html`)
 
@@ -480,10 +537,13 @@ Funziona offline con backup JSON importato.
 
 | Funzione | Trigger | Note |
 |---|---|---|
-| `send-reminders` | pg_cron `*/5 * * * *` | Promemoria 25h + 1h |
-| `notify-slot-available` | Client (annullamento) | Solo se slot era pieno |
-| `notify-admin-booking` | Client (prenotazione) | Nome + occupazione |
-| `send-admin-message` | Admin | 3 modalita |
+| `send-reminders` | pg_cron `*/5 * * * *` | Promemoria 25h + 1h + log client_notifications |
+| `notify-slot-available` | Client (annullamento) | Solo se slot era pieno + log client_notifications |
+| `notify-admin-booking` | Client (prenotazione) | Nome + occupazione + log admin_messages |
+| `notify-admin-cancellation` | Client (annullamento) | Nome + bonus/mora + log admin_messages |
+| `notify-admin-new-client` | Client (registrazione) | Nome + log admin_messages |
+| `notify-admin-proximity` | Client (GPS) | Arrivo con/senza prenotazione + log admin_messages |
+| `send-admin-message` | Admin | 3 modalita + log client_notifications |
 | `create-checkout` | Client (ricarica) | Verifica JWT |
 | `stripe-webhook` | Stripe webhook | Verifica firma, idempotente |
 
@@ -491,9 +551,69 @@ Funziona offline con backup JSON importato.
 
 ---
 
-## 15. Migrazioni SQL
+## 15. Backup automatico
 
-71 file in `supabase/migrations/`, in ordine cronologico.
+### Architettura
+
+Il backup gira su **Umbrel** (mini PC) come cron job orario. Esporta tutte le tabelle Supabase via REST API e salva un JSON su Nextcloud.
+
+```
+Cron (ogni ora)
+    └─► /home/umbrel/backup-palestra.sh
+        ├─► curl Supabase REST API (service_role key)
+        │   └─► 9 tabelle: bookings, credits, credit_history, manual_debts,
+        │       bonuses, schedule_overrides, app_settings, profiles, settings,
+        │       admin_messages, client_notifications
+        ├─► Salva JSON in Nextcloud (WebDAV locale)
+        ├─► Retention policy (pulizia automatica)
+        └─► docker exec nextcloud occ files:scan (rescan indice)
+```
+
+### Percorsi
+
+| Cosa | Path |
+|---|---|
+| Script | `/home/umbrel/backup-palestra.sh` |
+| Log | `/home/umbrel/backup-palestra.log` |
+| Cron | `0 * * * *` (crontab utente `umbrel`) |
+| Backup dir (Nextcloud) | `/home/umbrel/umbrel/app-data/nextcloud/data/nextcloud/data/Andrew/files/Clienti/Thomas Bresciani/Backup` |
+| Container Nextcloud | `nextcloud_web_1` |
+| Naming file | `backup-palestra-YYYY-MM-DD_HHMMSS.json` |
+
+### Formato JSON
+
+```json
+{
+  "exportedAt": "2026-03-27T12:00:01+00:00",
+  "source": "auto-cron",
+  "tables": {
+    "bookings": [...],
+    "credits": [...],
+    ...
+  }
+}
+```
+
+### Retention policy
+
+| Periodo | Cosa si tiene |
+|---|---|
+| Ultime 48h | Tutti i backup (orari) |
+| 3–7 giorni | 1 al giorno (il primo della giornata) |
+| Mensile | Solo il backup del 1° del mese |
+| Annuale | Solo il backup del 1° gennaio |
+
+La pulizia gira ad ogni esecuzione del backup (ogni ora). I file che non rientrano in nessuna categoria vengono eliminati e Nextcloud viene riscansionato.
+
+### Backup manuale (admin)
+
+Dalla dashboard admin (tab Impostazioni) è possibile esportare/importare backup in formato JSON o CSV tramite `admin-backup.js`. Il formato è compatibile con quello del cron (auto-detect + conversione).
+
+---
+
+## 16. Migrazioni SQL
+
+72+ file in `supabase/migrations/`, in ordine cronologico.
 
 | Periodo | Contenuto |
 |---|---|
@@ -504,10 +624,11 @@ Funziona offline con backup JSON importato.
 | 16-17 mar | Credit method, cutoff, edit entries, health check, ghost users |
 | 19-23 mar | Settings realtime, stripe_topup, push cleanup, documento_firmato |
 | 24-25 mar | Fix delete debt orfani, get_debtors manual-only, fix credits visibility, admin bypass cutoff, fix backup documento_firmato |
+| 27 mar | Fix saveManualEntry, track_actor (created_by/cancelled_by in bookings + RPC), fix stampa modulo PDF (iframe.print desktop, solo download iOS), modalità manutenzione (maintenance.js + toggle admin + Realtime), GPS proximity tracking (arrived_at, geo_enabled, notify-admin-proximity), storico notifiche admin (admin_messages), storico notifiche clienti (client_notifications) |
 
 ---
 
-## 16. Stato attuale e roadmap
+## 17. Stato attuale e roadmap
 
 ### Checklist go-live
 
@@ -553,4 +674,4 @@ Funziona offline con backup JSON importato.
 
 ---
 
-*Documento unificato — 25 marzo 2026*
+*Documento unificato — 27 marzo 2026*
