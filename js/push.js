@@ -309,10 +309,14 @@ if ('Notification' in window) {
     }
 }
 
-// Sync push_enabled su ogni pagina — salva nel profilo se le notifiche sono attive o no.
+// Sync push_enabled su ogni pagina — salva nel profilo solo quando lo stato è definitivo.
+// Non salva false se il permesso è 'default' (non ancora deciso).
 function _syncPushEnabled() {
     if (!('Notification' in window)) return;
-    const enabled = Notification.permission === 'granted';
+    const perm = Notification.permission;
+    // Solo 'granted' → true, 'denied' → false. 'default' → non aggiornare.
+    if (perm !== 'granted' && perm !== 'denied') return;
+    const enabled = perm === 'granted';
     setTimeout(async () => {
         if (typeof supabaseClient === 'undefined') return;
         try {
