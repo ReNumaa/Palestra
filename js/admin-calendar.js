@@ -577,7 +577,6 @@ function deleteBooking(bookingId, bookingName) {
     const msToLesson = lessonStart ? lessonStart - new Date() : Infinity;
     const ONE_DAY = 24 * 60 * 60 * 1000;
     const isWithin24h = msToLesson <= ONE_DAY;
-    const isPast = lessonStart ? lessonStart < new Date() : false;
 
     // Helper: esegue la cancellazione via RPC Supabase (atomica) e aggiorna UI
     async function _cancelViaRpc(opts = {}) {
@@ -585,19 +584,12 @@ function deleteBooking(bookingId, bookingName) {
         const isCancellationPending = booking.status === 'cancellation_requested';
         const wasPaid = !isCancellationPending && (booking.paid || (booking.creditApplied || 0) > 0);
 
-        // Se lezione già passata: rimborso credito se pagato, ma niente mora
         let creditAmount = 0;
         let creditNote = '';
         let moraDebtAmount = 0;
         let moraDebtNote = '';
 
-        if (isPast) {
-            // Lezione passata: restituisci il credito se era stato pagato, niente mora
-            if (wasPaid) {
-                creditAmount = (booking.creditApplied || 0) > 0 ? booking.creditApplied : price;
-                creditNote = `Annullamento lezione ${booking.date}`;
-            }
-        } else if (withMora) {
+        if (withMora) {
             if (wasPaid) {
                 creditAmount = Math.round(price * 0.5 * 100) / 100;
                 creditNote = `Rimborso parziale 50% — annullamento con mora ${booking.date} ${booking.time}`;
@@ -649,15 +641,7 @@ function deleteBooking(bookingId, bookingName) {
             BonusStorage.useBonus(booking.whatsapp, booking.email, booking.name);
         }
 
-        // Se lezione già passata: restituisci credito se pagato, niente mora
-        if (isPast) {
-            if (wasPaid) {
-                const creditToRefund = (booking.creditApplied || 0) > 0 ? booking.creditApplied : price;
-                CreditStorage.addCredit(booking.whatsapp, booking.email, booking.name,
-                    creditToRefund, `Annullamento lezione ${booking.date}`,
-                    null, false, false, null, booking.paymentMethod || '');
-            }
-        } else if (withMora) {
+        if (withMora) {
             if (wasPaid) {
                 const refund = Math.round(price * 0.5 * 100) / 100;
                 CreditStorage.addCredit(booking.whatsapp, booking.email, booking.name,
