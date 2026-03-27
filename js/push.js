@@ -309,22 +309,28 @@ if ('Notification' in window) {
     }
 }
 
-// Sync geo_enabled su ogni pagina — se il permesso GPS è concesso, aggiorna il profilo
-if ('geolocation' in navigator && navigator.permissions) {
-    navigator.permissions.query({ name: 'geolocation' }).then(result => {
-        if (result.state === 'granted') {
-            localStorage.setItem('geo_permission_granted', '1');
-            // Aspetta che l'utente sia autenticato, poi salva il flag
-            const _syncGeo = () => {
-                if (typeof supabaseClient !== 'undefined') {
-                    supabaseClient.rpc('set_geo_enabled', { p_enabled: true }).catch(() => {});
-                }
-            };
-            // Ritarda per dare tempo all'auth di completarsi
-            setTimeout(_syncGeo, 4000);
+// Sync geo_enabled su ogni pagina — se il permesso GPS è concesso, aggiorna il profilo.
+// Aspetta che l'auth sia pronta controllando la sessione Supabase.
+function _syncGeoEnabled() {
+    if (!('geolocation' in navigator) || !navigator.permissions) return;
+    navigator.permissions.query({ name: 'geolocation' }).then(async result => {
+        if (result.state !== 'granted') return;
+        localStorage.setItem('geo_permission_granted', '1');
+        if (typeof supabaseClient === 'undefined') return;
+        // Aspetta che ci sia una sessione autenticata
+        try {
+            const { data: { session } } = await supabaseClient.auth.getSession();
+            if (session?.user?.id) {
+                await supabaseClient.rpc('set_geo_enabled', { p_enabled: true });
+                console.log('[Geo] geo_enabled salvato per', session.user.email);
+            }
+        } catch (e) {
+            console.warn('[Geo] sync geo_enabled fallito:', e);
         }
     }).catch(() => {});
 }
+// Lancia dopo 5s per dare tempo a initAuth
+setTimeout(_syncGeoEnabled, 5000);
 
 // Rileva iOS
 function _isIOS() {
