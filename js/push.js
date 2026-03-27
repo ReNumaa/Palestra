@@ -369,40 +369,41 @@ function startProximityWatch() {
     const user = typeof getCurrentUser === 'function' ? getCurrentUser() : null;
     if (user?.id === PROXIMITY_ADMIN_UID) return;
 
-    const booking = _getUpcomingBooking();
-    if (!booking) return;
+    // Controlla se il permesso GPS è già stato concesso
+    const alreadyGranted = localStorage.getItem('geo_permission_granted') === '1';
 
-    const sentKey = `proximity_sent_${booking.id}`;
-    if (sessionStorage.getItem(sentKey)) return;
-
-    // Se il permesso è già concesso, avvia direttamente il watch
-    if (navigator.permissions) {
+    if (alreadyGranted) {
+        // Permesso già dato — avvia watch solo se c'è una prenotazione
+        _tryStartWatch(user);
+    } else if (navigator.permissions) {
         navigator.permissions.query({ name: 'geolocation' }).then(result => {
             if (result.state === 'granted') {
                 localStorage.setItem('geo_permission_granted', '1');
-                _startWatch(booking, user, sentKey);
+                _tryStartWatch(user);
             } else if (result.state === 'denied') {
-                return; // l'utente ha bloccato — non mostrare nulla
+                return;
             } else {
-                // 'prompt' — mostra il banner personalizzato
-                _showGeoBanner(booking, user, sentKey);
+                // 'prompt' — mostra il banner sempre (anche senza prenotazione)
+                _showGeoBanner();
             }
         }).catch(() => {
-            // Fallback: controlla localStorage
-            if (localStorage.getItem('geo_permission_granted') === '1') {
-                _startWatch(booking, user, sentKey);
-            } else {
-                _showGeoBanner(booking, user, sentKey);
-            }
+            _showGeoBanner();
         });
-    } else if (localStorage.getItem('geo_permission_granted') === '1') {
-        _startWatch(booking, user, sentKey);
     } else {
-        _showGeoBanner(booking, user, sentKey);
+        _showGeoBanner();
     }
 }
 
-function _showGeoBanner(booking, user, sentKey) {
+// Avvia il watch GPS solo se c'è una prenotazione imminente
+function _tryStartWatch(user) {
+    const booking = _getUpcomingBooking();
+    if (!booking) return;
+    const sentKey = `proximity_sent_${booking.id}`;
+    if (sessionStorage.getItem(sentKey)) return;
+    _startWatch(booking, user, sentKey);
+}
+
+function _showGeoBanner() {
     // Non mostrare se un altro banner (push/install) è già visibile
     if (document.getElementById('pushBanner') || document.getElementById('geoBanner')) return;
 
@@ -427,7 +428,9 @@ function _showGeoBanner(booking, user, sentKey) {
         navigator.geolocation.getCurrentPosition(
             () => {
                 localStorage.setItem('geo_permission_granted', '1');
-                _startWatch(booking, user, sentKey);
+                // Prova ad avviare il watch se c'è già una prenotazione
+                const user = typeof getCurrentUser === 'function' ? getCurrentUser() : null;
+                _tryStartWatch(user);
             },
             (err) => {
                 console.warn('[Proximity] Permesso geolocation negato:', err.message);
