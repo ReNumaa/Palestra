@@ -309,6 +309,23 @@ if ('Notification' in window) {
     }
 }
 
+// Sync geo_enabled su ogni pagina — se il permesso GPS è concesso, aggiorna il profilo
+if ('geolocation' in navigator && navigator.permissions) {
+    navigator.permissions.query({ name: 'geolocation' }).then(result => {
+        if (result.state === 'granted') {
+            localStorage.setItem('geo_permission_granted', '1');
+            // Aspetta che l'utente sia autenticato, poi salva il flag
+            const _syncGeo = () => {
+                if (typeof supabaseClient !== 'undefined') {
+                    supabaseClient.rpc('set_geo_enabled', { p_enabled: true }).catch(() => {});
+                }
+            };
+            // Ritarda per dare tempo all'auth di completarsi
+            setTimeout(_syncGeo, 4000);
+        }
+    }).catch(() => {});
+}
+
 // Rileva iOS
 function _isIOS() {
     return /iPad|iPhone|iPod/.test(navigator.userAgent) || (navigator.platform === 'MacIntel' && navigator.maxTouchPoints > 1);
