@@ -127,15 +127,24 @@ function openBookingModal(dateInfo, timeSlot, slotType, remainingSpots) {
     const _submitBtn = document.querySelector('#bookingForm button[type="submit"]');
     if (_submitBtn) { _submitBtn.disabled = false; setLoading(_submitBtn, false); }
 
+    // Slot pieno: nascondi form, mostra solo persone iscritte
+    const _slotFull = remainingSpots <= 0;
+    if (_slotFull && user) {
+        document.getElementById('bookingForm').style.display = 'none';
+        // Rimuovi eventuali messaggi di blocco (non servono per slot pieni)
+        const _oldBl = document.getElementById('bookingBlockMessage');
+        if (_oldBl) _oldBl.remove();
+    }
+
     // Persone iscritte (solo per utenti loggati)
     const attendeesContainer = document.getElementById('slotAttendees');
     const attendeesList = document.getElementById('slotAttendeesList');
     if (attendeesContainer && user) {
         attendeesContainer.style.display = '';
         attendeesList.innerHTML = '<li style="color:#9ca3af;font-style:italic">Caricamento...</li>';
-        // Chiudi il details se era rimasto aperto
         const details = attendeesContainer.querySelector('details');
-        if (details) details.removeAttribute('open');
+        // Slot pieno: apri automaticamente la tendina
+        if (details) { if (_slotFull) details.setAttribute('open', ''); else details.removeAttribute('open'); }
         supabaseClient.rpc('get_slot_attendees', {
             p_date: selectedSlot ? selectedSlot.date : dateInfo.formatted,
             p_time: timeSlot

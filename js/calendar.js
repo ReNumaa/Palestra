@@ -274,8 +274,9 @@ function createSlot(dateInfo, timeSlot) {
         `;
         if (loggedIn) {
             const bookable = !isFull && timeOk && !_isNonBookable(mainType);
-            slot.style.cursor = bookable ? 'pointer' : 'not-allowed';
-            if (bookable) slot.addEventListener('click', () => selectSlot(dateInfo, timeSlot, mainType, remainingSpots));
+            // Slot pieni restano cliccabili per mostrare "Persone iscritte"
+            slot.style.cursor = (bookable || isFull) ? 'pointer' : 'not-allowed';
+            if (bookable || isFull) slot.addEventListener('click', () => selectSlot(dateInfo, timeSlot, mainType, remainingSpots));
         } else if (!_isNonBookable(mainType) && timeOk) {
             slot.style.cursor = 'pointer';
             slot.addEventListener('click', () => selectSlot(dateInfo, timeSlot, mainType, remainingSpots));
@@ -298,8 +299,8 @@ function createSlot(dateInfo, timeSlot) {
             `;
             if (loggedInSplit) {
                 const bookable = !full && timeOk && !_isNonBookable(type);
-                half.style.cursor = bookable ? 'pointer' : 'not-allowed';
-                if (bookable) half.addEventListener('click', e => { e.stopPropagation(); selectSlot(dateInfo, timeSlot, type, rem); });
+                half.style.cursor = (bookable || full) ? 'pointer' : 'not-allowed';
+                if (bookable || full) half.addEventListener('click', e => { e.stopPropagation(); selectSlot(dateInfo, timeSlot, type, rem); });
             } else if (!_isNonBookable(type) && timeOk) {
                 half.style.cursor = 'pointer';
                 half.addEventListener('click', e => { e.stopPropagation(); selectSlot(dateInfo, timeSlot, type, rem); });
@@ -533,7 +534,7 @@ function createMobileSlotCard(dateInfo, scheduledSlot) {
 
     if (loggedIn) {
         const bookable = !isFull && timeOk;
-        if (bookable) {
+        if (bookable || isFull) {
             slotCard.addEventListener('click', () => {
                 selectMobileSlot(dateInfo, timeSlot, slotType, remainingSpots, slotCard);
             });
