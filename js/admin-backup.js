@@ -38,6 +38,7 @@ function _convertCronToAdminFormat(cron) {
             cancelledWithBonus: b.cancelled_with_bonus || false,
             cancelledWithPenalty: b.cancelled_with_penalty || false,
             cancelledRefundPct: b.cancelled_refund_pct ?? null,
+            arrivedAt: b.arrived_at || null,
         })));
     }
     // Credits: array Supabase → oggetto keyed
@@ -447,6 +448,7 @@ function importBackup(input) {
                                     indirizzo_paese: p.indirizzo_paese || null,
                                     indirizzo_cap: p.indirizzo_cap || null,
                                     documento_firmato: p.documento_firmato || false,
+                                    geo_enabled: p.geo_enabled || false,
                                 }).eq('email', (p.email || '').toLowerCase()));
                             }
                         }
