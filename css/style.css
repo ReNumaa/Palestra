@@ -1404,6 +1404,51 @@ body.nav-open {
 .modal-spots.spots-orange { color: #ea7b0a; }
 .modal-spots.spots-red    { color: #dc2626; }
 
+/* ── Slot attendees (Persone iscritte) ─────────────────────── */
+.slot-attendees-details {
+    margin: 0.5rem 0;
+    border: 1px solid #e5e7eb;
+    border-radius: 8px;
+    overflow: hidden;
+}
+.slot-attendees-summary {
+    padding: 0.6rem 0.75rem;
+    font-weight: 600;
+    font-size: 0.9rem;
+    cursor: pointer;
+    background: #f9fafb;
+    list-style: none;
+}
+.slot-attendees-summary::marker,
+.slot-attendees-summary::-webkit-details-marker { display: none; }
+.slot-attendees-summary::after {
+    content: '▸';
+    float: right;
+    transition: transform 0.2s;
+}
+.slot-attendees-details[open] .slot-attendees-summary::after {
+    transform: rotate(90deg);
+}
+.slot-attendees-list {
+    list-style: none;
+    padding: 0.5rem 0.75rem;
+    margin: 0;
+}
+.slot-attendees-list li {
+    padding: 0.3rem 0;
+    font-size: 0.85rem;
+    color: #374151;
+    border-bottom: 1px solid #f3f4f6;
+}
+.slot-attendees-list li:last-child { border-bottom: none; }
+.slot-attendees-empty {
+    color: #9ca3af;
+    font-style: italic;
+    font-size: 0.85rem;
+    padding: 0;
+    list-style: none;
+}
+
 .modal-box .booking-form {
     display: flex;
     flex-direction: column;

@@ -41,7 +41,7 @@ function _authError(error) {
 async function _loadProfile(userId) {
     const { data: profile, error } = await supabaseClient
         .from('profiles')
-        .select('id, name, email, whatsapp, medical_cert_expiry, medical_cert_history, insurance_expiry, insurance_history, codice_fiscale, indirizzo_via, indirizzo_paese, indirizzo_cap, documento_firmato, created_at')
+        .select('id, name, email, whatsapp, medical_cert_expiry, medical_cert_history, insurance_expiry, insurance_history, codice_fiscale, indirizzo_via, indirizzo_paese, indirizzo_cap, documento_firmato, privacy_prenotazioni, created_at')
         .eq('id', userId)
         .single();
 
@@ -348,6 +348,11 @@ async function updateUserProfile(currentEmail, updates, newPassword) {
             history.push({ scadenza: newScad, aggiornatoIl: new Date().toISOString() });
             profileUpdate.insurance_history = history;
         }
+    }
+
+    // Privacy prenotazioni
+    if (updates.privacyPrenotazioni !== undefined) {
+        profileUpdate.privacy_prenotazioni = updates.privacyPrenotazioni;
     }
 
     // Aggiorna profilo su Supabase (upsert: crea il profilo se il trigger handle_new_user non l'ha fatto)

@@ -123,6 +123,19 @@
     font-size: 0.8rem;
 }
 
+.edit-profile-checkbox-label {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    cursor: pointer;
+    font-weight: 500;
+}
+.edit-profile-checkbox-label input[type="checkbox"] {
+    width: 18px;
+    height: 18px;
+    accent-color: var(--primary-cyan, #00AEEF);
+}
+
 .edit-profile-error {
     background: #fef2f2;
     color: #dc2626;

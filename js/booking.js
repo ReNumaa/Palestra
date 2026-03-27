@@ -127,6 +127,31 @@ function openBookingModal(dateInfo, timeSlot, slotType, remainingSpots) {
     const _submitBtn = document.querySelector('#bookingForm button[type="submit"]');
     if (_submitBtn) { _submitBtn.disabled = false; setLoading(_submitBtn, false); }
 
+    // Persone iscritte (solo per utenti loggati)
+    const attendeesContainer = document.getElementById('slotAttendees');
+    const attendeesList = document.getElementById('slotAttendeesList');
+    if (attendeesContainer && user) {
+        attendeesContainer.style.display = '';
+        attendeesList.innerHTML = '<li style="color:#9ca3af;font-style:italic">Caricamento...</li>';
+        // Chiudi il details se era rimasto aperto
+        const details = attendeesContainer.querySelector('details');
+        if (details) details.removeAttribute('open');
+        supabaseClient.rpc('get_slot_attendees', {
+            p_date: selectedSlot ? selectedSlot.date : dateInfo.formatted,
+            p_time: timeSlot
+        }).then(({ data, error }) => {
+            if (error || !data || data.length === 0) {
+                attendeesList.innerHTML = '<li class="slot-attendees-empty">Nessuna persona visibile per questo slot.</li>';
+            } else {
+                attendeesList.innerHTML = data.map(a =>
+                    `<li>👤 ${a.name}</li>`
+                ).join('');
+            }
+        });
+    } else if (attendeesContainer) {
+        attendeesContainer.style.display = 'none';
+    }
+
     // Show modal
     document.getElementById('bookingModal').style.display = 'flex';
     document.body.style.overflow = 'hidden';
@@ -139,6 +164,8 @@ function closeBookingModal() {
     document.getElementById('bookingModal').style.display = 'none';
     document.getElementById('modalSlotInfo').style.display = '';
     document.body.style.overflow = '';
+    const _attCont = document.getElementById('slotAttendees');
+    if (_attCont) _attCont.style.display = 'none';
     selectedSlot = null;
     // Reset iOS Safari auto-zoom that may have triggered on input focus
     const vp = document.querySelector('meta[name="viewport"]');

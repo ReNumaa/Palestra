@@ -221,3 +221,38 @@
 | Tempo prompt utente (stimato) | ~5 min |
 | Token input (stimati) | ~150k |
 | Token output (stimati) | ~15k |
+
+## Task: Privacy prenotazioni + "Persone iscritte" nel modal prenotazione
+**Data:** 2026-03-27
+**Durata stimata:** ~25 min Claude + ~10 min prompt utente
+
+### Modifiche effettuate
+- Nuova colonna `privacy_prenotazioni` su profiles (default `true` = nome nascosto)
+- Checkbox "Privacy prenotazioni" nel modal modifica profilo in prenotazioni.html
+- Sezione collapsible "Persone iscritte" nel modal di prenotazione (index.html) con `<details>/<summary>`
+- RPC `get_slot_attendees(date, time)` — SECURITY DEFINER, restituisce solo nomi di utenti con privacy OFF
+- `get_all_profiles()` aggiornata per includere `privacy_prenotazioni`
+
+### Decisioni prese
+- **Privacy ON di default**: GDPR-friendly, l'utente deve esplicitamente scegliere di essere visibile
+- **RPC SECURITY DEFINER**: necessaria perché le RLS non permettono agli utenti di leggere le prenotazioni altrui
+- **`<details>/<summary>` nativo**: dropdown senza JS aggiuntivo, leggero e accessibile
+- **Fetch asincrono**: la lista si carica dopo l'apertura del modal, con "Caricamento..." come placeholder
+
+### File toccati
+- `supabase/migrations/20260328000000_privacy_prenotazioni.sql` — colonna + RPC + get_all_profiles aggiornata
+- `js/auth.js` — `_loadProfile` select + `updateUserProfile` handler per privacy_prenotazioni
+- `prenotazioni.html` — checkbox HTML nel modal profilo + wiring JS (openEditProfileModal + submit)
+- `index.html` — sezione `#slotAttendees` con details/summary nel modal prenotazione
+- `js/booking.js` — fetch `get_slot_attendees` in openBookingModal + reset in closeBookingModal
+- `css/prenotazioni.css` — stili checkbox `.edit-profile-checkbox-label`
+- `css/style.css` — stili `.slot-attendees-*` per il dropdown persone iscritte
+- `sw.js` — cache bump v177 → v178
+
+### Consumo risorse (solo per progetti cliente)
+| Voce | Valore |
+|------|--------|
+| Tempo task Claude | ~25 min |
+| Tempo prompt utente (stimato) | ~10 min |
+| Token input (stimati) | ~180k |
+| Token output (stimati) | ~18k |

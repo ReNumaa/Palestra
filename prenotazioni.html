@@ -207,6 +207,15 @@
                         <input type="password" id="editPasswordConfirm" autocomplete="new-password">
                     </div>
                 </div>
+                <div class="form-group" style="margin-top:0.75rem">
+                    <label class="edit-profile-checkbox-label">
+                        <input type="checkbox" id="editPrivacyPrenotazioni">
+                        <span>Privacy prenotazioni</span>
+                    </label>
+                    <p class="edit-profile-label-note" style="margin-top:0.25rem;margin-bottom:0">
+                        Se attivo, il tuo nome non sarà visibile agli altri nelle prenotazioni.
+                    </p>
+                </div>
                 <div id="editProfileError" class="edit-profile-error" style="display:none;"></div>
                 <button type="submit" class="btn-primary" style="width:100%;margin-top:0.5rem">Salva modifiche</button>
             </form>
@@ -614,10 +623,14 @@
             const ONE_DAY_MS    = 24 * 60 * 60 * 1000;
             const TWO_HOURS_MS  = 2 * 60 * 60 * 1000;
             const THREE_DAYS_MS = 3 * 24 * 60 * 60 * 1000;
+            const TEN_MIN_MS    = 10 * 60 * 1000;
             const _msToLesson   = _lessonStart - new Date();
             const _isGroupClass = b.slotType === 'group-class';
-            // group-class: annullamento diretto solo se > 3 giorni; altri: > 24h
-            const _canCancelDirect  = _isGroupClass ? _msToLesson > THREE_DAYS_MS : _msToLesson > ONE_DAY_MS;
+            // grace period: entro 10 min dalla prenotazione, annullamento sempre diretto
+            const _bookingAge   = b.createdAt ? (Date.now() - new Date(b.createdAt).getTime()) : Infinity;
+            const _inGracePeriod = _bookingAge < TEN_MIN_MS;
+            // group-class: annullamento diretto solo se > 3 giorni; altri: > 24h; grace period bypassa
+            const _canCancelDirect  = _inGracePeriod || (_isGroupClass ? _msToLesson > THREE_DAYS_MS : _msToLesson > ONE_DAY_MS);
             // finestra ristretta: non ancora annullabile direttamente ma mancano più di 2h
             const _inRestrictedWindow = !_canCancelDirect && _msToLesson > TWO_HOURS_MS;
             // modalità configurata dall'admin
@@ -1195,6 +1208,7 @@
             certField.value    = user.medical_cert_expiry || '';
             certField.disabled = !CertEditableStorage.get();
             document.getElementById('editAssicScadenza').value = user.insurance_expiry || '';
+            document.getElementById('editPrivacyPrenotazioni').checked = user.privacy_prenotazioni !== false; // default true
             document.getElementById('editPassword').value        = '';
             document.getElementById('editPasswordConfirm').value = '';
             const { data: { session } } = await supabaseClient.auth.getSession();
@@ -1221,6 +1235,7 @@
             const paese    = document.getElementById('editPaese').value.trim();
             const cap      = document.getElementById('editCAP').value.trim();
             const certSc   = document.getElementById('editCertScadenza').value;
+            const privacyPrenotazioni = document.getElementById('editPrivacyPrenotazioni').checked;
             const pass     = document.getElementById('editPassword').value;
             const passConf = document.getElementById('editPasswordConfirm').value;
 
@@ -1245,7 +1260,8 @@
                     indirizzoVia: via,
                     indirizzoPaese: paese,
                     indirizzoCap: cap,
-                    certificatoMedicoScadenza: certSc
+                    certificatoMedicoScadenza: certSc,
+                    privacyPrenotazioni: privacyPrenotazioni
                 }, pass || null);
 
                 if (!result.ok) {

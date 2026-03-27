@@ -736,9 +736,13 @@ function clearSlotClient(timeSlot) {
     const lessonStart = _tp ? new Date(_yr, _mo - 1, _dy, _tp.startH, _tp.startM, 0) : null;
     const msToLesson = lessonStart ? lessonStart - new Date() : Infinity;
     const ONE_DAY = 24 * 60 * 60 * 1000;
-    const isWithin24h = msToLesson <= ONE_DAY;
+    const TEN_MIN = 10 * 60 * 1000;
+    // grace period: entro 10 min dalla prenotazione, annullamento diretto senza bonus/mora
+    const _bookingAge = booking.createdAt ? (Date.now() - new Date(booking.createdAt).getTime()) : Infinity;
+    const _inGracePeriod = _bookingAge < TEN_MIN;
+    const isWithin24h = msToLesson <= ONE_DAY && !_inGracePeriod;
 
-    // > 24h: simple confirm
+    // > 24h (o grace period): simple confirm
     if (!isWithin24h) {
         if (!confirm(`Confermare l'annullamento della prenotazione di ${bookingName}?`)) return;
 
