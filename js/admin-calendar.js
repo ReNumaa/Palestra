@@ -278,6 +278,14 @@ function removeExtraSpotFromSlot(date, time, extraType) {
     if (window._currentAdminDate) renderAdminDayView(window._currentAdminDate);
 }
 
+// Helper: icona notifiche push attive/disattive
+function _pushIcon(userRecord) {
+    if (userRecord?.pushEnabled) {
+        return '<span title="Notifiche attive" style="font-size:13px">🔔</span>';
+    }
+    return '<span title="Notifiche non attive" style="font-size:13px">🔕</span>';
+}
+
 // Helper: icona stato proximity (arrivo/GPS/notifiche)
 function _proximityIcon(booking, userRecord) {
     // ✅ Arrivato (arrived_at è valorizzato)
@@ -384,7 +392,7 @@ function _buildParticipantCard(booking) {
         <div class="admin-participant-card${isCancelPending ? ' cancel-pending' : ''}">
             <button class="btn-delete-booking" onclick="deleteBooking('${booking.id}','${nm}')">✕</button>
             <div class="participant-card-content">
-                <div class="participant-name">${_escHtml(booking.name)} ${_proximityIcon(booking, userRecord)}</div>
+                <div class="participant-name">${_escHtml(booking.name)} ${_pushIcon(userRecord)}${_proximityIcon(booking, userRecord)}</div>
                 <div class="participant-contact">📱 ${_escHtml(booking.whatsapp)}</div>
                 ${booking.notes ? `<div class="participant-notes">📝 ${_escHtml(booking.notes)}</div>` : ''}
                 ${cancelPendingBadge}${certBadge}${cfBadge}${assicBadge}${docBadge}

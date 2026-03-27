@@ -2299,6 +2299,7 @@ class UserStorage {
                     indirizzoCap: row.indirizzo_cap ?? existing.indirizzoCap ?? null,
                     documentoFirmato: row.documento_firmato ?? existing.documentoFirmato ?? false,
                     geoEnabled: row.geo_enabled ?? existing.geoEnabled ?? false,
+                    pushEnabled: row.push_enabled ?? existing.pushEnabled ?? false,
                 };
             });
 

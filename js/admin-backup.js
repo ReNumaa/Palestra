@@ -457,6 +457,7 @@ function importBackup(input) {
                                     indirizzo_cap: p.indirizzo_cap || null,
                                     documento_firmato: p.documento_firmato || false,
                                     geo_enabled: p.geo_enabled || false,
+                                    push_enabled: p.push_enabled || false,
                                 }).eq('email', (p.email || '').toLowerCase()));
                             }
                         }

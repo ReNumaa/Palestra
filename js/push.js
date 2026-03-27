@@ -309,6 +309,25 @@ if ('Notification' in window) {
     }
 }
 
+// Sync push_enabled su ogni pagina — salva nel profilo se le notifiche sono attive o no.
+function _syncPushEnabled() {
+    if (!('Notification' in window)) return;
+    const enabled = Notification.permission === 'granted';
+    setTimeout(async () => {
+        if (typeof supabaseClient === 'undefined') return;
+        try {
+            const { data: { session } } = await supabaseClient.auth.getSession();
+            if (session?.user?.id) {
+                await supabaseClient.rpc('set_push_enabled', { p_enabled: enabled });
+                console.log('[Push] push_enabled salvato:', enabled);
+            }
+        } catch (e) {
+            console.warn('[Push] sync push_enabled fallito:', e);
+        }
+    }, 5000);
+}
+_syncPushEnabled();
+
 // Sync geo_enabled su ogni pagina — se il permesso GPS è concesso, aggiorna il profilo.
 // Aspetta che l'auth sia pronta controllando la sessione Supabase.
 function _syncGeoEnabled() {
