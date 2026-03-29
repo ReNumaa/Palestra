@@ -141,22 +141,27 @@ function openBookingModal(dateInfo, timeSlot, slotType, remainingSpots) {
     const attendeesList = document.getElementById('slotAttendeesList');
     if (attendeesContainer && user) {
         attendeesContainer.style.display = '';
-        attendeesList.innerHTML = '<li style="color:#9ca3af;font-style:italic">Caricamento...</li>';
         const details = attendeesContainer.querySelector('details');
         // Slot pieno: apri automaticamente la tendina
         if (details) { if (_slotFull) details.setAttribute('open', ''); else details.removeAttribute('open'); }
-        supabaseClient.rpc('get_slot_attendees', {
-            p_date: selectedSlot ? selectedSlot.date : dateInfo.formatted,
-            p_time: timeSlot
-        }).then(({ data, error }) => {
-            if (error || !data || data.length === 0) {
-                attendeesList.innerHTML = '<li class="slot-attendees-empty">Nessuna persona visibile per questo slot.</li>';
-            } else {
-                attendeesList.innerHTML = data.map(a =>
-                    `<li>👤 ${a.name}</li>`
-                ).join('');
-            }
-        });
+        // Se l'utente ha la privacy attiva, non può vedere chi è iscritto
+        if (user.privacy_prenotazioni !== false) {
+            attendeesList.innerHTML = '<li class="slot-attendees-empty">Disattiva la privacy per vedere chi è iscritto.</li>';
+        } else {
+            attendeesList.innerHTML = '<li style="color:#9ca3af;font-style:italic">Caricamento...</li>';
+            supabaseClient.rpc('get_slot_attendees', {
+                p_date: selectedSlot ? selectedSlot.date : dateInfo.formatted,
+                p_time: timeSlot
+            }).then(({ data, error }) => {
+                if (error || !data || data.length === 0) {
+                    attendeesList.innerHTML = '<li class="slot-attendees-empty">Nessuna persona visibile per questo slot.</li>';
+                } else {
+                    attendeesList.innerHTML = data.map(a =>
+                        `<li>👤 ${a.name}</li>`
+                    ).join('');
+                }
+            });
+        }
     } else if (attendeesContainer) {
         attendeesContainer.style.display = 'none';
     }
