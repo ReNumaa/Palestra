@@ -3749,43 +3749,36 @@ canvas {
    Registro / Log DB Tab
    ══════════════════════════════════════════════════════════════════════════ */
 
-/* Summary bar */
-.registro-summary-bar {
+/* Sub-tabs */
+.registro-subtabs {
     display: flex;
-    gap: 1rem;
-    margin-bottom: 1.5rem;
-    flex-wrap: wrap;
-    align-items: stretch;
+    gap: 0.5rem;
+    margin-bottom: 1.25rem;
 }
-.registro-summary-item {
-    background: linear-gradient(135deg, white 0%, var(--light-gray) 100%);
-    border-radius: 12px;
-    box-shadow: 0 2px 8px rgba(0,0,0,0.08);
-    padding: 1rem 1.25rem;
-    display: flex;
-    flex-direction: column;
-    gap: 0.15rem;
-    flex: 1;
-    min-width: 140px;
-}
-.registro-summary-item.registro-export-wrap {
-    background: none;
-    box-shadow: none;
-    justify-content: center;
-    padding: 0;
-    flex: 0 0 auto;
-}
-.registro-summary-label {
-    font-size: 0.72rem;
-    color: #666;
+.registro-subtab {
+    padding: 0.55rem 1.1rem;
+    border: 1px solid #e5e7eb;
+    border-radius: 10px;
+    background: #fff;
+    font-size: 0.85rem;
     font-weight: 600;
-    letter-spacing: 0.5px;
-    text-transform: uppercase;
+    color: #555;
+    cursor: pointer;
+    transition: all 0.2s;
 }
-.registro-summary-val {
-    font-size: 1.4rem;
-    font-weight: 700;
-    color: var(--dark-bg);
+.registro-subtab:hover {
+    background: #f3f4f6;
+}
+.registro-subtab.active {
+    background: var(--dark-bg, #1e293b);
+    color: #fff;
+    border-color: var(--dark-bg, #1e293b);
+}
+.registro-subtab-content {
+    display: none;
+}
+.registro-subtab-content.active {
+    display: block;
 }
 
 /* Filter bar */
@@ -4098,9 +4091,8 @@ canvas {
     .registro-filter-row { flex-direction: column; }
     .registro-filter-group--sm,
     .registro-filter-group--search { min-width: unset; width: 100%; }
-    .registro-summary-bar { gap: 0.75rem; }
-    .registro-summary-item { min-width: calc(50% - 0.5rem); }
-    .registro-summary-item.registro-export-wrap { min-width: 100%; }
+    .registro-subtabs { gap: 0.35rem; }
+    .registro-subtab { padding: 0.45rem 0.75rem; font-size: 0.78rem; }
 }
 
 /* Debt Threshold Setting */

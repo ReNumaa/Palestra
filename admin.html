@@ -470,24 +470,15 @@
             <!-- Tab: Registro / Log DB -->
             <div id="tab-registro" class="tab-content">
 
-                <!-- Summary bar -->
-                <div class="registro-summary-bar">
-                    <div class="registro-summary-item">
-                        <span class="registro-summary-label">📊 Tot. eventi</span>
-                        <span class="registro-summary-val" id="registroTotalEvents">—</span>
-                    </div>
-                    <div class="registro-summary-item">
-                        <span class="registro-summary-label">💰 Incassato (pagamenti)</span>
-                        <span class="registro-summary-val" id="registroTotalPaid">—</span>
-                    </div>
-                    <div class="registro-summary-item">
-                        <span class="registro-summary-label">📅 Prenotazioni</span>
-                        <span class="registro-summary-val" id="registroTotalBookings">—</span>
-                    </div>
-                    <div class="registro-summary-item registro-export-wrap">
-                        <button class="btn-action" onclick="exportRegistro()" id="registroExportBtn">📥 Esporta Vista</button>
-                    </div>
+                <!-- Sub-tabs -->
+                <div class="registro-subtabs">
+                    <button class="registro-subtab active" data-subtab="registro" onclick="switchRegistroSubtab('registro', this)">📋 Registro</button>
+                    <button class="registro-subtab" data-subtab="notifiche-admin" onclick="switchRegistroSubtab('notifiche-admin', this)">📩 Notifiche admin</button>
+                    <button class="registro-subtab" data-subtab="notifiche-clienti" onclick="switchRegistroSubtab('notifiche-clienti', this)">📬 Notifiche clienti</button>
                 </div>
+
+                <!-- Sezione: Registro -->
+                <div id="registroSubtab-registro" class="registro-subtab-content active">
 
                 <!-- Filter bar -->
                 <div class="registro-filters">
@@ -606,8 +597,11 @@
                     <button class="registro-pag-btn" onclick="registroNextPage()" id="registroNextBtn" disabled>Succ →</button>
                 </div>
 
-                <!-- Sezione Messaggi separata -->
-                <div class="dashboard-card" style="margin-top:24px">
+                </div><!-- /registroSubtab-registro -->
+
+                <!-- Sezione: Notifiche admin -->
+                <div id="registroSubtab-notifiche-admin" class="registro-subtab-content">
+                <div class="dashboard-card">
                     <h3 style="margin:0 0 16px;font-size:17px;font-weight:700">📩 Storico notifiche</h3>
                     <div style="display:flex;gap:8px;margin-bottom:12px;flex-wrap:wrap">
                         <select id="msgFilterType" onchange="renderMessaggiTable()" style="padding:8px 12px;border-radius:8px;border:1px solid #e5e7eb;font-size:13px">
@@ -643,9 +637,11 @@
                         <button class="registro-pag-btn" onclick="messaggiNextPage()" id="messaggiNextBtn" disabled>Succ →</button>
                     </div>
                 </div>
+                </div><!-- /registroSubtab-notifiche-admin -->
 
-                <!-- Sezione Notifiche clienti separata -->
-                <div class="dashboard-card" style="margin-top:24px">
+                <!-- Sezione: Notifiche clienti -->
+                <div id="registroSubtab-notifiche-clienti" class="registro-subtab-content">
+                <div class="dashboard-card">
                     <h3 style="margin:0 0 16px;font-size:17px;font-weight:700">📬 Notifiche ai clienti</h3>
                     <div style="display:flex;gap:8px;margin-bottom:12px;flex-wrap:wrap">
                         <select id="cnFilterType" onchange="renderClientNotifTable()" style="padding:8px 12px;border-radius:8px;border:1px solid #e5e7eb;font-size:13px">
@@ -688,6 +684,7 @@
                         <button class="registro-pag-btn" onclick="cnNextPage()" id="cnNextBtn" disabled>Succ →</button>
                     </div>
                 </div>
+                </div><!-- /registroSubtab-notifiche-clienti -->
 
             </div>
             <!-- End Tab: Registro -->

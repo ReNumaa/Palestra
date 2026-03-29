@@ -517,11 +517,22 @@ function toggleRegistroFiltersPanel() {
     if (icon) icon.classList.toggle('open');
 }
 
+// ── Sub-tab switching dentro Registro ────────────────────────────────────
+function switchRegistroSubtab(name, btn) {
+    document.querySelectorAll('.registro-subtab').forEach(b => b.classList.remove('active'));
+    document.querySelectorAll('.registro-subtab-content').forEach(c => c.classList.remove('active'));
+    btn.classList.add('active');
+    const panel = document.getElementById('registroSubtab-' + name);
+    if (panel) panel.classList.add('active');
+
+    // Lazy-load dati alla prima apertura
+    if (name === 'notifiche-admin' && typeof loadMessaggi === 'function') loadMessaggi();
+    if (name === 'notifiche-clienti' && typeof loadClientNotifications === 'function') loadClientNotifications();
+}
+
 // ── Entry point chiamato da switchTab ──────────────────────────────────────
 function renderRegistroTab() {
     applyRegistroFilters();
-    if (typeof loadMessaggi === 'function') loadMessaggi();
-    if (typeof loadClientNotifications === 'function') loadClientNotifications();
 }
 
 // ── Export Excel della vista filtrata ─────────────────────────────────────
