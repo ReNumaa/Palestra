@@ -42,6 +42,19 @@
     font-weight: 600;
 }
 
+.nt-hero-price {
+    display: inline-block;
+    margin-top: 1.5rem;
+    font-size: 2.8rem;
+    font-weight: 900;
+    color: white;
+    background: linear-gradient(135deg, var(--primary-cyan), var(--primary-cyan-dark));
+    padding: 0.3rem 1.8rem;
+    border-radius: 50px;
+    box-shadow: 0 4px 24px rgba(0,174,239,0.4);
+    letter-spacing: 1px;
+}
+
 /* Sections */
 .nt-section {
     padding: 4rem 0;
@@ -131,38 +144,39 @@
     font-family: Georgia, serif;
 }
 
-/* Steps */
-.nt-steps {
-    display: grid;
-    grid-template-columns: 1fr 1fr;
-    gap: 2rem;
-    max-width: 800px;
+/* Timeline */
+.nt-timeline {
+    max-width: 600px;
     margin: 0 auto;
-}
-
-.nt-step-card {
-    background: white;
-    border-radius: 16px;
-    padding: 2rem 1.5rem;
-    text-align: center;
-    box-shadow: 0 4px 20px rgba(0,0,0,0.08);
-    border: 1px solid #f0f0f0;
     position: relative;
-    transition: transform 0.2s, box-shadow 0.2s;
+    padding-left: 40px;
 }
 
-.nt-step-card:hover {
-    transform: translateY(-4px);
-    box-shadow: 0 8px 32px rgba(0,174,239,0.15);
-}
-
-.nt-step-number {
+.nt-timeline::before {
+    content: '';
     position: absolute;
-    top: -14px;
-    left: 50%;
-    transform: translateX(-50%);
-    width: 28px;
-    height: 28px;
+    left: 15px;
+    top: 24px;
+    bottom: 24px;
+    width: 2px;
+    background: linear-gradient(to bottom, var(--primary-cyan), rgba(0,174,239,0.2));
+}
+
+.nt-timeline-item {
+    position: relative;
+    margin-bottom: 1.5rem;
+}
+
+.nt-timeline-item:last-child {
+    margin-bottom: 0;
+}
+
+.nt-timeline-dot {
+    position: absolute;
+    left: -40px;
+    top: 1.5rem;
+    width: 32px;
+    height: 32px;
     background: var(--primary-cyan);
     color: white;
     border-radius: 50%;
@@ -171,52 +185,118 @@
     display: flex;
     align-items: center;
     justify-content: center;
-    box-shadow: 0 2px 8px rgba(0,174,239,0.4);
+    box-shadow: 0 2px 10px rgba(0,174,239,0.4);
+    z-index: 1;
 }
 
-.nt-step-icon {
-    font-size: 2.5rem;
-    margin-bottom: 0.75rem;
+.nt-timeline-dot svg {
+    display: block;
 }
 
-.nt-step-title {
+.nt-timeline-card {
+    background: white;
+    border-radius: 16px;
+    padding: 1.5rem;
+    box-shadow: 0 4px 20px rgba(0,0,0,0.07);
+    border: 1px solid #f0f0f0;
+    transition: transform 0.2s, box-shadow 0.2s;
+}
+
+.nt-timeline-card:hover {
+    transform: translateY(-3px);
+    box-shadow: 0 8px 28px rgba(0,174,239,0.12);
+}
+
+.nt-timeline-card-highlight {
+    background: linear-gradient(135deg, rgba(0,174,239,0.06) 0%, rgba(0,174,239,0.02) 100%);
+    border-color: rgba(0,174,239,0.25);
+}
+
+.nt-timeline-icon {
+    font-size: 2rem;
+    margin-bottom: 0.5rem;
+}
+
+.nt-timeline-title {
     font-size: 1.1rem;
     font-weight: 700;
     color: var(--dark-bg);
-    margin-bottom: 0.3rem;
+    margin-bottom: 0.25rem;
 }
 
-.nt-step-with {
-    font-size: 0.82rem;
+.nt-timeline-with {
+    font-size: 0.8rem;
     color: var(--primary-cyan);
     font-weight: 600;
     text-transform: uppercase;
     letter-spacing: 0.5px;
-    margin-bottom: 1rem;
+    margin-bottom: 0.75rem;
 }
 
-.nt-step-list {
+.nt-timeline-desc {
+    color: #555;
+    font-size: 0.92rem;
+    line-height: 1.65;
+    margin-bottom: 0;
+}
+
+.nt-timeline-list {
     list-style: none;
     padding: 0;
-    margin: 0;
-    text-align: left;
+    margin: 0.5rem 0 0;
 }
 
-.nt-step-list li {
+.nt-timeline-list li {
     color: #555;
     font-size: 0.9rem;
     line-height: 1.6;
-    padding: 0.35rem 0;
+    padding: 0.3rem 0;
     padding-left: 1.4rem;
     position: relative;
 }
 
-.nt-step-list li::before {
-    content: '✓';
+.nt-timeline-list li::before {
+    content: '\2713';
     position: absolute;
     left: 0;
     color: var(--primary-cyan);
     font-weight: 700;
+}
+
+/* Why section */
+.nt-why {
+    max-width: 680px;
+    margin: 0 auto;
+    text-align: center;
+}
+
+.nt-why > p {
+    color: #444;
+    line-height: 1.85;
+    font-size: 1.05rem;
+    margin-bottom: 2rem;
+}
+
+.nt-why-points {
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    gap: 1.5rem;
+}
+
+.nt-why-point {
+    text-align: center;
+}
+
+.nt-why-icon {
+    font-size: 2rem;
+    margin-bottom: 0.5rem;
+}
+
+.nt-why-point p {
+    color: #555;
+    font-size: 0.92rem;
+    line-height: 1.55;
+    margin: 0;
 }
 
 /* CTA */
@@ -227,15 +307,10 @@
     text-align: center;
 }
 
-.nt-cta-icon {
-    font-size: 2.5rem;
-    margin-bottom: 1rem;
-}
-
 .nt-cta h2 {
     font-size: 2rem;
     font-weight: 800;
-    margin-bottom: 0.75rem;
+    margin-bottom: 1.25rem;
 }
 
 .nt-cta p {
@@ -247,12 +322,28 @@
     margin-right: auto;
 }
 
-.nt-cta-emphasis {
-    font-size: 1.15rem !important;
-    font-weight: 700;
-    color: var(--primary-cyan) !important;
+.nt-cta-price-box {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 0.25rem;
+    margin-bottom: 1.5rem !important;
     opacity: 1 !important;
-    margin-bottom: 2rem !important;
+}
+
+.nt-cta-price-label {
+    font-size: 0.85rem;
+    text-transform: uppercase;
+    letter-spacing: 2px;
+    opacity: 0.7;
+    font-weight: 600;
+}
+
+.nt-cta-price-value {
+    font-size: 3rem;
+    font-weight: 900;
+    color: var(--primary-cyan);
+    letter-spacing: 1px;
 }
 
 .nt-cta-btn {
@@ -268,6 +359,7 @@
     font-weight: 700;
     transition: all 0.2s;
     box-shadow: 0 4px 20px rgba(37,211,102,0.4);
+    margin-top: 1.5rem;
 }
 
 .nt-cta-btn:hover {
@@ -296,6 +388,12 @@
         letter-spacing: 2px;
     }
 
+    .nt-hero-price {
+        font-size: 2.2rem;
+        padding: 0.25rem 1.4rem;
+        margin-top: 1.25rem;
+    }
+
     .nt-section {
         padding: 2.5rem 0;
     }
@@ -312,17 +410,36 @@
         font-size: 1.2rem !important;
     }
 
-    .nt-steps {
-        grid-template-columns: 1fr;
-        gap: 1.5rem;
+    .nt-timeline {
+        padding-left: 36px;
     }
 
-    .nt-step-card {
-        padding: 1.5rem 1.25rem;
+    .nt-timeline::before {
+        left: 13px;
+    }
+
+    .nt-timeline-dot {
+        left: -36px;
+        width: 28px;
+        height: 28px;
+        font-size: 0.8rem;
+    }
+
+    .nt-timeline-card {
+        padding: 1.25rem;
+    }
+
+    .nt-why-points {
+        grid-template-columns: 1fr;
+        gap: 1.25rem;
     }
 
     .nt-cta h2 {
         font-size: 1.5rem;
+    }
+
+    .nt-cta-price-value {
+        font-size: 2.4rem;
     }
 }
 
