@@ -588,54 +588,16 @@ function _startWatch(booking, user, sentKey) {
                 }
 
                 if (booking) {
-                    // CON prenotazione: segna arrivo + notifica "sta arrivando"
-                    console.log('[Proximity] Utente vicino — invio notifica admin (con prenotazione)');
+                    // CON prenotazione: segna arrivo
+                    console.log('[Proximity] Utente vicino — segno arrivo (con prenotazione)');
                     const bookingDbId = booking._sbId || booking.id;
                     if (typeof supabaseClient !== 'undefined') {
                         supabaseClient.rpc('mark_booking_arrived', { p_booking_id: bookingDbId }).catch(e => {
                             console.warn('[Proximity] Errore mark_booking_arrived:', e);
                         });
                     }
-                    try {
-                        await fetch(`${SUPABASE_URL}/functions/v1/notify-admin-proximity`, {
-                            method: 'POST',
-                            headers: {
-                                'Content-Type': 'application/json',
-                                'Authorization': 'Bearer ' + SUPABASE_ANON_KEY,
-                            },
-                            body: JSON.stringify({
-                                name: userName,
-                                date: booking.date,
-                                time: booking.time,
-                                slot_type: booking.slotType || booking.slot_type || '',
-                                no_booking: false,
-                            }),
-                        });
-                    } catch (e) {
-                        console.warn('[Proximity] Errore invio notifica:', e);
-                    }
                 } else {
-                    // SENZA prenotazione: notifica "in palestra senza prenotazione"
-                    console.log('[Proximity] Utente vicino SENZA prenotazione — invio notifica admin');
-                    const todayStr = typeof _localDateStr === 'function' ? _localDateStr() : new Date().toISOString().slice(0, 10);
-                    try {
-                        await fetch(`${SUPABASE_URL}/functions/v1/notify-admin-proximity`, {
-                            method: 'POST',
-                            headers: {
-                                'Content-Type': 'application/json',
-                                'Authorization': 'Bearer ' + SUPABASE_ANON_KEY,
-                            },
-                            body: JSON.stringify({
-                                name: userName,
-                                date: todayStr,
-                                time: '',
-                                slot_type: '',
-                                no_booking: true,
-                            }),
-                        });
-                    } catch (e) {
-                        console.warn('[Proximity] Errore invio notifica:', e);
-                    }
+                    console.log('[Proximity] Utente vicino SENZA prenotazione');
                 }
             }
         },
