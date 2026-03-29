@@ -1631,9 +1631,7 @@ body.nav-open {
     .modal-overlay {
         padding: 0;
         align-items: flex-end;
-        justify-content: center;
-        bottom: auto;
-        height: 100dvh; /* dvh shrinks when iOS keyboard appears */
+        justify-content: flex-end;
     }
 
     .modal-box {
