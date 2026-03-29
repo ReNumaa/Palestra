@@ -284,43 +284,6 @@ function _pushIcon(userRecord) {
     return '<span title="Notifiche non attive" style="font-size:13px">🔕</span>';
 }
 
-// Helper: icona stato proximity (arrivo/GPS/notifiche)
-function _proximityIcon(booking, userRecord) {
-    // ✅ Arrivato (arrived_at è valorizzato)
-    if (booking.arrivedAt) {
-        return '<span title="Arrivato in palestra" style="color:#22c55e;font-size:14px">✅</span>';
-    }
-
-    // Controlla se lo slot è oggi e in corso o passato
-    const todayStr = typeof _localDateStr === 'function' ? _localDateStr() : new Date().toISOString().slice(0, 10);
-    const isToday = booking.date === todayStr;
-
-    if (!isToday) return ''; // non mostrare icone per giorni diversi da oggi
-
-    const userId = booking.userId;
-    const pushOk = userId && typeof hasPushEnabled === 'function' && hasPushEnabled(userId);
-
-    // ⚠️ Non ha notifiche abilitate
-    if (!pushOk) {
-        return `<span title="notifiche non abilitate" style="color:#eab308;font-size:14px">⚠️</span>`;
-    }
-
-    // Controlla se lo slot è già iniziato
-    const startTime = (booking.time || '').split(' - ')[0]?.trim();
-    if (startTime) {
-        const [h, m] = startTime.split(':').map(Number);
-        const now = new Date();
-        const slotStart = new Date(now);
-        slotStart.setHours(h, m, 0, 0);
-        // Slot già iniziato da almeno 10 min e non arrivato
-        if ((now - slotStart) / 60000 > 10) {
-            return '<span title="Non arrivato" style="color:#ef4444;font-size:14px">❌</span>';
-        }
-    }
-
-    // 👍🏻 Slot futuro, GPS e push attivi — tracciabile
-    return '<span title="GPS attivo, in attesa di arrivo" style="font-size:14px">👍🏻</span>';
-}
 
 // Helper: HTML di una singola card partecipante
 function _buildParticipantCard(booking) {
@@ -386,7 +349,7 @@ function _buildParticipantCard(booking) {
         <div class="admin-participant-card${isCancelPending ? ' cancel-pending' : ''}">
             <button class="btn-delete-booking" onclick="deleteBooking('${booking.id}','${nm}')">✕</button>
             <div class="participant-card-content">
-                <div class="participant-name">${_escHtml(booking.name)} ${_pushIcon(userRecord)}${_proximityIcon(booking, userRecord)}</div>
+                <div class="participant-name">${_escHtml(booking.name)} ${_pushIcon(userRecord)}</div>
                 <div class="participant-contact">📱 ${_escHtml(booking.whatsapp)}</div>
                 ${booking.notes ? `<div class="participant-notes">📝 ${_escHtml(booking.notes)}</div>` : ''}
                 ${cancelPendingBadge}${certBadge}${cfBadge}${assicBadge}${docBadge}
