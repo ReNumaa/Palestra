@@ -460,6 +460,8 @@ function startProximityWatch() {
     if (_proximityWatchId !== null) return; // già attivo
     if (!('geolocation' in navigator)) return;
     if (typeof SUPABASE_URL === 'undefined') return;
+    // iOS non permette permessi geolocalizzazione permanenti nelle PWA — disabilita
+    if (_isIOS()) return;
 
     const user = typeof getCurrentUser === 'function' ? getCurrentUser() : null;
 
@@ -477,9 +479,17 @@ function startProximityWatch() {
                 _showDeniedBanner('geo');
                 return;
             } else {
-                // 'prompt' — localStorage potrebbe essere stale (es. "solo per questa visita")
-                localStorage.removeItem('geo_permission_granted');
-                if (_userHasBookings()) _showGeoBanner();
+                // 'prompt' — su iOS PWA il permesso non persiste tra sessioni
+                if (localStorage.getItem('geo_permission_granted') === '1') {
+                    // Utente ha già accettato in passato — ri-chiedi silenziosamente senza banner
+                    navigator.geolocation.getCurrentPosition(
+                        () => _tryStartWatch(user),
+                        () => { localStorage.removeItem('geo_permission_granted'); },
+                        { enableHighAccuracy: true, timeout: 10000 }
+                    );
+                } else if (_userHasBookings()) {
+                    _showGeoBanner();
+                }
             }
         }).catch(() => {
             // Fallback: se aveva già concesso, prova ad avviare
@@ -519,7 +529,7 @@ function _showGeoBanner() {
             <span style="font-size:26px;line-height:1">📍</span>
             <div>
                 <div style="font-weight:700;font-size:15px;line-height:1.2">Segna il tuo arrivo in automatico</div>
-                <div style="font-size:12px;color:#aaa;margin-top:4px;line-height:1.5">Per verificare la tua presenza in palestra.<br>Scegli <b style="color:#ccc">"Consenti sempre"</b> nel prossimo passaggio.</div>
+                <div style="font-size:12px;color:#aaa;margin-top:4px;line-height:1.5">Per verificare la tua presenza in palestra.</div>
             </div>
         </div>
         <button id="geoBannerYes" style="width:100%;background:#00AEEF;color:#fff;border:none;padding:12px;border-radius:10px;cursor:pointer;font-weight:700;font-size:14px;letter-spacing:0.01em">Abilita posizione</button>
