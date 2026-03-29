@@ -315,7 +315,7 @@
             if (!user) return;
 
             // Fill header
-            document.getElementById('prenoUserName').textContent = user.name;
+            document.getElementById('prenoUserName').textContent = user.name.split(' ')[0];
             document.getElementById('prenoUserEmail').textContent = 'Codice accesso: 15963 + ⬆️';
             document.getElementById('prenoAvatar').textContent = user.name.charAt(0).toUpperCase();
 
@@ -1270,7 +1270,7 @@
                 }
 
                 const updated = getCurrentUser();
-                document.getElementById('prenoUserName').textContent = updated.name;
+                document.getElementById('prenoUserName').textContent = updated.name.split(' ')[0];
                 document.getElementById('prenoUserEmail').textContent = updated.email;
                 document.getElementById('prenoAvatar').textContent = updated.name.charAt(0).toUpperCase();
                 updateNavAuth();
