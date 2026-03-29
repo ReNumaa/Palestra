@@ -116,6 +116,16 @@ Deno.serve(async (_req) => {
             const start = parseStartMin(b.time);
             if (start === null || Math.abs(start - min24h) > WINDOW) continue;
 
+            // Marca PRIMA di inviare per evitare invii doppi da cron concorrenti
+            const { count } = await supabase
+                .from("bookings")
+                .update({ reminder_24h_sent: true })
+                .eq("id", b.id)
+                .eq("reminder_24h_sent", false)
+                .select("id", { count: "exact", head: true });
+            // Se count === 0 un'altra invocazione ha già preso questo booking
+            if (count === 0) continue;
+
             const startTime = b.time.split(" - ")[0]?.trim() ?? b.time;
             const payload = JSON.stringify({
                 title: "Promemoria Allenamento",
@@ -128,7 +138,6 @@ Deno.serve(async (_req) => {
                 type: "reminder_24h", title: "Promemoria Allenamento",
                 body: `Lezione domani alle ${startTime}`, date: date24h, time: b.time,
             });
-            await supabase.from("bookings").update({ reminder_24h_sent: true }).eq("id", b.id);
         }
 
         // ── Promemoria 1h ─────────────────────────────────────────────────────
@@ -147,6 +156,15 @@ Deno.serve(async (_req) => {
             const start = parseStartMin(b.time);
             if (start === null || Math.abs(start - min1h) > WINDOW) continue;
 
+            // Marca PRIMA di inviare per evitare invii doppi da cron concorrenti
+            const { count: count1h } = await supabase
+                .from("bookings")
+                .update({ reminder_1h_sent: true })
+                .eq("id", b.id)
+                .eq("reminder_1h_sent", false)
+                .select("id", { count: "exact", head: true });
+            if (count1h === 0) continue;
+
             const startTime = b.time.split(" - ")[0]?.trim() ?? b.time;
             const payload = JSON.stringify({
                 title: "Promemoria Allenamento",
@@ -159,7 +177,6 @@ Deno.serve(async (_req) => {
                 type: "reminder_1h", title: "Promemoria Allenamento",
                 body: `Lezione fra 60 minuti (${startTime})`, date: date1h, time: b.time,
             });
-            await supabase.from("bookings").update({ reminder_1h_sent: true }).eq("id", b.id);
         }
 
         console.log(`[send-reminders] ${totalSent} notifiche inviate`);
