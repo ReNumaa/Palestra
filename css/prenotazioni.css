@@ -357,6 +357,7 @@
     font-weight: 700;
     color: var(--dark-bg);
     font-size: 0.95rem;
+    white-space: nowrap;
 }
 
 .preno-card-time {
