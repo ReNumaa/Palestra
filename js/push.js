@@ -406,6 +406,53 @@ function _getUpcomingBooking() {
 
 let _proximityWatchId = null;
 
+// Banner discreto per permessi negati — mostra istruzioni per riabilitare dalle impostazioni.
+// Appare al massimo una volta ogni 7 giorni per tipo (geo/push).
+function _showDeniedBanner(type) {
+    if (!_userHasBookings()) return;
+    const storageKey = `denied_banner_shown_${type}`;
+    const lastShown = localStorage.getItem(storageKey);
+    if (lastShown && Date.now() - Number(lastShown) < 7 * 24 * 60 * 60 * 1000) return;
+    // Non mostrare se un altro banner è già visibile
+    if (document.getElementById('pushBanner') || document.getElementById('geoBanner') || document.getElementById('deniedBanner')) return;
+
+    const isGeo = type === 'geo';
+    const icon = isGeo ? '📍' : '🔔';
+    const title = isGeo ? 'Posizione bloccata' : 'Notifiche bloccate';
+    const desc = isGeo
+        ? 'Per segnalare il tuo arrivo in palestra, riabilita la posizione dalle impostazioni del browser.'
+        : 'Per ricevere promemoria e avvisi, riabilita le notifiche dalle impostazioni del browser.';
+
+    const banner = document.createElement('div');
+    banner.id = 'deniedBanner';
+    banner.style.cssText = 'position:fixed;bottom:20px;left:50%;transform:translateX(-50%);width:calc(100% - 32px);max-width:400px;background:#1a1a1a;color:#fff;border-radius:18px;padding:18px 18px 16px;z-index:9999;box-shadow:0 8px 32px rgba(0,0,0,0.4);font-family:inherit;box-sizing:border-box';
+    banner.innerHTML = `
+        <div style="display:flex;align-items:center;gap:12px;margin-bottom:14px">
+            <span style="font-size:26px;line-height:1">${icon}</span>
+            <div>
+                <div style="font-weight:700;font-size:15px;line-height:1.2">${title}</div>
+                <div style="font-size:12px;color:#aaa;margin-top:4px;line-height:1.5">${desc}</div>
+            </div>
+        </div>
+        <button id="deniedBannerOk" style="width:100%;background:#555;color:#fff;border:none;padding:12px;border-radius:10px;cursor:pointer;font-weight:700;font-size:14px;letter-spacing:0.01em">Ho capito</button>
+    `;
+    document.body.appendChild(banner);
+    localStorage.setItem(storageKey, String(Date.now()));
+
+    document.getElementById('deniedBannerOk').addEventListener('click', () => banner.remove());
+    // Auto-chiudi dopo 10 secondi
+    setTimeout(() => { if (banner.parentNode) banner.remove(); }, 10000);
+}
+
+// Controlla se l'utente loggato ha almeno una prenotazione (attiva o passata)
+function _userHasBookings() {
+    const user = typeof getCurrentUser === 'function' ? getCurrentUser() : null;
+    if (!user) return false;
+    if (typeof BookingStorage === 'undefined') return false;
+    const all = BookingStorage.getAllBookings();
+    return all.some(b => b.userId === user.id);
+}
+
 function startProximityWatch() {
     if (_proximityWatchId !== null) return; // già attivo
     if (!('geolocation' in navigator)) return;
@@ -413,16 +460,8 @@ function startProximityWatch() {
 
     const user = typeof getCurrentUser === 'function' ? getCurrentUser() : null;
 
-    // Controlla se il permesso GPS è già stato concesso
-    const alreadyGranted = localStorage.getItem('geo_permission_granted') === '1';
-
-    if (alreadyGranted) {
-        // Permesso già dato — assicura che geo_enabled sia salvato nel profilo
-        if (typeof supabaseClient !== 'undefined') {
-            supabaseClient.rpc('set_geo_enabled', { p_enabled: true }).catch(() => {});
-        }
-        _tryStartWatch(user);
-    } else if (navigator.permissions) {
+    // Verifica sempre il permesso reale del browser (non fidarsi solo del localStorage)
+    if (navigator.permissions) {
         navigator.permissions.query({ name: 'geolocation' }).then(result => {
             if (result.state === 'granted') {
                 localStorage.setItem('geo_permission_granted', '1');
@@ -431,16 +470,29 @@ function startProximityWatch() {
                 }
                 _tryStartWatch(user);
             } else if (result.state === 'denied') {
+                localStorage.removeItem('geo_permission_granted');
+                _showDeniedBanner('geo');
                 return;
             } else {
-                // 'prompt' — mostra il banner sempre (anche senza prenotazione)
-                _showGeoBanner();
+                // 'prompt' — localStorage potrebbe essere stale (es. "solo per questa visita")
+                localStorage.removeItem('geo_permission_granted');
+                if (_userHasBookings()) _showGeoBanner();
             }
         }).catch(() => {
-            _showGeoBanner();
+            // Fallback: se aveva già concesso, prova ad avviare
+            if (localStorage.getItem('geo_permission_granted') === '1') {
+                _tryStartWatch(user);
+            } else if (_userHasBookings()) {
+                _showGeoBanner();
+            }
         });
     } else {
-        _showGeoBanner();
+        // Browser senza permissions API — fallback su localStorage
+        if (localStorage.getItem('geo_permission_granted') === '1') {
+            _tryStartWatch(user);
+        } else if (_userHasBookings()) {
+            _showGeoBanner();
+        }
     }
 }
 
@@ -463,8 +515,8 @@ function _showGeoBanner() {
         <div style="display:flex;align-items:center;gap:12px;margin-bottom:14px">
             <span style="font-size:26px;line-height:1">📍</span>
             <div>
-                <div style="font-weight:700;font-size:15px;line-height:1.2">Abilita la posizione</div>
-                <div style="font-size:12px;color:#aaa;margin-top:4px;line-height:1.5">Per segnalare il tuo arrivo<br>in palestra automaticamente</div>
+                <div style="font-weight:700;font-size:15px;line-height:1.2">Segna il tuo arrivo in automatico</div>
+                <div style="font-size:12px;color:#aaa;margin-top:4px;line-height:1.5">Per verificare la tua presenza in palestra.<br>Scegli <b style="color:#ccc">"Consenti sempre"</b> nel prossimo passaggio.</div>
             </div>
         </div>
         <button id="geoBannerYes" style="width:100%;background:#00AEEF;color:#fff;border:none;padding:12px;border-radius:10px;cursor:pointer;font-weight:700;font-size:14px;letter-spacing:0.01em">Abilita posizione</button>
@@ -597,6 +649,8 @@ function _stopProximityWatch() {
 // Chiamata da index.html dopo initAuth().
 async function promptPushPermission() {
     if (!('Notification' in window) || !('PushManager' in window)) return;
+    // Mostra banner solo per utenti con almeno una prenotazione
+    if (Notification.permission !== 'granted' && !_userHasBookings()) return;
 
     // Su iOS le push funzionano SOLO se la PWA è installata (aggiunta alla Home).
     // Se non è installata, non mostrare il banner push — mostra invece un invito a installare.
@@ -613,6 +667,7 @@ async function promptPushPermission() {
     if (Notification.permission === 'denied') {
         localStorage.setItem('push_permission_was_denied', '1');
         localStorage.removeItem('push_permission_granted');
+        _showDeniedBanner('push');
         return;
     }
 
