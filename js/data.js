@@ -625,7 +625,7 @@ class BookingStorage {
         // Filtra per tipo: ogni "categoria" ha la propria capacità indipendente
         const confirmedCount = bookings.filter(b => b.status === 'confirmed' && (!b.slotType || b.slotType === slotType)).length;
         const maxCapacity = this.getEffectiveCapacity(date, time, slotType);
-        return maxCapacity - confirmedCount;
+        return Math.max(0, maxCapacity - confirmedCount);
     }
 
     // Aggiunge un posto extra di tipo extraType allo slot di quella data/ora

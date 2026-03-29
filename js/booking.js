@@ -52,8 +52,8 @@ function openBookingModal(dateInfo, timeSlot, slotType, remainingSpots) {
     document.getElementById('modalSlotTime').textContent = `🕐 ${timeSlot}`;
 
     const spotsEl = document.getElementById('modalSlotSpots');
-    spotsEl.textContent = `${remainingSpots} ${remainingSpots === 1 ? 'disponibile' : 'disponibili'}`;
-    spotsEl.className = `modal-spots ${spotsColorClass(remainingSpots)}`;
+    spotsEl.textContent = remainingSpots <= 0 ? 'Completo' : `${remainingSpots} ${remainingSpots === 1 ? 'disponibile' : 'disponibili'}`;
+    spotsEl.className = `modal-spots ${remainingSpots <= 0 ? 'spots-full' : spotsColorClass(remainingSpots)}`;
 
     // Reset form and hide confirmation, restore slot info
     document.getElementById('bookingForm').reset();
