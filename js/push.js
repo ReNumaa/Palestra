@@ -406,22 +406,21 @@ function _getUpcomingBooking() {
 
 let _proximityWatchId = null;
 
-// Banner discreto per permessi negati — mostra istruzioni per riabilitare dalle impostazioni.
+// Banner per permessi negati — guida l'utente a riabilitare dalle impostazioni.
 // Appare al massimo una volta ogni 7 giorni per tipo (geo/push).
 function _showDeniedBanner(type) {
     if (!_userHasBookings()) return;
     const storageKey = `denied_banner_shown_${type}`;
     const lastShown = localStorage.getItem(storageKey);
     if (lastShown && Date.now() - Number(lastShown) < 7 * 24 * 60 * 60 * 1000) return;
-    // Non mostrare se un altro banner è già visibile
     if (document.getElementById('pushBanner') || document.getElementById('geoBanner') || document.getElementById('deniedBanner')) return;
 
     const isGeo = type === 'geo';
     const icon = isGeo ? '📍' : '🔔';
     const title = isGeo ? 'Posizione bloccata' : 'Notifiche bloccate';
     const desc = isGeo
-        ? 'Per segnalare il tuo arrivo in palestra, riabilita la posizione dalle impostazioni del browser.'
-        : 'Per ricevere promemoria e avvisi, riabilita le notifiche dalle impostazioni del browser.';
+        ? 'Per verificare la tua presenza in palestra, riabilita l\'accesso alla posizione nelle impostazioni del sito.'
+        : 'Per ricevere promemoria e avvisi, riabilita le notifiche nelle impostazioni del sito.';
 
     const banner = document.createElement('div');
     banner.id = 'deniedBanner';
@@ -434,14 +433,18 @@ function _showDeniedBanner(type) {
                 <div style="font-size:12px;color:#aaa;margin-top:4px;line-height:1.5">${desc}</div>
             </div>
         </div>
-        <button id="deniedBannerOk" style="width:100%;background:#555;color:#fff;border:none;padding:12px;border-radius:10px;cursor:pointer;font-weight:700;font-size:14px;letter-spacing:0.01em">Ho capito</button>
+        <div style="display:flex;gap:10px">
+            <button id="deniedBannerDone" style="flex:1;background:#00AEEF;color:#fff;border:none;padding:12px;border-radius:10px;cursor:pointer;font-weight:700;font-size:14px">Fatto, ricarica</button>
+            <button id="deniedBannerLater" style="flex:0 0 auto;background:#333;color:#aaa;border:none;padding:12px 16px;border-radius:10px;cursor:pointer;font-size:13px">Dopo</button>
+        </div>
     `;
     document.body.appendChild(banner);
     localStorage.setItem(storageKey, String(Date.now()));
 
-    document.getElementById('deniedBannerOk').addEventListener('click', () => banner.remove());
-    // Auto-chiudi dopo 10 secondi
-    setTimeout(() => { if (banner.parentNode) banner.remove(); }, 10000);
+    document.getElementById('deniedBannerDone').addEventListener('click', () => {
+        location.reload();
+    });
+    document.getElementById('deniedBannerLater').addEventListener('click', () => banner.remove());
 }
 
 // Controlla se l'utente loggato ha almeno una prenotazione (attiva o passata)
