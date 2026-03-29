@@ -299,14 +299,10 @@ function _proximityIcon(booking, userRecord) {
 
     const userId = booking.userId;
     const pushOk = userId && typeof hasPushEnabled === 'function' && hasPushEnabled(userId);
-    const geoOk = userRecord?.geoEnabled || false;
 
-    // ⚠️ Non ha notifiche o GPS abilitati
-    if (!pushOk || !geoOk) {
-        const missing = [];
-        if (!pushOk) missing.push('notifiche');
-        if (!geoOk) missing.push('GPS');
-        return `<span title="${missing.join(' e ')} non abilitati" style="color:#eab308;font-size:14px">⚠️</span>`;
+    // ⚠️ Non ha notifiche abilitate
+    if (!pushOk) {
+        return `<span title="notifiche non abilitate" style="color:#eab308;font-size:14px">⚠️</span>`;
     }
 
     // Controlla se lo slot è già iniziato
