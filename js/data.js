@@ -96,6 +96,12 @@ const SLOT_PRICES = {
     'cleaning': 0
 };
 
+// Email degli admin — esclusi dalle statistiche
+const ADMIN_EMAILS = new Set([
+    'thomasbresciani1992@gmail.com',
+    'andrea.pompili1997@gmail.com'
+]);
+
 const SLOT_NAMES = {
     'personal-training': 'Autonomia',
     'small-group': 'Lezione di Gruppo',

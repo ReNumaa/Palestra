@@ -8,6 +8,7 @@ let customFilterTo = null;
 // Cache in memoria per le stats: caricato fresh da Supabase ad ogni loadDashboardData().
 // Non finisce in localStorage — bypass del limite di 5MB.
 let _statsBookings = null;
+const _excludeAdminBookings = arr => arr.filter(b => !ADMIN_EMAILS.has((b.email || '').toLowerCase()));
 // Sequenza per scartare risposte stale in caso di click rapidi sui filtri
 let _loadDashboardSeq = 0;
 
@@ -82,7 +83,7 @@ function getPreviousFilterDateRange(filter) {
 
 function getFilteredBookings(filter) {
     // Usa _statsBookings (fetch Supabase) se disponibile, altrimenti localStorage
-    const allBookings = _statsBookings ?? BookingStorage.getAllBookings();
+    const allBookings = _statsBookings ?? _excludeAdminBookings(BookingStorage.getAllBookings());
     const { from, to } = getFilterDateRange(filter);
     return allBookings.filter(b => {
         if (b.status === 'cancelled') return false;
@@ -165,7 +166,7 @@ async function applyCustomFilter() {
 
 
 function updateNonChartData() {
-    const allBookings = _statsBookings ?? BookingStorage.getAllBookings();
+    const allBookings = _statsBookings ?? _excludeAdminBookings(BookingStorage.getAllBookings());
     const filteredBookings = getFilteredBookings(currentFilter);
     updateStatsCards(filteredBookings, allBookings);
     updateBookingsTable(filteredBookings);
@@ -203,15 +204,15 @@ async function loadDashboardData() {
         if (seq !== _loadDashboardSeq) return;
         // freshData = null su errore Supabase → mantieni dati precedenti
         if (freshData !== null) {
-            _statsBookings = freshData;
+            _statsBookings = _excludeAdminBookings(freshData);
         } else if (!_statsBookings) {
             // Prima volta senza Supabase: fallback a localStorage
-            _statsBookings = BookingStorage.getAllBookings();
+            _statsBookings = _excludeAdminBookings(BookingStorage.getAllBookings());
         }
     }
 
     const filteredBookings = getFilteredBookings(currentFilter);
-    const allBookings = _statsBookings ?? BookingStorage.getAllBookings();
+    const allBookings = _statsBookings ?? _excludeAdminBookings(BookingStorage.getAllBookings());
 
     updateStatsCards(filteredBookings, allBookings);
     drawBookingsChart(filteredBookings);
@@ -556,7 +557,7 @@ function toggleStatDetail(type) {
 function renderFatturatoDetail(panel) {
     const isReale = _fatturatoMode === 'reale';
     const REAL_METHODS = new Set(['contanti', 'carta', 'iban']);
-    const allBookings = (_statsBookings ?? BookingStorage.getAllBookings())
+    const allBookings = (_statsBookings ?? _excludeAdminBookings(BookingStorage.getAllBookings()))
         .filter(b => {
             if (b.status === 'cancelled') return false;
             if (isReale) return b.paid && REAL_METHODS.has(b.paymentMethod);
@@ -902,7 +903,7 @@ function renderFatturatoDetail(panel) {
     // perché il denaro reale è catturato dai credit top-ups.
     let payMethodStats = [], payMethodPieData = {}, payMethodColors = [];
     if (isReale) {
-        const allPaidInPeriod = (_statsBookings ?? BookingStorage.getAllBookings())
+        const allPaidInPeriod = (_statsBookings ?? _excludeAdminBookings(BookingStorage.getAllBookings()))
             .filter(b => {
                 if (b.status === 'cancelled' || !b.paid) return false;
                 const d = new Date(b.date + 'T00:00:00');
@@ -1036,7 +1037,7 @@ function renderFatturatoDetail(panel) {
 }
 
 function renderPrenotazioniDetail(panel) {
-    const allBookings = _statsBookings ?? BookingStorage.getAllBookings();
+    const allBookings = _statsBookings ?? _excludeAdminBookings(BookingStorage.getAllBookings());
     const { from, to } = getFilterDateRange(currentFilter);
     const now   = new Date();
     const today = new Date(now); today.setHours(0, 0, 0, 0);
@@ -1297,7 +1298,7 @@ function renderPrenotazioniDetail(panel) {
 }
 
 function renderClientiDetail(panel) {
-    const allBookings = _statsBookings ?? BookingStorage.getAllBookings();
+    const allBookings = _statsBookings ?? _excludeAdminBookings(BookingStorage.getAllBookings());
     const { from, to } = getFilterDateRange(currentFilter);
     const periodFrom = from || new Date(0);
     const periodTo   = to   || new Date(9e15);
@@ -1810,7 +1811,7 @@ function saveAssicDate() {
 }
 
 function renderOccupancyDetail(panel) {
-    const allBookings = (_statsBookings ?? BookingStorage.getAllBookings()).filter(b => b.status !== 'cancelled');
+    const allBookings = (_statsBookings ?? _excludeAdminBookings(BookingStorage.getAllBookings())).filter(b => b.status !== 'cancelled');
     const { from, to } = getFilterDateRange(currentFilter);
     const now   = new Date();
     const today = new Date(now); today.setHours(0, 0, 0, 0);
