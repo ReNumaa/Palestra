@@ -117,14 +117,14 @@ Deno.serve(async (_req) => {
             if (start === null || Math.abs(start - min24h) > WINDOW) continue;
 
             // Marca PRIMA di inviare per evitare invii doppi da cron concorrenti
-            const { count } = await supabase
+            const { data: claimed } = await supabase
                 .from("bookings")
                 .update({ reminder_24h_sent: true })
                 .eq("id", b.id)
                 .eq("reminder_24h_sent", false)
-                .select("id", { count: "exact", head: true });
-            // Se count === 0 un'altra invocazione ha già preso questo booking
-            if (count === 0) continue;
+                .select("id");
+            // Se nessuna riga aggiornata, un'altra invocazione l'ha già presa
+            if (!claimed?.length) continue;
 
             const startTime = b.time.split(" - ")[0]?.trim() ?? b.time;
             const payload = JSON.stringify({
@@ -157,13 +157,13 @@ Deno.serve(async (_req) => {
             if (start === null || Math.abs(start - min1h) > WINDOW) continue;
 
             // Marca PRIMA di inviare per evitare invii doppi da cron concorrenti
-            const { count: count1h } = await supabase
+            const { data: claimed1h } = await supabase
                 .from("bookings")
                 .update({ reminder_1h_sent: true })
                 .eq("id", b.id)
                 .eq("reminder_1h_sent", false)
-                .select("id", { count: "exact", head: true });
-            if (count1h === 0) continue;
+                .select("id");
+            if (!claimed1h?.length) continue;
 
             const startTime = b.time.split(" - ")[0]?.trim() ?? b.time;
             const payload = JSON.stringify({
