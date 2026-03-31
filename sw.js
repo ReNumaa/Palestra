@@ -1,4 +1,4 @@
-const CACHE_NAME = 'palestra-v184';
+const CACHE_NAME = 'palestra-v185';
 
 const APP_SHELL = [
     '/',
@@ -28,6 +28,8 @@ const APP_SHELL = [
     '/js/sw-update.js',
     '/js/maintenance.js',
     '/js/admin-schede.js',
+    '/allenamento.html',
+    '/css/allenamento.css',
     '/images/logo-tb---nero.jpg',
     '/manifest.json',
     '/privacy.html',

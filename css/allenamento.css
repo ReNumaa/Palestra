@@ -1,0 +1,368 @@
+/* ═══════════════════════════════════════════════════════════════════════════════
+   ALLENAMENTO — Dark fitness theme, standalone page
+   ═══════════════════════════════════════════════════════════════════════════════ */
+
+.allenamento-body {
+    background: #0f0f1a;
+    color: #e2e8f0;
+    min-height: 100vh;
+}
+
+/* Override navbar for dark theme */
+.allenamento-body .navbar {
+    background: #1a1a2e;
+    border-bottom: 1px solid rgba(255,255,255,0.06);
+}
+.allenamento-body .nav-logo { filter: brightness(0) invert(1); }
+.allenamento-body .nav-desktop-links a { color: rgba(255,255,255,0.7); }
+.allenamento-body .nav-desktop-links a:hover { color: #00AEEF; }
+.allenamento-body .nav-user-name { color: rgba(255,255,255,0.7); }
+.allenamento-body .nav-hamburger svg { stroke: #fff; }
+
+/* ── Hero ────────────────────────────────────────────────────────────────────── */
+.all-hero {
+    background: linear-gradient(135deg, #1a1a2e 0%, #16213e 50%, #0f3460 100%);
+    padding: 2rem 0 1.5rem;
+    border-bottom: 1px solid rgba(0,174,239,0.15);
+}
+.all-hero-title {
+    font-size: 1.6rem;
+    font-weight: 800;
+    color: #fff;
+    margin: 0 0 0.3rem;
+}
+.all-hero-sub {
+    font-size: 0.9rem;
+    color: rgba(255,255,255,0.5);
+    margin: 0;
+}
+
+/* ── Nav pills ──────────────────────────────────────────────────────────────── */
+.all-nav {
+    display: flex;
+    gap: 0.5rem;
+    margin: 1.2rem 0;
+    padding: 4px;
+    background: #1a1a2e;
+    border-radius: 12px;
+    border: 1px solid rgba(255,255,255,0.06);
+}
+.all-nav-pill {
+    flex: 1;
+    padding: 0.55rem 1rem;
+    border: none;
+    background: transparent;
+    color: rgba(255,255,255,0.5);
+    font-size: 0.92rem;
+    font-weight: 600;
+    border-radius: 10px;
+    cursor: pointer;
+    transition: all 0.2s;
+}
+.all-nav-pill.active {
+    background: #00AEEF;
+    color: #fff;
+    box-shadow: 0 2px 10px rgba(0,174,239,0.3);
+}
+
+/* ── Loading / Empty ────────────────────────────────────────────────────────── */
+.all-loading, .all-empty {
+    text-align: center;
+    padding: 3rem 1rem;
+    color: rgba(255,255,255,0.4);
+    font-size: 0.95rem;
+    line-height: 1.7;
+}
+.all-link {
+    color: #00AEEF;
+    text-decoration: none;
+    font-weight: 600;
+}
+
+/* ── Plan card ──────────────────────────────────────────────────────────────── */
+.all-plan-card {
+    background: linear-gradient(135deg, #1a1a2e, #16213e);
+    border: 1px solid rgba(0,174,239,0.2);
+    border-radius: 14px;
+    padding: 1rem 1.2rem;
+    margin-bottom: 1.2rem;
+}
+.all-plan-name {
+    font-size: 1.1rem;
+    font-weight: 700;
+    color: #fff;
+}
+.all-plan-notes {
+    font-size: 0.82rem;
+    color: rgba(255,255,255,0.45);
+    margin-top: 0.3rem;
+    font-style: italic;
+}
+.all-plan-meta {
+    font-size: 0.78rem;
+    color: rgba(255,255,255,0.35);
+    margin-top: 0.3rem;
+}
+
+/* ── Day section ────────────────────────────────────────────────────────────── */
+.all-day {
+    margin-bottom: 1.5rem;
+}
+.all-day-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 0.6rem;
+    padding-bottom: 0.4rem;
+    border-bottom: 2px solid rgba(0,174,239,0.2);
+}
+.all-day-label {
+    font-size: 1rem;
+    font-weight: 700;
+    color: #00AEEF;
+}
+.all-day-count {
+    font-size: 0.75rem;
+    color: rgba(255,255,255,0.35);
+}
+
+/* ── Exercise card ──────────────────────────────────────────────────────────── */
+.all-ex-card {
+    background: #1a1a2e;
+    border: 1px solid rgba(255,255,255,0.06);
+    border-radius: 12px;
+    margin-bottom: 0.5rem;
+    overflow: hidden;
+    transition: border-color 0.2s;
+}
+.all-ex-card.all-ex-done {
+    border-color: rgba(34,197,94,0.3);
+}
+.all-ex-card.all-ex-done .all-ex-header {
+    background: rgba(34,197,94,0.05);
+}
+
+.all-ex-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 0.8rem 1rem;
+    cursor: pointer;
+    gap: 0.5rem;
+    transition: background 0.15s;
+}
+.all-ex-header:active { background: rgba(255,255,255,0.03); }
+
+.all-ex-info { flex: 1; }
+.all-ex-name {
+    font-size: 0.95rem;
+    font-weight: 600;
+    color: #fff;
+}
+.all-ex-target {
+    font-size: 0.78rem;
+    color: rgba(255,255,255,0.4);
+    margin-top: 0.15rem;
+}
+
+.all-ex-status { flex-shrink: 0; }
+.all-ex-chevron {
+    font-size: 1rem;
+    color: rgba(255,255,255,0.25);
+    transition: transform 0.2s;
+}
+.all-ex-card.open .all-ex-chevron { transform: rotate(180deg); }
+.all-ex-check {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 26px;
+    height: 26px;
+    border-radius: 50%;
+    background: #22c55e;
+    color: #fff;
+    font-size: 0.8rem;
+    font-weight: 700;
+}
+
+.all-ex-body {
+    display: none;
+    padding: 0 1rem 0.8rem;
+}
+.all-ex-card.open .all-ex-body { display: block; }
+
+.all-ex-note {
+    font-size: 0.8rem;
+    color: rgba(255,255,255,0.4);
+    font-style: italic;
+    margin-bottom: 0.6rem;
+    padding: 0.4rem 0.6rem;
+    background: rgba(255,255,255,0.03);
+    border-radius: 8px;
+}
+
+/* ── Log form ───────────────────────────────────────────────────────────────── */
+.all-log-section { margin-top: 0.3rem; }
+.all-log-header {
+    font-size: 0.78rem;
+    color: rgba(255,255,255,0.4);
+    margin-bottom: 0.5rem;
+    font-weight: 600;
+}
+
+.all-log-grid { display: flex; flex-direction: column; gap: 0.35rem; }
+.all-log-grid-header {
+    display: grid;
+    grid-template-columns: 40px 1fr 1fr 60px;
+    gap: 0.4rem;
+    font-size: 0.7rem;
+    font-weight: 700;
+    color: rgba(255,255,255,0.3);
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+    padding: 0 0.1rem;
+}
+
+.all-log-row {
+    display: grid;
+    grid-template-columns: 40px 1fr 1fr 60px;
+    gap: 0.4rem;
+    align-items: center;
+}
+.all-log-set {
+    font-size: 0.85rem;
+    font-weight: 700;
+    color: rgba(255,255,255,0.3);
+    text-align: center;
+}
+.all-log-input {
+    width: 100%;
+    padding: 0.5rem 0.4rem;
+    background: rgba(255,255,255,0.06);
+    border: 1px solid rgba(255,255,255,0.1);
+    border-radius: 8px;
+    color: #fff;
+    font-size: 0.95rem;
+    text-align: center;
+    -webkit-appearance: none;
+    appearance: none;
+}
+.all-log-input:focus {
+    border-color: #00AEEF;
+    outline: none;
+    box-shadow: 0 0 0 2px rgba(0,174,239,0.2);
+    background: rgba(0,174,239,0.08);
+}
+.all-log-input--sm { font-size: 0.85rem; }
+.all-log-input::placeholder { color: rgba(255,255,255,0.2); }
+
+.all-log-save {
+    width: 100%;
+    margin-top: 0.6rem;
+    padding: 0.6rem;
+    border: none;
+    background: linear-gradient(135deg, #00AEEF, #0077b6);
+    color: #fff;
+    font-size: 0.92rem;
+    font-weight: 700;
+    border-radius: 10px;
+    cursor: pointer;
+    transition: all 0.2s;
+    letter-spacing: 0.02em;
+}
+.all-log-save:hover { box-shadow: 0 4px 15px rgba(0,174,239,0.3); }
+.all-log-save:active { transform: scale(0.98); }
+.all-log-save:disabled { opacity: 0.5; cursor: not-allowed; }
+.all-log-save--done {
+    background: linear-gradient(135deg, #22c55e, #16a34a);
+}
+
+/* ── Stats overview (progressi) ─────────────────────────────────────────────── */
+.all-stats-row {
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    gap: 0.6rem;
+    margin-bottom: 1.2rem;
+}
+.all-stat-card {
+    background: #1a1a2e;
+    border: 1px solid rgba(255,255,255,0.06);
+    border-radius: 12px;
+    padding: 0.8rem 0.5rem;
+    text-align: center;
+}
+.all-stat-value {
+    font-size: 1.3rem;
+    font-weight: 800;
+    color: #00AEEF;
+}
+.all-stat-label {
+    font-size: 0.68rem;
+    color: rgba(255,255,255,0.35);
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+    margin-top: 0.15rem;
+}
+
+/* ── Progress cards ─────────────────────────────────────────────────────────── */
+.all-progress-card {
+    background: #1a1a2e;
+    border: 1px solid rgba(255,255,255,0.06);
+    border-radius: 14px;
+    padding: 1rem;
+    margin-bottom: 0.8rem;
+}
+.all-progress-card--volume {
+    border-color: rgba(34,197,94,0.2);
+}
+.all-progress-header { margin-bottom: 0.6rem; }
+.all-progress-name {
+    font-size: 0.95rem;
+    font-weight: 700;
+    color: #fff;
+}
+.all-progress-meta {
+    font-size: 0.75rem;
+    color: rgba(255,255,255,0.35);
+    margin-top: 0.1rem;
+}
+
+.all-progress-card canvas {
+    width: 100% !important;
+    height: auto !important;
+    max-height: 160px;
+    border-radius: 8px;
+}
+
+.all-progress-stats {
+    display: flex;
+    gap: 0.8rem;
+    flex-wrap: wrap;
+    margin-top: 0.5rem;
+    font-size: 0.78rem;
+    color: rgba(255,255,255,0.4);
+}
+.all-progress-stats strong { color: #fff; }
+.all-trend-up strong { color: #22c55e; }
+.all-trend-down strong { color: #ef4444; }
+
+/* ── Footer ─────────────────────────────────────────────────────────────────── */
+.allenamento-body .footer {
+    margin-top: 2rem;
+}
+
+/* ── Mobile ─────────────────────────────────────────────────────────────────── */
+@media (max-width: 480px) {
+    .all-hero { padding: 1.5rem 0 1rem; }
+    .all-hero-title { font-size: 1.3rem; }
+    .all-nav { margin: 0.8rem 0; }
+    .all-plan-card { padding: 0.8rem; }
+    .all-ex-header { padding: 0.7rem 0.8rem; }
+    .all-log-grid-header { grid-template-columns: 32px 1fr 1fr 50px; }
+    .all-log-row { grid-template-columns: 32px 1fr 1fr 50px; }
+    .all-log-input { padding: 0.45rem 0.3rem; font-size: 0.9rem; }
+    .all-stats-row { gap: 0.4rem; }
+    .all-stat-card { padding: 0.6rem 0.3rem; }
+    .all-stat-value { font-size: 1.1rem; }
+    .all-stat-label { font-size: 0.62rem; }
+}
