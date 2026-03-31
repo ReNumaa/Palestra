@@ -4,6 +4,12 @@
 
 const MUSCLE_GROUPS = ['Petto','Dorso','Spalle','Bicipiti','Tricipiti','Gambe','Glutei','Addominali','Polpacci','Cardio','Stretching','Altro'];
 
+// Only registered users (with Supabase UUID) can be assigned plans
+function _schedeGetRegisteredUsers() {
+    if (typeof UserStorage === 'undefined') return [];
+    return UserStorage.getAll().filter(u => u.userId);
+}
+
 let _schedeView = 'list';  // 'list' | 'edit' | 'progress'
 let _currentPlanId = null;
 let _editingPlan = null;    // plan object being edited (or null for new)
@@ -37,17 +43,10 @@ async function renderSchedeTab() {
 function _renderSchedeList(container) {
     const plans = WorkoutPlanStorage.getAllPlans();
 
-    // Group plans by client
-    const byUser = {};
-    for (const p of plans) {
-        if (!byUser[p.user_id]) byUser[p.user_id] = [];
-        byUser[p.user_id].push(p);
-    }
-
-    // Resolve client names
-    const allUsers = typeof UserStorage !== 'undefined' ? UserStorage.getAll() : [];
+    // Resolve client names by userId
+    const allUsers = _schedeGetRegisteredUsers();
     const nameMap = {};
-    for (const u of allUsers) nameMap[u.id] = u.name || u.email || u.id;
+    for (const u of allUsers) nameMap[u.userId] = u.name || u.email || u.userId;
 
     let html = `
         <div class="schede-header">
@@ -63,7 +62,6 @@ function _renderSchedeList(container) {
         html += '<div class="empty-slot">Nessuna scheda creata. Clicca "Nuova Scheda" per iniziare.</div>';
     } else {
         html += '<div class="schede-plan-list" id="schedePlanList">';
-        // Sort by client name then updated_at desc
         const sorted = [...plans].sort((a, b) => {
             const na = (nameMap[a.user_id] || '').toLowerCase();
             const nb = (nameMap[b.user_id] || '').toLowerCase();
@@ -81,7 +79,7 @@ function _renderSchedeList(container) {
             html += `
             <div class="schede-plan-card" data-client="${clientName.toLowerCase()}">
                 <div class="schede-plan-card-header">
-                    <div>
+                    <div class="schede-plan-card-info">
                         <div class="schede-plan-client">${clientName}</div>
                         <div class="schede-plan-name">${_escHtml(plan.name)} ${badge}</div>
                         <div class="schede-plan-meta">${exCount} esercizi &middot; ${days.length} giorni${dateRange ? ' &middot; ' + dateRange : ''}</div>
@@ -149,25 +147,26 @@ function _renderPlanEditor(container) {
     const plan = _editingPlan;
     const isNew = !plan;
 
-    // Client selector
-    const allUsers = typeof UserStorage !== 'undefined' ? UserStorage.getAll() : [];
+    // Client selector — only registered users
+    const allUsers = _schedeGetRegisteredUsers();
     const selectedUserId = plan?.user_id || '';
-    const selectedUserName = selectedUserId ? (allUsers.find(u => u.id === selectedUserId)?.name || '') : '';
+    const selectedUserName = selectedUserId ? (allUsers.find(u => u.userId === selectedUserId)?.name || '') : '';
 
     let html = `
     <div class="schede-editor">
         <div class="schede-editor-topbar">
-            <button class="schede-back-btn" onclick="_schedeBackToList()">← Torna alla lista</button>
+            <button class="schede-back-btn" onclick="_schedeBackToList()">← Lista</button>
             <h3>${isNew ? 'Nuova Scheda' : 'Modifica Scheda'}</h3>
         </div>
         <div class="schede-editor-form">
             <div class="schede-form-row">
                 <label>Cliente</label>
                 <div class="schede-client-selector">
-                    <input type="text" id="schedeClientSearch" placeholder="Cerca cliente..."
+                    <input type="text" id="schedeClientSearch" placeholder="Cerca cliente registrato..."
                            value="${_escHtml(selectedUserName)}"
                            oninput="_schedeSearchClient()" autocomplete="off"
-                           ${plan ? 'data-user-id="' + selectedUserId + '"' : ''}>
+                           onfocus="_schedeSearchClient()"
+                           ${selectedUserId ? 'data-user-id="' + selectedUserId + '"' : ''}>
                     <div id="schedeClientDropdown" class="debtor-search-dropdown" style="display:none;"></div>
                 </div>
             </div>
@@ -241,22 +240,24 @@ function _renderExercisesForDay() {
         html += `
         <div class="schede-exercise-row" data-ex-id="${ex.id}">
             <div class="schede-ex-drag">
-                ${i > 0 ? `<button onclick="_schedeMoveExercise('${ex.id}', -1)" title="Sposta su">▲</button>` : '<span></span>'}
-                ${i < exercises.length - 1 ? `<button onclick="_schedeMoveExercise('${ex.id}', 1)" title="Sposta giù">▼</button>` : '<span></span>'}
+                ${i > 0 ? `<button onclick="_schedeMoveExercise('${ex.id}', -1)" title="Su">▲</button>` : '<span></span>'}
+                ${i < exercises.length - 1 ? `<button onclick="_schedeMoveExercise('${ex.id}', 1)" title="Giù">▼</button>` : '<span></span>'}
             </div>
             <div class="schede-ex-fields">
-                <input type="text" class="schede-ex-name" value="${_escHtml(ex.exercise_name)}"
-                       placeholder="Nome esercizio" ${suggestionsAttr}
-                       onchange="_schedeUpdateExField('${ex.id}','exercise_name',this.value)">
-                <select class="schede-ex-muscle" onchange="_schedeUpdateExField('${ex.id}','muscle_group',this.value)">
-                    <option value="">Muscolo</option>
-                    ${MUSCLE_GROUPS.map(mg => `<option value="${mg}" ${ex.muscle_group === mg ? 'selected' : ''}>${mg}</option>`).join('')}
-                </select>
+                <div class="schede-ex-top-row">
+                    <input type="text" class="schede-ex-name" value="${_escHtml(ex.exercise_name)}"
+                           placeholder="Nome esercizio" ${suggestionsAttr}
+                           onchange="_schedeUpdateExField('${ex.id}','exercise_name',this.value)">
+                    <select class="schede-ex-muscle" onchange="_schedeUpdateExField('${ex.id}','muscle_group',this.value)">
+                        <option value="">Muscolo</option>
+                        ${MUSCLE_GROUPS.map(mg => `<option value="${mg}" ${ex.muscle_group === mg ? 'selected' : ''}>${mg}</option>`).join('')}
+                    </select>
+                </div>
                 <div class="schede-ex-params">
                     <label>Serie<input type="number" min="1" max="20" value="${ex.sets}" onchange="_schedeUpdateExField('${ex.id}','sets',+this.value)"></label>
                     <label>Reps<input type="text" value="${_escHtml(ex.reps)}" placeholder="10" onchange="_schedeUpdateExField('${ex.id}','reps',this.value)"></label>
                     <label>Kg<input type="number" step="0.5" min="0" value="${ex.weight_kg ?? ''}" placeholder="—" onchange="_schedeUpdateExField('${ex.id}','weight_kg',this.value?+this.value:null)"></label>
-                    <label>Rec.(s)<input type="number" min="0" step="15" value="${ex.rest_seconds ?? 90}" onchange="_schedeUpdateExField('${ex.id}','rest_seconds',+this.value)"></label>
+                    <label>Rec.<input type="number" min="0" step="15" value="${ex.rest_seconds ?? 90}" onchange="_schedeUpdateExField('${ex.id}','rest_seconds',+this.value)"></label>
                 </div>
                 <input type="text" class="schede-ex-notes" value="${_escHtml(ex.notes || '')}" placeholder="Note esercizio..."
                        onchange="_schedeUpdateExField('${ex.id}','notes',this.value)">
@@ -267,31 +268,30 @@ function _renderExercisesForDay() {
     return html;
 }
 
-// ── Client search ────────────────────────────────────────────────────────────
+// ── Client search (only registered users with UUID) ──────────────────────────
 var _schedeSearchClient = _debounce(function() {
     const input = document.getElementById('schedeClientSearch');
     const dropdown = document.getElementById('schedeClientDropdown');
     const q = (input?.value || '').toLowerCase();
-    if (!q || q.length < 2) { dropdown.style.display = 'none'; return; }
+    if (!q || q.length < 1) { dropdown.style.display = 'none'; return; }
 
-    const allUsers = typeof UserStorage !== 'undefined' ? UserStorage.getAll() : [];
-    const matches = allUsers.filter(u =>
+    const matches = _schedeGetRegisteredUsers().filter(u =>
         (u.name || '').toLowerCase().includes(q) ||
         (u.email || '').toLowerCase().includes(q)
     );
 
     if (matches.length === 0) {
-        dropdown.innerHTML = '<div class="dropdown-no-results">Nessun cliente trovato</div>';
+        dropdown.innerHTML = '<div class="dropdown-no-results">Nessun cliente registrato trovato</div>';
     } else {
         dropdown.innerHTML = matches.slice(0, 10).map(u =>
-            `<div class="dropdown-item" onclick="_schedeSelectClient('${u.id}', '${_escHtml(u.name || u.email)}')">
+            `<div class="dropdown-item" onclick="_schedeSelectClient('${u.userId}', '${_escHtml(u.name || u.email).replace(/'/g, "\\'")}')">
                 <span class="dropdown-item-name">${_escHtml(u.name || 'Senza nome')}</span>
                 <span style="color:#888;font-size:0.82rem">${_escHtml(u.email || '')}</span>
             </div>`
         ).join('');
     }
     dropdown.style.display = 'block';
-}, 200);
+}, 150);
 
 function _schedeSelectClient(userId, name) {
     const input = document.getElementById('schedeClientSearch');
@@ -303,13 +303,12 @@ function _schedeSelectClient(userId, name) {
 // ── Day management ───────────────────────────────────────────────────────────
 function _schedeSelectDay(day) {
     _editActiveDay = day;
-    // Re-render day tabs + exercises only
     const container = document.getElementById('schedeContainer');
     if (container) _renderPlanEditor(container);
 }
 
 function _schedeAddDay() {
-    const nextLetter = String.fromCharCode(65 + _editDayLabels.length); // A, B, C...
+    const nextLetter = String.fromCharCode(65 + _editDayLabels.length);
     const newLabel = 'Giorno ' + nextLetter;
     _editDayLabels.push(newLabel);
     _editActiveDay = newLabel;
@@ -319,7 +318,6 @@ function _schedeAddDay() {
 
 function _schedeRemoveDay() {
     if (_editDayLabels.length <= 1) return;
-    // Remove exercises for this day if plan exists
     if (_editingPlan) {
         const toDelete = (_editingPlan.workout_exercises || []).filter(e => e.day_label === _editActiveDay);
         toDelete.forEach(async ex => {
@@ -335,7 +333,6 @@ function _schedeRemoveDay() {
 function _schedeRenameDay(newName) {
     if (!newName.trim()) return;
     const oldName = _editActiveDay;
-    // Rename in exercises cache
     if (_editingPlan) {
         (_editingPlan.workout_exercises || []).forEach(ex => {
             if (ex.day_label === oldName) {
@@ -354,7 +351,6 @@ function _schedeRenameDay(newName) {
 // ── Exercise CRUD ────────────────────────────────────────────────────────────
 async function _schedeAddExerciseRow() {
     if (!_editingPlan) {
-        // Must save plan first
         await _schedeSavePlan();
         if (!_editingPlan) return;
     }
@@ -368,6 +364,7 @@ async function _schedeAddExerciseRow() {
         const container = document.getElementById('schedeContainer');
         if (container) _renderPlanEditor(container);
     } catch (e) {
+        console.error('[Schede] addExercise error:', e);
         if (typeof showToast === 'function') showToast('Errore aggiunta esercizio', 'error');
     }
 }
@@ -397,7 +394,6 @@ async function _schedeMoveExercise(exId, direction) {
     if (idx < 0) return;
     const newIdx = idx + direction;
     if (newIdx < 0 || newIdx >= dayExercises.length) return;
-    // Swap
     [dayExercises[idx], dayExercises[newIdx]] = [dayExercises[newIdx], dayExercises[idx]];
     const orderedIds = dayExercises.map(e => e.id);
     try {
@@ -414,8 +410,15 @@ async function _schedeSavePlan() {
     const userId = clientInput?.dataset?.userId;
     const planName = nameInput?.value?.trim();
 
-    if (!userId) { if (typeof showToast === 'function') showToast('Seleziona un cliente', 'error'); return; }
-    if (!planName) { if (typeof showToast === 'function') showToast('Inserisci un nome per la scheda', 'error'); return; }
+    // Validate UUID — must be a real UUID, not "undefined" string
+    if (!userId || userId === 'undefined' || userId.length < 10) {
+        if (typeof showToast === 'function') showToast('Seleziona un cliente dal menu a tendina', 'error');
+        return;
+    }
+    if (!planName) {
+        if (typeof showToast === 'function') showToast('Inserisci un nome per la scheda', 'error');
+        return;
+    }
 
     const startDate = document.getElementById('schedePlanStart')?.value || null;
     const endDate = document.getElementById('schedePlanEnd')?.value || null;
@@ -437,14 +440,13 @@ async function _schedeSavePlan() {
             });
             _editingPlan = newPlan;
             _currentPlanId = newPlan.id;
-            if (typeof showToast === 'function') showToast('Scheda creata', 'success');
+            if (typeof showToast === 'function') showToast('Scheda creata! Aggiungi esercizi.', 'success');
         }
-        // Refresh editor
         const container = document.getElementById('schedeContainer');
         if (container) _renderPlanEditor(container);
     } catch (e) {
         console.error('[Schede] save error:', e);
-        if (typeof showToast === 'function') showToast('Errore salvataggio scheda', 'error');
+        if (typeof showToast === 'function') showToast('Errore salvataggio scheda: ' + (e.message || ''), 'error');
     }
 }
 
@@ -473,10 +475,9 @@ async function _schedeDuplicatePlan(planId) {
     const plan = WorkoutPlanStorage.getPlanById(planId);
     if (!plan) return;
 
-    // Show a simple prompt for target client
-    const allUsers = typeof UserStorage !== 'undefined' ? UserStorage.getAll() : [];
+    const allUsers = _schedeGetRegisteredUsers();
     const nameMap = {};
-    for (const u of allUsers) nameMap[u.id] = u.name || u.email;
+    for (const u of allUsers) nameMap[u.userId] = u.name || u.email;
 
     const targetName = prompt('Duplicare per quale cliente? (nome)', nameMap[plan.user_id] || '');
     if (!targetName) return;
@@ -485,10 +486,13 @@ async function _schedeDuplicatePlan(planId) {
         (u.name || '').toLowerCase() === targetName.toLowerCase() ||
         (u.email || '').toLowerCase() === targetName.toLowerCase()
     );
-    if (!targetUser) { if (typeof showToast === 'function') showToast('Cliente non trovato', 'error'); return; }
+    if (!targetUser || !targetUser.userId) {
+        if (typeof showToast === 'function') showToast('Cliente registrato non trovato', 'error');
+        return;
+    }
 
     try {
-        await WorkoutPlanStorage.duplicatePlan(planId, targetUser.id, plan.name + ' (copia)');
+        await WorkoutPlanStorage.duplicatePlan(planId, targetUser.userId, plan.name + ' (copia)');
         if (typeof showToast === 'function') showToast('Scheda duplicata', 'success');
         renderSchedeTab();
     } catch (e) {
@@ -512,15 +516,15 @@ async function _renderProgressView(container) {
     await WorkoutLogStorage.syncForPlan(plan.id);
     const logs = WorkoutLogStorage.getAll();
 
-    const allUsers = typeof UserStorage !== 'undefined' ? UserStorage.getAll() : [];
-    const clientName = allUsers.find(u => u.id === plan.user_id)?.name || 'Cliente';
+    const allUsers = _schedeGetRegisteredUsers();
+    const clientName = allUsers.find(u => u.userId === plan.user_id)?.name || 'Cliente';
 
     const days = [...new Set((plan.workout_exercises || []).map(e => e.day_label))];
 
     let html = `
     <div class="schede-progress">
         <div class="schede-editor-topbar">
-            <button class="schede-back-btn" onclick="_schedeBackToList()">← Torna alla lista</button>
+            <button class="schede-back-btn" onclick="_schedeBackToList()">← Lista</button>
             <h3>Progressi: ${_escHtml(clientName)} — ${_escHtml(plan.name)}</h3>
         </div>`;
 
@@ -534,7 +538,6 @@ async function _renderProgressView(container) {
                 const exLogs = logs.filter(l => l.exercise_id === ex.id);
                 if (exLogs.length === 0) continue;
 
-                // Group by date
                 const byDate = {};
                 for (const l of exLogs) {
                     if (!byDate[l.log_date]) byDate[l.log_date] = [];

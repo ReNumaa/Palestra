@@ -131,6 +131,7 @@
         </div>
         <ul class="nav-sidebar-links">
             <li><a href="/">Calendario</a></li>
+            <li id="navAllenamento" style="display:none"><a href="prenotazioni.html?tab=scheda">💪 Allenamento</a></li>
             <li><a href="nutrizione.html">Nutrizione</a></li>
             <li><a href="regolamento.html">Regolamento</a></li>
             <li><a href="chi-sono.html">Chi sono</a></li>
@@ -1455,8 +1456,20 @@
             if (user && user.id === SCHEDE_ALLOWED_UID) {
                 const t1 = document.getElementById('tabScheda');
                 const t2 = document.getElementById('tabProgressi');
+                const nav = document.getElementById('navAllenamento');
                 if (t1) t1.style.display = '';
                 if (t2) t2.style.display = '';
+                if (nav) nav.style.display = '';
+
+                // Auto-open scheda tab if navigated via ?tab=scheda
+                const params = new URLSearchParams(window.location.search);
+                if (params.get('tab') === 'scheda') {
+                    window.history.replaceState({}, '', window.location.pathname);
+                    setTimeout(() => switchPrenoTab('scheda'), 300);
+                } else if (params.get('tab') === 'progressi') {
+                    window.history.replaceState({}, '', window.location.pathname);
+                    setTimeout(() => switchPrenoTab('progressi'), 300);
+                }
             }
         }
 

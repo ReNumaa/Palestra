@@ -5047,8 +5047,9 @@ canvas {
 .schede-ex-drag button:hover { color: #00AEEF; }
 
 .schede-ex-fields { flex: 1; display: flex; flex-direction: column; gap: 0.3rem; }
-.schede-ex-name { padding: 0.35rem 0.5rem; border: 1px solid #d1d5db; border-radius: 6px; font-size: 0.92rem; font-weight: 500; }
-.schede-ex-muscle { padding: 0.3rem 0.5rem; border: 1px solid #d1d5db; border-radius: 6px; font-size: 0.85rem; background: #fff; }
+.schede-ex-top-row { display: flex; gap: 0.4rem; align-items: center; }
+.schede-ex-name { flex: 1; padding: 0.35rem 0.5rem; border: 1px solid #d1d5db; border-radius: 6px; font-size: 0.92rem; font-weight: 500; }
+.schede-ex-muscle { padding: 0.3rem 0.5rem; border: 1px solid #d1d5db; border-radius: 6px; font-size: 0.85rem; background: #fff; width: auto; min-width: 100px; }
 .schede-ex-params { display: flex; gap: 0.5rem; flex-wrap: wrap; }
 .schede-ex-params label { display: flex; flex-direction: column; font-size: 0.75rem; color: #6b7280; }
 .schede-ex-params input { width: 65px; padding: 0.3rem 0.4rem; border: 1px solid #d1d5db; border-radius: 5px; font-size: 0.88rem; text-align: center; }
@@ -5082,11 +5083,30 @@ canvas {
 
 /* ── Mobile ─────────────────────────────────────────────────────────────────── */
 @media (max-width: 600px) {
+    .schede-header { flex-direction: column; gap: 0.5rem; align-items: stretch; }
+    .schede-header .btn-primary { text-align: center; }
     .schede-plan-card-header { flex-direction: column; }
-    .schede-plan-actions { margin-top: 0.3rem; }
+    .schede-plan-actions { margin-top: 0.4rem; display: flex; gap: 0.5rem; }
+    .schede-plan-actions button { font-size: 1.2rem; padding: 0.4rem 0.6rem; }
     .schede-form-row--inline { flex-direction: column; gap: 0.5rem; }
-    .schede-ex-params { gap: 0.3rem; }
-    .schede-ex-params input { width: 55px; }
-    .schede-exercise-row { flex-direction: column; }
-    .schede-ex-drag { flex-direction: row; }
+    .schede-form-row--inline input[type="date"] { width: 100%; }
+    .schede-exercise-row { flex-direction: column; padding: 0.5rem; }
+    .schede-ex-drag { flex-direction: row; gap: 0.5rem; justify-content: center; }
+    .schede-ex-drag button { font-size: 1rem; padding: 0.3rem 0.5rem; }
+    .schede-ex-top-row { display: flex; flex-direction: column; gap: 0.3rem; }
+    .schede-ex-name { font-size: 1rem; }
+    .schede-ex-muscle { font-size: 0.9rem; }
+    .schede-ex-params { display: grid; grid-template-columns: 1fr 1fr; gap: 0.4rem; }
+    .schede-ex-params label { font-size: 0.8rem; }
+    .schede-ex-params input { width: 100%; font-size: 1rem; padding: 0.4rem; }
+    .schede-ex-notes { font-size: 0.9rem; }
+    .schede-ex-delete { align-self: flex-end; font-size: 1.2rem; padding: 0.4rem; }
+    .schede-day-tabs { overflow-x: auto; flex-wrap: nowrap; -webkit-overflow-scrolling: touch; }
+    .schede-day-tab { white-space: nowrap; flex-shrink: 0; }
+    .schede-day-rename input { width: 100%; }
+    .schede-editor-topbar { flex-direction: column; align-items: flex-start; gap: 0.3rem; }
+    .schede-editor-topbar h3 { font-size: 1.1rem; }
+    .schede-progress-table { font-size: 0.8rem; }
+    .schede-progress-table th, .schede-progress-table td { padding: 0.25rem 0.3rem; }
+    .schede-progress-ex-header { flex-direction: column; gap: 0.2rem; }
 }
