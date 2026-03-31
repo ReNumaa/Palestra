@@ -367,6 +367,8 @@ class BookingStorage {
             const dataLastCleared = localStorage.getItem('dataLastCleared') || '0';
             const pending = local.filter(b => {
                 if (supabaseIds.has(b.id) || b.status === 'cancelled') return false;
+                // Se ha _sbId era già su Supabase: se non è più nella risposta, è stato eliminato
+                if (b._sbId) return false;
                 const age = now - new Date(b.createdAt).getTime();
                 if (age >= 30 * 60 * 1000) return false;
                 if (b.createdAt <= dataLastCleared) return false;
