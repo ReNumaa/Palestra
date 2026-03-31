@@ -423,3 +423,54 @@
 - `admin.html` — tab Schede + Realtime subscribe workout_*
 - `allenamento.html` — nuova pagina standalone
 - `css/admin.css` — stili tab Schede
+
+## Task: Fix pagamento admin paga anche prenotazioni future non selezionate
+**Data:** 2026-03-31
+**Durata stimata:** ~15 min Claude + ~5 min prompt utente
+
+### Modifiche effettuate
+- Rimossa logica auto-pay FIFO dalla RPC `admin_pay_bookings`: il credito in eccesso restava usato per pagare automaticamente tutte le prenotazioni non pagate (anche future), anche se l'admin aveva selezionato solo quelle passate
+- Ora il credito in eccesso viene salvato come saldo credito senza toccare altre prenotazioni
+
+### Decisioni prese
+- Il credito in eccesso resta disponibile per: `apply_credit_to_past_bookings` (lezioni passate), `apply_credit_on_booking` (nuove prenotazioni), pagamenti futuri espliciti dall'admin
+- Nessuna modifica al codice client-side: il bug era interamente server-side nella RPC
+
+### File toccati
+- `supabase/migrations/20260401300000_fix_admin_pay_no_autopay.sql` — nuova migration che ricrea `admin_pay_bookings` senza auto-pay FIFO
+
+### Consumo risorse (solo per progetti cliente)
+| Voce | Valore |
+|------|--------|
+| Tempo task Claude | ~15 min |
+| Tempo prompt utente (stimato) | ~5 min |
+| Token input (stimati) | ~40k |
+| Token output (stimati) | ~8k |
+
+## Task: Fix scheda cliente si chiude dopo eliminazione
+**Data:** 2026-03-31
+**Durata stimata:** ~20 min Claude + ~5 min prompt utente
+
+### Modifiche effettuate
+- Creata funzione helper `_refreshOpenClientCard(whatsapp, email)` che aggiorna la card del cliente aperta in-place, senza ri-renderizzare l'intera lista
+- `deleteBookingFromClients()`: convertita in async, usa `_refreshOpenClientCard` invece di `renderClientsTab()`, `alert()` → `showToast()`
+- `deleteTxEntry()`: rimossa `_reopenCard()` basata su indice, usa `_refreshOpenClientCard` con identità cliente, `alert()` → `showToast()`
+- `clearClientCredit()`: usa `_refreshOpenClientCard` invece di `renderClientsTab()` + riapertura manuale
+- **Bug fix critico**: `deleteTxEntry('booking', ...)` chiamava `admin_delete_booking_with_refund` che **eliminava la prenotazione** dal DB. Ora usa `admin_change_payment_method(paid=false)` che rimuove solo il pagamento, lasciando la prenotazione attiva
+
+### Decisioni prese
+- Il refresh avviene per identità del cliente (email/whatsapp) e non per indice nella lista, così funziona sia in modalità lista completa che dopo ricerca singolo cliente
+- Se il cliente non esiste più (tutti i booking eliminati e non registrato), fallback a `renderClientsTab()`
+- Errori mostrati con toast rosso (non bloccante) invece di `alert()` bloccante
+- Distinzione chiara: bottone 🗑️ nella tabella prenotazioni = elimina booking; bottone 🗑️ nello storico transazioni = rimuove solo il pagamento
+
+### File toccati
+- `js/admin-clients.js` — nuova `_refreshOpenClientCard()`, fix `deleteBookingFromClients`, `deleteTxEntry`, `clearClientCredit`
+
+### Consumo risorse (solo per progetti cliente)
+| Voce | Valore |
+|------|--------|
+| Tempo task Claude | ~30 min |
+| Tempo prompt utente (stimato) | ~10 min |
+| Token input (stimati) | ~150k |
+| Token output (stimati) | ~20k |

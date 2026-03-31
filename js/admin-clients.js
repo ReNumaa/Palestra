@@ -234,6 +234,49 @@ async function refreshClients() {
     if (btn) { btn.textContent = '↻ Ricarica'; btn.disabled = false; }
 }
 
+/**
+ * Refreshes only the currently open client card in-place (no full re-render).
+ * Works both in "list" mode and "single card from search" mode.
+ * Falls back to full renderClientsTab() if the card cannot be found.
+ */
+function _refreshOpenClientCard(whatsapp, email) {
+    renderClientsSummary();
+
+    const normPhone = normalizePhone(whatsapp);
+    const emailLow  = (email || '').toLowerCase();
+
+    // Find the open card element in the DOM
+    const container = document.getElementById('clientsList');
+    if (!container) { renderClientsTab(); return; }
+    const openCard = container.querySelector('.client-card.open');
+    if (!openCard) { renderClientsTab(); return; }
+
+    // Determine what index the card currently has
+    const oldId = openCard.id; // e.g. "client-card-0"
+
+    // Get fresh client data
+    const allClients = getAllClients();
+    const client = allClients.find(c =>
+        (normPhone && normalizePhone(c.whatsapp) === normPhone) ||
+        (emailLow && (c.email || '').toLowerCase() === emailLow)
+    );
+    if (!client) {
+        // Client no longer exists (e.g. all bookings deleted) — full re-render
+        openClientIndex = null;
+        renderClientsTab();
+        return;
+    }
+
+    // Build a new card with the same index (keeps DOM position)
+    const idxMatch = oldId.match(/client-card-(\d+)/);
+    const cardIndex = idxMatch ? parseInt(idxMatch[1], 10) : 0;
+    const newCard = createClientCard(client, cardIndex);
+    newCard.classList.add('open');
+
+    openCard.replaceWith(newCard);
+    openClientIndex = cardIndex;
+}
+
 function renderClientsTab() {
     renderClientsSummary();
     const listEl = document.getElementById('clientsList');
@@ -1048,7 +1091,7 @@ async function saveBookingRowEdit(bookingId, clientIndex) {
     renderClientsTab();
 }
 
-function deleteBookingFromClients(bookingId, bookingName) {
+async function deleteBookingFromClients(bookingId, bookingName) {
     if (!confirm(`Eliminare la prenotazione di ${bookingName}?\n\nQuesta operazione non può essere annullata.`)) return;
 
     const bookings = BookingStorage.getAllBookings();
@@ -1056,98 +1099,103 @@ function deleteBookingFromClients(bookingId, bookingName) {
     if (idx === -1) { renderClientsTab(); return; }
 
     const b = bookings[idx];
-    const slotPrices = { 'personal-training': 5, 'small-group': 10, 'group-class': 30 };
+    const clientWhatsapp = b.whatsapp;
+    const clientEmail    = b.email;
+    // Prezzi a zero: elimina solo il booking, NESSUN rimborso credito automatico.
+    // Il credito si gestisce separatamente dallo storico transazioni.
+    const zeroPrices = { 'personal-training': 0, 'small-group': 0, 'group-class': 0 };
 
     if (typeof supabaseClient !== 'undefined' && b._sbId) {
-        // Operazione atomica server-side: delete + rimborso in una transazione
-        (async () => {
-            try {
-                const { data, error } = await _rpcWithTimeout(supabaseClient.rpc('admin_delete_booking_with_refund', {
-                    p_booking_id:  b._sbId,
-                    p_slot_prices: slotPrices,
-                }));
-                if (error) {
-                    console.error('[Supabase] admin_delete_booking_with_refund error:', error.message);
-                    alert('⚠️ Errore durante l\'eliminazione: ' + error.message);
-                    return;
-                }
-                console.log('[admin_delete_booking_with_refund]', data);
-
-                await Promise.all([
-                    BookingStorage.syncFromSupabase(),
-                    CreditStorage.syncFromSupabase(),
-                ]);
-                invalidateStatsCache();
-                renderClientsTab();
-            } catch (ex) {
-                console.error('[deleteBookingFromClients] unexpected error:', ex);
-                alert('⚠️ Errore imprevisto. Riprova.');
-                renderClientsTab();
+        try {
+            const { data, error } = await _rpcWithTimeout(supabaseClient.rpc('admin_delete_booking_with_refund', {
+                p_booking_id:  b._sbId,
+                p_slot_prices: zeroPrices,
+            }));
+            if (error) {
+                console.error('[Supabase] admin_delete_booking_with_refund error:', error.message);
+                showToast('Errore durante l\'eliminazione: ' + error.message, 'error');
+                return;
             }
-        })();
-    } else {
-        // Fallback client-side (offline)
-        if (b.paid) {
-            CreditStorage.addCredit(b.whatsapp, b.email, b.name, slotPrices[b.slotType] || 0,
-                `Rimborso lezione ${b.date}`,
-                null, false, false, null, b.paymentMethod || '');
+            console.log('[admin_delete_booking_with_refund]', data);
+
+            await BookingStorage.syncFromSupabase();
+        } catch (ex) {
+            console.error('[deleteBookingFromClients] unexpected error:', ex);
+            showToast('Errore imprevisto. Riprova.', 'error');
+            return;
         }
+    } else {
+        // Fallback client-side (offline) — elimina solo il booking, nessun rimborso
         bookings.splice(idx, 1);
         BookingStorage.replaceAllBookings(bookings);
-        invalidateStatsCache();
-        renderClientsTab();
     }
+
+    invalidateStatsCache();
+    showToast('Prenotazione eliminata.', 'success');
+    _refreshOpenClientCard(clientWhatsapp, clientEmail);
 }
 
 // ── Elimina una singola transazione dallo storico (booking / credito / debito) ──
 async function deleteTxEntry(type, idOrDate, whatsappOrName, index, email) {
     if (!confirm('Eliminare questa transazione?\n\nQuesta operazione non può essere annullata.')) return;
 
-    const _reopenCard = () => {
-        renderClientsTab();
-        setTimeout(() => {
-            const card = document.getElementById(`client-card-${index}`);
-            if (card) { card.classList.add('open'); card.querySelector('.client-card-body').style.display = 'block'; }
-        }, 50);
-    };
+    // Resolve client identity for card refresh
+    let clientWhatsapp = '', clientEmail = '';
 
     if (type === 'booking') {
-        // idOrDate = bookingId, whatsappOrName = clientName
+        // Rimuove solo il PAGAMENTO, NON la prenotazione stessa.
+        // Il booking torna "non pagato" — stessa logica di admin_change_payment_method.
         const bookings = BookingStorage.getAllBookings();
         const idx = bookings.findIndex(b => b.id === idOrDate);
-        if (idx === -1) { _reopenCard(); return; }
+        if (idx === -1) { showToast('Prenotazione non trovata.', 'error'); return; }
         const b = bookings[idx];
+        clientWhatsapp = b.whatsapp;
+        clientEmail    = b.email;
         const slotPrices = { 'personal-training': 5, 'small-group': 10, 'group-class': 30 };
 
         if (typeof supabaseClient !== 'undefined' && b._sbId) {
-            const { data, error } = await _rpcWithTimeout(supabaseClient.rpc('admin_delete_booking_with_refund', {
+            // Usa admin_change_payment_method per marcare come non pagato (gestisce rimborso credito)
+            const { data, error } = await _rpcWithTimeout(supabaseClient.rpc('admin_change_payment_method', {
                 p_booking_id:  b._sbId,
+                p_new_paid:    false,
+                p_new_method:  null,
+                p_new_paid_at: null,
                 p_slot_prices: slotPrices,
             }));
             if (error) {
-                console.error('[deleteTxEntry] booking RPC error:', error.message);
-                alert('⚠️ Errore: ' + error.message);
+                console.error('[deleteTxEntry] booking payment reset RPC error:', error.message);
+                showToast('Errore: ' + error.message, 'error');
                 return;
             }
-            console.log('[deleteTxEntry] booking deleted:', data);
+            console.log('[deleteTxEntry] booking payment removed:', data);
 
             await Promise.all([
                 BookingStorage.syncFromSupabase(),
                 CreditStorage.syncFromSupabase(),
+                ManualDebtStorage.syncFromSupabase(),
             ]);
         } else {
-            if (b.paid) {
-                CreditStorage.addCredit(b.whatsapp, b.email, b.name, slotPrices[b.slotType] || 0,
-                    `Rimborso lezione ${b.date}`, null, false, false, null, b.paymentMethod || '');
+            // Fallback client-side: rimborsa credito se pagato con credito, nascondi entry pagamento
+            const oldMethod = b.paymentMethod || '';
+            const price = slotPrices[b.slotType] || 0;
+            if (oldMethod === 'credito' && price > 0) {
+                CreditStorage.addCredit(b.whatsapp, b.email, b.name, price,
+                    `Rimborso annullamento pagamento ${b.date} ${b.time}`);
+            } else if (oldMethod !== 'lezione-gratuita') {
+                CreditStorage.hidePaymentEntryByBooking(b.whatsapp, b.email, b.id);
             }
-            bookings.splice(idx, 1);
+            b.paid = false;
+            b.paymentMethod = undefined;
+            delete b.paidAt;
+            b.creditApplied = 0;
             BookingStorage.replaceAllBookings(bookings);
         }
-        showToast('Transazione (prenotazione) eliminata.', 'success');
-        _reopenCard();
+        invalidateStatsCache();
+        showToast('Pagamento rimosso. La prenotazione resta attiva.', 'success');
 
     } else if (type === 'credit') {
-        // idOrDate = entryDate ISO, whatsappOrName = whatsapp, email = email
+        clientWhatsapp = whatsappOrName;
+        clientEmail    = email;
         if (typeof supabaseClient !== 'undefined') {
             const { data, error } = await _rpcWithTimeout(supabaseClient.rpc('admin_delete_credit_entry', {
                 p_email:      (email || '').toLowerCase(),
@@ -1155,24 +1203,24 @@ async function deleteTxEntry(type, idOrDate, whatsappOrName, index, email) {
             }));
             if (error) {
                 console.error('[deleteTxEntry] credit RPC error:', error.message);
-                alert('⚠️ Errore: ' + error.message);
+                showToast('Errore: ' + error.message, 'error');
                 return;
             }
             if (!data?.success) {
-                alert('⚠️ Voce non trovata.');
+                showToast('Voce non trovata.', 'error');
                 return;
             }
             console.log('[deleteTxEntry] credit entry deleted:', data);
             await CreditStorage.syncFromSupabase();
         } else {
             const ok = CreditStorage.deleteCreditEntry(whatsappOrName, email, idOrDate);
-            if (!ok) { alert('⚠️ Voce non trovata.'); return; }
+            if (!ok) { showToast('Voce non trovata.', 'error'); return; }
         }
         showToast('Transazione (credito) eliminata.', 'success');
-        _reopenCard();
 
     } else if (type === 'debt') {
-        // idOrDate = entryDate ISO, whatsappOrName = whatsapp, email = email
+        clientWhatsapp = whatsappOrName;
+        clientEmail    = email;
         if (typeof supabaseClient !== 'undefined') {
             const { data, error } = await _rpcWithTimeout(supabaseClient.rpc('admin_delete_debt_entry', {
                 p_email:      (email || '').toLowerCase(),
@@ -1180,29 +1228,29 @@ async function deleteTxEntry(type, idOrDate, whatsappOrName, index, email) {
             }));
             if (error) {
                 console.error('[deleteTxEntry] debt RPC error:', error.message);
-                alert('⚠️ Errore: ' + error.message);
+                showToast('Errore: ' + error.message, 'error');
                 return;
             }
             if (!data?.success) {
-                alert('⚠️ Voce non trovata.');
+                showToast('Voce non trovata.', 'error');
                 return;
             }
             console.log('[deleteTxEntry] debt entry deleted:', data);
             await ManualDebtStorage.syncFromSupabase();
         } else {
             const ok = ManualDebtStorage.deleteDebtEntry(whatsappOrName, email, idOrDate);
-            if (!ok) { alert('⚠️ Voce non trovata.'); return; }
+            if (!ok) { showToast('Voce non trovata.', 'error'); return; }
         }
         showToast('Transazione (debito) eliminata.', 'success');
-        _reopenCard();
     }
+
+    _refreshOpenClientCard(clientWhatsapp, clientEmail);
 }
 
 function clearClientCredit(whatsapp, email, index) {
     if (!confirm('Eliminare tutto lo storico credito di questo cliente?\n\nSaldo e movimenti verranno azzerati.')) return;
     CreditStorage.clearRecord(whatsapp, email);
-    renderClientsTab();
-    const card = document.getElementById(`client-card-${index}`);
-    if (card) { card.classList.add('open'); card.querySelector('.client-card-body').style.display = 'block'; }
+    showToast('Storico credito eliminato.', 'success');
+    _refreshOpenClientCard(whatsapp, email);
 }
 
