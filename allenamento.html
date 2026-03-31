@@ -100,7 +100,7 @@
     <script src="js/ui.js?v=2"></script>
     <script src="js/data.js?v=61"></script>
     <script src="js/auth.js?v=22"></script>
-    <script src="js/chart-mini.js?v=12"></script>
+    <!-- chart-mini.js non serve: usa drawDarkLineChart() interno -->
     <script>
         let _allView = 'scheda';
         let _allPlan = null;
@@ -424,14 +424,7 @@
 
                     setTimeout(((cid, lbl, val) => () => {
                         const canvas = document.getElementById(cid);
-                        if (!canvas || typeof MiniChart === 'undefined') return;
-                        MiniChart.line(canvas, {
-                            labels: lbl,
-                            datasets: [{ data: val, color: '#00AEEF', fill: true }],
-                            yMin: Math.max(0, Math.min(...val) - 5),
-                            showDots: true,
-                            showLabels: true,
-                        });
+                        if (canvas) drawDarkLineChart(canvas, lbl, val, '#00AEEF');
                     })(canvasId, labels, values), 50);
                 }
 
@@ -460,13 +453,7 @@
                     </div>`;
                     setTimeout(() => {
                         const canvas = document.getElementById(volCanvasId);
-                        if (!canvas || typeof MiniChart === 'undefined') return;
-                        MiniChart.line(canvas, {
-                            labels: volLabels,
-                            datasets: [{ data: volValues, color: '#22c55e', fill: true }],
-                            showDots: true,
-                            showLabels: true,
-                        });
+                        if (canvas) drawDarkLineChart(canvas, volLabels, volValues, '#22c55e');
                     }, 50);
                 }
 
@@ -481,6 +468,97 @@
             if (!iso) return '';
             const d = new Date(iso + 'T00:00:00');
             return d.toLocaleDateString('it-IT', { day: '2-digit', month: 'short' });
+        }
+
+        // ── Dark-theme line chart (canvas) ────────────────────────────────
+        function drawDarkLineChart(canvas, labels, values, color) {
+            const ctx = canvas.getContext('2d');
+            const rect = canvas.getBoundingClientRect();
+            const w = rect.width > 0 ? rect.width : 320;
+            const h = 140;
+            canvas.width = Math.round(w * 2);
+            canvas.height = Math.round(h * 2);
+            ctx.scale(2, 2);
+
+            const pad = { top: 20, right: 12, bottom: 30, left: 40 };
+            const cw = w - pad.left - pad.right;
+            const ch = h - pad.top - pad.bottom;
+
+            if (!values.length) return;
+            const minV = Math.min(...values);
+            const maxV = Math.max(...values);
+            const range = maxV - minV || 1;
+            const yMin = Math.max(0, minV - range * 0.1);
+            const yMax = maxV + range * 0.1;
+            const yRange = yMax - yMin || 1;
+
+            // Grid
+            ctx.strokeStyle = 'rgba(255,255,255,0.06)';
+            ctx.lineWidth = 1;
+            for (let i = 0; i <= 4; i++) {
+                const y = pad.top + ch - (ch * i / 4);
+                ctx.beginPath(); ctx.moveTo(pad.left, y); ctx.lineTo(pad.left + cw, y); ctx.stroke();
+                ctx.fillStyle = 'rgba(255,255,255,0.25)';
+                ctx.font = '9px sans-serif';
+                ctx.textAlign = 'right';
+                ctx.fillText(Math.round(yMin + yRange * i / 4), pad.left - 5, y + 3);
+            }
+
+            // Points
+            const pts = values.map((v, i) => ({
+                x: pad.left + (values.length === 1 ? cw / 2 : (i / (values.length - 1)) * cw),
+                y: pad.top + ch - ((v - yMin) / yRange) * ch,
+                v,
+            }));
+
+            // Fill
+            ctx.beginPath();
+            ctx.moveTo(pts[0].x, pad.top + ch);
+            pts.forEach(p => ctx.lineTo(p.x, p.y));
+            ctx.lineTo(pts[pts.length - 1].x, pad.top + ch);
+            ctx.closePath();
+            const grad = ctx.createLinearGradient(0, pad.top, 0, pad.top + ch);
+            grad.addColorStop(0, color + '40');
+            grad.addColorStop(1, color + '05');
+            ctx.fillStyle = grad;
+            ctx.fill();
+
+            // Line
+            ctx.strokeStyle = color;
+            ctx.lineWidth = 2.5;
+            ctx.lineJoin = 'round';
+            ctx.beginPath();
+            pts.forEach((p, i) => i === 0 ? ctx.moveTo(p.x, p.y) : ctx.lineTo(p.x, p.y));
+            ctx.stroke();
+
+            // Dots
+            pts.forEach(p => {
+                ctx.beginPath();
+                ctx.arc(p.x, p.y, 3.5, 0, Math.PI * 2);
+                ctx.fillStyle = color;
+                ctx.fill();
+                ctx.strokeStyle = '#1a1a2e';
+                ctx.lineWidth = 1.5;
+                ctx.stroke();
+            });
+
+            // X labels
+            ctx.fillStyle = 'rgba(255,255,255,0.35)';
+            ctx.font = '8px sans-serif';
+            ctx.textAlign = 'center';
+            const step = Math.max(1, Math.floor(labels.length / 6));
+            labels.forEach((lbl, i) => {
+                if (i % step === 0 || i === labels.length - 1) {
+                    ctx.fillText(lbl, pts[i].x, pad.top + ch + 14);
+                }
+            });
+
+            // Value on last point
+            const last = pts[pts.length - 1];
+            ctx.fillStyle = '#fff';
+            ctx.font = 'bold 10px sans-serif';
+            ctx.textAlign = 'center';
+            ctx.fillText(last.v + 'kg', last.x, last.y - 8);
         }
     </script>
     <script src="js/sw-update.js"></script>
