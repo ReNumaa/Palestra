@@ -302,32 +302,59 @@
         }
 
         // ── Render Progressi ──────────────────────────────────────────────
+        // Raggruppa per NOME esercizio (non per ID), così log dello stesso
+        // esercizio da schede/giorni diversi confluiscono in un unico grafico.
         async function renderProgressi() {
             const container = document.getElementById('allContent');
             const user = getCurrentUser();
-            if (!_allPlan || !user) return;
+            if (!user) return;
 
             container.innerHTML = '<div class="all-loading">Caricamento progressi...</div>';
 
             try {
-                const exercises = _allPlan.workout_exercises;
-                const exIds = exercises.map(e => e.id);
-                if (!exIds.length) {
-                    container.innerHTML = '<div class="all-empty">Nessun esercizio nella scheda.</div>';
+                // Fetch ALL user's plans (anche inattivi) per avere tutti gli exercise IDs
+                const { data: allPlans } = await supabaseClient
+                    .from('workout_plans')
+                    .select('id, workout_exercises(id, exercise_name, sets, reps, weight_kg)')
+                    .eq('user_id', user.id);
+
+                const allExercises = (allPlans || []).flatMap(p => p.workout_exercises || []);
+                const allExIds = allExercises.map(e => e.id);
+                if (!allExIds.length) {
+                    container.innerHTML = '<div class="all-empty">Nessun esercizio nelle tue schede.</div>';
                     return;
                 }
 
-                // Fetch all logs
+                // Fetch ALL logs for this user's exercises
                 const { data: logs } = await supabaseClient
                     .from('workout_logs')
                     .select('*')
-                    .in('exercise_id', exIds)
+                    .in('exercise_id', allExIds)
                     .eq('user_id', user.id)
                     .order('log_date', { ascending: true });
 
                 if (!logs?.length) {
                     container.innerHTML = '<div class="all-empty">Nessun log registrato ancora.<br>Inizia ad allenarti per vedere i progressi!</div>';
                     return;
+                }
+
+                // Map exercise_id → exercise_name
+                const idToName = {};
+                for (const ex of allExercises) idToName[ex.id] = ex.exercise_name;
+
+                // Group logs by exercise NAME
+                const logsByName = {};
+                for (const l of logs) {
+                    const name = idToName[l.exercise_id] || 'Sconosciuto';
+                    if (!logsByName[name]) logsByName[name] = [];
+                    logsByName[name].push(l);
+                }
+
+                // Get current target from active plan (if available)
+                const activeExercises = _allPlan?.workout_exercises || [];
+                const targetByName = {};
+                for (const ex of activeExercises) {
+                    targetByName[ex.exercise_name] = { sets: ex.sets, reps: ex.reps, weight_kg: ex.weight_kg };
                 }
 
                 let html = '';
@@ -351,10 +378,11 @@
                     </div>
                 </div>`;
 
-                // Per-exercise progress charts
-                for (const ex of exercises) {
-                    const exLogs = logs.filter(l => l.exercise_id === ex.id);
-                    if (!exLogs.length) continue;
+                // Per-exercise-NAME progress charts (sorted alphabetically)
+                const exerciseNames = Object.keys(logsByName).sort();
+                let chartIdx = 0;
+                for (const exName of exerciseNames) {
+                    const exLogs = logsByName[exName];
 
                     // Max weight per date
                     const dateWeightMap = {};
@@ -374,12 +402,16 @@
                     const trend = values.length >= 2 ? lastW - values[0] : 0;
                     const trendSign = trend > 0 ? '+' : '';
                     const trendClass = trend > 0 ? 'all-trend-up' : trend < 0 ? 'all-trend-down' : '';
+                    const target = targetByName[exName];
+                    const targetStr = target
+                        ? `Target: ${target.sets}×${target.reps}${target.weight_kg != null ? ' @ ' + target.weight_kg + 'kg' : ''}`
+                        : '';
 
-                    const canvasId = 'pchart-' + ex.id.replace(/-/g, '');
+                    const canvasId = 'pchart-' + (chartIdx++);
                     html += `<div class="all-progress-card">
                         <div class="all-progress-header">
-                            <div class="all-progress-name">${_escHtml(ex.exercise_name)}</div>
-                            <div class="all-progress-meta">Target: ${ex.sets}×${ex.reps}${ex.weight_kg != null ? ' @ ' + ex.weight_kg + 'kg' : ''}</div>
+                            <div class="all-progress-name">${_escHtml(exName)}</div>
+                            ${targetStr ? `<div class="all-progress-meta">${targetStr}</div>` : ''}
                         </div>
                         <canvas id="${canvasId}" width="320" height="140"></canvas>
                         <div class="all-progress-stats">
@@ -390,17 +422,17 @@
                         </div>
                     </div>`;
 
-                    setTimeout(() => {
-                        const canvas = document.getElementById(canvasId);
+                    setTimeout(((cid, lbl, val) => () => {
+                        const canvas = document.getElementById(cid);
                         if (!canvas || typeof MiniChart === 'undefined') return;
                         MiniChart.line(canvas, {
-                            labels,
-                            datasets: [{ data: values, color: '#00AEEF', fill: true }],
-                            yMin: Math.max(0, Math.min(...values) - 5),
+                            labels: lbl,
+                            datasets: [{ data: val, color: '#00AEEF', fill: true }],
+                            yMin: Math.max(0, Math.min(...val) - 5),
                             showDots: true,
                             showLabels: true,
                         });
-                    }, 50);
+                    })(canvasId, labels, values), 50);
                 }
 
                 // Volume per session chart
