@@ -317,3 +317,109 @@
 | Tempo prompt utente (stimato) | ~5 min |
 | Token input (stimati) | ~80k |
 | Token output (stimati) | ~8k |
+
+## Task: Fix notifiche duplicate + pulizia GPS/proximity + vari fix UI
+**Data:** 2026-03-29
+
+### Modifiche effettuate
+
+#### Fix notifiche promemoria duplicate
+- Edge Function `send-reminders`: update atomico del flag `reminder_*_sent` prima dell'invio push, evita duplicati su esecuzioni concorrenti del cron
+- Usato `.select('id')` invece di `count` per claim atomico delle righe da notificare
+
+#### Pulizia GPS proximity
+- Rimossa Edge Function `notify-admin-proximity` (non più utilizzata)
+- Rimossa `_proximityIcon()` e icone GPS (✅/⚠️/❌/👍🏻) dalle card prenotazioni admin
+- Disabilitata geolocalizzazione su iOS (non supporta background tracking affidabile)
+- Warning ⚠️ solo per notifiche push, rimosso check GPS
+- Banner geo/push migliorati: mostrati solo per utenti con prenotazioni, gestione permessi negati
+
+#### Privacy prenotazioni
+- Nascosta lista iscritti a chi ha privacy attiva (tendina visibile solo se l'utente ha privacy OFF)
+
+#### Vari fix UI
+- Fix slot prenotato mostra 0 disponibili invece di -1
+- Escluse prenotazioni admin dalle statistiche
+- Mostra solo il nome (senza cognome) in prenotazioni.html
+- Registro: sub-tabs (Registro, Notifiche admin, Notifiche clienti) al posto della summary bar
+- Fix a capo nella data prenotazione (white-space: nowrap)
+- Fix gap sotto bottom-sheet modale su mobile
+- Pagina nutrizione: pacchetto 199€, timeline 5 step
+
+### File toccati
+- `supabase/functions/send-reminders/index.ts` — fix claim atomico
+- `supabase/functions/notify-admin-proximity/` — rimossa
+- `js/push.js` — disabilitata geo su iOS, banner solo con prenotazioni
+- `js/admin-calendar.js` — rimossa `_proximityIcon`, rimosso check GPS
+- `js/admin-registro.js` — sub-tabs
+- `js/admin-analytics.js` — escluse prenotazioni admin
+- `js/data.js` — fix conteggio disponibilità
+- `prenotazioni.html` — solo nome, fix privacy
+- `nutrizione.html` — pagina nutrizione
+- `css/admin.css`, `css/prenotazioni.css`, `css/style.css` — vari fix UI
+
+## Task: Perf analytics + fix scroll + revoke anon RPCs
+**Data:** 2026-03-31
+
+### Modifiche effettuate
+
+#### Performance analytics admin
+- Cache intelligente con range tracking (`_statsCacheRange`): se il filtro richiesto è già coperto dai dati in memoria, skip fetch Supabase
+- Stale-while-revalidate: render immediato da cache, aggiornamento silenzioso dopo fetch
+- Skeleton loading con anti-flicker (appare solo dopo 200ms di attesa)
+- Refresh automatico su `visibilitychange` dopo >2 min di inattività
+- `invalidateStatsCache()` chiamata dopo ogni save/cancel/delete booking
+
+#### Fix scroll prenotazioni
+- Auto-scroll alla prima apertura del tab prenotazioni admin, non ad ogni render
+- Fix scroll dopo render e tab visibile (requestAnimationFrame doppio)
+
+#### Sicurezza
+- Revocate RPC `admin_add_credit` e `admin_pay_bookings` per ruolo `anon` (erano callable senza autenticazione)
+- Migration `20260331000000_revoke_anon_credit_rpcs.sql`
+
+### File toccati
+- `js/admin-analytics.js` — cache + stale-while-revalidate + skeleton + visibilitychange
+- `js/admin-calendar.js` — `invalidateStatsCache()` su save/cancel
+- `js/admin-clients.js` — `invalidateStatsCache()` su edit/delete
+- `js/admin-schedule.js` — `invalidateStatsCache()` su assegnazione
+- `css/admin.css` — skeleton-pulse animation per stat cards
+- `supabase/migrations/20260331000000_revoke_anon_credit_rpcs.sql`
+
+## Task: Schede Palestra — gestione allenamento clienti
+**Data:** 2026-03-31
+
+### Modifiche effettuate
+
+#### Database
+- 3 nuove tabelle: `workout_plans` (schede), `workout_exercises` (esercizi), `workout_logs` (progressi)
+- RLS: admin full CRUD, cliente read-only proprie schede + insert/update propri log
+- RPC `admin_duplicate_plan`: duplica scheda con esercizi per assegnare a un altro cliente
+- Colonna `is_template` su `workout_plans`: schede template riutilizzabili
+- Tabelle aggiunte a Supabase Realtime per sync in tempo reale
+
+#### Admin — Tab Schede
+- Nuovo tab "Schede" nella dashboard admin con due sub-tabs: Schede (CRUD) e Clienti (overview)
+- Creazione/modifica schede: nome, date, note, esercizi con drag-and-drop (sort_order)
+- Catalogo esercizi con menu a tendina raggruppato per gruppo muscolare
+- Duplicazione scheda verso un altro cliente
+- Schede template standard + assegnazione rapida da vista Clienti
+- Vista Clienti: lista clienti con grafici progressi per esercizio
+- `js/admin-schede.js` — nuovo file con tutta la logica admin
+
+#### Utente — Pagina Allenamento
+- Nuova pagina `allenamento.html` con design dark fitness
+- Mostra scheda attiva con esercizi raggruppati per giorno
+- Selettore schede vecchie (storico)
+- Sezione Progressi: grafici per esercizio con filtri temporali e per muscolo
+- Log allenamento: inserimento peso/reps per ogni esercizio
+- Gating: redirect se l'utente non ha un UID autorizzato (login richiesto)
+
+### File toccati
+- `supabase/migrations/20260401000000_workout_plans.sql` — schema + RLS + RPC
+- `supabase/migrations/20260401100000_workout_plans_template.sql` — colonna is_template
+- `supabase/migrations/20260401200000_duplicate_plan_no_copia.sql` — fix nome duplicati
+- `js/admin-schede.js` — nuovo file (tab Schede admin)
+- `admin.html` — tab Schede + Realtime subscribe workout_*
+- `allenamento.html` — nuova pagina standalone
+- `css/admin.css` — stili tab Schede

@@ -1,6 +1,6 @@
 # TB Training — Documentazione Tecnica
 
-> Ultimo aggiornamento: 28 marzo 2026 (v5)
+> Ultimo aggiornamento: 31 marzo 2026 (v6)
 > Dominio: https://thomasbresciani.com — Repository: ReNumaa/Thomas-Bresciani
 > Progetto Supabase: `ppymuuyoveyyoswcimck` (Frankfurt, free tier)
 
@@ -56,6 +56,7 @@ Thomas-Bresciani/
 ├── prenotazioni.html       # Area utente loggato
 ├── admin.html              # Dashboard admin
 ├── regolamento.html        # Regolamento palestra
+├── allenamento.html        # Pagina allenamento utente (dark theme)
 ├── viewer.html             # Viewer emergenza offline
 ├── modulo_viewer.html      # Viewer/stampa modulo PDF
 ├── nutrizione.html         # Pagina nutrizione
@@ -87,6 +88,7 @@ Thomas-Bresciani/
 │   ├── admin-registro.js   # Tab Registro transazioni
 │   ├── admin-messaggi.js   # Tab Messaggi push
 │   ├── admin-backup.js     # Backup/ripristino/export
+│   ├── admin-schede.js     # Tab Schede Palestra
 │   ├── admin-settings.js   # Tab Impostazioni
 │   ├── chart-mini.js       # Libreria grafici Canvas
 │   ├── push.js             # Push notification subscription
@@ -103,7 +105,6 @@ Thomas-Bresciani/
 │       ├── notify-admin-booking/
 │       ├── notify-admin-cancellation/
 │       ├── notify-admin-new-client/
-│       ├── notify-admin-proximity/
 │       ├── send-admin-message/
 │       ├── create-checkout/
 │       └── stripe-webhook/
@@ -248,8 +249,11 @@ Chiave-valore JSONB per flags applicativi: `data_cleared_at`, `maintenance_mode`
 
 - `push_subscriptions` — subscription push per dispositivo
 - `admin_audit_log` — log audit operazioni admin
-- `admin_messages` — storico notifiche inviate agli admin (prenotazioni, annullamenti, proximity)
+- `admin_messages` — storico notifiche inviate agli admin (prenotazioni, annullamenti)
 - `client_notifications` — storico notifiche inviate ai clienti con stato invio/fallimento
+- `workout_plans` — schede allenamento: user_id, name, start/end_date, notes, active, is_template
+- `workout_exercises` — esercizi: plan_id, day_label, exercise_name, muscle_group, sort_order, sets, reps, weight_kg, rest_seconds, notes
+- `workout_logs` — progressi allenamento: exercise_id, user_id, date, sets, reps, weight_kg, notes
 
 ### Trigger automatici
 
@@ -287,6 +291,7 @@ Tutte le operazioni multi-step sono transazioni atomiche. Pattern: `SECURITY DEF
 | `admin_delete_credit_entry` | Elimina voce credit_history |
 | `admin_health_check` | Verifica integrita (6 tipi anomalia) |
 | `admin_health_fix` | Fix conservativo (non cancella dati) |
+| `admin_duplicate_plan` | Duplica scheda allenamento con esercizi verso altro cliente |
 | `process_pending_cancellations` | Ripristina booking pending entro 2h |
 | `get_all_profiles` | Tutti i profili (admin only) |
 | `get_debtors` | Debitori aggregati (booking + debiti manuali + crediti) |
@@ -335,6 +340,9 @@ RLS abilitata su tutte le tabelle. Helper `is_admin()` verifica `app_metadata.ro
 | `schedule_overrides` | pubblico | admin | admin | admin |
 | `settings` | pubblico | admin | admin | admin |
 | `push_subscriptions` | own | via RPC | — | own |
+| `workout_plans` | own + admin | admin | admin | admin |
+| `workout_exercises` | own plans + admin | admin | admin | admin |
+| `workout_logs` | own + admin | own | own | admin |
 
 Gli utenti vedono solo booking sintetici anonimi per la disponibilita calendario.
 
@@ -396,20 +404,14 @@ Gli utenti vedono solo booking sintetici anonimi per la disponibilita calendario
 | `notify-admin-booking` | Client (prenotazione) | Nome + occupazione |
 | `notify-admin-cancellation` | Client (annullamento) | Nome + bonus/mora |
 | `notify-admin-new-client` | Client (registrazione) | Nome nuovo iscritto |
-| `notify-admin-proximity` | Client (GPS proximity) | Arrivo con/senza prenotazione |
 | `send-admin-message` | Admin (tab Messaggi) | 3 modalita destinatari |
 
 VAPID keys: public in `push.js`, private nei secrets Supabase.
 
-### GPS Proximity
+### GPS Proximity (disabilitato)
 
-Quando un utente con GPS abilitato si avvicina entro 200m dalla palestra (Via S. Rocco, 1 — coords 45.6603, 10.4200):
+Il sistema GPS proximity è stato rimosso (29 marzo 2026): Edge Function `notify-admin-proximity` eliminata, icone GPS rimosse dal calendario admin. Le colonne `arrived_at` (bookings) e `geo_enabled` (profiles) restano nel DB ma non sono più utilizzate.
 
-- **Con prenotazione:** admin riceve "📍 Nome sta arrivando — Lezione delle HH:MM" + `arrived_at` scritto nel booking
-- **Senza prenotazione:** admin riceve "📍 Nome — In palestra senza prenotazione"
-- Banner "📍 Abilita la posizione" mostrato a tutti gli utenti non ancora abilitati
-- Flag `geo_enabled` su profilo, `arrived_at` su booking
-- Icone in admin calendario (solo oggi): ✅ arrivato, ⚠️ GPS/push mancanti, ❌ non arrivato (slot iniziato da 10+ min), 👍🏻 GPS attivo in attesa
 - Icona 🔕 accanto al nome se notifiche push non attive (nessuna icona se attive)
 - Flag `push_enabled` su profilo, sincronizzato dal client ad ogni apertura
 
@@ -467,6 +469,15 @@ Tabelle devono essere nella publication `supabase_realtime`.
 | 24h-2h | Condizionale (mora 50% o sostituto, a seconda della modalità) |
 | < 2h | Bloccato (bonus mensile override) |
 
+### Allenamento (`allenamento.html`)
+
+- Design dark fitness, standalone
+- Scheda attiva con esercizi raggruppati per giorno
+- Selettore schede vecchie (storico)
+- Log allenamento: inserimento peso/reps per ogni esercizio
+- Sezione Progressi: grafici per esercizio con filtri temporali e per muscolo
+- Gating: redirect se non loggato
+
 ### Profilo
 
 Modifica: nome, WhatsApp, password, indirizzo, codice fiscale, privacy prenotazioni. Certificato e assicurazione: solo admin.
@@ -483,14 +494,15 @@ Modifica: nome, WhatsApp, password, indirizzo, codice fiscale, privacy prenotazi
 
 ### Dashboard (`admin.html`)
 
-8 tab: Prenotazioni, Gestione Orari, Statistiche, Pagamenti, Registro, Clienti, Messaggi, Impostazioni (inclusa modalità manutenzione in fondo).
+9 tab: Prenotazioni, Gestione Orari, Statistiche, Pagamenti, Registro, Clienti, Schede, Messaggi, Impostazioni (inclusa modalità manutenzione in fondo).
 
 - **Prenotazioni:** calendario con partecipanti, badge cert/assic/documento, checkbox pagamento, posti extra, popup annullamento, icone proximity (✅/⚠️/❌/👍🏻), icona 🔕 se push disattivate
 - **Gestione Orari:** 12 fasce/giorno, 3 settimane standard, override per data, assegnazione cliente
-- **Statistiche:** stat card, grafici trend/proiezione/pie, top/bottom clienti, filtri temporali
+- **Statistiche:** stat card con cache stale-while-revalidate + skeleton loading, grafici trend/proiezione/pie, top/bottom clienti, filtri temporali
 - **Pagamenti:** debitori/creditori, popup "Da pagare", modifica storico, report XLSX
 - **Registro:** event sourcing, 7+ tipi, filtri, export Excel. Righe colorate per attore: rosso = admin, verde chiaro = sistema (fulfill automatico), bianco = utente. Sezioni separate: "📩 Storico notifiche admin" e "📬 Notifiche ai clienti" con filtri per tipo/stato/cliente/data
 - **Clienti:** ricerca, filtri (cert/assic/anagrafica), popup modifica, eliminazione
+- **Schede:** creazione/modifica schede allenamento per cliente, catalogo esercizi per muscolo, template standard, duplicazione, vista clienti con grafici progressi
 - **Messaggi:** push a tutti / iscritti giorno / iscritti ora
 - **Impostazioni:** soglie, blocchi, backup/ripristino, health check, modalità manutenzione
 
@@ -556,7 +568,6 @@ Funziona offline con backup JSON importato.
 | `notify-admin-booking` | Client (prenotazione) | Nome + occupazione + log admin_messages |
 | `notify-admin-cancellation` | Client (annullamento) | Nome + bonus/mora + log admin_messages |
 | `notify-admin-new-client` | Client (registrazione) | Nome + log admin_messages |
-| `notify-admin-proximity` | Client (GPS) | Arrivo con/senza prenotazione + log admin_messages |
 | `send-admin-message` | Admin | 3 modalita + log client_notifications |
 | `create-checkout` | Client (ricarica) | Verifica JWT |
 | `stripe-webhook` | Stripe webhook | Verifica firma, idempotente |
@@ -627,7 +638,7 @@ Dalla dashboard admin (tab Impostazioni) è possibile esportare/importare backup
 
 ## 16. Migrazioni SQL
 
-72+ file in `supabase/migrations/`, in ordine cronologico.
+75+ file in `supabase/migrations/`, in ordine cronologico.
 
 | Periodo | Contenuto |
 |---|---|
@@ -640,6 +651,8 @@ Dalla dashboard admin (tab Impostazioni) è possibile esportare/importare backup
 | 24-25 mar | Fix delete debt orfani, get_debtors manual-only, fix credits visibility, admin bypass cutoff, fix backup documento_firmato |
 | 27 mar | Fix saveManualEntry, track_actor (created_by/cancelled_by in bookings + RPC), fix stampa modulo PDF (iframe.print desktop, solo download iOS), modalità manutenzione (maintenance.js + toggle admin + Realtime), GPS proximity tracking (arrived_at, geo_enabled, notify-admin-proximity), storico notifiche admin (admin_messages), storico notifiche clienti (client_notifications), push_enabled su profili + icona 🔕 |
 | 28 mar | Fix cron pg_cron per `send-reminders`: creato job `*/5 * * * *` via pg_cron + pg_net, secret `service_role_key` salvato in vault, ri-deploy Edge Function con `--no-verify-jwt`. Privacy prenotazioni (`privacy_prenotazioni` su profiles, checkbox profilo, RPC `get_slot_attendees`, tendina "Persone iscritte" nel modal booking, slot completi cliccabili). Grace period 10 min: annullamento diretto senza bonus/mora entro 10 min dalla creazione prenotazione |
+| 29 mar | Fix notifiche promemoria duplicate (claim atomico). Pulizia GPS proximity: rimossa Edge Function, icone, geo su iOS. Escluse prenotazioni admin da statistiche. Sub-tabs Registro. Privacy: nascosta lista iscritti se privacy attiva. Vari fix UI (disponibilità -1, bottom-sheet gap, nowrap date). Pagina nutrizione |
+| 31 mar | Cache stale-while-revalidate + skeleton loading per analytics admin. Revocate RPC anon (`admin_add_credit`, `admin_pay_bookings`). Schede Palestra: 3 tabelle (`workout_plans`, `workout_exercises`, `workout_logs`), RPC `admin_duplicate_plan`, tab admin Schede con CRUD + catalogo esercizi + template, pagina `allenamento.html` con design dark fitness e progressi |
 
 ---
 
@@ -689,4 +702,4 @@ Dalla dashboard admin (tab Impostazioni) è possibile esportare/importare backup
 
 ---
 
-*Documento unificato — 28 marzo 2026*
+*Documento unificato — 31 marzo 2026*
