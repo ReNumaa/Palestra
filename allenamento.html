@@ -360,7 +360,8 @@
                 let html = '';
 
                 // Stats overview
-                const totalSessions = new Set(logs.map(l => l.log_date)).size;
+                // Sessioni = combinazioni uniche (exercise_id, log_date) — ogni giorno/esercizio conta
+                const totalSessions = new Set(logs.map(l => l.exercise_id + '|' + l.log_date)).size;
                 const totalSets = logs.length;
                 const totalVolume = logs.reduce((sum, l) => sum + ((l.weight_done || 0) * (l.reps_done || 0)), 0);
                 html += `<div class="all-stats-row">
@@ -379,24 +380,46 @@
                 </div>`;
 
                 // Per-exercise-NAME progress charts (sorted alphabetically)
+                // Ogni (exercise_id, log_date) conta come punto separato, anche
+                // se lo stesso esercizio appare in più giorni della scheda.
                 const exerciseNames = Object.keys(logsByName).sort();
                 let chartIdx = 0;
                 for (const exName of exerciseNames) {
                     const exLogs = logsByName[exName];
 
-                    // Max weight per date
-                    const dateWeightMap = {};
+                    // Raggruppa per (exercise_id, log_date) — max weight per sessione
+                    const sessionMap = {};  // key = "exId|date" → { date, weight, dateObj }
                     for (const l of exLogs) {
-                        if (l.weight_done != null) {
-                            if (!dateWeightMap[l.log_date] || l.weight_done > dateWeightMap[l.log_date])
-                                dateWeightMap[l.log_date] = l.weight_done;
+                        if (l.weight_done == null) continue;
+                        const key = l.exercise_id + '|' + l.log_date;
+                        if (!sessionMap[key] || l.weight_done > sessionMap[key].weight) {
+                            sessionMap[key] = { date: l.log_date, weight: l.weight_done };
                         }
                     }
-                    const dates = Object.keys(dateWeightMap).sort();
-                    if (!dates.length) continue;
+                    // Ordina per data, poi per peso (se stessa data, mostra entrambi)
+                    const sessions = Object.values(sessionMap).sort((a, b) =>
+                        a.date.localeCompare(b.date) || a.weight - b.weight
+                    );
+                    if (!sessions.length) continue;
 
-                    const values = dates.map(d => dateWeightMap[d]);
-                    const labels = dates.map(d => _fmtDateAll(d));
+                    const values = sessions.map(s => s.weight);
+                    // Se più sessioni nella stessa data, numera: "31 mar (1)", "31 mar (2)"
+                    const dateCounts = {};
+                    const labels = sessions.map(s => {
+                        const fmt = _fmtDateAll(s.date);
+                        dateCounts[s.date] = (dateCounts[s.date] || 0) + 1;
+                        return fmt;
+                    });
+                    // Disambigua label duplicate
+                    const dateOccurrences = {};
+                    for (let i = 0; i < labels.length; i++) {
+                        const d = sessions[i].date;
+                        if (dateCounts[d] > 1) {
+                            dateOccurrences[d] = (dateOccurrences[d] || 0) + 1;
+                            labels[i] += ' (' + dateOccurrences[d] + ')';
+                        }
+                    }
+
                     const maxW = Math.max(...values);
                     const lastW = values[values.length - 1];
                     const trend = values.length >= 2 ? lastW - values[0] : 0;
@@ -418,7 +441,7 @@
                             <span>Max <strong>${maxW}kg</strong></span>
                             <span>Ultimo <strong>${lastW}kg</strong></span>
                             <span class="${trendClass}">Trend <strong>${trendSign}${trend.toFixed(1)}kg</strong></span>
-                            <span>${dates.length} sessioni</span>
+                            <span>${sessions.length} sessioni</span>
                         </div>
                     </div>`;
 
