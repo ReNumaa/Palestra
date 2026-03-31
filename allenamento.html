@@ -46,15 +46,7 @@
     </nav>
 
     <main class="all-page">
-        <!-- Hero -->
-        <div class="all-hero">
-            <div class="container">
-                <h1 class="all-hero-title" id="allHeroTitle">Il tuo allenamento</h1>
-                <p class="all-hero-sub" id="allHeroSub">Caricamento...</p>
-            </div>
-        </div>
-
-        <div class="container">
+        <div class="container" style="padding-top:1rem;">
             <!-- Navigation pills -->
             <div class="all-nav">
                 <button class="all-nav-pill active" id="pillScheda" onclick="switchAllView('scheda')">Scheda</button>
@@ -129,9 +121,6 @@
                 return;
             }
 
-            document.getElementById('allHeroTitle').textContent = 'Ciao, ' + (user.name?.split(' ')[0] || 'Atleta');
-            document.getElementById('allHeroSub').textContent = 'Ecco la tua scheda di allenamento';
-
             try {
                 // Fetch ALL plans (active + old)
                 const { data: plans, error } = await supabaseClient
@@ -145,7 +134,6 @@
                 if (!plans?.length) {
                     document.getElementById('allContent').innerHTML =
                         '<div class="all-empty">Nessuna scheda assegnata dal trainer.<br>Contattalo per riceverne una!</div>';
-                    document.getElementById('allHeroSub').textContent = 'Nessuna scheda';
                     return;
                 }
 

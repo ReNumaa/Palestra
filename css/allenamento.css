@@ -13,29 +13,11 @@
     background: #1a1a2e;
     border-bottom: 1px solid rgba(255,255,255,0.06);
 }
-.allenamento-body .nav-logo { filter: brightness(0) invert(1); }
+.allenamento-body .nav-logo { border-radius: 6px; }
 .allenamento-body .nav-desktop-links a { color: rgba(255,255,255,0.7); }
 .allenamento-body .nav-desktop-links a:hover { color: #00AEEF; }
 .allenamento-body .nav-user-name { color: rgba(255,255,255,0.7); }
 .allenamento-body .nav-hamburger svg { stroke: #fff; }
-
-/* ── Hero ────────────────────────────────────────────────────────────────────── */
-.all-hero {
-    background: linear-gradient(135deg, #1a1a2e 0%, #16213e 50%, #0f3460 100%);
-    padding: 2rem 0 1.5rem;
-    border-bottom: 1px solid rgba(0,174,239,0.15);
-}
-.all-hero-title {
-    font-size: 1.6rem;
-    font-weight: 800;
-    color: #fff;
-    margin: 0 0 0.3rem;
-}
-.all-hero-sub {
-    font-size: 0.9rem;
-    color: rgba(255,255,255,0.5);
-    margin: 0;
-}
 
 /* ── Nav pills ──────────────────────────────────────────────────────────────── */
 .all-nav {
