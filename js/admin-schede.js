@@ -134,10 +134,12 @@ function _renderClientsList(container) {
     const allUsers = _schedeGetRegisteredUsers();
     const nameMap = {};
     for (const u of allUsers) nameMap[u.userId] = u.name || u.email || u.userId;
+    const templates = plans.filter(p => !p.user_id);
 
-    // Group plans by user
+    // Group plans by user (only assigned plans)
     const byUser = {};
     for (const p of plans) {
+        if (!p.user_id) continue;
         if (!byUser[p.user_id]) byUser[p.user_id] = [];
         byUser[p.user_id].push(p);
     }
@@ -147,10 +149,29 @@ function _renderClientsList(container) {
     );
 
     let html = `<div class="schede-header">
-        <h3>Clienti con schede</h3>
-    </div>
-    <div class="schede-search-bar">
-        <input type="text" id="schedeClientFilterInput" placeholder="Cerca cliente..."
+        <h3>Clienti</h3>
+    </div>`;
+
+    // Quick assign: template + client search
+    if (templates.length > 0) {
+        html += `<div class="schede-assign-bar">
+            <div class="schede-assign-row">
+                <select id="schedeQuickTemplate">
+                    <option value="">— Template —</option>
+                    ${templates.map(t => `<option value="${t.id}">${_escHtml(t.name)}</option>`).join('')}
+                </select>
+                <div class="schede-client-selector" style="flex:1;">
+                    <input type="text" id="schedeQuickClientSearch" placeholder="Cerca cliente..."
+                           oninput="_schedeQuickSearchClient()" autocomplete="off">
+                    <div id="schedeQuickClientDropdown" class="debtor-search-dropdown" style="display:none;"></div>
+                </div>
+                <button class="btn-primary" style="white-space:nowrap;" onclick="_schedeQuickAssign()">Assegna</button>
+            </div>
+        </div>`;
+    }
+
+    html += `<div class="schede-search-bar">
+        <input type="text" id="schedeClientFilterInput" placeholder="Filtra clienti con schede..."
                oninput="_schedeFilterClientCards()">
     </div>`;
 
@@ -185,6 +206,60 @@ function _schedeFilterClientCards() {
     document.querySelectorAll('.schede-client-card').forEach(card => {
         card.style.display = card.dataset.client.includes(q) ? '' : 'none';
     });
+}
+
+// Quick assign: search any registered client
+var _schedeQuickSearchClient = _debounce(function() {
+    const input = document.getElementById('schedeQuickClientSearch');
+    const dropdown = document.getElementById('schedeQuickClientDropdown');
+    const q = (input?.value || '').toLowerCase();
+    if (!q || q.length < 1) { dropdown.style.display = 'none'; return; }
+
+    const matches = _schedeGetRegisteredUsers().filter(u =>
+        (u.name || '').toLowerCase().includes(q) ||
+        (u.email || '').toLowerCase().includes(q)
+    );
+
+    if (matches.length === 0) {
+        dropdown.innerHTML = '<div class="dropdown-no-results">Nessun cliente trovato</div>';
+    } else {
+        dropdown.innerHTML = matches.slice(0, 10).map(u =>
+            `<div class="dropdown-item" onclick="_schedeQuickSelectClient('${u.userId}', '${_escHtml(u.name || u.email).replace(/'/g, "\\'")}')">
+                <span class="dropdown-item-name">${_escHtml(u.name || 'Senza nome')}</span>
+                <span style="color:#888;font-size:0.82rem">${_escHtml(u.email || '')}</span>
+            </div>`
+        ).join('');
+    }
+    dropdown.style.display = 'block';
+}, 150);
+
+function _schedeQuickSelectClient(userId, name) {
+    const input = document.getElementById('schedeQuickClientSearch');
+    input.value = name;
+    input.dataset.userId = userId;
+    document.getElementById('schedeQuickClientDropdown').style.display = 'none';
+}
+
+async function _schedeQuickAssign() {
+    const templateId = document.getElementById('schedeQuickTemplate')?.value;
+    const clientInput = document.getElementById('schedeQuickClientSearch');
+    const userId = clientInput?.dataset?.userId;
+
+    if (!templateId) { if (typeof showToast === 'function') showToast('Seleziona un template', 'error'); return; }
+    if (!userId || userId === 'undefined') { if (typeof showToast === 'function') showToast('Seleziona un cliente', 'error'); return; }
+
+    try {
+        await WorkoutPlanStorage.duplicatePlan(templateId, userId);
+        if (typeof showToast === 'function') showToast('Scheda assegnata!', 'success');
+        // Reset
+        clientInput.value = '';
+        delete clientInput.dataset.userId;
+        document.getElementById('schedeQuickTemplate').value = '';
+        renderSchedeTab();
+    } catch (e) {
+        console.error('[Schede] quick assign error:', e);
+        if (typeof showToast === 'function') showToast('Errore assegnazione', 'error');
+    }
 }
 
 function _schedeOpenClientDetail(userId) {
