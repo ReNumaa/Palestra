@@ -6,6 +6,11 @@
     background: #0f0f1a;
     color: #e2e8f0;
     min-height: 100vh;
+    display: flex;
+    flex-direction: column;
+}
+.all-page {
+    flex: 1;
 }
 
 /* Override navbar for dark theme */
