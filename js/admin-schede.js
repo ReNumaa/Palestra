@@ -80,11 +80,13 @@ function _schedeGetRegisteredUsers() {
     return UserStorage.getAll().filter(u => u.userId);
 }
 
-let _schedeView = 'list';  // 'list' | 'edit' | 'progress'
+let _schedeView = 'list';  // 'list' | 'edit' | 'progress' | 'clients' | 'client-detail'
+let _schedeSection = 'schede'; // 'schede' | 'clienti'
 let _currentPlanId = null;
-let _editingPlan = null;    // plan object being edited (or null for new)
-let _editDayLabels = [];    // array of day labels in editor
-let _editActiveDay = '';    // currently selected day tab
+let _editingPlan = null;
+let _editDayLabels = [];
+let _editActiveDay = '';
+let _schedeClientUserId = null;  // for client-detail view
 
 // ── Entry point ──────────────────────────────────────────────────────────────
 async function renderSchedeTab() {
@@ -98,13 +100,317 @@ async function renderSchedeTab() {
         container.innerHTML = '<div class="empty-slot">Errore caricamento schede</div>';
         return;
     }
-    if (_schedeView === 'edit') {
-        _renderPlanEditor(container);
-    } else if (_schedeView === 'progress') {
-        await _renderProgressView(container);
+
+    // Sub-navigation pills
+    let html = `<div class="schede-subnav">
+        <button class="schede-subnav-pill ${_schedeSection === 'schede' ? 'active' : ''}" onclick="_schedeSwitchSection('schede')">Schede</button>
+        <button class="schede-subnav-pill ${_schedeSection === 'clienti' ? 'active' : ''}" onclick="_schedeSwitchSection('clienti')">Clienti</button>
+    </div><div id="schedeInner"></div>`;
+    container.innerHTML = html;
+
+    const inner = document.getElementById('schedeInner');
+    if (_schedeSection === 'clienti') {
+        if (_schedeView === 'client-detail') await _renderClientDetail(inner);
+        else _renderClientsList(inner);
     } else {
-        _renderSchedeList(container);
+        if (_schedeView === 'edit') _renderPlanEditor(inner);
+        else if (_schedeView === 'progress') await _renderProgressView(inner);
+        else _renderSchedeList(inner);
     }
+}
+
+function _schedeSwitchSection(section) {
+    _schedeSection = section;
+    _schedeView = section === 'clienti' ? 'clients' : 'list';
+    _schedeClientUserId = null;
+    renderSchedeTab();
+}
+
+// ═══════════════════════════════════════════════════════════════════════════════
+// CLIENTS LIST (admin → see clients with plans)
+// ═══════════════════════════════════════════════════════════════════════════════
+function _renderClientsList(container) {
+    const plans = WorkoutPlanStorage.getAllPlans();
+    const allUsers = _schedeGetRegisteredUsers();
+    const nameMap = {};
+    for (const u of allUsers) nameMap[u.userId] = u.name || u.email || u.userId;
+
+    // Group plans by user
+    const byUser = {};
+    for (const p of plans) {
+        if (!byUser[p.user_id]) byUser[p.user_id] = [];
+        byUser[p.user_id].push(p);
+    }
+
+    const userIds = Object.keys(byUser).sort((a, b) =>
+        (nameMap[a] || '').localeCompare(nameMap[b] || '')
+    );
+
+    let html = `<div class="schede-header">
+        <h3>Clienti con schede</h3>
+    </div>
+    <div class="schede-search-bar">
+        <input type="text" id="schedeClientFilterInput" placeholder="Cerca cliente..."
+               oninput="_schedeFilterClientCards()">
+    </div>`;
+
+    if (userIds.length === 0) {
+        html += '<div class="empty-slot">Nessun cliente con schede assegnate.</div>';
+    } else {
+        html += '<div class="schede-plan-list">';
+        for (const uid of userIds) {
+            const clientName = _escHtml(nameMap[uid] || 'Sconosciuto');
+            const userPlans = byUser[uid];
+            const activePlan = userPlans.find(p => p.active);
+            const totalExercises = userPlans.reduce((s, p) => s + (p.workout_exercises || []).length, 0);
+            html += `
+            <div class="schede-plan-card schede-client-card" data-client="${clientName.toLowerCase()}" onclick="_schedeOpenClientDetail('${uid}')">
+                <div class="schede-plan-card-header">
+                    <div class="schede-plan-card-info">
+                        <div class="schede-plan-client">${clientName}</div>
+                        <div class="schede-plan-meta">${userPlans.length} schede &middot; ${totalExercises} esercizi${activePlan ? ' &middot; <span class="schede-badge-active">Attiva: ' + _escHtml(activePlan.name) + '</span>' : ''}</div>
+                    </div>
+                    <div class="schede-plan-actions"><span style="color:#9ca3af;font-size:1.1rem">→</span></div>
+                </div>
+            </div>`;
+        }
+        html += '</div>';
+    }
+
+    container.innerHTML = html;
+}
+
+function _schedeFilterClientCards() {
+    const q = (document.getElementById('schedeClientFilterInput')?.value || '').toLowerCase();
+    document.querySelectorAll('.schede-client-card').forEach(card => {
+        card.style.display = card.dataset.client.includes(q) ? '' : 'none';
+    });
+}
+
+function _schedeOpenClientDetail(userId) {
+    _schedeClientUserId = userId;
+    _schedeView = 'client-detail';
+    renderSchedeTab();
+}
+
+// ═══════════════════════════════════════════════════════════════════════════════
+// CLIENT DETAIL (admin → view a client's plans + charts)
+// ═══════════════════════════════════════════════════════════════════════════════
+async function _renderClientDetail(container) {
+    const userId = _schedeClientUserId;
+    const allUsers = _schedeGetRegisteredUsers();
+    const clientName = allUsers.find(u => u.userId === userId)?.name || 'Cliente';
+    const plans = WorkoutPlanStorage.getAllPlans().filter(p => p.user_id === userId);
+
+    let html = `<div class="schede-editor-topbar">
+        <button class="schede-back-btn" onclick="_schedeView='clients';renderSchedeTab()">← Clienti</button>
+        <h3>${_escHtml(clientName)}</h3>
+    </div>`;
+
+    // Show plans for this client
+    html += '<h4 style="margin:0.8rem 0 0.4rem;font-size:0.95rem;color:#6b7280;">Schede assegnate</h4>';
+    for (const plan of plans) {
+        const badge = plan.active ? '<span class="schede-badge-active">Attiva</span>' : '<span class="schede-badge-inactive">Inattiva</span>';
+        const exCount = (plan.workout_exercises || []).length;
+        html += `<div class="schede-plan-card" style="margin-bottom:0.4rem;">
+            <div class="schede-plan-card-header">
+                <div class="schede-plan-card-info">
+                    <div class="schede-plan-name">${_escHtml(plan.name)} ${badge}</div>
+                    <div class="schede-plan-meta">${exCount} esercizi${_schedeDateRange(plan) ? ' &middot; ' + _schedeDateRange(plan) : ''}</div>
+                </div>
+            </div>
+        </div>`;
+    }
+
+    // Fetch ALL logs for this client's exercises
+    const allExercises = plans.flatMap(p => p.workout_exercises || []);
+    const allExIds = allExercises.map(e => e.id);
+
+    if (!allExIds.length) {
+        html += '<div class="empty-slot">Nessun esercizio nelle schede di questo cliente.</div>';
+        container.innerHTML = html;
+        return;
+    }
+
+    html += '<h4 style="margin:1.2rem 0 0.4rem;font-size:0.95rem;color:#6b7280;">Progressi</h4>';
+
+    container.innerHTML = html + '<div class="schede-loading">Caricamento log...</div>';
+
+    const { data: logs } = await supabaseClient
+        .from('workout_logs')
+        .select('*')
+        .in('exercise_id', allExIds)
+        .order('log_date', { ascending: true });
+
+    if (!logs?.length) {
+        container.innerHTML = html + '<div class="empty-slot">Nessun log registrato da questo cliente.</div>';
+        return;
+    }
+
+    // Map exercise_id → { name, muscle_group }
+    const idToName = {};
+    const nameToMuscle = {};
+    for (const ex of allExercises) {
+        idToName[ex.id] = ex.exercise_name;
+        if (ex.muscle_group && !nameToMuscle[ex.exercise_name]) nameToMuscle[ex.exercise_name] = ex.muscle_group;
+    }
+
+    // Group logs by exercise name
+    const logsByName = {};
+    for (const l of logs) {
+        const name = idToName[l.exercise_id] || 'Sconosciuto';
+        if (!logsByName[name]) logsByName[name] = [];
+        logsByName[name].push(l);
+    }
+
+    // Stats
+    const totalSessions = new Set(logs.map(l => l.exercise_id + '|' + l.log_date)).size;
+    const totalVolume = logs.reduce((s, l) => s + ((l.weight_done || 0) * (l.reps_done || 0)), 0);
+    html += `<div style="display:flex;gap:0.5rem;margin-bottom:1rem;flex-wrap:wrap;">
+        <div class="payment-stat-card" style="flex:1;min-width:100px;text-align:center;">
+            <div class="payment-stat-icon">📊</div>
+            <h4>Sessioni</h4>
+            <p class="payment-total">${totalSessions}</p>
+        </div>
+        <div class="payment-stat-card" style="flex:1;min-width:100px;text-align:center;">
+            <div class="payment-stat-icon">🏋️</div>
+            <h4>Serie</h4>
+            <p class="payment-total">${logs.length}</p>
+        </div>
+        <div class="payment-stat-card" style="flex:1;min-width:100px;text-align:center;">
+            <div class="payment-stat-icon">📈</div>
+            <h4>Volume</h4>
+            <p class="payment-total">${totalVolume >= 1000 ? (totalVolume/1000).toFixed(1) + 't' : totalVolume + 'kg'}</p>
+        </div>
+    </div>`;
+
+    // Charts per exercise name
+    const exerciseNames = Object.keys(logsByName).sort();
+    let chartIdx = 0;
+    for (const exName of exerciseNames) {
+        const exLogs = logsByName[exName];
+        const sessionMap = {};
+        for (const l of exLogs) {
+            if (l.weight_done == null) continue;
+            const key = l.exercise_id + '|' + l.log_date;
+            if (!sessionMap[key] || l.weight_done > sessionMap[key].weight) {
+                sessionMap[key] = { date: l.log_date, weight: l.weight_done };
+            }
+        }
+        const sessions = Object.values(sessionMap).sort((a, b) => a.date.localeCompare(b.date));
+        if (!sessions.length) continue;
+
+        const values = sessions.map(s => s.weight);
+        const labels = sessions.map(s => _fmtDate(s.date));
+        const maxW = Math.max(...values);
+        const lastW = values[values.length - 1];
+        const trend = values.length >= 2 ? lastW - values[0] : 0;
+        const trendSign = trend > 0 ? '+' : '';
+        const muscle = nameToMuscle[exName] || '';
+
+        const canvasId = 'admin-pchart-' + (chartIdx++);
+        html += `<div class="schede-admin-chart-card">
+            <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:0.3rem;">
+                <strong style="font-size:0.92rem;">${_escHtml(exName)}</strong>
+                ${muscle ? '<span class="schede-badge-active" style="font-size:0.7rem;">' + _escHtml(muscle) + '</span>' : ''}
+            </div>
+            <canvas id="${canvasId}" width="400" height="140" style="width:100%;max-height:140px;"></canvas>
+            <div style="display:flex;gap:0.6rem;flex-wrap:wrap;margin-top:0.4rem;font-size:0.78rem;color:#9ca3af;">
+                <span>Max <strong style="color:#1e293b;">${maxW}kg</strong></span>
+                <span>Ultimo <strong style="color:#1e293b;">${lastW}kg</strong></span>
+                <span style="color:${trend >= 0 ? '#166534' : '#dc2626'}">Trend <strong>${trendSign}${trend.toFixed(1)}kg</strong></span>
+                <span>${sessions.length} sessioni</span>
+            </div>
+        </div>`;
+
+        setTimeout(((cid, lbl, val) => () => {
+            const canvas = document.getElementById(cid);
+            if (!canvas) return;
+            _drawAdminChart(canvas, lbl, val);
+        })(canvasId, labels, values), 50);
+    }
+
+    container.innerHTML = html;
+}
+
+// Simple line chart for admin (light theme)
+function _drawAdminChart(canvas, labels, values) {
+    const ctx = canvas.getContext('2d');
+    const rect = canvas.getBoundingClientRect();
+    const w = rect.width > 0 ? rect.width : 400;
+    const h = 140;
+    canvas.width = Math.round(w * 2);
+    canvas.height = Math.round(h * 2);
+    ctx.scale(2, 2);
+
+    const pad = { top: 16, right: 12, bottom: 28, left: 36 };
+    const cw = w - pad.left - pad.right;
+    const ch = h - pad.top - pad.bottom;
+    if (!values.length) return;
+
+    const minV = Math.min(...values);
+    const maxV = Math.max(...values);
+    const range = maxV - minV || 1;
+    const yMin = Math.max(0, minV - range * 0.1);
+    const yMax = maxV + range * 0.1;
+    const yRange = yMax - yMin || 1;
+
+    // Grid
+    ctx.strokeStyle = '#e5e7eb';
+    ctx.lineWidth = 1;
+    for (let i = 0; i <= 4; i++) {
+        const y = pad.top + ch - (ch * i / 4);
+        ctx.beginPath(); ctx.moveTo(pad.left, y); ctx.lineTo(pad.left + cw, y); ctx.stroke();
+        ctx.fillStyle = '#9ca3af';
+        ctx.font = '9px sans-serif';
+        ctx.textAlign = 'right';
+        ctx.fillText(Math.round(yMin + yRange * i / 4), pad.left - 4, y + 3);
+    }
+
+    const pts = values.map((v, i) => ({
+        x: pad.left + (values.length === 1 ? cw / 2 : (i / (values.length - 1)) * cw),
+        y: pad.top + ch - ((v - yMin) / yRange) * ch,
+    }));
+
+    // Fill
+    ctx.beginPath();
+    ctx.moveTo(pts[0].x, pad.top + ch);
+    pts.forEach(p => ctx.lineTo(p.x, p.y));
+    ctx.lineTo(pts[pts.length - 1].x, pad.top + ch);
+    ctx.closePath();
+    const grad = ctx.createLinearGradient(0, pad.top, 0, pad.top + ch);
+    grad.addColorStop(0, 'rgba(0,174,239,0.2)');
+    grad.addColorStop(1, 'rgba(0,174,239,0.02)');
+    ctx.fillStyle = grad;
+    ctx.fill();
+
+    // Line
+    ctx.strokeStyle = '#00AEEF';
+    ctx.lineWidth = 2.5;
+    ctx.lineJoin = 'round';
+    ctx.beginPath();
+    pts.forEach((p, i) => i === 0 ? ctx.moveTo(p.x, p.y) : ctx.lineTo(p.x, p.y));
+    ctx.stroke();
+
+    // Dots
+    pts.forEach(p => {
+        ctx.beginPath();
+        ctx.arc(p.x, p.y, 3.5, 0, Math.PI * 2);
+        ctx.fillStyle = '#00AEEF';
+        ctx.fill();
+        ctx.strokeStyle = '#fff';
+        ctx.lineWidth = 1.5;
+        ctx.stroke();
+    });
+
+    // X labels
+    ctx.fillStyle = '#9ca3af';
+    ctx.font = '8px sans-serif';
+    ctx.textAlign = 'center';
+    const step = Math.max(1, Math.floor(labels.length / 6));
+    labels.forEach((lbl, i) => {
+        if (i % step === 0 || i === labels.length - 1) ctx.fillText(lbl, pts[i].x, pad.top + ch + 14);
+    });
 }
 
 // ═══════════════════════════════════════════════════════════════════════════════
