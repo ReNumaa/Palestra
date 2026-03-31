@@ -4969,134 +4969,149 @@ canvas {
 /* ═══════════════════════════════════════════════════════════════════════════════
    SCHEDE PALESTRA — Admin Tab Styles
    ═══════════════════════════════════════════════════════════════════════════════ */
-.schede-loading { text-align: center; padding: 2rem; color: #9ca3af; }
+.schede-loading { text-align: center; padding: 3rem 1rem; color: #9ca3af; font-size: 0.95rem; }
 
 /* Sub-navigation */
-.schede-subnav { display: flex; gap: 0.4rem; margin-bottom: 1rem; padding: 3px; background: #f3f4f6; border-radius: 10px; }
-.schede-subnav-pill { flex: 1; padding: 0.45rem 0.8rem; border: none; background: transparent; color: #6b7280; font-size: 0.9rem; font-weight: 600; border-radius: 8px; cursor: pointer; transition: all 0.15s; }
-.schede-subnav-pill.active { background: #fff; color: #00AEEF; box-shadow: 0 1px 3px rgba(0,0,0,0.08); }
+.schede-subnav { display: flex; gap: 0; margin-bottom: 1.5rem; padding: 4px; background: #f1f5f9; border-radius: 12px; max-width: 320px; }
+.schede-subnav-pill { flex: 1; padding: 0.55rem 1.2rem; border: none; background: transparent; color: #64748b; font-size: 0.92rem; font-weight: 600; border-radius: 10px; cursor: pointer; transition: all 0.2s; text-align: center; }
+.schede-subnav-pill.active { background: #fff; color: #00AEEF; box-shadow: 0 1px 4px rgba(0,0,0,0.1); }
+.schede-subnav-pill:hover:not(.active) { color: #334155; background: rgba(255,255,255,0.5); }
 
 /* Assign bar */
-.schede-assign-bar { background: #f0fdf4; border: 1px solid #bbf7d0; border-radius: 10px; padding: 0.7rem; margin-bottom: 0.8rem; }
-.schede-assign-row { display: flex; gap: 0.5rem; align-items: center; flex-wrap: wrap; }
-.schede-assign-row select { padding: 0.4rem 0.6rem; border: 1px solid #d1d5db; border-radius: 8px; font-size: 0.88rem; min-width: 140px; }
-.schede-assign-row input { padding: 0.4rem 0.6rem; border: 1px solid #d1d5db; border-radius: 8px; font-size: 0.88rem; width: 100%; }
+.schede-assign-bar { background: linear-gradient(135deg, #f0fdf4, #ecfdf5); border: 1px solid #bbf7d0; border-radius: 12px; padding: 0.8rem 1rem; margin-bottom: 1rem; }
+.schede-assign-row { display: flex; gap: 0.6rem; align-items: center; flex-wrap: wrap; }
+.schede-assign-row select { padding: 0.5rem 0.7rem; border: 1px solid #d1d5db; border-radius: 8px; font-size: 0.9rem; min-width: 160px; background: #fff; }
+.schede-assign-row input { padding: 0.5rem 0.7rem; border: 1px solid #d1d5db; border-radius: 8px; font-size: 0.9rem; width: 100%; }
 
 /* Client card (clickable) */
-.schede-client-card { cursor: pointer; }
-.schede-client-card:hover { border-left-color: #00AEEF; box-shadow: 0 2px 8px rgba(0,174,239,0.12); }
+.schede-client-card { cursor: pointer; border-left-color: #64748b; }
+.schede-client-card:hover { border-left-color: #00AEEF; box-shadow: 0 4px 12px rgba(0,174,239,0.12); transform: translateY(-1px); }
 
 /* Admin chart card */
-.schede-admin-chart-card { background: #fff; border: 1px solid #e5e7eb; border-radius: 10px; padding: 0.8rem; margin-bottom: 0.6rem; }
-.schede-admin-chart-card canvas { border-radius: 6px; }
+.schede-admin-chart-card { background: #fff; border: 1px solid #e5e7eb; border-radius: 12px; padding: 1rem; margin-bottom: 0.8rem; box-shadow: 0 1px 3px rgba(0,0,0,0.04); }
+.schede-admin-chart-card:hover { box-shadow: 0 2px 8px rgba(0,0,0,0.08); }
+.schede-admin-chart-card canvas { border-radius: 8px; }
 
 /* Header */
-.schede-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 1rem; }
-.schede-header h3 { margin: 0; font-size: 1.3rem; }
+.schede-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 1.2rem; }
+.schede-header h3 { margin: 0; font-size: 1.4rem; font-weight: 700; color: #1e293b; }
+.schede-header .btn-primary { padding: 0.55rem 1.2rem; font-size: 0.92rem; font-weight: 600; border-radius: 10px; box-shadow: 0 2px 6px rgba(0,174,239,0.25); }
+.schede-header .btn-primary:hover { box-shadow: 0 4px 12px rgba(0,174,239,0.35); transform: translateY(-1px); }
 
 /* Search */
 .schede-search-bar { margin-bottom: 1rem; }
-.schede-search-bar input { width: 100%; padding: 0.6rem 0.8rem; border: 1px solid #e5e7eb; border-radius: 8px; font-size: 0.95rem; }
+.schede-search-bar input { width: 100%; padding: 0.65rem 1rem; border: 1px solid #e2e8f0; border-radius: 10px; font-size: 0.95rem; background: #f8fafc; transition: border-color 0.2s, box-shadow 0.2s; }
+.schede-search-bar input:focus { border-color: #00AEEF; box-shadow: 0 0 0 3px rgba(0,174,239,0.1); outline: none; background: #fff; }
 
 /* Plan list */
-.schede-plan-list { display: flex; flex-direction: column; gap: 0.75rem; }
+.schede-plan-list { display: flex; flex-direction: column; gap: 0.6rem; }
 
-.schede-plan-card { background: #fff; border: 1px solid #e5e7eb; border-left: 3px solid #00AEEF; border-radius: 10px; padding: 0.8rem 1rem; transition: box-shadow 0.2s; }
-.schede-plan-card:hover { box-shadow: 0 2px 8px rgba(0,0,0,0.08); }
+.schede-plan-card { background: #fff; border: 1px solid #e2e8f0; border-left: 4px solid #00AEEF; border-radius: 12px; padding: 1rem 1.2rem; transition: all 0.2s; }
+.schede-plan-card:hover { box-shadow: 0 4px 12px rgba(0,0,0,0.06); transform: translateY(-1px); }
 
-.schede-plan-card-header { display: flex; justify-content: space-between; align-items: flex-start; gap: 0.5rem; }
-.schede-plan-client { font-weight: 600; font-size: 1rem; color: #1e293b; }
-.schede-plan-name { font-size: 0.9rem; color: #4b5563; margin-top: 0.15rem; }
-.schede-plan-meta { font-size: 0.8rem; color: #9ca3af; margin-top: 0.2rem; }
+.schede-plan-card-header { display: flex; justify-content: space-between; align-items: center; gap: 0.8rem; }
+.schede-plan-card-info { flex: 1; min-width: 0; }
+.schede-plan-client { font-weight: 700; font-size: 1rem; color: #1e293b; line-height: 1.3; }
+.schede-plan-name { font-size: 0.92rem; color: #475569; margin-top: 0.2rem; line-height: 1.3; }
+.schede-plan-meta { font-size: 0.8rem; color: #94a3b8; margin-top: 0.25rem; }
 
-.schede-plan-actions { display: flex; gap: 0.3rem; flex-shrink: 0; }
-.schede-plan-actions button { background: none; border: none; cursor: pointer; font-size: 1.1rem; padding: 0.2rem 0.35rem; border-radius: 6px; transition: background 0.15s; }
-.schede-plan-actions button:hover { background: #f3f4f6; }
+.schede-plan-actions { display: flex; gap: 0.15rem; flex-shrink: 0; background: #f8fafc; border-radius: 8px; padding: 0.15rem; }
+.schede-plan-actions button { background: none; border: none; cursor: pointer; font-size: 1rem; padding: 0.35rem 0.45rem; border-radius: 6px; transition: all 0.15s; }
+.schede-plan-actions button:hover { background: #e2e8f0; transform: scale(1.1); }
 
 /* Badges */
-.schede-badge-active { display: inline-block; font-size: 0.72rem; padding: 0.1rem 0.5rem; background: #dcfce7; color: #166534; border-radius: 10px; margin-left: 0.3rem; }
-.schede-badge-inactive { display: inline-block; font-size: 0.72rem; padding: 0.1rem 0.5rem; background: #fee2e2; color: #991b1b; border-radius: 10px; margin-left: 0.3rem; }
-.schede-badge-template { display: inline-block; font-size: 0.72rem; padding: 0.1rem 0.5rem; background: #eff6ff; color: #1e40af; border-radius: 10px; font-weight: 600; }
+.schede-badge-active { display: inline-block; font-size: 0.72rem; padding: 0.15rem 0.55rem; background: #dcfce7; color: #166534; border-radius: 20px; font-weight: 600; letter-spacing: 0.01em; }
+.schede-badge-inactive { display: inline-block; font-size: 0.72rem; padding: 0.15rem 0.55rem; background: #fee2e2; color: #991b1b; border-radius: 20px; font-weight: 600; }
+.schede-badge-template { display: inline-block; font-size: 0.72rem; padding: 0.15rem 0.55rem; background: #dbeafe; color: #1e40af; border-radius: 20px; font-weight: 700; letter-spacing: 0.02em; text-transform: uppercase; }
 
 /* ── Editor ─────────────────────────────────────────────────────────────────── */
 .schede-editor { max-width: 900px; }
 
-.schede-editor-topbar { display: flex; align-items: center; gap: 1rem; margin-bottom: 1rem; }
-.schede-editor-topbar h3 { margin: 0; }
-.schede-back-btn { background: none; border: none; color: #00AEEF; cursor: pointer; font-size: 0.95rem; padding: 0.3rem 0; }
-.schede-back-btn:hover { text-decoration: underline; }
+.schede-editor-topbar { display: flex; align-items: center; gap: 1rem; margin-bottom: 1.2rem; padding-bottom: 0.8rem; border-bottom: 1px solid #e2e8f0; }
+.schede-editor-topbar h3 { margin: 0; font-size: 1.2rem; font-weight: 700; color: #1e293b; }
+.schede-back-btn { background: none; border: 1px solid #e2e8f0; color: #00AEEF; cursor: pointer; font-size: 0.88rem; font-weight: 600; padding: 0.35rem 0.8rem; border-radius: 8px; transition: all 0.15s; }
+.schede-back-btn:hover { background: #f0f9ff; border-color: #00AEEF; }
 
-.schede-editor-form { display: flex; flex-direction: column; gap: 0.6rem; margin-bottom: 1.2rem; }
-.schede-form-row { display: flex; flex-direction: column; gap: 0.25rem; }
-.schede-form-row label { font-size: 0.82rem; font-weight: 600; color: #4b5563; }
+.schede-editor-form { display: flex; flex-direction: column; gap: 0.7rem; margin-bottom: 1.5rem; background: #f8fafc; padding: 1rem; border-radius: 12px; border: 1px solid #e2e8f0; }
+.schede-form-row { display: flex; flex-direction: column; gap: 0.3rem; }
+.schede-form-row label { font-size: 0.82rem; font-weight: 600; color: #475569; }
 .schede-form-row input[type="text"], .schede-form-row input[type="date"], .schede-form-row textarea {
-    padding: 0.5rem 0.7rem; border: 1px solid #e5e7eb; border-radius: 8px; font-size: 0.95rem; font-family: inherit;
+    padding: 0.55rem 0.8rem; border: 1px solid #e2e8f0; border-radius: 8px; font-size: 0.95rem; font-family: inherit; background: #fff; transition: border-color 0.2s;
 }
+.schede-form-row input:focus, .schede-form-row textarea:focus { border-color: #00AEEF; outline: none; box-shadow: 0 0 0 2px rgba(0,174,239,0.1); }
 .schede-form-row--inline { flex-direction: row; gap: 1rem; flex-wrap: wrap; align-items: flex-end; }
-.schede-form-row--inline > div { display: flex; flex-direction: column; gap: 0.25rem; }
+.schede-form-row--inline > div { display: flex; flex-direction: column; gap: 0.3rem; }
 
 /* Client selector */
 .schede-client-selector { position: relative; }
 .schede-client-selector .debtor-search-dropdown { top: 100%; left: 0; right: 0; }
 
 /* Toggle switch */
-.schede-toggle { position: relative; display: inline-block; width: 42px; height: 24px; cursor: pointer; }
+.schede-toggle { position: relative; display: inline-block; width: 44px; height: 24px; cursor: pointer; }
 .schede-toggle input { opacity: 0; width: 0; height: 0; }
-.schede-toggle-slider { position: absolute; inset: 0; background: #ccc; border-radius: 12px; transition: 0.2s; }
-.schede-toggle-slider::before { content: ''; position: absolute; width: 18px; height: 18px; left: 3px; bottom: 3px; background: #fff; border-radius: 50%; transition: 0.2s; }
+.schede-toggle-slider { position: absolute; inset: 0; background: #cbd5e1; border-radius: 12px; transition: 0.25s; }
+.schede-toggle-slider::before { content: ''; position: absolute; width: 18px; height: 18px; left: 3px; bottom: 3px; background: #fff; border-radius: 50%; transition: 0.25s; box-shadow: 0 1px 3px rgba(0,0,0,0.15); }
 .schede-toggle input:checked + .schede-toggle-slider { background: #00AEEF; }
-.schede-toggle input:checked + .schede-toggle-slider::before { transform: translateX(18px); }
+.schede-toggle input:checked + .schede-toggle-slider::before { transform: translateX(20px); }
 
 /* ── Day tabs ───────────────────────────────────────────────────────────────── */
-.schede-day-section { margin-top: 0.5rem; }
-.schede-day-tabs { display: flex; gap: 0.4rem; flex-wrap: wrap; margin-bottom: 0.5rem; }
-.schede-day-tab { padding: 0.4rem 0.9rem; border: 1px solid #e5e7eb; border-radius: 8px; background: #fff; cursor: pointer; font-size: 0.88rem; transition: all 0.15s; }
-.schede-day-tab.active { background: #00AEEF; color: #fff; border-color: #00AEEF; }
+.schede-day-section { margin-top: 0.8rem; }
+.schede-day-tabs { display: flex; gap: 0.4rem; flex-wrap: wrap; margin-bottom: 0.6rem; }
+.schede-day-tab { padding: 0.45rem 1rem; border: 1px solid #e2e8f0; border-radius: 8px; background: #fff; cursor: pointer; font-size: 0.88rem; font-weight: 500; transition: all 0.15s; }
+.schede-day-tab.active { background: #00AEEF; color: #fff; border-color: #00AEEF; box-shadow: 0 2px 6px rgba(0,174,239,0.25); }
+.schede-day-tab:hover:not(.active) { background: #f0f9ff; border-color: #bae6fd; }
 .schede-day-tab--add { background: #f0fdf4; color: #166534; border-color: #bbf7d0; font-weight: 700; }
+.schede-day-tab--add:hover { background: #dcfce7; }
 .schede-day-tab--remove { background: #fef2f2; color: #991b1b; border-color: #fecaca; font-size: 0.8rem; }
 
-.schede-day-rename { margin-bottom: 0.6rem; }
-.schede-day-rename input { padding: 0.35rem 0.6rem; border: 1px solid #e5e7eb; border-radius: 6px; font-size: 0.88rem; width: 200px; }
+.schede-day-rename { margin-bottom: 0.7rem; }
+.schede-day-rename input { padding: 0.4rem 0.7rem; border: 1px solid #e2e8f0; border-radius: 8px; font-size: 0.88rem; width: 220px; background: #fff; }
 
 /* ── Exercise rows ──────────────────────────────────────────────────────────── */
-.schede-exercises-list { display: flex; flex-direction: column; gap: 0.5rem; margin-bottom: 0.6rem; }
+.schede-exercises-list { display: flex; flex-direction: column; gap: 0.6rem; margin-bottom: 0.8rem; }
 
-.schede-exercise-row { display: flex; gap: 0.5rem; align-items: flex-start; padding: 0.6rem; background: #f9fafb; border: 1px solid #e5e7eb; border-radius: 8px; }
-.schede-ex-drag { display: flex; flex-direction: column; gap: 0.1rem; flex-shrink: 0; }
-.schede-ex-drag button { background: none; border: none; cursor: pointer; font-size: 0.8rem; padding: 0.1rem 0.25rem; color: #9ca3af; }
-.schede-ex-drag button:hover { color: #00AEEF; }
+.schede-exercise-row { display: flex; gap: 0.6rem; align-items: flex-start; padding: 0.8rem; background: #fff; border: 1px solid #e2e8f0; border-radius: 10px; box-shadow: 0 1px 2px rgba(0,0,0,0.03); transition: box-shadow 0.15s; }
+.schede-exercise-row:hover { box-shadow: 0 2px 6px rgba(0,0,0,0.06); }
+.schede-ex-drag { display: flex; flex-direction: column; gap: 0.15rem; flex-shrink: 0; }
+.schede-ex-drag button { background: #f1f5f9; border: none; cursor: pointer; font-size: 0.75rem; padding: 0.2rem 0.35rem; color: #94a3b8; border-radius: 4px; transition: all 0.15s; }
+.schede-ex-drag button:hover { color: #00AEEF; background: #e0f2fe; }
 
-.schede-ex-fields { flex: 1; display: flex; flex-direction: column; gap: 0.3rem; }
-.schede-ex-top-row { display: flex; gap: 0.4rem; align-items: center; }
-.schede-ex-name { flex: 1; padding: 0.35rem 0.5rem; border: 1px solid #d1d5db; border-radius: 6px; font-size: 0.92rem; font-weight: 500; background: #fff; }
-.schede-ex-custom-name { flex: 1; padding: 0.35rem 0.5rem; border: 1px solid #00AEEF; border-radius: 6px; font-size: 0.92rem; font-weight: 500; margin-top: 0.3rem; }
-.schede-ex-muscle { padding: 0.3rem 0.5rem; border: 1px solid #d1d5db; border-radius: 6px; font-size: 0.85rem; background: #fff; width: auto; min-width: 100px; }
-.schede-ex-params { display: flex; gap: 0.5rem; flex-wrap: wrap; }
-.schede-ex-params label { display: flex; flex-direction: column; font-size: 0.75rem; color: #6b7280; }
-.schede-ex-params input { width: 65px; padding: 0.3rem 0.4rem; border: 1px solid #d1d5db; border-radius: 5px; font-size: 0.88rem; text-align: center; }
-.schede-ex-notes { padding: 0.3rem 0.5rem; border: 1px solid #e5e7eb; border-radius: 6px; font-size: 0.82rem; color: #6b7280; }
+.schede-ex-fields { flex: 1; display: flex; flex-direction: column; gap: 0.4rem; }
+.schede-ex-top-row { display: flex; gap: 0.5rem; align-items: center; }
+.schede-ex-name { flex: 1; padding: 0.4rem 0.6rem; border: 1px solid #e2e8f0; border-radius: 8px; font-size: 0.92rem; font-weight: 500; background: #fff; }
+.schede-ex-name:focus { border-color: #00AEEF; outline: none; }
+.schede-ex-custom-name { flex: 1; padding: 0.4rem 0.6rem; border: 2px solid #00AEEF; border-radius: 8px; font-size: 0.92rem; font-weight: 500; margin-top: 0.3rem; background: #f0f9ff; }
+.schede-ex-muscle { padding: 0.4rem 0.6rem; border: 1px solid #e2e8f0; border-radius: 8px; font-size: 0.85rem; background: #fff; width: auto; min-width: 110px; }
+.schede-ex-params { display: flex; gap: 0.6rem; flex-wrap: wrap; padding: 0.5rem 0; }
+.schede-ex-params label { display: flex; flex-direction: column; font-size: 0.75rem; color: #64748b; font-weight: 600; letter-spacing: 0.02em; }
+.schede-ex-params input { width: 68px; padding: 0.4rem 0.45rem; border: 1px solid #e2e8f0; border-radius: 6px; font-size: 0.9rem; text-align: center; background: #f8fafc; transition: border-color 0.15s; }
+.schede-ex-params input:focus { border-color: #00AEEF; outline: none; background: #fff; }
+.schede-ex-notes { padding: 0.4rem 0.6rem; border: 1px solid #e2e8f0; border-radius: 8px; font-size: 0.82rem; color: #64748b; background: #f8fafc; }
+.schede-ex-notes:focus { border-color: #00AEEF; outline: none; background: #fff; }
 
-.schede-ex-delete { background: none; border: none; cursor: pointer; color: #dc2626; font-size: 1rem; padding: 0.3rem; flex-shrink: 0; }
-.schede-ex-delete:hover { background: #fef2f2; border-radius: 6px; }
+.schede-ex-delete { background: none; border: none; cursor: pointer; color: #94a3b8; font-size: 1.1rem; padding: 0.35rem; flex-shrink: 0; border-radius: 8px; transition: all 0.15s; }
+.schede-ex-delete:hover { color: #dc2626; background: #fef2f2; }
 
-.schede-add-exercise-btn { background: #f0fdf4; color: #166534; border: 1px dashed #86efac; border-radius: 8px; padding: 0.5rem 1rem; cursor: pointer; font-size: 0.9rem; width: 100%; transition: background 0.15s; }
-.schede-add-exercise-btn:hover { background: #dcfce7; }
+.schede-add-exercise-btn { background: #f8fafc; color: #00AEEF; border: 2px dashed #bae6fd; border-radius: 10px; padding: 0.65rem 1rem; cursor: pointer; font-size: 0.92rem; font-weight: 600; width: 100%; transition: all 0.15s; }
+.schede-add-exercise-btn:hover { background: #f0f9ff; border-color: #00AEEF; }
 
 /* Save */
-.schede-editor-actions { margin-top: 1rem; }
-.schede-save-btn { font-size: 1rem; padding: 0.6rem 1.5rem; }
+.schede-editor-actions { margin-top: 1.2rem; }
+.schede-save-btn { font-size: 1rem; padding: 0.7rem 2rem; border-radius: 10px; font-weight: 700; box-shadow: 0 2px 8px rgba(0,174,239,0.25); }
+.schede-save-btn:hover { box-shadow: 0 4px 12px rgba(0,174,239,0.35); transform: translateY(-1px); }
 
 /* ── Progress view ──────────────────────────────────────────────────────────── */
 .schede-progress { max-width: 900px; }
-.schede-progress-day { color: #00AEEF; margin: 1rem 0 0.5rem; font-size: 1.05rem; }
+.schede-progress-day { color: #00AEEF; margin: 1.2rem 0 0.6rem; font-size: 1.05rem; font-weight: 700; }
 
 .schede-progress-exercise { margin-bottom: 1rem; }
 .schede-progress-ex-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 0.3rem; }
-.schede-progress-target { font-size: 0.82rem; color: #9ca3af; }
+.schede-progress-target { font-size: 0.82rem; color: #94a3b8; }
 
 .schede-progress-table { width: 100%; border-collapse: collapse; font-size: 0.85rem; }
-.schede-progress-table th { background: #f9fafb; text-align: left; padding: 0.35rem 0.5rem; border-bottom: 1px solid #e5e7eb; font-weight: 600; color: #6b7280; }
-.schede-progress-table td { padding: 0.35rem 0.5rem; border-bottom: 1px solid #f3f4f6; }
+.schede-progress-table th { background: #f8fafc; text-align: left; padding: 0.4rem 0.6rem; border-bottom: 2px solid #e2e8f0; font-weight: 700; color: #64748b; font-size: 0.78rem; text-transform: uppercase; letter-spacing: 0.03em; }
+.schede-progress-table td { padding: 0.4rem 0.6rem; border-bottom: 1px solid #f1f5f9; }
+.schede-progress-table tr:hover td { background: #f8fafc; }
 
 .schede-progress-ok { color: #166534; font-weight: 600; }
 .schede-progress-close { color: #ca8a04; }
@@ -5104,30 +5119,36 @@ canvas {
 
 /* ── Mobile ─────────────────────────────────────────────────────────────────── */
 @media (max-width: 600px) {
-    .schede-header { flex-direction: column; gap: 0.5rem; align-items: stretch; }
-    .schede-header .btn-primary { text-align: center; }
-    .schede-plan-card-header { flex-direction: column; }
-    .schede-plan-actions { margin-top: 0.4rem; display: flex; gap: 0.5rem; }
-    .schede-plan-actions button { font-size: 1.2rem; padding: 0.4rem 0.6rem; }
+    .schede-subnav { max-width: 100%; }
+    .schede-header { flex-direction: column; gap: 0.6rem; align-items: stretch; }
+    .schede-header .btn-primary { text-align: center; padding: 0.6rem; }
+    .schede-plan-card { padding: 0.8rem; }
+    .schede-plan-card-header { flex-direction: column; gap: 0.4rem; }
+    .schede-plan-actions { margin-top: 0.2rem; background: transparent; padding: 0; gap: 0.4rem; }
+    .schede-plan-actions button { font-size: 1.15rem; padding: 0.4rem 0.5rem; background: #f8fafc; border-radius: 8px; }
+    .schede-editor-form { padding: 0.8rem; }
     .schede-form-row--inline { flex-direction: column; gap: 0.5rem; }
     .schede-form-row--inline input[type="date"] { width: 100%; }
-    .schede-exercise-row { flex-direction: column; padding: 0.5rem; }
+    .schede-exercise-row { flex-direction: column; padding: 0.7rem; }
     .schede-ex-drag { flex-direction: row; gap: 0.5rem; justify-content: center; }
-    .schede-ex-drag button { font-size: 1rem; padding: 0.3rem 0.5rem; }
-    .schede-ex-top-row { display: flex; flex-direction: column; gap: 0.3rem; }
+    .schede-ex-drag button { font-size: 0.95rem; padding: 0.35rem 0.6rem; }
+    .schede-ex-top-row { flex-direction: column; gap: 0.4rem; }
     .schede-ex-name { font-size: 1rem; }
-    .schede-ex-muscle { font-size: 0.9rem; }
-    .schede-ex-params { display: grid; grid-template-columns: 1fr 1fr; gap: 0.4rem; }
+    .schede-ex-muscle { font-size: 0.9rem; width: 100%; }
+    .schede-ex-params { display: grid; grid-template-columns: 1fr 1fr; gap: 0.5rem; }
     .schede-ex-params label { font-size: 0.8rem; }
-    .schede-ex-params input { width: 100%; font-size: 1rem; padding: 0.4rem; }
+    .schede-ex-params input { width: 100%; font-size: 1rem; padding: 0.5rem; }
     .schede-ex-notes { font-size: 0.9rem; }
-    .schede-ex-delete { align-self: flex-end; font-size: 1.2rem; padding: 0.4rem; }
-    .schede-day-tabs { overflow-x: auto; flex-wrap: nowrap; -webkit-overflow-scrolling: touch; }
+    .schede-ex-delete { align-self: flex-end; font-size: 1.3rem; padding: 0.5rem; }
+    .schede-day-tabs { overflow-x: auto; flex-wrap: nowrap; -webkit-overflow-scrolling: touch; padding-bottom: 0.2rem; }
     .schede-day-tab { white-space: nowrap; flex-shrink: 0; }
     .schede-day-rename input { width: 100%; }
-    .schede-editor-topbar { flex-direction: column; align-items: flex-start; gap: 0.3rem; }
+    .schede-editor-topbar { flex-direction: column; align-items: flex-start; gap: 0.4rem; padding-bottom: 0.6rem; }
     .schede-editor-topbar h3 { font-size: 1.1rem; }
     .schede-progress-table { font-size: 0.8rem; }
-    .schede-progress-table th, .schede-progress-table td { padding: 0.25rem 0.3rem; }
+    .schede-progress-table th, .schede-progress-table td { padding: 0.3rem 0.35rem; }
     .schede-progress-ex-header { flex-direction: column; gap: 0.2rem; }
+    .schede-assign-row { flex-direction: column; }
+    .schede-assign-row select, .schede-assign-row input { width: 100%; min-width: 0; }
+    .schede-admin-chart-card { padding: 0.7rem; }
 }
