@@ -154,7 +154,7 @@ function switchTab(tabName) {
     // (mostra il contenuto/spinner) e poi esegue il lavoro pesante senza congelare la UI.
     const loader = {
         analytics: () => requestAnimationFrame(() => requestAnimationFrame(() => loadDashboardData())),
-        bookings:  () => renderAdminCalendar(),
+        bookings:  () => { renderAdminCalendar(); _adminScrollIfFirstOpen(); },
         payments:  () => renderPaymentsTab(),
         clients:   () => renderClientsTab(),
         schedule:  () => renderScheduleManager(),
