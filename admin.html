@@ -72,6 +72,7 @@
                 <button class="admin-tab" data-tab="settings">🔧 Impostazioni</button>
                 <button class="admin-tab" data-tab="registro">📋 Registro</button>
                 <button class="admin-tab" data-tab="messaggi">📩 Messaggi</button>
+                <button class="admin-tab" data-tab="schede" id="adminTabSchede" style="display:none">💪 Schede</button>
                 <button class="admin-tab admin-tab--privacy" id="btnToggleSensitive" onclick="toggleSensitiveData()" title="Nascondi/mostra dati sensibili">👁 Nascondi dati</button>
             </div>
 
@@ -754,6 +755,14 @@
             </div>
             <!-- End Tab: Messaggi -->
 
+            <!-- Tab: Schede -->
+            <div id="tab-schede" class="tab-content">
+                <div class="dashboard-card" id="schedeContainer">
+                    <div class="schede-loading">Caricamento schede...</div>
+                </div>
+            </div>
+            <!-- End Tab: Schede -->
+
         </div>
     </div>
 
@@ -1001,6 +1010,7 @@
     <script src="js/admin-clients.js?v=1"></script>
     <script src="js/admin-registro.js?v=2"></script>
     <script src="js/admin-messaggi.js?v=1"></script>
+    <script src="js/admin-schede.js?v=1"></script>
     <script src="js/maintenance.js?v=1"></script>
     <script>
         // Avvia auth, sincronizza i booking da Supabase, poi aggiorna la dashboard
@@ -1032,6 +1042,12 @@
             if (typeof loadDashboardData === 'function') loadDashboardData();
             if (typeof renderAdminCalendar === 'function') renderAdminCalendar();
             if (typeof renderScheduleManager === 'function') renderScheduleManager();
+            // Gating: mostra tab Schede solo per l'UID di test
+            const SCHEDE_ALLOWED_UID = 'cf5f39f3-1581-40be-80e9-15b56acee337';
+            if (typeof getCurrentUser === 'function' && getCurrentUser()?.id === SCHEDE_ALLOWED_UID) {
+                const _schedeBtn = document.getElementById('adminTabSchede');
+                if (_schedeBtn) _schedeBtn.style.display = '';
+            }
             // Re-render il tab attivo dopo il sync (le cache erano vuote al primo render)
             const _activeTab = document.querySelector('.admin-tab.active');
             if (_activeTab) switchTab(_activeTab.dataset.tab);
@@ -1060,6 +1076,7 @@
                             if (activeTab.dataset.tab === 'payments' && typeof renderPaymentsTab === 'function') renderPaymentsTab();
                             if (activeTab.dataset.tab === 'clients' && typeof renderClientsTab === 'function') renderClientsTab();
                             if (activeTab.dataset.tab === 'settings' && typeof renderSettingsTab === 'function') renderSettingsTab();
+                            if (activeTab.dataset.tab === 'schede' && typeof renderSchedeTab === 'function') renderSchedeTab();
                         }
                     }, 600);
                 }
@@ -1073,6 +1090,9 @@
                     .on('postgres_changes', { event: '*', schema: 'public', table: 'credit_history' }, _adminDebouncedSync)
                     .on('postgres_changes', { event: '*', schema: 'public', table: 'bonuses' }, _adminDebouncedSync)
                     .on('postgres_changes', { event: '*', schema: 'public', table: 'settings' }, _adminDebouncedSync)
+                    .on('postgres_changes', { event: '*', schema: 'public', table: 'workout_plans' }, _adminDebouncedSync)
+                    .on('postgres_changes', { event: '*', schema: 'public', table: 'workout_exercises' }, _adminDebouncedSync)
+                    .on('postgres_changes', { event: '*', schema: 'public', table: 'workout_logs' }, _adminDebouncedSync)
                     .subscribe();
             }
         })();

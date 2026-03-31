@@ -2353,6 +2353,269 @@ function hasPushEnabled(userId) {
     return _pushEnabledUsers.has(userId);
 }
 
+// ═══════════════════════════════════════════════════════════════════════════════
+// WorkoutPlanStorage — Schede palestra
+// ═══════════════════════════════════════════════════════════════════════════════
+class WorkoutPlanStorage {
+    static _cache = [];           // array of plan objects with nested exercises
+    static _suggestions = [];     // autocomplete exercise names
+
+    static getAllPlans() { return this._cache; }
+
+    static getPlansByUser(userId) {
+        return this._cache.filter(p => p.user_id === userId);
+    }
+
+    static getActivePlan(userId) {
+        return this._cache.find(p => p.user_id === userId && p.active);
+    }
+
+    static getPlanById(planId) {
+        return this._cache.find(p => p.id === planId);
+    }
+
+    // Admin: fetch all plans with nested exercises
+    // Client: fetch only own active plan(s)
+    static async syncFromSupabase({ adminMode = false } = {}) {
+        if (typeof supabaseClient === 'undefined') return;
+        try {
+            let query = supabaseClient
+                .from('workout_plans')
+                .select('*, workout_exercises(*)');
+
+            if (!adminMode) {
+                // Client: only own active plans
+                const user = typeof getCurrentUser === 'function' ? getCurrentUser() : null;
+                if (!user) return;
+                query = query.eq('user_id', user.id).eq('active', true);
+            }
+            query = query.order('updated_at', { ascending: false });
+
+            const { data, error } = await query;
+            if (error) { console.error('[Supabase] WorkoutPlanStorage.sync error:', error.message); return; }
+
+            // Sort exercises within each plan by sort_order
+            for (const plan of (data || [])) {
+                if (plan.workout_exercises) {
+                    plan.workout_exercises.sort((a, b) => a.sort_order - b.sort_order);
+                }
+            }
+            this._cache = data || [];
+            console.log(`[Supabase] WorkoutPlanStorage.sync: ${this._cache.length} piani caricati`);
+        } catch (e) { console.error('[Supabase] WorkoutPlanStorage.sync exception:', e); }
+    }
+
+    // ── CRUD Plans ───────────────────────────────────────────────────────────
+    static async createPlan({ user_id, name, start_date, end_date, notes }) {
+        const { data, error } = await supabaseClient
+            .from('workout_plans')
+            .insert({ user_id, name, start_date: start_date || null, end_date: end_date || null, notes: notes || null, active: true })
+            .select()
+            .single();
+        if (error) throw error;
+        data.workout_exercises = [];
+        this._cache.unshift(data);
+        return data;
+    }
+
+    static async updatePlan(planId, updates) {
+        const { error } = await supabaseClient
+            .from('workout_plans')
+            .update(updates)
+            .eq('id', planId);
+        if (error) throw error;
+        const idx = this._cache.findIndex(p => p.id === planId);
+        if (idx >= 0) Object.assign(this._cache[idx], updates);
+    }
+
+    static async deletePlan(planId) {
+        const { error } = await supabaseClient
+            .from('workout_plans')
+            .delete()
+            .eq('id', planId);
+        if (error) throw error;
+        this._cache = this._cache.filter(p => p.id !== planId);
+    }
+
+    static async duplicatePlan(planId, newUserId, newName) {
+        const { data, error } = await _rpcWithTimeout(
+            supabaseClient.rpc('admin_duplicate_plan', {
+                p_plan_id: planId,
+                p_new_user_id: newUserId,
+                p_new_name: newName || null,
+            })
+        );
+        if (error) throw error;
+        await this.syncFromSupabase({ adminMode: true });
+        return data; // new plan id
+    }
+
+    // ── CRUD Exercises ───────────────────────────────────────────────────────
+    static async addExercise(planId, exerciseData) {
+        const plan = this.getPlanById(planId);
+        const maxOrder = plan?.workout_exercises?.reduce((m, e) => Math.max(m, e.sort_order), -1) ?? -1;
+        const row = {
+            plan_id: planId,
+            day_label: exerciseData.day_label || 'Giorno A',
+            exercise_name: exerciseData.exercise_name,
+            muscle_group: exerciseData.muscle_group || null,
+            sort_order: maxOrder + 1,
+            sets: exerciseData.sets || 3,
+            reps: exerciseData.reps || '10',
+            weight_kg: exerciseData.weight_kg ?? null,
+            rest_seconds: exerciseData.rest_seconds ?? 90,
+            notes: exerciseData.notes || null,
+        };
+        const { data, error } = await supabaseClient
+            .from('workout_exercises')
+            .insert(row)
+            .select()
+            .single();
+        if (error) throw error;
+        if (plan) {
+            plan.workout_exercises = plan.workout_exercises || [];
+            plan.workout_exercises.push(data);
+        }
+        return data;
+    }
+
+    static async updateExercise(exerciseId, updates) {
+        const { error } = await supabaseClient
+            .from('workout_exercises')
+            .update(updates)
+            .eq('id', exerciseId);
+        if (error) throw error;
+        // Update cache
+        for (const plan of this._cache) {
+            const ex = (plan.workout_exercises || []).find(e => e.id === exerciseId);
+            if (ex) { Object.assign(ex, updates); break; }
+        }
+    }
+
+    static async deleteExercise(exerciseId) {
+        const { error } = await supabaseClient
+            .from('workout_exercises')
+            .delete()
+            .eq('id', exerciseId);
+        if (error) throw error;
+        for (const plan of this._cache) {
+            plan.workout_exercises = (plan.workout_exercises || []).filter(e => e.id !== exerciseId);
+        }
+    }
+
+    static async reorderExercises(planId, orderedIds) {
+        const updates = orderedIds.map((id, i) => ({ id, sort_order: i }));
+        for (const u of updates) {
+            await supabaseClient.from('workout_exercises').update({ sort_order: u.sort_order }).eq('id', u.id);
+        }
+        const plan = this.getPlanById(planId);
+        if (plan && plan.workout_exercises) {
+            plan.workout_exercises.sort((a, b) => {
+                const ai = orderedIds.indexOf(a.id);
+                const bi = orderedIds.indexOf(b.id);
+                return ai - bi;
+            });
+        }
+    }
+
+    // ── Exercise suggestions (autocomplete) ──────────────────────────────────
+    static async loadSuggestions() {
+        try {
+            const { data, error } = await supabaseClient.rpc('get_exercise_suggestions');
+            if (!error && data) this._suggestions = data.map(r => r.exercise_name);
+        } catch (_) {}
+    }
+
+    static getSuggestions() { return this._suggestions; }
+}
+
+// ═══════════════════════════════════════════════════════════════════════════════
+// WorkoutLogStorage — Log allenamenti clienti
+// ═══════════════════════════════════════════════════════════════════════════════
+class WorkoutLogStorage {
+    static _cache = [];
+
+    static getAll() { return this._cache; }
+
+    static getByExercise(exerciseId) {
+        return this._cache.filter(l => l.exercise_id === exerciseId);
+    }
+
+    static getByDate(logDate) {
+        return this._cache.filter(l => l.log_date === logDate);
+    }
+
+    // Fetch logs for a specific plan (all exercises)
+    static async syncForPlan(planId) {
+        if (typeof supabaseClient === 'undefined') return;
+        try {
+            const plan = WorkoutPlanStorage.getPlanById(planId);
+            if (!plan || !plan.workout_exercises?.length) { this._cache = []; return; }
+            const exIds = plan.workout_exercises.map(e => e.id);
+            const { data, error } = await supabaseClient
+                .from('workout_logs')
+                .select('*')
+                .in('exercise_id', exIds)
+                .order('log_date', { ascending: false })
+                .order('set_number', { ascending: true });
+            if (error) { console.error('[Supabase] WorkoutLogStorage.sync error:', error.message); return; }
+            this._cache = data || [];
+            console.log(`[Supabase] WorkoutLogStorage.sync: ${this._cache.length} log caricati`);
+        } catch (e) { console.error('[Supabase] WorkoutLogStorage.sync exception:', e); }
+    }
+
+    // Fetch ALL logs for a user (for charts across plans)
+    static async syncForUser(userId) {
+        if (typeof supabaseClient === 'undefined') return;
+        try {
+            const { data, error } = await supabaseClient
+                .from('workout_logs')
+                .select('*')
+                .eq('user_id', userId)
+                .order('log_date', { ascending: false })
+                .order('set_number', { ascending: true });
+            if (error) { console.error('[Supabase] WorkoutLogStorage.syncUser error:', error.message); return; }
+            this._cache = data || [];
+        } catch (e) { console.error('[Supabase] WorkoutLogStorage.syncUser exception:', e); }
+    }
+
+    // Insert or update (upsert on unique constraint)
+    static async logSet({ exercise_id, user_id, log_date, set_number, reps_done, weight_done, rpe, notes }) {
+        const row = {
+            exercise_id, user_id,
+            log_date: log_date || _localDateStr(),
+            set_number,
+            reps_done: reps_done ?? null,
+            weight_done: weight_done ?? null,
+            rpe: rpe ?? null,
+            notes: notes || null,
+        };
+        const { data, error } = await supabaseClient
+            .from('workout_logs')
+            .upsert(row, { onConflict: 'exercise_id,user_id,log_date,set_number' })
+            .select()
+            .single();
+        if (error) throw error;
+        // Update cache
+        const idx = this._cache.findIndex(l =>
+            l.exercise_id === exercise_id && l.log_date === row.log_date && l.set_number === set_number
+        );
+        if (idx >= 0) this._cache[idx] = data;
+        else this._cache.push(data);
+        return data;
+    }
+
+    // Delete a single log entry
+    static async deleteLog(logId) {
+        const { error } = await supabaseClient
+            .from('workout_logs')
+            .delete()
+            .eq('id', logId);
+        if (error) throw error;
+        this._cache = this._cache.filter(l => l.id !== logId);
+    }
+}
+
 // --- Flush pending credit/debt saves on page unload (critical for mobile PWA) ---
 // On mobile, visibilitychange fires reliably when switching apps or closing tabs;
 // beforeunload is the desktop fallback.

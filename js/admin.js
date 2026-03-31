@@ -161,6 +161,7 @@ function switchTab(tabName) {
         settings:  () => renderSettingsTab(),
         registro:  () => renderRegistroTab(),
         messaggi:  () => renderMessaggiTab(),
+        schede:    () => renderSchedeTab(),
     }[tabName];
     if (loader) setTimeout(loader, 0);
 }

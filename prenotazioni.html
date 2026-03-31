@@ -90,6 +90,8 @@
                 <button class="preno-tab active" id="tabProssime"    onclick="switchPrenoTab('upcoming')">Prossime</button>
                 <button class="preno-tab"         id="tabPassate"     onclick="switchPrenoTab('past')">Passate</button>
                 <button class="preno-tab"         id="tabTransazioni" onclick="switchPrenoTab('transactions')">Transazioni</button>
+                <button class="preno-tab"         id="tabScheda"      onclick="switchPrenoTab('scheda')" style="display:none">💪 Scheda</button>
+                <button class="preno-tab"         id="tabProgressi"   onclick="switchPrenoTab('progressi')" style="display:none">📊 Progressi</button>
             </div>
 
             <!-- Lista prenotazioni -->
@@ -571,6 +573,12 @@
             document.getElementById('tabProssime').classList.toggle('active',    tab === 'upcoming');
             document.getElementById('tabPassate').classList.toggle('active',     tab === 'past');
             document.getElementById('tabTransazioni').classList.toggle('active', tab === 'transactions');
+            const tabScheda = document.getElementById('tabScheda');
+            const tabProgressi = document.getElementById('tabProgressi');
+            if (tabScheda) tabScheda.classList.toggle('active', tab === 'scheda');
+            if (tabProgressi) tabProgressi.classList.toggle('active', tab === 'progressi');
+            if (tab === 'scheda') { renderSchedaCliente(); return; }
+            if (tab === 'progressi') { renderProgressiCliente(); return; }
             renderPrenoList();
         }
 
@@ -1437,6 +1445,301 @@
                 setTimeout(() => showToast('Pagamento annullato.', 'error', 3000), 1000);
             }
         })();
+    </script>
+    <script>
+        // ── Scheda Palestra (client view) ─────────────────────────────────
+        const SCHEDE_ALLOWED_UID = 'cf5f39f3-1581-40be-80e9-15b56acee337';
+
+        function _maybeShowSchedaTabs() {
+            const user = getCurrentUser();
+            if (user && user.id === SCHEDE_ALLOWED_UID) {
+                const t1 = document.getElementById('tabScheda');
+                const t2 = document.getElementById('tabProgressi');
+                if (t1) t1.style.display = '';
+                if (t2) t2.style.display = '';
+            }
+        }
+
+        // Call alongside other gating functions
+        document.addEventListener('DOMContentLoaded', () => {
+            setTimeout(_maybeShowSchedaTabs, 500);
+        });
+
+        // ── Render scheda attiva ──────────────────────────────────────────
+        async function renderSchedaCliente() {
+            const container = document.getElementById('prenoList');
+            const user = getCurrentUser();
+            if (!user) { container.innerHTML = '<div class="preno-empty">Accedi per vedere la tua scheda.</div>'; return; }
+
+            container.innerHTML = '<div class="preno-empty">Caricamento scheda...</div>';
+
+            try {
+                const { data: plans, error } = await supabaseClient
+                    .from('workout_plans')
+                    .select('*, workout_exercises(*)')
+                    .eq('user_id', user.id)
+                    .eq('active', true)
+                    .order('created_at', { ascending: false })
+                    .limit(1);
+
+                if (error) throw error;
+                if (!plans?.length) {
+                    container.innerHTML = '<div class="preno-empty">Nessuna scheda attiva assegnata.</div>';
+                    return;
+                }
+
+                const plan = plans[0];
+                const exercises = (plan.workout_exercises || []).sort((a, b) => a.sort_order - b.sort_order);
+                const days = [...new Set(exercises.map(e => e.day_label))];
+
+                // Fetch existing logs for today
+                const today = _localDateStr();
+                const exIds = exercises.map(e => e.id);
+                let todayLogs = [];
+                if (exIds.length) {
+                    const { data: logsData } = await supabaseClient
+                        .from('workout_logs')
+                        .select('*')
+                        .in('exercise_id', exIds)
+                        .eq('user_id', user.id)
+                        .eq('log_date', today);
+                    todayLogs = logsData || [];
+                }
+
+                let html = `<div class="scheda-client">
+                    <div class="scheda-client-header">
+                        <h3>${_escHtml(plan.name)}</h3>
+                        ${plan.notes ? `<p class="scheda-client-notes">${_escHtml(plan.notes)}</p>` : ''}
+                    </div>`;
+
+                for (const day of days) {
+                    const dayExercises = exercises.filter(e => e.day_label === day);
+                    html += `<div class="scheda-day-group">
+                        <h4 class="scheda-day-title">${_escHtml(day)}</h4>`;
+                    for (const ex of dayExercises) {
+                        const target = `${ex.sets} × ${ex.reps}${ex.weight_kg != null ? ' @ ' + ex.weight_kg + 'kg' : ''}`;
+                        html += `<div class="scheda-exercise-card">
+                            <div class="scheda-ex-header" onclick="this.parentElement.classList.toggle('open')">
+                                <div>
+                                    <strong>${_escHtml(ex.exercise_name)}</strong>
+                                    ${ex.muscle_group ? `<span class="scheda-ex-muscle">${_escHtml(ex.muscle_group)}</span>` : ''}
+                                </div>
+                                <span class="scheda-ex-target">${target}</span>
+                            </div>
+                            <div class="scheda-ex-body">
+                                ${ex.notes ? `<div class="scheda-ex-note">${_escHtml(ex.notes)}</div>` : ''}
+                                ${ex.rest_seconds ? `<div class="scheda-ex-rest">Recupero: ${ex.rest_seconds}s</div>` : ''}
+                                <div class="scheda-log-form" data-ex-id="${ex.id}">
+                                    <div class="scheda-log-date">Registra per: <strong>${new Date(today + 'T00:00:00').toLocaleDateString('it-IT', { day: '2-digit', month: 'short' })}</strong></div>
+                                    <table class="scheda-log-table">
+                                        <thead><tr><th>Serie</th><th>Reps</th><th>Peso (kg)</th><th>RPE</th></tr></thead>
+                                        <tbody>`;
+                        for (let s = 1; s <= ex.sets; s++) {
+                            const existing = todayLogs.find(l => l.exercise_id === ex.id && l.set_number === s);
+                            const rVal = existing?.reps_done ?? (parseInt(ex.reps) || '');
+                            const wVal = existing?.weight_done ?? (ex.weight_kg ?? '');
+                            const rpeVal = existing?.rpe ?? '';
+                            html += `<tr>
+                                <td>${s}</td>
+                                <td><input type="number" inputmode="numeric" min="0" value="${rVal}" class="scheda-log-input" data-field="reps" data-set="${s}"></td>
+                                <td><input type="number" inputmode="decimal" min="0" step="0.5" value="${wVal}" class="scheda-log-input" data-field="weight" data-set="${s}"></td>
+                                <td><input type="number" inputmode="numeric" min="1" max="10" value="${rpeVal}" class="scheda-log-input scheda-log-rpe" data-field="rpe" data-set="${s}" placeholder="—"></td>
+                            </tr>`;
+                        }
+                        html += `</tbody></table>
+                                    <button class="scheda-log-save-btn" onclick="saveExerciseLog('${ex.id}', ${ex.sets}, this)">💾 Salva</button>
+                                </div>
+                            </div>
+                        </div>`;
+                    }
+                    html += '</div>';
+                }
+                html += '</div>';
+                container.innerHTML = html;
+            } catch (e) {
+                console.error('[Scheda] render error:', e);
+                container.innerHTML = '<div class="preno-empty">Errore caricamento scheda.</div>';
+            }
+        }
+
+        async function saveExerciseLog(exerciseId, totalSets, btn) {
+            const user = getCurrentUser();
+            if (!user) return;
+            const form = btn.closest('.scheda-log-form');
+            const today = _localDateStr();
+            btn.disabled = true;
+            btn.textContent = 'Salvataggio...';
+            try {
+                for (let s = 1; s <= totalSets; s++) {
+                    const repsInput = form.querySelector(`input[data-field="reps"][data-set="${s}"]`);
+                    const weightInput = form.querySelector(`input[data-field="weight"][data-set="${s}"]`);
+                    const rpeInput = form.querySelector(`input[data-field="rpe"][data-set="${s}"]`);
+                    await WorkoutLogStorage.logSet({
+                        exercise_id: exerciseId,
+                        user_id: user.id,
+                        log_date: today,
+                        set_number: s,
+                        reps_done: repsInput.value ? parseInt(repsInput.value) : null,
+                        weight_done: weightInput.value ? parseFloat(weightInput.value) : null,
+                        rpe: rpeInput.value ? parseInt(rpeInput.value) : null,
+                    });
+                }
+                btn.textContent = 'Salvato!';
+                if (typeof showToast === 'function') showToast('Log salvato', 'success');
+                setTimeout(() => { btn.textContent = '💾 Salva'; btn.disabled = false; }, 1500);
+            } catch (e) {
+                console.error('[Scheda] log error:', e);
+                btn.textContent = '💾 Salva';
+                btn.disabled = false;
+                if (typeof showToast === 'function') showToast('Errore salvataggio', 'error');
+            }
+        }
+
+        // ── Grafici progressi ─────────────────────────────────────────────
+        async function renderProgressiCliente() {
+            const container = document.getElementById('prenoList');
+            const user = getCurrentUser();
+            if (!user) { container.innerHTML = '<div class="preno-empty">Accedi per vedere i progressi.</div>'; return; }
+
+            container.innerHTML = '<div class="preno-empty">Caricamento progressi...</div>';
+
+            try {
+                // Fetch active plan
+                const { data: plans } = await supabaseClient
+                    .from('workout_plans')
+                    .select('*, workout_exercises(*)')
+                    .eq('user_id', user.id)
+                    .eq('active', true)
+                    .limit(1);
+
+                if (!plans?.length) {
+                    container.innerHTML = '<div class="preno-empty">Nessuna scheda attiva.</div>';
+                    return;
+                }
+
+                const plan = plans[0];
+                const exercises = (plan.workout_exercises || []).sort((a, b) => a.sort_order - b.sort_order);
+                const exIds = exercises.map(e => e.id);
+
+                if (!exIds.length) {
+                    container.innerHTML = '<div class="preno-empty">Nessun esercizio nella scheda.</div>';
+                    return;
+                }
+
+                // Fetch all logs for these exercises (only own via RLS)
+                const { data: logs } = await supabaseClient
+                    .from('workout_logs')
+                    .select('*')
+                    .in('exercise_id', exIds)
+                    .eq('user_id', user.id)
+                    .order('log_date', { ascending: true });
+
+                if (!logs?.length) {
+                    container.innerHTML = '<div class="preno-empty">Nessun log registrato. Inizia ad allenarti!</div>';
+                    return;
+                }
+
+                let html = '<div class="scheda-progressi">';
+                html += `<h3>Progressi: ${_escHtml(plan.name)}</h3>`;
+
+                // For each exercise, show a chart of weight over time
+                for (const ex of exercises) {
+                    const exLogs = logs.filter(l => l.exercise_id === ex.id);
+                    if (!exLogs.length) continue;
+
+                    // Group by date, take max weight per date
+                    const dateWeightMap = {};
+                    for (const l of exLogs) {
+                        if (l.weight_done != null) {
+                            if (!dateWeightMap[l.log_date] || l.weight_done > dateWeightMap[l.log_date]) {
+                                dateWeightMap[l.log_date] = l.weight_done;
+                            }
+                        }
+                    }
+                    const dates = Object.keys(dateWeightMap).sort();
+                    if (!dates.length) continue;
+
+                    const values = dates.map(d => dateWeightMap[d]);
+                    const labels = dates.map(d => {
+                        const dt = new Date(d + 'T00:00:00');
+                        return dt.toLocaleDateString('it-IT', { day: '2-digit', month: 'short' });
+                    });
+
+                    const canvasId = 'chart-' + ex.id.replace(/-/g, '');
+                    html += `
+                    <div class="scheda-progress-chart-card">
+                        <h4>${_escHtml(ex.exercise_name)} <span class="scheda-ex-muscle">${_escHtml(ex.muscle_group || '')}</span></h4>
+                        <div class="scheda-progress-target">Target: ${ex.sets}×${ex.reps}${ex.weight_kg != null ? ' @ ' + ex.weight_kg + 'kg' : ''}</div>
+                        <canvas id="${canvasId}" width="320" height="160"></canvas>
+                        <div class="scheda-progress-summary">
+                            Max: <strong>${Math.max(...values)}kg</strong> &middot;
+                            Ultimo: <strong>${values[values.length - 1]}kg</strong> &middot;
+                            Sessioni: <strong>${dates.length}</strong>
+                        </div>
+                    </div>`;
+
+                    // Render chart after DOM update
+                    setTimeout(() => {
+                        const canvas = document.getElementById(canvasId);
+                        if (!canvas || typeof MiniChart === 'undefined') return;
+                        MiniChart.line(canvas, {
+                            labels,
+                            datasets: [{
+                                data: values,
+                                color: '#00AEEF',
+                                fill: true,
+                            }],
+                            yMin: Math.max(0, Math.min(...values) - 5),
+                            showDots: true,
+                            showLabels: true,
+                        });
+                    }, 50);
+                }
+
+                // Volume chart (total volume per date)
+                const volByDate = {};
+                for (const l of logs) {
+                    if (l.weight_done != null && l.reps_done != null) {
+                        const vol = l.weight_done * l.reps_done;
+                        volByDate[l.log_date] = (volByDate[l.log_date] || 0) + vol;
+                    }
+                }
+                const volDates = Object.keys(volByDate).sort();
+                if (volDates.length > 1) {
+                    const volValues = volDates.map(d => Math.round(volByDate[d]));
+                    const volLabels = volDates.map(d => {
+                        const dt = new Date(d + 'T00:00:00');
+                        return dt.toLocaleDateString('it-IT', { day: '2-digit', month: 'short' });
+                    });
+                    const volCanvasId = 'chart-volume-total';
+                    html += `
+                    <div class="scheda-progress-chart-card">
+                        <h4>Volume Totale per Sessione</h4>
+                        <canvas id="${volCanvasId}" width="320" height="160"></canvas>
+                        <div class="scheda-progress-summary">
+                            Max: <strong>${Math.max(...volValues)}kg</strong> &middot;
+                            Ultimo: <strong>${volValues[volValues.length - 1]}kg</strong>
+                        </div>
+                    </div>`;
+                    setTimeout(() => {
+                        const canvas = document.getElementById(volCanvasId);
+                        if (!canvas || typeof MiniChart === 'undefined') return;
+                        MiniChart.line(canvas, {
+                            labels: volLabels,
+                            datasets: [{ data: volValues, color: '#22c55e', fill: true }],
+                            showDots: true,
+                            showLabels: true,
+                        });
+                    }, 50);
+                }
+
+                html += '</div>';
+                container.innerHTML = html;
+            } catch (e) {
+                console.error('[Progressi] render error:', e);
+                container.innerHTML = '<div class="preno-empty">Errore caricamento progressi.</div>';
+            }
+        }
     </script>
     <script src="js/sw-update.js"></script>
     <script src="js/pwa-install.js"></script>

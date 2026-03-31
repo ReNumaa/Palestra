@@ -649,3 +649,51 @@
     }
 
 }
+
+/* ═══════════════════════════════════════════════════════════════════════════════
+   SCHEDA PALESTRA — Client View Styles
+   ═══════════════════════════════════════════════════════════════════════════════ */
+.scheda-client { padding: 0.5rem 0; }
+.scheda-client-header h3 { margin: 0 0 0.3rem; font-size: 1.15rem; }
+.scheda-client-notes { font-size: 0.85rem; color: #6b7280; margin: 0 0 0.8rem; }
+
+/* Day group */
+.scheda-day-group { margin-bottom: 1rem; }
+.scheda-day-title { color: #00AEEF; font-size: 1rem; margin: 0 0 0.5rem; padding-bottom: 0.3rem; border-bottom: 2px solid #e0f7ff; }
+
+/* Exercise card */
+.scheda-exercise-card { background: #fff; border: 1px solid #e5e7eb; border-radius: 10px; margin-bottom: 0.5rem; overflow: hidden; }
+.scheda-ex-header { display: flex; justify-content: space-between; align-items: center; padding: 0.7rem 0.8rem; cursor: pointer; gap: 0.5rem; }
+.scheda-ex-header strong { font-size: 0.95rem; }
+.scheda-ex-muscle { display: inline-block; font-size: 0.72rem; background: #eff6ff; color: #1e40af; padding: 0.1rem 0.45rem; border-radius: 8px; margin-left: 0.3rem; }
+.scheda-ex-target { font-size: 0.82rem; color: #9ca3af; white-space: nowrap; }
+
+.scheda-ex-body { display: none; padding: 0 0.8rem 0.7rem; }
+.scheda-exercise-card.open .scheda-ex-body { display: block; }
+.scheda-ex-note { font-size: 0.82rem; color: #6b7280; margin-bottom: 0.4rem; font-style: italic; }
+.scheda-ex-rest { font-size: 0.78rem; color: #9ca3af; margin-bottom: 0.5rem; }
+
+/* Log form */
+.scheda-log-form { margin-top: 0.3rem; }
+.scheda-log-date { font-size: 0.82rem; color: #6b7280; margin-bottom: 0.3rem; }
+
+.scheda-log-table { width: 100%; border-collapse: collapse; }
+.scheda-log-table th { text-align: center; font-size: 0.75rem; color: #6b7280; padding: 0.25rem; font-weight: 600; }
+.scheda-log-table td { text-align: center; padding: 0.2rem; }
+.scheda-log-input { width: 55px; padding: 0.35rem 0.3rem; border: 1px solid #d1d5db; border-radius: 6px; text-align: center; font-size: 0.9rem; }
+.scheda-log-rpe { width: 40px; }
+.scheda-log-input:focus { border-color: #00AEEF; outline: none; box-shadow: 0 0 0 2px rgba(0,174,239,0.15); }
+
+.scheda-log-save-btn { margin-top: 0.5rem; width: 100%; padding: 0.5rem; border: none; background: #00AEEF; color: #fff; border-radius: 8px; font-size: 0.9rem; cursor: pointer; transition: background 0.15s; }
+.scheda-log-save-btn:hover { background: #0095cc; }
+.scheda-log-save-btn:disabled { opacity: 0.6; cursor: not-allowed; }
+
+/* ── Progressi charts ───────────────────────────────────────────────────────── */
+.scheda-progressi { padding: 0.5rem 0; }
+.scheda-progressi h3 { margin: 0 0 1rem; font-size: 1.15rem; }
+
+.scheda-progress-chart-card { background: #fff; border: 1px solid #e5e7eb; border-radius: 10px; padding: 0.8rem; margin-bottom: 0.8rem; }
+.scheda-progress-chart-card h4 { margin: 0 0 0.2rem; font-size: 0.95rem; }
+.scheda-progress-target { font-size: 0.78rem; color: #9ca3af; margin-bottom: 0.5rem; }
+.scheda-progress-chart-card canvas { width: 100% !important; height: auto !important; max-height: 180px; }
+.scheda-progress-summary { font-size: 0.82rem; color: #6b7280; margin-top: 0.4rem; }
