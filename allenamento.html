@@ -104,6 +104,7 @@
     <script>
         let _allView = 'scheda';
         let _allPlan = null;
+        let _allPlans = [];  // tutte le schede (attive e vecchie)
         let _allLogs = [];
 
         function switchAllView(view) {
@@ -132,38 +133,35 @@
             document.getElementById('allHeroSub').textContent = 'Ecco la tua scheda di allenamento';
 
             try {
+                // Fetch ALL plans (active + old)
                 const { data: plans, error } = await supabaseClient
                     .from('workout_plans')
                     .select('*, workout_exercises(*)')
                     .eq('user_id', user.id)
-                    .eq('active', true)
-                    .order('created_at', { ascending: false })
-                    .limit(1);
+                    .order('active', { ascending: false })
+                    .order('updated_at', { ascending: false });
 
                 if (error) throw error;
                 if (!plans?.length) {
                     document.getElementById('allContent').innerHTML =
-                        '<div class="all-empty">Nessuna scheda attiva assegnata dal trainer.<br>Contattalo per riceverne una!</div>';
-                    document.getElementById('allHeroSub').textContent = 'Nessuna scheda attiva';
+                        '<div class="all-empty">Nessuna scheda assegnata dal trainer.<br>Contattalo per riceverne una!</div>';
+                    document.getElementById('allHeroSub').textContent = 'Nessuna scheda';
                     return;
                 }
 
-                _allPlan = plans[0];
-                _allPlan.workout_exercises = (_allPlan.workout_exercises || []).sort((a, b) => a.sort_order - b.sort_order);
-
-                // Fetch today's logs
-                const today = _localDateStr();
-                const exIds = _allPlan.workout_exercises.map(e => e.id);
-                if (exIds.length) {
-                    const { data: logsData } = await supabaseClient
-                        .from('workout_logs')
-                        .select('*')
-                        .in('exercise_id', exIds)
-                        .eq('user_id', user.id)
-                        .order('log_date', { ascending: false })
-                        .order('set_number', { ascending: true });
-                    _allLogs = logsData || [];
+                // Sort exercises within each plan
+                for (const p of plans) {
+                    p.workout_exercises = (p.workout_exercises || []).sort((a, b) => a.sort_order - b.sort_order);
                 }
+
+                _allPlans = plans;
+                _allPlan = plans.find(p => p.active) || plans[0];
+
+                // Build plan selector if multiple plans
+                _renderPlanSelector();
+
+                // Fetch logs for current plan
+                await _loadLogsForPlan(_allPlan);
 
                 renderScheda();
             } catch (e) {
@@ -171,6 +169,54 @@
                 document.getElementById('allContent').innerHTML = '<div class="all-empty">Errore caricamento scheda.</div>';
             }
         })();
+
+        // ── Plan selector ─────────────────────────────────────────────────
+        function _renderPlanSelector() {
+            if (_allPlans.length <= 1) return;
+            const nav = document.querySelector('.all-nav');
+            if (!nav) return;
+            // Insert selector before the nav pills
+            const existing = document.getElementById('allPlanSelector');
+            if (existing) existing.remove();
+            const sel = document.createElement('div');
+            sel.id = 'allPlanSelector';
+            sel.className = 'all-plan-selector';
+            sel.innerHTML = `<select onchange="switchPlan(this.value)">
+                ${_allPlans.map(p => {
+                    const label = _escHtml(p.name) + (p.active ? ' (attiva)' : '');
+                    return `<option value="${p.id}" ${p.id === _allPlan.id ? 'selected' : ''}>${label}</option>`;
+                }).join('')}
+            </select>`;
+            nav.parentNode.insertBefore(sel, nav);
+        }
+
+        async function switchPlan(planId) {
+            const plan = _allPlans.find(p => p.id === planId);
+            if (!plan) return;
+            _allPlan = plan;
+            document.getElementById('allContent').innerHTML = '<div class="all-loading">Caricamento...</div>';
+            await _loadLogsForPlan(plan);
+            if (_allView === 'scheda') renderScheda();
+            else renderProgressi();
+        }
+
+        async function _loadLogsForPlan(plan) {
+            const user = getCurrentUser();
+            if (!user) return;
+            const exIds = (plan.workout_exercises || []).map(e => e.id);
+            if (exIds.length) {
+                const { data: logsData } = await supabaseClient
+                    .from('workout_logs')
+                    .select('*')
+                    .in('exercise_id', exIds)
+                    .eq('user_id', user.id)
+                    .order('log_date', { ascending: false })
+                    .order('set_number', { ascending: true });
+                _allLogs = logsData || [];
+            } else {
+                _allLogs = [];
+            }
+        }
 
         // ── Render Scheda ─────────────────────────────────────────────────
         function renderScheda() {
