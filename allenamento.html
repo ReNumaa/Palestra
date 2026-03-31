@@ -5,9 +5,9 @@
     <meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self' 'unsafe-inline' cdn.jsdelivr.net; style-src 'self' 'unsafe-inline'; connect-src 'self' https://*.supabase.co wss://*.supabase.co; img-src 'self' data: https:; font-src 'self'; frame-src 'self' https://accounts.google.com; form-action 'self'">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
     <link rel="manifest" href="manifest.json?v=3">
-    <meta name="theme-color" content="#1a1a2e">
+    <meta name="theme-color" content="#00AEEF">
     <meta name="apple-mobile-web-app-capable" content="yes">
-    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+    <meta name="apple-mobile-web-app-status-bar-style" content="default">
     <meta name="apple-mobile-web-app-title" content="Allenamento">
     <title>Allenamento – Thomas Bresciani</title>
     <link rel="icon" type="image/jpeg" href="images/logo-tb---nero.jpg">
@@ -60,10 +60,10 @@
         </div>
     </main>
 
-    <footer class="footer" style="background:#1a1a2e;color:rgba(255,255,255,0.5);border:none;">
+    <footer class="footer">
         <div class="container">
             <p>&copy; 2026 Thomas Bresciani Personal Trainer</p>
-            <p class="footer-links"><a href="privacy.html" style="color:rgba(255,255,255,0.5)">Privacy</a> · <a href="termini.html" style="color:rgba(255,255,255,0.5)">Termini</a></p>
+            <p class="footer-links"><a href="privacy.html" >Privacy</a> · <a href="termini.html" >Termini</a></p>
         </div>
     </footer>
 
@@ -593,7 +593,7 @@
             return d.toLocaleDateString('it-IT', { day: '2-digit', month: 'short' });
         }
 
-        // ── Dark-theme line chart (canvas) ────────────────────────────────
+        // ── Light-theme line chart (canvas) ───────────────────────────────
         function drawDarkLineChart(canvas, labels, values, color) {
             const ctx = canvas.getContext('2d');
             const rect = canvas.getBoundingClientRect();
@@ -616,12 +616,12 @@
             const yRange = yMax - yMin || 1;
 
             // Grid
-            ctx.strokeStyle = 'rgba(255,255,255,0.06)';
+            ctx.strokeStyle = '#e2e8f0';
             ctx.lineWidth = 1;
             for (let i = 0; i <= 4; i++) {
                 const y = pad.top + ch - (ch * i / 4);
                 ctx.beginPath(); ctx.moveTo(pad.left, y); ctx.lineTo(pad.left + cw, y); ctx.stroke();
-                ctx.fillStyle = 'rgba(255,255,255,0.25)';
+                ctx.fillStyle = '#94a3b8';
                 ctx.font = '9px sans-serif';
                 ctx.textAlign = 'right';
                 ctx.fillText(Math.round(yMin + yRange * i / 4), pad.left - 5, y + 3);
@@ -660,13 +660,13 @@
                 ctx.arc(p.x, p.y, 3.5, 0, Math.PI * 2);
                 ctx.fillStyle = color;
                 ctx.fill();
-                ctx.strokeStyle = '#1a1a2e';
+                ctx.strokeStyle = '#fff';
                 ctx.lineWidth = 1.5;
                 ctx.stroke();
             });
 
             // X labels
-            ctx.fillStyle = 'rgba(255,255,255,0.35)';
+            ctx.fillStyle = '#94a3b8';
             ctx.font = '8px sans-serif';
             ctx.textAlign = 'center';
             const step = Math.max(1, Math.floor(labels.length / 6));
@@ -678,7 +678,7 @@
 
             // Value on last point
             const last = pts[pts.length - 1];
-            ctx.fillStyle = '#fff';
+            ctx.fillStyle = '#1e293b';
             ctx.font = 'bold 10px sans-serif';
             ctx.textAlign = 'center';
             ctx.fillText(last.v + 'kg', last.x, last.y - 8);
