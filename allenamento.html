@@ -98,6 +98,8 @@
         let _allPlan = null;
         let _allPlans = [];  // tutte le schede (attive e vecchie)
         let _allLogs = [];
+        let _filterPeriod = 'all';
+        let _filterMuscle = 'all';
 
         function switchAllView(view) {
             _allView = view;
@@ -406,9 +408,9 @@
                 // Available muscle groups (from data)
                 const muscleGroups = [...new Set(Object.values(nameToMuscle).filter(Boolean))].sort();
 
-                // Read active filters
-                const filterPeriod = document.getElementById('filterPeriod')?.value || 'all';
-                const filterMuscle = document.getElementById('filterMuscle')?.value || 'all';
+                // Read active filters from persistent state
+                const filterPeriod = _filterPeriod;
+                const filterMuscle = _filterMuscle;
 
                 // Apply time filter to logs
                 let filteredLogs = logs;
@@ -442,13 +444,13 @@
 
                 // Filters bar
                 html += `<div class="all-filters">
-                    <select id="filterPeriod" onchange="renderProgressi()">
+                    <select id="filterPeriod" onchange="_filterPeriod=this.value;renderProgressi()">
                         <option value="all" ${filterPeriod === 'all' ? 'selected' : ''}>Tutto</option>
                         <option value="7d" ${filterPeriod === '7d' ? 'selected' : ''}>Ultimi 7 giorni</option>
                         <option value="30d" ${filterPeriod === '30d' ? 'selected' : ''}>Ultimi 30 giorni</option>
                         <option value="90d" ${filterPeriod === '90d' ? 'selected' : ''}>Ultimi 90 giorni</option>
                     </select>
-                    <select id="filterMuscle" onchange="renderProgressi()">
+                    <select id="filterMuscle" onchange="_filterMuscle=this.value;renderProgressi()">
                         <option value="all" ${filterMuscle === 'all' ? 'selected' : ''}>Tutti i muscoli</option>
                         ${muscleGroups.map(mg => `<option value="${_escHtml(mg)}" ${filterMuscle === mg ? 'selected' : ''}>${_escHtml(mg)}</option>`).join('')}
                     </select>
