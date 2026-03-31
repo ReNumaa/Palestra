@@ -202,13 +202,27 @@ async function _renderClientDetail(container) {
     const clientName = allUsers.find(u => u.userId === userId)?.name || 'Cliente';
     const plans = WorkoutPlanStorage.getAllPlans().filter(p => p.user_id === userId);
 
+    // Templates available for assignment
+    const templates = WorkoutPlanStorage.getAllPlans().filter(p => !p.user_id);
+
     let html = `<div class="schede-editor-topbar">
         <button class="schede-back-btn" onclick="_schedeView='clients';renderSchedeTab()">← Clienti</button>
         <h3>${_escHtml(clientName)}</h3>
     </div>`;
 
+    // Assign template button
+    if (templates.length > 0) {
+        html += `<div style="margin-bottom:0.8rem;">
+            <select id="schedeAssignTemplate" style="padding:0.4rem 0.6rem;border:1px solid #e5e7eb;border-radius:8px;font-size:0.88rem;margin-right:0.4rem;">
+                <option value="">— Scegli template —</option>
+                ${templates.map(t => `<option value="${t.id}">${_escHtml(t.name)} (${(t.workout_exercises||[]).length} esercizi)</option>`).join('')}
+            </select>
+            <button class="btn-primary" style="font-size:0.85rem;padding:0.4rem 0.8rem;" onclick="_schedeAssignTemplate('${userId}')">Assegna</button>
+        </div>`;
+    }
+
     // Show plans for this client
-    html += '<h4 style="margin:0.8rem 0 0.4rem;font-size:0.95rem;color:#6b7280;">Schede assegnate</h4>';
+    html += '<h4 style="margin:0.5rem 0 0.4rem;font-size:0.95rem;color:#6b7280;">Schede assegnate</h4>';
     for (const plan of plans) {
         const badge = plan.active ? '<span class="schede-badge-active">Attiva</span>' : '<span class="schede-badge-inactive">Inattiva</span>';
         const exCount = (plan.workout_exercises || []).length;
@@ -418,27 +432,56 @@ function _drawAdminChart(canvas, labels, values) {
 // ═══════════════════════════════════════════════════════════════════════════════
 function _renderSchedeList(container) {
     const plans = WorkoutPlanStorage.getAllPlans();
-
-    // Resolve client names by userId
     const allUsers = _schedeGetRegisteredUsers();
     const nameMap = {};
     for (const u of allUsers) nameMap[u.userId] = u.name || u.email || u.userId;
 
+    // Separate templates (no user_id) from assigned plans
+    const templates = plans.filter(p => !p.user_id);
+    const assigned = plans.filter(p => p.user_id);
+
     let html = `
         <div class="schede-header">
-            <h3>Schede Palestra</h3>
+            <h3>Schede</h3>
             <button class="btn-primary" onclick="_schedeNewPlan()">+ Nuova Scheda</button>
         </div>
         <div class="schede-search-bar">
-            <input type="text" id="schedeSearchInput" placeholder="Cerca per nome cliente..."
+            <input type="text" id="schedeSearchInput" placeholder="Cerca scheda..."
                    oninput="_schedeFilterList()">
         </div>`;
 
-    if (plans.length === 0) {
-        html += '<div class="empty-slot">Nessuna scheda creata. Clicca "Nuova Scheda" per iniziare.</div>';
+    // Templates section
+    html += '<h4 style="margin:0.5rem 0 0.4rem;font-size:0.92rem;color:#6b7280;">Template standard</h4>';
+    if (templates.length === 0) {
+        html += '<div class="empty-slot" style="padding:0.8rem;">Nessun template. Crea una scheda senza selezionare un cliente.</div>';
     } else {
         html += '<div class="schede-plan-list" id="schedePlanList">';
-        const sorted = [...plans].sort((a, b) => {
+        for (const plan of templates) {
+            const exCount = (plan.workout_exercises || []).length;
+            const days = [...new Set((plan.workout_exercises || []).map(e => e.day_label))];
+            html += `
+            <div class="schede-plan-card" data-client="template ${_escHtml(plan.name).toLowerCase()}">
+                <div class="schede-plan-card-header">
+                    <div class="schede-plan-card-info">
+                        <div class="schede-plan-client"><span class="schede-badge-template">Template</span></div>
+                        <div class="schede-plan-name">${_escHtml(plan.name)}</div>
+                        <div class="schede-plan-meta">${exCount} esercizi &middot; ${days.length} giorni</div>
+                    </div>
+                    <div class="schede-plan-actions">
+                        <button onclick="_schedeEditPlan('${plan.id}')" title="Modifica">✏️</button>
+                        <button onclick="_schedeDeletePlan('${plan.id}')" title="Elimina">🗑️</button>
+                    </div>
+                </div>
+            </div>`;
+        }
+        html += '</div>';
+    }
+
+    // Assigned plans section
+    if (assigned.length > 0) {
+        html += '<h4 style="margin:1rem 0 0.4rem;font-size:0.92rem;color:#6b7280;">Schede assegnate</h4>';
+        html += '<div class="schede-plan-list">';
+        const sorted = [...assigned].sort((a, b) => {
             const na = (nameMap[a.user_id] || '').toLowerCase();
             const nb = (nameMap[b.user_id] || '').toLowerCase();
             if (na !== nb) return na.localeCompare(nb);
@@ -453,7 +496,7 @@ function _renderSchedeList(container) {
                 : '<span class="schede-badge-inactive">Inattiva</span>';
             const dateRange = _schedeDateRange(plan);
             html += `
-            <div class="schede-plan-card" data-client="${clientName.toLowerCase()}">
+            <div class="schede-plan-card" data-client="${clientName.toLowerCase()} ${_escHtml(plan.name).toLowerCase()}">
                 <div class="schede-plan-card-header">
                     <div class="schede-plan-card-info">
                         <div class="schede-plan-client">${clientName}</div>
@@ -462,8 +505,6 @@ function _renderSchedeList(container) {
                     </div>
                     <div class="schede-plan-actions">
                         <button onclick="_schedeEditPlan('${plan.id}')" title="Modifica">✏️</button>
-                        <button onclick="_schedeViewProgress('${plan.id}')" title="Progressi">📊</button>
-                        <button onclick="_schedeDuplicatePlan('${plan.id}')" title="Duplica">📋</button>
                         <button onclick="_schedeDeletePlan('${plan.id}')" title="Elimina">🗑️</button>
                     </div>
                 </div>
@@ -536,9 +577,9 @@ function _renderPlanEditor(container) {
         </div>
         <div class="schede-editor-form">
             <div class="schede-form-row">
-                <label>Cliente</label>
+                <label>Cliente <span style="color:#9ca3af;font-weight:400;font-size:0.78rem;">(vuoto = template standard)</span></label>
                 <div class="schede-client-selector">
-                    <input type="text" id="schedeClientSearch" placeholder="Cerca cliente registrato..."
+                    <input type="text" id="schedeClientSearch" placeholder="Lascia vuoto per template..."
                            value="${_escHtml(selectedUserName)}"
                            oninput="_schedeSearchClient()" autocomplete="off"
                            onfocus="_schedeSearchClient()"
@@ -776,14 +817,12 @@ async function _schedeMoveExercise(exId, direction) {
 async function _schedeSavePlan() {
     const nameInput = document.getElementById('schedePlanName');
     const clientInput = document.getElementById('schedeClientSearch');
-    const userId = clientInput?.dataset?.userId;
+    let userId = clientInput?.dataset?.userId || null;
     const planName = nameInput?.value?.trim();
 
-    // Validate UUID — must be a real UUID, not "undefined" string
-    if (!userId || userId === 'undefined' || userId.length < 10) {
-        if (typeof showToast === 'function') showToast('Seleziona un cliente dal menu a tendina', 'error');
-        return;
-    }
+    // If userId looks invalid, treat as template (null)
+    if (userId === 'undefined' || (userId && userId.length < 10)) userId = null;
+
     if (!planName) {
         if (typeof showToast === 'function') showToast('Inserisci un nome per la scheda', 'error');
         return;
@@ -820,7 +859,7 @@ async function _schedeSavePlan() {
 }
 
 function _schedeBackToList() {
-    _schedeView = 'list';
+    _schedeView = _schedeSection === 'clienti' ? 'clients' : 'list';
     _editingPlan = null;
     _currentPlanId = null;
     renderSchedeTab();
@@ -829,6 +868,20 @@ function _schedeBackToList() {
 // ═══════════════════════════════════════════════════════════════════════════════
 // PLAN ACTIONS (list view)
 // ═══════════════════════════════════════════════════════════════════════════════
+async function _schedeAssignTemplate(userId) {
+    const sel = document.getElementById('schedeAssignTemplate');
+    const templateId = sel?.value;
+    if (!templateId) { if (typeof showToast === 'function') showToast('Seleziona un template', 'error'); return; }
+    try {
+        await WorkoutPlanStorage.duplicatePlan(templateId, userId);
+        if (typeof showToast === 'function') showToast('Scheda assegnata!', 'success');
+        renderSchedeTab();
+    } catch (e) {
+        console.error('[Schede] assign error:', e);
+        if (typeof showToast === 'function') showToast('Errore assegnazione', 'error');
+    }
+}
+
 async function _schedeDeletePlan(planId) {
     if (!confirm('Eliminare questa scheda e tutti gli esercizi associati?')) return;
     try {

@@ -5010,6 +5010,7 @@ canvas {
 /* Badges */
 .schede-badge-active { display: inline-block; font-size: 0.72rem; padding: 0.1rem 0.5rem; background: #dcfce7; color: #166534; border-radius: 10px; margin-left: 0.3rem; }
 .schede-badge-inactive { display: inline-block; font-size: 0.72rem; padding: 0.1rem 0.5rem; background: #fee2e2; color: #991b1b; border-radius: 10px; margin-left: 0.3rem; }
+.schede-badge-template { display: inline-block; font-size: 0.72rem; padding: 0.1rem 0.5rem; background: #eff6ff; color: #1e40af; border-radius: 10px; font-weight: 600; }
 
 /* ── Editor ─────────────────────────────────────────────────────────────────── */
 .schede-editor { max-width: 900px; }
