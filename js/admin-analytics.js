@@ -6,12 +6,15 @@ let _adminInitialScrollDone = false;
 let currentFilter = 'this-month';
 let customFilterFrom = null;
 let customFilterTo = null;
-// Cache in memoria per le stats: caricato fresh da Supabase ad ogni loadDashboardData().
-// Non finisce in localStorage — bypass del limite di 5MB.
+// Cache in memoria per le stats — bypassa il limite di 5MB di localStorage.
+// _statsCacheRange traccia il range date già scaricato: se il filtro rientra, skip fetch.
 let _statsBookings = null;
+let _statsCacheRange = null; // { from: 'YYYY-MM-DD', to: 'YYYY-MM-DD' }
 const _excludeAdminBookings = arr => arr.filter(b => !ADMIN_EMAILS.has((b.email || '').toLowerCase()));
 // Sequenza per scartare risposte stale in caso di click rapidi sui filtri
 let _loadDashboardSeq = 0;
+// Invalida la cache stats (chiamare dopo save/cancel booking)
+function invalidateStatsCache() { _statsCacheRange = null; }
 
 function getFilterDateRange(filter) {
     const now = new Date();
@@ -174,54 +177,14 @@ function updateNonChartData() {
     updatePopularTimes(filteredBookings);
 }
 
-async function loadDashboardData() {
-    const seq = ++_loadDashboardSeq;
-    BookingStorage.processPendingCancellations();
-
-    // Fetch stats fresh da Supabase: periodo corrente + precedente + ultimi 12 mesi + 12 mesi futuri.
-    // Non usa localStorage — bypassa il limite di 5MB per dataset grandi.
-    if (typeof BookingStorage !== 'undefined' && typeof supabaseClient !== 'undefined') {
-        const { from, to } = getFilterDateRange(currentFilter);
-        const prevRange = getPreviousFilterDateRange(currentFilter);
-        const now = new Date();
-        const twelveMonthsAgo = new Date(now.getFullYear() - 1, now.getMonth(), 1);
-        const extFrom = new Date(Math.min(
-            prevRange ? prevRange.from.getTime() : from.getTime(),
-            from.getTime(),
-            twelveMonthsAgo.getTime()
-        ));
-        const twelveMonthsAhead = new Date(now.getFullYear() + 1, now.getMonth() + 1, 0, 23, 59, 59, 999);
-        const extTo = new Date(Math.max(
-            to.getTime(),
-            twelveMonthsAhead.getTime()
-        ));
-        const fetchPromise = BookingStorage.fetchForAdmin(
-            _localDateStr(extFrom),
-            _localDateStr(extTo)
-        );
-        const timeoutPromise = new Promise(resolve => setTimeout(() => resolve(null), 10000));
-        const freshData = await Promise.race([fetchPromise, timeoutPromise]);
-        // Scarta la risposta se nel frattempo è arrivata una richiesta più recente
-        if (seq !== _loadDashboardSeq) return;
-        // freshData = null su errore Supabase → mantieni dati precedenti
-        if (freshData !== null) {
-            _statsBookings = _excludeAdminBookings(freshData);
-        } else if (!_statsBookings) {
-            // Prima volta senza Supabase: fallback a localStorage
-            _statsBookings = _excludeAdminBookings(BookingStorage.getAllBookings());
-        }
-    }
-
+function _renderDashboardUI() {
     const filteredBookings = getFilteredBookings(currentFilter);
     const allBookings = _statsBookings ?? _excludeAdminBookings(BookingStorage.getAllBookings());
-
     updateStatsCards(filteredBookings, allBookings);
     drawBookingsChart(filteredBookings);
     drawTypeChart(filteredBookings);
     updateBookingsTable(filteredBookings);
     updatePopularTimes(filteredBookings);
-
-    // Aggiorna il pannello dettaglio se è aperto
     if (_currentStatDetail) {
         const panel = document.getElementById('statsDetailPanel');
         if (panel && panel.style.display !== 'none') {
@@ -234,6 +197,82 @@ async function loadDashboardData() {
         }
     }
 }
+
+function _setStatCardsLoading(on) {
+    document.querySelectorAll('.stat-card').forEach(c =>
+        c.classList.toggle('stat-card--loading', on));
+}
+
+async function loadDashboardData() {
+    const seq = ++_loadDashboardSeq;
+    BookingStorage.processPendingCancellations();
+
+    // 1) Stale-while-revalidate: se abbiamo dati in cache, render immediato
+    const hasCache = !!_statsBookings;
+    if (hasCache) _renderDashboardUI();
+
+    if (typeof BookingStorage !== 'undefined' && typeof supabaseClient !== 'undefined') {
+        const { from, to } = getFilterDateRange(currentFilter);
+        const prevRange = getPreviousFilterDateRange(currentFilter);
+        const now = new Date();
+        const twelveMonthsAgo = new Date(now.getFullYear() - 1, now.getMonth(), 1);
+        const extFromDate = new Date(Math.min(
+            prevRange ? prevRange.from.getTime() : from.getTime(),
+            from.getTime(),
+            twelveMonthsAgo.getTime()
+        ));
+        const twelveMonthsAhead = new Date(now.getFullYear() + 1, now.getMonth() + 1, 0, 23, 59, 59, 999);
+        const extToDate = new Date(Math.max(to.getTime(), twelveMonthsAhead.getTime()));
+        const extFromStr = _localDateStr(extFromDate);
+        const extToStr   = _localDateStr(extToDate);
+
+        // 2) Cache hit: se il range richiesto è già coperto, skip fetch
+        const cacheCovers = _statsCacheRange
+            && extFromStr >= _statsCacheRange.from
+            && extToStr   <= _statsCacheRange.to;
+
+        if (!cacheCovers) {
+            // Skeleton anti-flicker: mostra solo se il fetch dura >200ms
+            let skeletonTimer = null;
+            if (!hasCache) {
+                skeletonTimer = setTimeout(() => _setStatCardsLoading(true), 200);
+            }
+
+            const fetchPromise = BookingStorage.fetchForAdmin(extFromStr, extToStr);
+            const timeoutPromise = new Promise(resolve => setTimeout(() => resolve(null), 10000));
+            const freshData = await Promise.race([fetchPromise, timeoutPromise]);
+
+            if (skeletonTimer) clearTimeout(skeletonTimer);
+            _setStatCardsLoading(false);
+
+            if (seq !== _loadDashboardSeq) return;
+
+            if (freshData !== null) {
+                _statsBookings = _excludeAdminBookings(freshData);
+                _statsCacheRange = { from: extFromStr, to: extToStr };
+            } else if (!_statsBookings) {
+                _statsBookings = _excludeAdminBookings(BookingStorage.getAllBookings());
+            }
+        }
+    }
+
+    // 3) Render finale (o primo render se non c'era cache)
+    _statsLastLoad = Date.now();
+    _renderDashboardUI();
+}
+
+// Refresh dati stats quando l'admin torna sulla pagina dopo >2 minuti
+let _statsLastLoad = Date.now();
+document.addEventListener('visibilitychange', () => {
+    if (document.visibilityState !== 'visible') return;
+    const elapsed = Date.now() - _statsLastLoad;
+    if (elapsed < 120_000) return; // meno di 2 min, skip
+    const analyticsTab = document.getElementById('tab-analytics');
+    if (!analyticsTab || !analyticsTab.classList.contains('active')) return;
+    _statsLastLoad = Date.now();
+    invalidateStatsCache();
+    loadDashboardData();
+});
 
 function updateStatsCards(filteredBookings, allBookings) {
     const filterLabel = getFilterLabel(currentFilter);

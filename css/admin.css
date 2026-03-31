@@ -4550,6 +4550,24 @@ canvas {
     color: #00AEEF;
 }
 
+/* ── Skeleton loading for stat cards ─────────────────────────────────────── */
+@keyframes skeleton-pulse {
+    0%   { opacity: 1; }
+    50%  { opacity: 0.4; }
+    100% { opacity: 1; }
+}
+.stat-card--loading .stat-value,
+.stat-card--loading .stat-change {
+    color: transparent !important;
+    background: #e5e7eb;
+    border-radius: 6px;
+    animation: skeleton-pulse 1.2s ease-in-out infinite;
+    pointer-events: none;
+    user-select: none;
+}
+.stat-card--loading .stat-value { width: 60%; min-height: 2rem; display: inline-block; }
+.stat-card--loading .stat-change { width: 80%; min-height: 0.9rem; display: inline-block; }
+
 /* ── Statistics Detail Panel ─────────────────────────────────────────────── */
 .stats-detail-panel {
     background: white;

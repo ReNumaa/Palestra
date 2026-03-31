@@ -267,6 +267,7 @@ async function bookForClient(slotType) {
     BookingStorage.fulfillPendingCancellations(date, time);
 
     showToast(`Prenotazione aggiunta per ${client.name}`, 'success');
+    invalidateStatsCache();
     if (window._currentAdminDate) renderAdminDayView(window._currentAdminDate);
 }
 
@@ -587,6 +588,7 @@ function deleteBooking(bookingId, bookingName) {
         ]);
 
         if (typeof notifySlotAvailable === 'function') notifySlotAvailable(booking);
+        invalidateStatsCache();
         if (selectedAdminDay) renderAdminDayView(selectedAdminDay);
         if (typeof showToast === 'function') showToast('✅ Prenotazione annullata con successo.', 'success', 4000);
     }
@@ -636,6 +638,7 @@ function deleteBooking(bookingId, bookingName) {
         };
         BookingStorage.replaceAllBookings(bookings);
         if (typeof notifySlotAvailable === 'function') notifySlotAvailable(booking);
+        invalidateStatsCache();
         if (selectedAdminDay) renderAdminDayView(selectedAdminDay);
         if (typeof showToast === 'function') showToast('✅ Prenotazione annullata con successo.', 'success', 4000);
     }

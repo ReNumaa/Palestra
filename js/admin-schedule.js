@@ -687,6 +687,7 @@ async function selectSlotClient(timeSlot, index) {
     slot.client = { name: user.name, email: user.email, whatsapp: user.whatsapp || '' };
     slot.bookingId = result.booking.id;
     BookingStorage.saveScheduleOverrides(overrides, [selectedScheduleDate.formatted]);
+    invalidateStatsCache();
     renderAllTimeSlots();
 }
 

@@ -960,6 +960,7 @@ async function saveBookingRowEdit(bookingId, clientIndex) {
                 }
 
                 await Promise.all([BookingStorage.syncFromSupabase(), CreditStorage.syncFromSupabase(), ManualDebtStorage.syncFromSupabase()]);
+                invalidateStatsCache();
                 renderClientsTab();
             } catch (ex) {
                 console.error('[saveBookingRowEdit] unexpected error:', ex);
@@ -1076,6 +1077,7 @@ function deleteBookingFromClients(bookingId, bookingName) {
                     BookingStorage.syncFromSupabase(),
                     CreditStorage.syncFromSupabase(),
                 ]);
+                invalidateStatsCache();
                 renderClientsTab();
             } catch (ex) {
                 console.error('[deleteBookingFromClients] unexpected error:', ex);
@@ -1092,6 +1094,7 @@ function deleteBookingFromClients(bookingId, bookingName) {
         }
         bookings.splice(idx, 1);
         BookingStorage.replaceAllBookings(bookings);
+        invalidateStatsCache();
         renderClientsTab();
     }
 }
