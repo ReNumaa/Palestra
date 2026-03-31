@@ -86,7 +86,7 @@
         </div>
         <ul class="nav-sidebar-links">
             <li><a href="/">Calendario</a></li>
-            <li><a href="allenamento.html" style="color:#00AEEF;font-weight:600;">💪 Allenamento</a></li>
+            <li id="navAllenamento"><a href="allenamento.html" style="color:#00AEEF;font-weight:600;">💪 Allenamento</a></li>
             <li><a href="nutrizione.html">Nutrizione</a></li>
             <li><a href="regolamento.html">Regolamento</a></li>
             <li><a href="chi-sono.html">Chi sono</a></li>
@@ -114,14 +114,17 @@
             else renderProgressi();
         }
 
+        // ── Gating ────────────────────────────────────────────────────────
+        const ALLENAMENTO_ALLOWED_UID = 'cf5f39f3-1581-40be-80e9-15b56acee337';
+
         // ── Init ──────────────────────────────────────────────────────────
         (async function() {
             await initAuth();
             const user = getCurrentUser();
-            if (!user) {
-                document.getElementById('allContent').innerHTML =
-                    '<div class="all-empty">Accedi per vedere la tua scheda di allenamento.<br><a href="login.html" class="all-link">Accedi →</a></div>';
-                document.getElementById('allHeroSub').textContent = '';
+
+            // Redirect non-allowed users
+            if (!user || user.id !== ALLENAMENTO_ALLOWED_UID) {
+                window.location.replace('/');
                 return;
             }
 
