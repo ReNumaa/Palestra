@@ -287,17 +287,19 @@ async function _renderClientDetail(container) {
 
     // Assign template button
     if (templates.length > 0) {
-        html += `<div style="margin-bottom:0.8rem;">
-            <select id="schedeAssignTemplate" style="padding:0.4rem 0.6rem;border:1px solid #e5e7eb;border-radius:8px;font-size:0.88rem;margin-right:0.4rem;">
-                <option value="">— Scegli template —</option>
-                ${templates.map(t => `<option value="${t.id}">${_escHtml(t.name)} (${(t.workout_exercises||[]).length} esercizi)</option>`).join('')}
-            </select>
-            <button class="btn-primary" style="font-size:0.85rem;padding:0.4rem 0.8rem;" onclick="_schedeAssignTemplate('${userId}')">Assegna</button>
+        html += `<div class="schede-assign-bar" style="margin-bottom:0.8rem;">
+            <div class="schede-assign-row">
+                <select id="schedeAssignTemplate">
+                    <option value="">— Scegli template —</option>
+                    ${templates.map(t => `<option value="${t.id}">${_escHtml(t.name)} (${(t.workout_exercises||[]).length} esercizi)</option>`).join('')}
+                </select>
+                <button class="btn-primary" onclick="_schedeAssignTemplate('${userId}')">Assegna</button>
+            </div>
         </div>`;
     }
 
     // Show plans for this client
-    html += '<h4 style="margin:0.5rem 0 0.4rem;font-size:0.95rem;color:#6b7280;">Schede assegnate</h4>';
+    html += '<h4 class="schede-section-title">Schede assegnate</h4>';
     for (const plan of plans) {
         const badge = plan.active ? '<span class="schede-badge-active">Attiva</span>' : '<span class="schede-badge-inactive">Inattiva</span>';
         const exCount = (plan.workout_exercises || []).length;
@@ -321,7 +323,7 @@ async function _renderClientDetail(container) {
         return;
     }
 
-    html += '<h4 style="margin:1.2rem 0 0.4rem;font-size:0.95rem;color:#6b7280;">Progressi</h4>';
+    html += '<h4 class="schede-section-title" style="margin-top:1.2rem;">Progressi</h4>';
 
     container.innerHTML = html + '<div class="schede-loading">Caricamento log...</div>';
 
@@ -355,21 +357,21 @@ async function _renderClientDetail(container) {
     // Stats
     const totalSessions = new Set(logs.map(l => l.exercise_id + '|' + l.log_date)).size;
     const totalVolume = logs.reduce((s, l) => s + ((l.weight_done || 0) * (l.reps_done || 0)), 0);
-    html += `<div style="display:flex;gap:0.5rem;margin-bottom:1rem;flex-wrap:wrap;">
-        <div class="payment-stat-card" style="flex:1;min-width:100px;text-align:center;">
-            <div class="payment-stat-icon">📊</div>
-            <h4>Sessioni</h4>
-            <p class="payment-total">${totalSessions}</p>
+    html += `<div class="schede-stats-grid">
+        <div class="schede-stat-card">
+            <div class="schede-stat-icon">📊</div>
+            <div class="schede-stat-label">Sessioni</div>
+            <div class="schede-stat-value">${totalSessions}</div>
         </div>
-        <div class="payment-stat-card" style="flex:1;min-width:100px;text-align:center;">
-            <div class="payment-stat-icon">🏋️</div>
-            <h4>Serie</h4>
-            <p class="payment-total">${logs.length}</p>
+        <div class="schede-stat-card">
+            <div class="schede-stat-icon">🏋️</div>
+            <div class="schede-stat-label">Serie</div>
+            <div class="schede-stat-value">${logs.length}</div>
         </div>
-        <div class="payment-stat-card" style="flex:1;min-width:100px;text-align:center;">
-            <div class="payment-stat-icon">📈</div>
-            <h4>Volume</h4>
-            <p class="payment-total">${totalVolume >= 1000 ? (totalVolume/1000).toFixed(1) + 't' : totalVolume + 'kg'}</p>
+        <div class="schede-stat-card">
+            <div class="schede-stat-icon">📈</div>
+            <div class="schede-stat-label">Volume</div>
+            <div class="schede-stat-value">${totalVolume >= 1000 ? (totalVolume/1000).toFixed(1) + 't' : totalVolume + 'kg'}</div>
         </div>
     </div>`;
 
@@ -399,15 +401,15 @@ async function _renderClientDetail(container) {
 
         const canvasId = 'admin-pchart-' + (chartIdx++);
         html += `<div class="schede-admin-chart-card">
-            <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:0.3rem;">
-                <strong style="font-size:0.92rem;">${_escHtml(exName)}</strong>
-                ${muscle ? '<span class="schede-badge-active" style="font-size:0.7rem;">' + _escHtml(muscle) + '</span>' : ''}
+            <div class="schede-chart-header">
+                <strong>${_escHtml(exName)}</strong>
+                ${muscle ? '<span class="schede-badge-active schede-badge-sm">' + _escHtml(muscle) + '</span>' : ''}
             </div>
             <canvas id="${canvasId}" width="400" height="140" style="width:100%;max-height:140px;"></canvas>
-            <div style="display:flex;gap:0.6rem;flex-wrap:wrap;margin-top:0.4rem;font-size:0.78rem;color:#9ca3af;">
-                <span>Max <strong style="color:#1e293b;">${maxW}kg</strong></span>
-                <span>Ultimo <strong style="color:#1e293b;">${lastW}kg</strong></span>
-                <span style="color:${trend >= 0 ? '#166534' : '#dc2626'}">Trend <strong>${trendSign}${trend.toFixed(1)}kg</strong></span>
+            <div class="schede-chart-stats">
+                <span>Max <strong>${maxW}kg</strong></span>
+                <span>Ultimo <strong>${lastW}kg</strong></span>
+                <span class="${trend >= 0 ? 'schede-trend-up' : 'schede-trend-down'}">Trend <strong>${trendSign}${trend.toFixed(1)}kg</strong></span>
                 <span>${sessions.length} sessioni</span>
             </div>
         </div>`;
@@ -526,7 +528,7 @@ function _renderSchedeList(container) {
         </div>`;
 
     // Templates section
-    html += '<h4 style="margin:0.5rem 0 0.4rem;font-size:0.92rem;color:#6b7280;">Template standard</h4>';
+    html += '<h4 class="schede-section-title">Template standard</h4>';
     if (templates.length === 0) {
         html += '<div class="empty-slot" style="padding:0.8rem;">Nessun template. Crea una scheda senza selezionare un cliente.</div>';
     } else {
@@ -554,7 +556,7 @@ function _renderSchedeList(container) {
 
     // Assigned plans section
     if (assigned.length > 0) {
-        html += '<h4 style="margin:1rem 0 0.4rem;font-size:0.92rem;color:#6b7280;">Schede assegnate</h4>';
+        html += '<h4 class="schede-section-title" style="margin-top:1rem;">Schede assegnate</h4>';
         html += '<div class="schede-plan-list">';
         const sorted = [...assigned].sort((a, b) => {
             const na = (nameMap[a.user_id] || '').toLowerCase();

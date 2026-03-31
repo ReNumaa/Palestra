@@ -474,3 +474,41 @@
 | Tempo prompt utente (stimato) | ~10 min |
 | Token input (stimati) | ~150k |
 | Token output (stimati) | ~20k |
+
+## Task: Miglioramento UX mobile tab Schede admin
+**Data:** 2026-03-31
+**Durata stimata:** ~25 min Claude + ~5 min prompt utente
+
+### Modifiche effettuate
+- Riscritta completamente la media query mobile (max-width: 600px) per il tab Schede in admin.css
+- Sub-nav pills ingrandite con touch target da 44px+ per facilità d'uso su mobile
+- Plan cards: layout orizzontale mantenuto su mobile (info a sinistra, azioni a destra) con bottoni 40x40px
+- Editor topbar: layout orizzontale (back + titolo) invece di stack verticale
+- Exercise rows: delete button posizionato in alto a destra (position: absolute), drag buttons in barra superiore con separatore
+- Campi input esercizi (serie, reps, kg, rec) in griglia 2x2 con font 16px (previene zoom iOS)
+- Day tabs con scroll orizzontale, scrollbar nascosta, min-height 40px
+- Save button sticky in basso con sfondo gradient per visibilità durante scroll
+- Assign bar (quick assign): select e button full-width su mobile
+- Search bar ingrandita per touch
+- Sostituiti inline styles JS con classi CSS dedicate: schede-stats-grid, schede-stat-card, schede-chart-header, schede-chart-stats, schede-section-title
+- Stats grid client detail: card dedicate con icona/label/value ben strutturate
+- Chart cards: header e stats con classi CSS, trend colorati (verde/rosso)
+
+### Decisioni prese
+- Mantenuto layout orizzontale per le plan cards su mobile (più leggibile che stack verticale)
+- Delete button esercizio posizionato absolute in alto a destra per non occupare spazio nel flusso
+- Font 16px su tutti gli input per evitare auto-zoom iOS
+- Sticky save button con gradient bianco per non coprire contenuto ma restare sempre accessibile
+
+### File toccati
+- `css/admin.css` — Nuove classi (schede-section-title, schede-stats-grid, schede-stat-card, schede-chart-header, schede-chart-stats, trend classes) + riscrittura completa media query mobile schede
+- `js/admin-schede.js` — Sostituiti inline styles con classi CSS per stats grid, chart cards, section titles, assign template bar
+- `sw.js` — Bump CACHE_NAME a v208
+
+### Consumo risorse (solo per progetti cliente)
+| Voce | Valore |
+|------|--------|
+| Tempo task Claude | ~25 min |
+| Tempo prompt utente (stimato) | ~5 min |
+| Token input (stimati) | ~120k |
+| Token output (stimati) | ~15k |
