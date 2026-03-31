@@ -139,6 +139,7 @@
         </div>
         <ul class="nav-sidebar-links">
             <li><a href="/">Calendario</a></li>
+            <li id="navAllenamento" style="display:none"><a href="allenamento.html">Allenamento</a></li>
             <li><a href="nutrizione.html">Nutrizione</a></li>
             <li><a href="regolamento.html">Regolamento</a></li>
             <li><a href="chi-sono.html">Chi sono</a></li>
@@ -152,6 +153,18 @@
     <script src="js/ui.js?v=2"></script>
     <script src="js/auth.js?v=22"></script>
     <script src="js/maintenance.js?v=1"></script>
+    <script>
+        // Gating: voce Allenamento sidebar
+        document.addEventListener('DOMContentLoaded', () => {
+            setTimeout(() => {
+                const user = typeof getCurrentUser === 'function' ? getCurrentUser() : null;
+                if (user && user.id === 'cf5f39f3-1581-40be-80e9-15b56acee337') {
+                    const nav = document.getElementById('navAllenamento');
+                    if (nav) nav.style.display = '';
+                }
+            }, 500);
+        });
+    </script>
     <script src="js/sw-update.js"></script>
     <script src="js/pwa-install.js"></script>
     <script>
