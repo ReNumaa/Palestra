@@ -404,8 +404,9 @@ function renderAdminDayView(dateInfo) {
         dayView.appendChild(slotCard);
     });
 
-    // Auto-scroll al primo slot non ancora terminato (solo per oggi)
-    if (dateInfo.formatted === _localDateStr()) {
+    // Auto-scroll al primo slot non ancora terminato (solo per oggi, solo alla prima apertura)
+    if (!_adminInitialScrollDone && dateInfo.formatted === _localDateStr()) {
+        _adminInitialScrollDone = true;
         _scrollToCurrentAdminSlot(dayView);
     }
 }

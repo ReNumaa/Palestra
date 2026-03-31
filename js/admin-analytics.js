@@ -1,5 +1,6 @@
 let adminWeekOffset = 0;
 let selectedAdminDay = null;
+let _adminInitialScrollDone = false;
 
 // Analytics filter state
 let currentFilter = 'this-month';
