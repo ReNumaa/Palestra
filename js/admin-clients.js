@@ -288,7 +288,7 @@ function createClientCard(client, index) {
     const totalUnpaid = activeBookings.filter(b => !b.paid && bookingHasPassed(b) && b.status !== 'cancellation_requested').reduce((s, b) => s + (SLOT_PRICES[b.slotType] || 0) - (b.creditApplied || 0), 0);
     const credit      = CreditStorage.getBalance(client.whatsapp, client.email);
     const manualDebt  = ManualDebtStorage.getBalance(client.whatsapp, client.email) || 0;
-    const netBalance  = Math.round((credit - manualDebt) * 100) / 100;
+    const netBalance  = Math.round((credit - manualDebt - totalUnpaid) * 100) / 100;
 
     // Certificato medico e Assicurazione dal profilo utente
     const userRecord  = _getUserRecord(client.email, client.whatsapp);
