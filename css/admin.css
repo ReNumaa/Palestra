@@ -4995,7 +4995,7 @@ canvas {
 /* Header */
 .schede-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 1.2rem; }
 .schede-header h3 { margin: 0; font-size: 1.4rem; font-weight: 700; color: #1e293b; }
-.schede-header .btn-primary { padding: 0.3rem 0.7rem; font-size: 0.78rem; font-weight: 600; border-radius: 6px; white-space: nowrap; }
+.schede-header .btn-primary { padding: 0.3rem 0.7rem; font-size: 0.78rem; font-weight: 600; border-radius: 6px; white-space: nowrap; width: auto !important; flex-shrink: 0; }
 
 /* Search */
 .schede-search-bar { margin-bottom: 1rem; }
