@@ -4,6 +4,76 @@
 
 const MUSCLE_GROUPS = ['Petto','Dorso','Spalle','Bicipiti','Tricipiti','Gambe','Glutei','Addominali','Polpacci','Cardio','Stretching','Altro'];
 
+// Catalogo esercizi raggruppato per muscolo
+const EXERCISE_CATALOG = {
+    'Petto':       ['Panca piana bilanciere','Panca piana manubri','Panca inclinata bilanciere','Panca inclinata manubri','Panca declinata','Croci manubri','Croci ai cavi','Chest press','Push-up','Dip alle parallele'],
+    'Dorso':       ['Lat machine avanti','Lat machine dietro','Pulley basso','Rematore bilanciere','Rematore manubrio','Stacco da terra','Trazioni alla sbarra','Pull-down corda','T-bar row','Hyperextension'],
+    'Spalle':      ['Military press bilanciere','Shoulder press manubri','Alzate laterali','Alzate frontali','Face pull','Arnold press','Tirate al mento','Shoulder press macchina','Alzate laterali ai cavi','Shrug'],
+    'Bicipiti':    ['Curl bilanciere','Curl manubri','Curl martello','Curl concentrato','Curl panca Scott','Curl ai cavi','Curl con bilanciere EZ'],
+    'Tricipiti':   ['Push-down ai cavi','French press','Estensioni manubrio sopra la testa','Dip a presa stretta','Kickback','Skull crusher','Push-down corda'],
+    'Gambe':       ['Squat bilanciere','Squat frontale','Leg press','Affondi','Leg extension','Leg curl','Stacco rumeno','Bulgarian split squat','Hack squat','Pressa orizzontale'],
+    'Glutei':      ['Hip thrust','Ponte glutei','Abductor machine','Slanci posteriori','Sumo squat','Step-up','Kickback ai cavi'],
+    'Addominali':  ['Crunch','Crunch inverso','Plank','Side plank','Russian twist','Leg raise','Ab wheel','Sit-up','Mountain climber','Hollow body hold'],
+    'Polpacci':    ['Calf raise in piedi','Calf raise seduto','Calf raise alla leg press','Donkey calf raise'],
+    'Cardio':      ['Corsa','Cyclette','Vogatore','Ellittica','Corda','HIIT','Camminata inclinata','Nuoto','Assault bike'],
+    'Stretching':  ['Stretching statico','Stretching dinamico','Foam rolling','Yoga','Mobilità articolare'],
+};
+
+function _buildExerciseSelect(currentValue, exId) {
+    const isCustom = currentValue && !Object.values(EXERCISE_CATALOG).flat().includes(currentValue) && currentValue !== 'Nuovo esercizio';
+    let html = `<select class="schede-ex-name" onchange="_schedeExNameChanged('${exId}', this)">`;
+    html += `<option value="">— Seleziona esercizio —</option>`;
+    for (const [group, exercises] of Object.entries(EXERCISE_CATALOG)) {
+        html += `<optgroup label="${group}">`;
+        for (const name of exercises) {
+            html += `<option value="${_escHtml(name)}" ${currentValue === name ? 'selected' : ''}>${_escHtml(name)}</option>`;
+        }
+        html += '</optgroup>';
+    }
+    html += `<optgroup label="───────────"><option value="__custom__" ${isCustom ? 'selected' : ''}>Altro (personalizzato)</option></optgroup>`;
+    html += '</select>';
+    if (isCustom) {
+        html += `<input type="text" class="schede-ex-custom-name" value="${_escHtml(currentValue)}" placeholder="Nome personalizzato"
+                        onchange="_schedeUpdateExField('${exId}','exercise_name',this.value)">`;
+    }
+    return html;
+}
+
+function _schedeExNameChanged(exId, selectEl) {
+    const value = selectEl.value;
+    if (value === '__custom__') {
+        // Show custom input, set temporary name
+        const container = selectEl.closest('.schede-ex-top-row');
+        let customInput = container.querySelector('.schede-ex-custom-name');
+        if (!customInput) {
+            customInput = document.createElement('input');
+            customInput.type = 'text';
+            customInput.className = 'schede-ex-custom-name';
+            customInput.placeholder = 'Nome personalizzato';
+            customInput.onchange = function() { _schedeUpdateExField(exId, 'exercise_name', this.value); };
+            selectEl.after(customInput);
+        }
+        customInput.focus();
+    } else if (value) {
+        // Remove custom input if present
+        const container = selectEl.closest('.schede-ex-top-row');
+        const customInput = container.querySelector('.schede-ex-custom-name');
+        if (customInput) customInput.remove();
+        // Auto-set muscle group based on catalog
+        for (const [group, exercises] of Object.entries(EXERCISE_CATALOG)) {
+            if (exercises.includes(value)) {
+                _schedeUpdateExField(exId, 'muscle_group', group);
+                // Update the muscle select in the UI
+                const row = selectEl.closest('.schede-exercise-row');
+                const muscleSelect = row?.querySelector('.schede-ex-muscle');
+                if (muscleSelect) muscleSelect.value = group;
+                break;
+            }
+        }
+        _schedeUpdateExField(exId, 'exercise_name', value);
+    }
+}
+
 // Only registered users (with Supabase UUID) can be assigned plans
 function _schedeGetRegisteredUsers() {
     if (typeof UserStorage === 'undefined') return [];
@@ -222,20 +292,15 @@ function _renderPlanEditor(container) {
 
 function _renderExercisesForDay() {
     const exercises = _editingPlan?.workout_exercises?.filter(e => e.day_label === _editActiveDay) || [];
-    const suggestions = WorkoutPlanStorage.getSuggestions();
-    const suggestionsAttr = suggestions.length ? `list="schedeExSuggestions"` : '';
-    const datalist = suggestions.length
-        ? `<datalist id="schedeExSuggestions">${suggestions.map(s => `<option value="${_escHtml(s)}">`).join('')}</datalist>`
-        : '';
 
     if (exercises.length === 0 && _editingPlan) {
-        return datalist + '<div class="empty-slot">Nessun esercizio per questo giorno. Clicca "+ Aggiungi esercizio".</div>';
+        return '<div class="empty-slot">Nessun esercizio per questo giorno. Clicca "+ Aggiungi esercizio".</div>';
     }
     if (exercises.length === 0) {
-        return datalist + '<div class="empty-slot">Salva la scheda, poi aggiungi esercizi.</div>';
+        return '<div class="empty-slot">Salva la scheda, poi aggiungi esercizi.</div>';
     }
 
-    let html = datalist;
+    let html = '';
     exercises.forEach((ex, i) => {
         html += `
         <div class="schede-exercise-row" data-ex-id="${ex.id}">
@@ -245,9 +310,7 @@ function _renderExercisesForDay() {
             </div>
             <div class="schede-ex-fields">
                 <div class="schede-ex-top-row">
-                    <input type="text" class="schede-ex-name" value="${_escHtml(ex.exercise_name)}"
-                           placeholder="Nome esercizio" ${suggestionsAttr}
-                           onchange="_schedeUpdateExField('${ex.id}','exercise_name',this.value)">
+                    ${_buildExerciseSelect(ex.exercise_name, ex.id)}
                     <select class="schede-ex-muscle" onchange="_schedeUpdateExField('${ex.id}','muscle_group',this.value)">
                         <option value="">Muscolo</option>
                         ${MUSCLE_GROUPS.map(mg => `<option value="${mg}" ${ex.muscle_group === mg ? 'selected' : ''}>${mg}</option>`).join('')}
