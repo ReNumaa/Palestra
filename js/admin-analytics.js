@@ -620,7 +620,7 @@ function renderFatturatoDetail(panel) {
             const rec = allCredits[key];
             if (!rec.history) continue;
             rec.history.forEach(h => {
-                if (h.amount > 0 && !h.freeLesson && !h.hiddenRefund) {
+                if (h.amount > 0 && !h.freeLesson && !h.hiddenRefund && !/^Rimborso/i.test(h.note || '')) {
                     _creditEntries.push(h);
                 }
             });
