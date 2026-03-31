@@ -512,3 +512,34 @@
 | Tempo prompt utente (stimato) | ~5 min |
 | Token input (stimati) | ~120k |
 | Token output (stimati) | ~15k |
+
+## Task: Muscolo prima di esercizio + fix sizing mobile editor
+**Data:** 2026-03-31
+**Durata stimata:** ~15 min Claude + ~5 min prompt utente
+
+### Modifiche effettuate
+- Invertito ordine nei campi esercizio: prima il muscolo, poi l'esercizio filtrato per quel muscolo
+- `_buildExerciseSelect` ora accetta parametro `muscleGroup` e mostra solo esercizi di quel gruppo
+- Nuova funzione `_schedeMuscleChanged()` che ricostruisce il select esercizi filtrato quando si cambia muscolo
+- Params (Serie, Reps, Kg, Rec) su mobile: griglia 4 colonne (1fr x4) anziché 2, font ridotto a 0.85rem, padding compatto
+- Select muscolo e esercizio: font 0.88rem, padding ridotto per non sbordare
+- Note: font 0.82rem, box-sizing border-box per evitare overflow
+- Exercise row: padding ridotto, overflow hidden
+
+### Decisioni prese
+- Griglia 4 colonne per params su mobile: Serie/Reps/Kg/Rec tutti sulla stessa riga, compatti ma leggibili
+- Quando si cambia muscolo, se l'esercizio corrente non appartiene al nuovo gruppo viene resettato
+- Se nessun muscolo selezionato, il select esercizi mostra tutti raggruppati per optgroup (come prima)
+
+### File toccati
+- `js/admin-schede.js` — Nuova `_schedeMuscleChanged()`, aggiornato `_buildExerciseSelect` con filtro muscolo, invertito ordine campi
+- `css/admin.css` — Fix sizing mobile: params 4 colonne, select/notes compatti, box-sizing
+- `sw.js` — Bump CACHE_NAME a v209
+
+### Consumo risorse (solo per progetti cliente)
+| Voce | Valore |
+|------|--------|
+| Tempo task Claude | ~15 min |
+| Tempo prompt utente (stimato) | ~5 min |
+| Token input (stimati) | ~100k |
+| Token output (stimati) | ~12k |

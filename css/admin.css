@@ -5077,10 +5077,10 @@ canvas {
 
 .schede-ex-fields { flex: 1; display: flex; flex-direction: column; gap: 0.4rem; }
 .schede-ex-top-row { display: flex; gap: 0.5rem; align-items: center; }
-.schede-ex-name { flex: 1; padding: 0.4rem 0.6rem; border: 1px solid #e2e8f0; border-radius: 8px; font-size: 0.92rem; font-weight: 500; background: #fff; }
+.schede-ex-name { flex: 1; padding: 0.4rem 0.6rem; border: 1px solid #e2e8f0; border-radius: 8px; font-size: 0.92rem; font-weight: 500; background: #fff; min-width: 0; box-sizing: border-box; }
 .schede-ex-name:focus { border-color: #00AEEF; outline: none; }
 .schede-ex-custom-name { flex: 1; padding: 0.4rem 0.6rem; border: 2px solid #00AEEF; border-radius: 8px; font-size: 0.92rem; font-weight: 500; margin-top: 0.3rem; background: #f0f9ff; }
-.schede-ex-muscle { padding: 0.4rem 0.6rem; border: 1px solid #e2e8f0; border-radius: 8px; font-size: 0.85rem; background: #fff; width: auto; min-width: 110px; }
+.schede-ex-muscle { padding: 0.4rem 0.6rem; border: 1px solid #e2e8f0; border-radius: 8px; font-size: 0.85rem; background: #fff; width: auto; min-width: 110px; box-sizing: border-box; }
 .schede-ex-params { display: flex; gap: 0.6rem; flex-wrap: wrap; padding: 0.5rem 0; }
 .schede-ex-params label { display: flex; flex-direction: column; font-size: 0.75rem; color: #64748b; font-weight: 600; letter-spacing: 0.02em; }
 .schede-ex-params input { width: 68px; padding: 0.4rem 0.45rem; border: 1px solid #e2e8f0; border-radius: 6px; font-size: 0.9rem; text-align: center; background: #f8fafc; transition: border-color 0.15s; }
@@ -5222,9 +5222,9 @@ canvas {
 
     /* ── Exercise rows: compact card layout ───────────────────────────────── */
     .schede-exercise-row {
-        flex-direction: column; padding: 0.75rem;
-        border-radius: 10px; gap: 0.5rem;
-        position: relative;
+        flex-direction: column; padding: 0.6rem;
+        border-radius: 10px; gap: 0.35rem;
+        position: relative; overflow: hidden;
     }
 
     /* Drag + delete: top bar of exercise card */
@@ -5240,24 +5240,27 @@ canvas {
         display: flex; align-items: center; justify-content: center;
     }
 
-    .schede-ex-fields { gap: 0.5rem; }
+    .schede-ex-fields { gap: 0.4rem; }
 
-    .schede-ex-top-row { flex-direction: column; gap: 0.4rem; }
-    .schede-ex-name { font-size: 1rem; padding: 0.55rem 0.7rem; }
-    .schede-ex-custom-name { font-size: 1rem; padding: 0.55rem 0.7rem; }
-    .schede-ex-muscle { font-size: 0.95rem; width: 100%; padding: 0.55rem 0.7rem; }
+    .schede-ex-top-row { flex-direction: column; gap: 0.35rem; }
+    .schede-ex-muscle { font-size: 0.88rem; width: 100%; padding: 0.45rem 0.5rem; }
+    .schede-ex-name { font-size: 0.88rem; padding: 0.45rem 0.5rem; }
+    .schede-ex-custom-name { font-size: 0.88rem; padding: 0.45rem 0.5rem; }
 
     .schede-ex-params {
-        display: grid; grid-template-columns: 1fr 1fr; gap: 0.5rem;
-        padding: 0.5rem 0;
+        display: grid; grid-template-columns: 1fr 1fr 1fr 1fr; gap: 0.3rem;
+        padding: 0.3rem 0;
     }
-    .schede-ex-params label { font-size: 0.82rem; gap: 0.2rem; }
+    .schede-ex-params label { font-size: 0.7rem; gap: 0.1rem; }
     .schede-ex-params input {
-        width: 100%; font-size: 1rem; padding: 0.55rem 0.5rem;
-        border-radius: 8px; text-align: center;
+        width: 100%; font-size: 0.85rem; padding: 0.35rem 0.2rem;
+        border-radius: 6px; text-align: center;
     }
 
-    .schede-ex-notes { font-size: 0.95rem; padding: 0.55rem 0.7rem; }
+    .schede-ex-notes {
+        font-size: 0.82rem; padding: 0.4rem 0.5rem;
+        width: 100%; box-sizing: border-box;
+    }
 
     .schede-ex-delete {
         position: absolute; top: 0.6rem; right: 0.6rem;

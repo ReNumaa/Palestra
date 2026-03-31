@@ -19,18 +19,27 @@ const EXERCISE_CATALOG = {
     'Stretching':  ['Stretching statico','Stretching dinamico','Foam rolling','Yoga','Mobilità articolare'],
 };
 
-function _buildExerciseSelect(currentValue, exId) {
+function _buildExerciseSelect(currentValue, exId, muscleGroup) {
     const isCustom = currentValue && !Object.values(EXERCISE_CATALOG).flat().includes(currentValue) && currentValue !== 'Nuovo esercizio';
     let html = `<select class="schede-ex-name" onchange="_schedeExNameChanged('${exId}', this)">`;
     html += `<option value="">— Seleziona esercizio —</option>`;
-    for (const [group, exercises] of Object.entries(EXERCISE_CATALOG)) {
-        html += `<optgroup label="${group}">`;
-        for (const name of exercises) {
+
+    if (muscleGroup && EXERCISE_CATALOG[muscleGroup]) {
+        // Show only exercises for the selected muscle group
+        for (const name of EXERCISE_CATALOG[muscleGroup]) {
             html += `<option value="${_escHtml(name)}" ${currentValue === name ? 'selected' : ''}>${_escHtml(name)}</option>`;
         }
-        html += '</optgroup>';
+    } else {
+        // No muscle selected: show all grouped by muscle
+        for (const [group, exercises] of Object.entries(EXERCISE_CATALOG)) {
+            html += `<optgroup label="${group}">`;
+            for (const name of exercises) {
+                html += `<option value="${_escHtml(name)}" ${currentValue === name ? 'selected' : ''}>${_escHtml(name)}</option>`;
+            }
+            html += '</optgroup>';
+        }
     }
-    html += `<optgroup label="───────────"><option value="__custom__" ${isCustom ? 'selected' : ''}>Altro (personalizzato)</option></optgroup>`;
+    html += `<option value="__custom__" ${isCustom ? 'selected' : ''}>✏️ Personalizzato</option>`;
     html += '</select>';
     if (isCustom) {
         html += `<input type="text" class="schede-ex-custom-name" value="${_escHtml(currentValue)}" placeholder="Nome personalizzato"
@@ -41,9 +50,8 @@ function _buildExerciseSelect(currentValue, exId) {
 
 function _schedeExNameChanged(exId, selectEl) {
     const value = selectEl.value;
+    const container = selectEl.closest('.schede-ex-top-row');
     if (value === '__custom__') {
-        // Show custom input, set temporary name
-        const container = selectEl.closest('.schede-ex-top-row');
         let customInput = container.querySelector('.schede-ex-custom-name');
         if (!customInput) {
             customInput = document.createElement('input');
@@ -55,22 +63,40 @@ function _schedeExNameChanged(exId, selectEl) {
         }
         customInput.focus();
     } else if (value) {
-        // Remove custom input if present
-        const container = selectEl.closest('.schede-ex-top-row');
         const customInput = container.querySelector('.schede-ex-custom-name');
         if (customInput) customInput.remove();
-        // Auto-set muscle group based on catalog
-        for (const [group, exercises] of Object.entries(EXERCISE_CATALOG)) {
-            if (exercises.includes(value)) {
-                _schedeUpdateExField(exId, 'muscle_group', group);
-                // Update the muscle select in the UI
-                const row = selectEl.closest('.schede-exercise-row');
-                const muscleSelect = row?.querySelector('.schede-ex-muscle');
-                if (muscleSelect) muscleSelect.value = group;
-                break;
-            }
-        }
         _schedeUpdateExField(exId, 'exercise_name', value);
+    }
+}
+
+// When muscle group changes: update exercise select with filtered options
+function _schedeMuscleChanged(exId, muscleSelect) {
+    const muscle = muscleSelect.value;
+    _schedeUpdateExField(exId, 'muscle_group', muscle);
+
+    // Rebuild exercise select filtered by this muscle
+    const row = muscleSelect.closest('.schede-exercise-row');
+    const exSelect = row?.querySelector('.schede-ex-name');
+    if (!exSelect) return;
+
+    const currentValue = exSelect.value;
+    // Check if current exercise belongs to new muscle group
+    const muscleExercises = EXERCISE_CATALOG[muscle] || [];
+    const keepValue = muscleExercises.includes(currentValue) ? currentValue : '';
+
+    // Replace the exercise select in-place
+    const topRow = row.querySelector('.schede-ex-top-row');
+    const oldCustom = topRow.querySelector('.schede-ex-custom-name');
+    if (oldCustom) oldCustom.remove();
+
+    const tempDiv = document.createElement('div');
+    tempDiv.innerHTML = _buildExerciseSelect(keepValue, exId, muscle);
+    const newSelect = tempDiv.querySelector('.schede-ex-name');
+    exSelect.replaceWith(newSelect);
+
+    // If exercise was cleared, update DB
+    if (!keepValue && currentValue) {
+        _schedeUpdateExField(exId, 'exercise_name', '');
     }
 }
 
@@ -734,11 +760,11 @@ function _renderExercisesForDay() {
             </div>
             <div class="schede-ex-fields">
                 <div class="schede-ex-top-row">
-                    ${_buildExerciseSelect(ex.exercise_name, ex.id)}
-                    <select class="schede-ex-muscle" onchange="_schedeUpdateExField('${ex.id}','muscle_group',this.value)">
-                        <option value="">Muscolo</option>
+                    <select class="schede-ex-muscle" onchange="_schedeMuscleChanged('${ex.id}', this)">
+                        <option value="">— Muscolo —</option>
                         ${MUSCLE_GROUPS.map(mg => `<option value="${mg}" ${ex.muscle_group === mg ? 'selected' : ''}>${mg}</option>`).join('')}
                     </select>
+                    ${_buildExerciseSelect(ex.exercise_name, ex.id, ex.muscle_group)}
                 </div>
                 <div class="schede-ex-params">
                     <label>Serie<input type="number" min="1" max="20" value="${ex.sets}" onchange="_schedeUpdateExField('${ex.id}','sets',+this.value)"></label>
