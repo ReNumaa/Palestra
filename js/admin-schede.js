@@ -115,15 +115,28 @@ let _editActiveDay = '';
 let _schedeClientUserId = null;  // for client-detail view
 
 // ── Entry point ──────────────────────────────────────────────────────────────
+let _schedeRendering = false;   // guard against concurrent calls
+let _schedeRenderQueued = false; // re-render after current finishes
+
 async function renderSchedeTab() {
+    // If already rendering, queue one re-render and bail
+    if (_schedeRendering) {
+        _schedeRenderQueued = true;
+        return;
+    }
+    _schedeRendering = true;
+    _schedeRenderQueued = false;
+
     const container = document.getElementById('schedeContainer');
-    if (!container) return;
+    if (!container) { _schedeRendering = false; return; }
     container.innerHTML = '<div class="schede-loading">Caricamento schede...</div>';
     try {
         await WorkoutPlanStorage.syncFromSupabase({ adminMode: true });
         await WorkoutPlanStorage.loadSuggestions();
     } catch (e) {
         container.innerHTML = '<div class="empty-slot">Errore caricamento schede</div>';
+        _schedeRendering = false;
+        if (_schedeRenderQueued) renderSchedeTab();
         return;
     }
 
@@ -143,6 +156,10 @@ async function renderSchedeTab() {
         else if (_schedeView === 'progress') await _renderProgressView(inner);
         else _renderSchedeList(inner);
     }
+
+    _schedeRendering = false;
+    // If a render was requested while we were busy, do one more pass
+    if (_schedeRenderQueued) renderSchedeTab();
 }
 
 function _schedeSwitchSection(section) {
