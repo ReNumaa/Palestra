@@ -989,7 +989,7 @@ async function _schedeDuplicatePlan(planId) {
     }
 
     try {
-        await WorkoutPlanStorage.duplicatePlan(planId, targetUser.userId, plan.name + ' (copia)');
+        await WorkoutPlanStorage.duplicatePlan(planId, targetUser.userId);
         if (typeof showToast === 'function') showToast('Scheda duplicata', 'success');
         renderSchedeTab();
     } catch (e) {

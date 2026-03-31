@@ -139,7 +139,7 @@ BEGIN
     INSERT INTO workout_plans (user_id, name, start_date, end_date, notes, active)
     VALUES (
         p_new_user_id,
-        COALESCE(p_new_name, v_source.name || ' (copia)'),
+        COALESCE(p_new_name, v_source.name),
         CURRENT_DATE,
         NULL,
         v_source.notes,
