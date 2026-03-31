@@ -194,37 +194,39 @@
 
 ## Task: Fix cancellazione prenotazioni admin — popup chiude prima del salvataggio Supabase
 **Data:** 2026-03-27
-**Durata stimata:** ~20 min Claude + ~5 min prompt utente
+**Durata stimata:** ~30 min Claude + ~10 min prompt utente
 
 ### Modifiche effettuate
 - Riscritto `deleteBooking()` in admin-calendar.js per usare la RPC atomica `cancel_booking_with_refund` invece di `replaceAllBookings()` fire-and-forget
 - Il popup ora aspetta la risposta Supabase prima di chiudersi, mostrando "Salvataggio..." sul bottone Conferma
 - Toast verde "Prenotazione annullata con successo" dopo il salvataggio
 - In caso di errore: toast rosso + bottoni riabilitati per riprovare
-- Per lezioni già passate (`isPast`): niente rimborso credito né mora, solo annullamento + azzeramento pagamento
 - Fallback locale mantenuto per modalità offline (senza Supabase)
 - Sync completo (bookings + crediti + debiti + bonus) dopo RPC prima di aggiornare la UI
+- Mora/senza mora funziona identicamente per lezioni passate e future (nessuna distinzione)
 
 ### Decisioni prese
 - Usata la RPC `cancel_booking_with_refund` (già esistente, atomica server-side) invece di operazioni client-side separate: previene stati parziali
-- Per slot passati: il rimborso non ha senso (la lezione è già avvenuta), quindi si cancella solo e si azzera il pagamento — come suggerito dall'utente
+- Nessuna distinzione passato/futuro: l'admin sceglie sempre mora o senza mora, con stessa logica rimborso credito
+- Con mora + pagato = rimborso 50% credito; con mora + non pagato = addebito mora 50%
+- Senza mora + pagato = rimborso 100% credito; senza mora + non pagato = solo cancellazione
 - Bottoni disabilitati durante il salvataggio: previene doppi click
 
 ### File toccati
 - `js/admin-calendar.js` — riscrittura completa di `deleteBooking()`: helper `_cancelViaRpc` (async, RPC + sync) e `_cancelLocal` (fallback offline)
-- `sw.js` — cache bump v176 → v177
+- `sw.js` — cache bump v176 → v180
 
 ### Consumo risorse (solo per progetti cliente)
 | Voce | Valore |
 |------|--------|
-| Tempo task Claude | ~20 min |
-| Tempo prompt utente (stimato) | ~5 min |
-| Token input (stimati) | ~150k |
-| Token output (stimati) | ~15k |
+| Tempo task Claude | ~30 min |
+| Tempo prompt utente (stimato) | ~10 min |
+| Token input (stimati) | ~200k |
+| Token output (stimati) | ~18k |
 
-## Task: Privacy prenotazioni + "Persone iscritte" nel modal prenotazione
+## Task: Privacy prenotazioni + "Persone iscritte" + slot completi cliccabili
 **Data:** 2026-03-27
-**Durata stimata:** ~25 min Claude + ~10 min prompt utente
+**Durata stimata:** ~30 min Claude + ~10 min prompt utente
 
 ### Modifiche effettuate
 - Nuova colonna `privacy_prenotazioni` su profiles (default `true` = nome nascosto)
@@ -232,27 +234,86 @@
 - Sezione collapsible "Persone iscritte" nel modal di prenotazione (index.html) con `<details>/<summary>`
 - RPC `get_slot_attendees(date, time)` — SECURITY DEFINER, restituisce solo nomi di utenti con privacy OFF
 - `get_all_profiles()` aggiornata per includere `privacy_prenotazioni`
+- Slot completi resi cliccabili (desktop, mobile, split): aprono il modal con form nascosto e tendina "Persone iscritte" aperta automaticamente
 
 ### Decisioni prese
 - **Privacy ON di default**: GDPR-friendly, l'utente deve esplicitamente scegliere di essere visibile
 - **RPC SECURITY DEFINER**: necessaria perché le RLS non permettono agli utenti di leggere le prenotazioni altrui
 - **`<details>/<summary>` nativo**: dropdown senza JS aggiuntivo, leggero e accessibile
-- **Fetch asincrono**: la lista si carica dopo l'apertura del modal, con "Caricamento..." come placeholder
+- **Slot pieni cliccabili**: cursor pointer, modal mostra solo info slot + persone iscritte (no form prenotazione)
 
 ### File toccati
 - `supabase/migrations/20260328000000_privacy_prenotazioni.sql` — colonna + RPC + get_all_profiles aggiornata
 - `js/auth.js` — `_loadProfile` select + `updateUserProfile` handler per privacy_prenotazioni
 - `prenotazioni.html` — checkbox HTML nel modal profilo + wiring JS (openEditProfileModal + submit)
 - `index.html` — sezione `#slotAttendees` con details/summary nel modal prenotazione
-- `js/booking.js` — fetch `get_slot_attendees` in openBookingModal + reset in closeBookingModal
+- `js/booking.js` — fetch attendees + hide form per slot pieni + reset in closeBookingModal
+- `js/calendar.js` — slot completi cliccabili (3 punti: desktop, split, mobile)
 - `css/prenotazioni.css` — stili checkbox `.edit-profile-checkbox-label`
 - `css/style.css` — stili `.slot-attendees-*` per il dropdown persone iscritte
-- `sw.js` — cache bump v177 → v178
+- `sw.js` — cache bump v177 → v181
 
 ### Consumo risorse (solo per progetti cliente)
 | Voce | Valore |
 |------|--------|
-| Tempo task Claude | ~25 min |
+| Tempo task Claude | ~30 min |
 | Tempo prompt utente (stimato) | ~10 min |
-| Token input (stimati) | ~180k |
-| Token output (stimati) | ~18k |
+| Token input (stimati) | ~200k |
+| Token output (stimati) | ~20k |
+
+## Task: Fix cron reminder push notifications + deploy Edge Function
+**Data:** 2026-03-28
+**Durata stimata:** ~30 min Claude + ~20 min prompt utente
+
+### Modifiche effettuate
+- Diagnosticato che i reminder push (25h e 1h prima della lezione) non funzionavano: il cron pg_cron non era mai stato configurato in database
+- Creato job pg_cron `send-reminders` con schedule `*/5 * * * *` via `cron.schedule()` + `net.http_post()`
+- Salvata `service_role_key` nel vault Supabase (`vault.create_secret`) per autenticazione sicura
+- Scoperto che tutte le chiamate tornavano 401: la Edge Function `send-reminders` era deployata con verifica JWT attiva
+- Ri-deployata con `supabase functions deploy send-reminders --no-verify-jwt` — risolto (200 OK)
+- Verificato che `notifyAdminNewClient` era già collegata in `login.html:380` (non serviva aggiunta in auth.js)
+- Cache bump `sw.js` v181 → v182
+
+### Decisioni prese
+- **pg_cron + pg_net** invece di Dashboard Schedules: quest'ultima non disponibile su free tier
+- **Vault per service_role_key**: più sicuro che hardcodare la chiave nel SQL del cron job
+- **`--no-verify-jwt`**: necessario perché pg_net non invia un JWT utente ma la service_role_key come Bearer token
+
+### File toccati
+- `sw.js` — cache bump v181 → v182
+- Supabase: `cron.job` — nuovo job #4 `send-reminders`
+- Supabase: `vault.secrets` — aggiunta `service_role_key`
+- Edge Function `send-reminders` — ri-deployata con `--no-verify-jwt`
+
+### Consumo risorse (solo per progetti cliente)
+| Voce | Valore |
+|------|--------|
+| Tempo task Claude | ~30 min |
+| Tempo prompt utente (stimato) | ~20 min |
+| Token input (stimati) | ~250k |
+| Token output (stimati) | ~20k |
+
+## Task: Grace period 10 minuti per annullamento prenotazioni
+**Data:** 2026-03-28
+**Durata stimata:** ~10 min Claude + ~5 min prompt utente
+
+### Modifiche effettuate
+- Aggiunto grace period di 10 minuti dopo la creazione della prenotazione: entro questo periodo l'utente può annullare con "Annulla prenotazione" (cancellazione diretta, rimborso pieno) anche se la lezione è entro le 24h
+- Dopo i 10 minuti, riprende la logica normale (bonus/mora/richiesta annullamento a seconda della modalità configurata)
+- Applicato sia lato utente (prenotazioni.html) sia lato admin (admin-schedule.js)
+
+### Decisioni prese
+- Il grace period usa `createdAt` del booking: se mancante (prenotazioni vecchie senza timestamp), il grace period non si attiva (fallback sicuro)
+- Lato admin: durante il grace period, il popup bonus/mora viene saltato e si mostra il confirm semplice
+
+### File toccati
+- `prenotazioni.html` — logica display pulsanti: `_inGracePeriod` bypassa `_canCancelDirect`
+- `js/admin-schedule.js` — `clearSlotClient()`: grace period rende `isWithin24h = false`
+
+### Consumo risorse (solo per progetti cliente)
+| Voce | Valore |
+|------|--------|
+| Tempo task Claude | ~10 min |
+| Tempo prompt utente (stimato) | ~5 min |
+| Token input (stimati) | ~80k |
+| Token output (stimati) | ~8k |

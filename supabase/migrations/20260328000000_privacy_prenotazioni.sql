@@ -4,18 +4,18 @@
 
 ALTER TABLE profiles ADD COLUMN IF NOT EXISTS privacy_prenotazioni boolean NOT NULL DEFAULT true;
 
--- RPC: restituisce i nomi degli iscritti a uno slot che hanno privacy OFF
+-- RPC: restituisce i nomi degli iscritti a uno slot.
+-- Utenti con privacy_prenotazioni = true compaiono come "Anonimo".
 CREATE OR REPLACE FUNCTION get_slot_attendees(p_date date, p_time text)
 RETURNS TABLE (name text)
 LANGUAGE sql SECURITY DEFINER STABLE AS $$
-    SELECT p.name
+    SELECT CASE WHEN p.privacy_prenotazioni THEN 'Anonimo' ELSE p.name END AS name
     FROM   bookings b
     JOIN   profiles p ON p.id = b.user_id
     WHERE  b.date = p_date
       AND  b.time = p_time
       AND  b.status = 'confirmed'
-      AND  p.privacy_prenotazioni = false
-    ORDER BY p.name;
+    ORDER BY CASE WHEN p.privacy_prenotazioni THEN 1 ELSE 0 END, p.name;
 $$;
 
 GRANT EXECUTE ON FUNCTION get_slot_attendees(date, text) TO authenticated;

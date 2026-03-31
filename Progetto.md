@@ -1,6 +1,6 @@
 # TB Training — Documentazione Tecnica
 
-> Ultimo aggiornamento: 27 marzo 2026 (v4)
+> Ultimo aggiornamento: 28 marzo 2026 (v5)
 > Dominio: https://thomasbresciani.com — Repository: ReNumaa/Thomas-Bresciani
 > Progetto Supabase: `ppymuuyoveyyoswcimck` (Frankfurt, free tier)
 
@@ -208,6 +208,7 @@ Realtime
 | `documento_firmato` | BOOLEAN | |
 | `geo_enabled` | BOOLEAN | Flag GPS abilitato nell'app |
 | `push_enabled` | BOOLEAN | Flag notifiche push attive |
+| `privacy_prenotazioni` | BOOLEAN | Default `true` = nome nascosto nella lista iscritti |
 
 #### `credits`
 
@@ -306,6 +307,7 @@ Tutte le operazioni multi-step sono transazioni atomiche. Pattern: `SECURITY DEF
 | `set_geo_enabled` | Aggiorna flag GPS sul profilo |
 | `set_push_enabled` | Aggiorna flag push sul profilo |
 | `get_push_enabled_users` | Lista utenti con push attiva (per icone admin) |
+| `get_slot_attendees` | Nomi iscritti a uno slot con privacy OFF |
 | `stripe_topup_credit` | Accredita ricarica Stripe (service_role only) |
 
 ### Pubbliche (anon)
@@ -389,7 +391,7 @@ Gli utenti vedono solo booking sintetici anonimi per la disponibilita calendario
 
 | Funzione | Trigger | Descrizione |
 |---|---|---|
-| `send-reminders` | pg_cron `*/5 * * * *` | Promemoria 25h e 1h (Europe/Rome) |
+| `send-reminders` | pg_cron `*/5 * * * *` | Promemoria 25h e 1h (Europe/Rome). Deploy con `--no-verify-jwt`. Cron via pg_cron + pg_net, auth tramite `service_role_key` in vault |
 | `notify-slot-available` | Client (annullamento) | Solo se slot era pieno |
 | `notify-admin-booking` | Client (prenotazione) | Nome + occupazione |
 | `notify-admin-cancellation` | Client (annullamento) | Nome + bonus/mora |
@@ -442,6 +444,7 @@ Tabelle devono essere nella publication `supabase_realtime`.
 - Mobile: slider giorno con swipe, card verticali
 - Cutoff prenotazione: inizio lezione + 30 minuti
 - 3 tipi: Personal Training (rosso, max 1), Small Group (azzurro, max 4), Gruppo (giallo, max 5)
+- Slot completi: cliccabili per mostrare "Persone iscritte" (tendina collapsible)
 
 ### Prenotazione
 
@@ -459,13 +462,20 @@ Tabelle devono essere nella publication `supabase_realtime`.
 
 | Tempo alla lezione | Comportamento |
 |---|---|
+| Entro 10 min dalla prenotazione | Sempre diretto + rimborso completo (grace period) |
 | > 24h | Diretto + rimborso completo |
-| 24h-2h | Condizionale (serve sostituto) |
-| < 2h | Bloccato (bonus giornaliero override) |
+| 24h-2h | Condizionale (mora 50% o sostituto, a seconda della modalità) |
+| < 2h | Bloccato (bonus mensile override) |
 
 ### Profilo
 
-Modifica: nome, WhatsApp, password, indirizzo, codice fiscale. Certificato e assicurazione: solo admin.
+Modifica: nome, WhatsApp, password, indirizzo, codice fiscale, privacy prenotazioni. Certificato e assicurazione: solo admin.
+
+### Privacy prenotazioni
+
+- Checkbox "Privacy prenotazioni" nel modal modifica profilo (default ON = nome nascosto)
+- Se disattivata, il nome compare nella tendina "Persone iscritte" degli slot prenotati
+- RPC `get_slot_attendees` — SECURITY DEFINER, filtra solo utenti con privacy OFF
 
 ---
 
@@ -629,6 +639,7 @@ Dalla dashboard admin (tab Impostazioni) è possibile esportare/importare backup
 | 19-23 mar | Settings realtime, stripe_topup, push cleanup, documento_firmato |
 | 24-25 mar | Fix delete debt orfani, get_debtors manual-only, fix credits visibility, admin bypass cutoff, fix backup documento_firmato |
 | 27 mar | Fix saveManualEntry, track_actor (created_by/cancelled_by in bookings + RPC), fix stampa modulo PDF (iframe.print desktop, solo download iOS), modalità manutenzione (maintenance.js + toggle admin + Realtime), GPS proximity tracking (arrived_at, geo_enabled, notify-admin-proximity), storico notifiche admin (admin_messages), storico notifiche clienti (client_notifications), push_enabled su profili + icona 🔕 |
+| 28 mar | Fix cron pg_cron per `send-reminders`: creato job `*/5 * * * *` via pg_cron + pg_net, secret `service_role_key` salvato in vault, ri-deploy Edge Function con `--no-verify-jwt`. Privacy prenotazioni (`privacy_prenotazioni` su profiles, checkbox profilo, RPC `get_slot_attendees`, tendina "Persone iscritte" nel modal booking, slot completi cliccabili). Grace period 10 min: annullamento diretto senza bonus/mora entro 10 min dalla creazione prenotazione |
 
 ---
 
@@ -678,4 +689,4 @@ Dalla dashboard admin (tab Impostazioni) è possibile esportare/importare backup
 
 ---
 
-*Documento unificato — 27 marzo 2026*
+*Documento unificato — 28 marzo 2026*
