@@ -597,12 +597,6 @@ function toggleStatDetail(type) {
 function renderFatturatoDetail(panel) {
     const isReale = _fatturatoMode === 'reale';
     const REAL_METHODS = new Set(['contanti', 'carta', 'iban']);
-    const allBookings = (_statsBookings ?? _excludeAdminBookings(BookingStorage.getAllBookings()))
-        .filter(b => {
-            if (b.status === 'cancelled') return false;
-            if (isReale) return b.paid && REAL_METHODS.has(b.paymentMethod);
-            return b.paymentMethod !== 'lezione-gratuita';
-        });
     const revFn = (s, b) => s + (SLOT_PRICES[b.slotType] || 0);
     const { from, to } = getFilterDateRange(currentFilter);
     const now   = new Date();
@@ -612,40 +606,70 @@ function renderFatturatoDetail(panel) {
 
     // ── Credit top-ups (solo in modalità Reale) ─────────────────────────────
     // Crediti aggiunti dall'admin = soldi reali prepagati dal cliente.
-    // Escludi: freeLesson (gratuiti), hiddenRefund (rimborsi cancellazione), amount <= 0 (deduzioni).
+    // _cashValue: displayAmount (da admin_pay_bookings, = soldi totali ricevuti)
+    //             oppure amount (da admin_add_credit, = importo credito = soldi ricevuti).
+    // _rpcPaymentKeys: Set di "email|paidAt" per booking processati via admin_pay_bookings,
+    //                  usato per deduplicare (il loro incasso è già in displayAmount).
     let _creditEntries = [];
+    const _rpcPaymentKeys = new Set();
     if (isReale) {
         const allCredits = CreditStorage._getAll();
         for (const key in allCredits) {
             const rec = allCredits[key];
             if (!rec.history) continue;
+            const email = (rec.email || '').toLowerCase();
             rec.history.forEach(h => {
-                if (h.amount > 0 && !h.freeLesson && !h.hiddenRefund && !/^Rimborso/i.test(h.note || '')) {
+                const hasDisplayAmount = h.displayAmount != null && h.displayAmount > 0;
+                const cashValue = hasDisplayAmount ? h.displayAmount : h.amount;
+                if (cashValue > 0 && !h.freeLesson && !h.hiddenRefund && !/^Rimborso/i.test(h.note || '')) {
+                    h._cashValue = cashValue;
                     _creditEntries.push(h);
+                    if (hasDisplayAmount && email) {
+                        _rpcPaymentKeys.add(email + '|' + h.date);
+                    }
                 }
             });
         }
     }
-    // Helper: somma crediti in un range di date
+    // Helper: somma crediti in un range di date (usa _cashValue = soldi reali)
     const creditInRange = (dateFrom, dateTo) => _creditEntries
         .filter(h => { const d = new Date(h.date); return d >= dateFrom && d <= dateTo; })
-        .reduce((s, h) => s + h.amount, 0);
+        .reduce((s, h) => s + h._cashValue, 0);
 
     // ── More (penalità cancellazione) ────────────────────────────────────────
+    // In modalità Reale le more NON sono contate: rappresentano creazione debito,
+    // non soldi in cassa. Il cash arriva quando vengono pagate (via admin_pay_bookings → displayAmount).
     const _moraEntries = [];
-    const allDebts = ManualDebtStorage._getAll();
-    for (const key in allDebts) {
-        const rec = allDebts[key];
-        if (!rec.history) continue;
-        rec.history.forEach(h => {
-            if (h.entryType === 'mora' && h.amount > 0) {
-                _moraEntries.push(h);
-            }
-        });
+    if (!isReale) {
+        const allDebts = ManualDebtStorage._getAll();
+        for (const key in allDebts) {
+            const rec = allDebts[key];
+            if (!rec.history) continue;
+            rec.history.forEach(h => {
+                if (h.entryType === 'mora' && h.amount > 0) {
+                    _moraEntries.push(h);
+                }
+            });
+        }
     }
     const moraInRange = (dateFrom, dateTo) => _moraEntries
         .filter(h => { const d = new Date(h.date); return d >= dateFrom && d <= dateTo; })
         .reduce((s, h) => s + h.amount, 0);
+
+    // ── Booking filter ──────────────────────────────────────────────────────
+    // In Reale: solo booking pagati con metodo reale (contanti/carta/iban),
+    // escludendo quelli già conteggiati in displayAmount (admin_pay_bookings).
+    const allBookings = (_statsBookings ?? _excludeAdminBookings(BookingStorage.getAllBookings()))
+        .filter(b => {
+            if (b.status === 'cancelled') return false;
+            if (isReale) {
+                if (!b.paid || !REAL_METHODS.has(b.paymentMethod)) return false;
+                // Escludi booking il cui incasso è già catturato dal displayAmount di credit_history
+                if (b.paidAt && b.email && _rpcPaymentKeys.has(b.email.toLowerCase() + '|' + b.paidAt)) return false;
+                return true;
+            }
+            return b.paymentMethod !== 'lezione-gratuita';
+        });
 
     // Bookings in current filter period
     const periodBookings = allBookings.filter(b => {
@@ -798,8 +822,8 @@ function renderFatturatoDetail(panel) {
     _creditEntries.forEach(h => {
         const d = new Date(h.date);
         const ds = d.toISOString().split('T')[0];
-        if (d >= from && d < pastCutoff)              revByDate[ds]       = (revByDate[ds] || 0)       + h.amount;
-        else if (d >= pastCutoff && d >= from && d <= to) futureRevByDate[ds] = (futureRevByDate[ds] || 0) + h.amount;
+        if (d >= from && d < pastCutoff)              revByDate[ds]       = (revByDate[ds] || 0)       + h._cashValue;
+        else if (d >= pastCutoff && d >= from && d <= to) futureRevByDate[ds] = (futureRevByDate[ds] || 0) + h._cashValue;
     });
     // Aggiungi more alle mappe per data
     _moraEntries.forEach(h => {
@@ -938,33 +962,29 @@ function renderFatturatoDetail(panel) {
         : knownPeriodRev;
 
     // ── Fatturato per tipo di pagamento (solo Reale) ───────────────────────
-    // Prende TUTTE le prenotazioni pagate nel periodo (non solo REAL_METHODS)
-    // per catturare anche lezione-gratuita. I booking con credito vengono ignorati
-    // perché il denaro reale è catturato dai credit top-ups.
+    // Soldi in cassa raggruppati per metodo di pagamento.
+    // Booking deduplicati (stessa logica di allBookings) + credit _cashValue.
     let payMethodStats = [], payMethodPieData = {}, payMethodColors = [];
     if (isReale) {
-        const allPaidInPeriod = (_statsBookings ?? _excludeAdminBookings(BookingStorage.getAllBookings()))
-            .filter(b => {
-                if (b.status === 'cancelled' || !b.paid) return false;
-                const d = new Date(b.date + 'T00:00:00');
-                return d >= from && d <= to;
-            });
+        const allPaidInPeriod = allBookings.filter(b => {
+            const d = new Date(b.date + 'T00:00:00');
+            return d >= from && d <= to;
+        });
         const PAY_METHODS = [
             { key: 'contanti',         label: 'Contanti',  color: '#22c55e' },
             { key: 'carta',            label: 'Carta',     color: '#3b82f6' },
             { key: 'iban',             label: 'Bonifico',  color: '#f59e0b' },
-            { key: 'lezione-gratuita', label: 'Gratuita',  color: '#a855f7' },
         ];
-        // Crediti manuali nel periodo raggruppati per metodo reale di pagamento
+        // Crediti nel periodo raggruppati per metodo reale di pagamento
         const creditByMethod = {};
         let creditNoMethod = 0;
         _creditEntries.forEach(h => {
             const d = new Date(h.date);
             if (d >= from && d <= to) {
-                if (h.method) {
-                    creditByMethod[h.method] = (creditByMethod[h.method] || 0) + h.amount;
-                } else {
-                    creditNoMethod += h.amount;
+                if (h.method && REAL_METHODS.has(h.method)) {
+                    creditByMethod[h.method] = (creditByMethod[h.method] || 0) + h._cashValue;
+                } else if (!h.method) {
+                    creditNoMethod += h._cashValue;
                 }
             }
         });
