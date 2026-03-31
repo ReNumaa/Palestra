@@ -283,11 +283,6 @@
             if (typeof promptPushPermission === 'function' && getCurrentUser()) {
                 setTimeout(promptPushPermission, 1500);
             }
-            // Geolocation proximity: notifica admin quando l'utente si avvicina alla palestra
-            if (typeof startProximityWatch === 'function' && getCurrentUser()) {
-                setTimeout(startProximityWatch, 3000);
-            }
-
             // Supabase Realtime: aggiorna calendario in tempo reale
             if (typeof supabaseClient !== 'undefined') {
                 const _rerender = () => {

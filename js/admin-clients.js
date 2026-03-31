@@ -648,7 +648,8 @@ function resetClientBonus(whatsapp, email, name) {
 }
 
 // Helper: aggiorna profilo locale (users), cert, assic, CF, indirizzo, sessione dopo rename
-function _saveClientEditLocalProfile(index, oldWhatsapp, oldEmail, newName, newWhatsapp, newEmail, newCert, newAssic, normOld, normNewPhone, extraFields) {
+async function _saveClientEditLocalProfile(index, oldWhatsapp, oldEmail, newName, newWhatsapp, newEmail, newCert, newAssic, normOld, normNewPhone, extraFields) {
+    let _profileSyncFailed = false;
     const users  = _getUsersFull();
     const oldEmailLow = (oldEmail || '').toLowerCase();
     let userIdx = users.findIndex(u => {
@@ -701,7 +702,11 @@ function _saveClientEditLocalProfile(index, oldWhatsapp, oldEmail, newName, newW
         if (ef.cap !== undefined)   _supaFields.indirizzo_cap    = ef.cap || null;
         if (ef.documentoFirmato !== undefined) _supaFields.documento_firmato = !!ef.documentoFirmato;
         // Usa i VECCHI valori per trovare il record nel DB (non i nuovi che non esistono ancora)
-        _updateSupabaseProfile(oldEmail, normOld, _supaFields);
+        const profileResult = await _updateSupabaseProfile(oldEmail, normOld, _supaFields);
+        if (!profileResult.ok) {
+            _profileSyncFailed = true;
+            showToast('⚠️ Profilo locale aggiornato, ma errore Supabase: ' + profileResult.error, 'error');
+        }
 
         const current = getCurrentUser();
         if (current) {
@@ -727,7 +732,7 @@ function _saveClientEditLocalProfile(index, oldWhatsapp, oldEmail, newName, newW
             selectClientFromDropdown(0);
         }
     }
-    showToast('Contatto aggiornato.', 'success');
+    if (!_profileSyncFailed) showToast('Contatto aggiornato.', 'success');
 }
 
 async function saveClientEdit(index, oldWhatsapp, oldEmail) {
@@ -780,9 +785,9 @@ async function saveClientEdit(index, oldWhatsapp, oldEmail) {
             return;
         }
 
+        // Continua con profilo locale + cert/assic (awaited per feedback errori)
+        await _saveClientEditLocalProfile(index, oldWhatsapp, oldEmail, newName, newWhatsapp, newEmail, newCert, newAssic, normOld, normNewPhone, { cf: newCf, via: newVia, paese: newPaese, cap: newCap, documentoFirmato: newDocFirmato });
         closeEditClientPopup();
-        // Continua con profilo locale + cert/assic (sotto)
-        _saveClientEditLocalProfile(index, oldWhatsapp, oldEmail, newName, newWhatsapp, newEmail, newCert, newAssic, normOld, normNewPhone, { cf: newCf, via: newVia, paese: newPaese, cap: newCap, documentoFirmato: newDocFirmato });
         return;
     }
 
@@ -818,8 +823,8 @@ async function saveClientEdit(index, oldWhatsapp, oldEmail) {
     }
 
     // Profilo locale + cert/assic + sessione
+    await _saveClientEditLocalProfile(index, oldWhatsapp, oldEmail, newName, newWhatsapp, newEmail, newCert, newAssic, normOld, normNewPhone, { cf: newCf, via: newVia, paese: newPaese, cap: newCap, documentoFirmato: newDocFirmato });
     closeEditClientPopup();
-    _saveClientEditLocalProfile(index, oldWhatsapp, oldEmail, newName, newWhatsapp, newEmail, newCert, newAssic, normOld, normNewPhone, { cf: newCf, via: newVia, paese: newPaese, cap: newCap, documentoFirmato: newDocFirmato });
 }
 
 async function deleteClientData(index, whatsapp, email) {

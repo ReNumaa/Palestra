@@ -1541,7 +1541,7 @@ function _saveUsers(users) {
     UserStorage._cache = users;
 }
 async function _updateSupabaseProfile(email, whatsapp, fields) {
-    if (typeof supabaseClient === 'undefined') return;
+    if (typeof supabaseClient === 'undefined') return { ok: true };
     try {
         let query = supabaseClient.from('profiles').update(fields);
         if (email) {
@@ -1549,11 +1549,17 @@ async function _updateSupabaseProfile(email, whatsapp, fields) {
         } else if (whatsapp) {
             query = query.eq('whatsapp', normalizePhone(whatsapp));
         } else {
-            return;
+            return { ok: true };
         }
-        await query;
+        const { error } = await query;
+        if (error) {
+            console.error('Supabase profile update error:', error.message);
+            return { ok: false, error: error.message };
+        }
+        return { ok: true };
     } catch (e) {
         console.warn('Supabase profile sync failed:', e);
+        return { ok: false, error: e.message || 'Errore di rete' };
     }
 }
 function _getUserRecord(email, whatsapp) {

@@ -1160,12 +1160,9 @@ function updateCreditPreview() {
     const amountInput = document.getElementById('debtAmountInput');
     const amountPaid = amountInput ? (parseFloat(amountInput.value) || 0) : dueTotal;
 
-    // Considera il credito esistente per i messaggi di preview
-    const existingCredit = currentDebtContact
-        ? (CreditStorage.getBalance(currentDebtContact.whatsapp, currentDebtContact.email) || 0)
-        : 0;
-    const cashNeeded = Math.round(Math.max(0, dueTotal - existingCredit) * 100) / 100;
-    const excessCredit = Math.round((amountPaid - cashNeeded) * 100) / 100;
+    // Allineato alla RPC: credit_delta = amount_paid - due_total
+    const excessCredit = Math.round((amountPaid - dueTotal) * 100) / 100;
+    const cashNeeded = dueTotal;
 
     const creditRow = document.getElementById('debtCreditRow');
     const creditMsg = document.getElementById('debtCreditMsg');

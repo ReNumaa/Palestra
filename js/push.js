@@ -332,28 +332,6 @@ function _syncPushEnabled() {
 }
 _syncPushEnabled();
 
-// Sync geo_enabled su ogni pagina — se il permesso GPS è concesso, aggiorna il profilo.
-// Aspetta che l'auth sia pronta controllando la sessione Supabase.
-function _syncGeoEnabled() {
-    if (!('geolocation' in navigator) || !navigator.permissions) return;
-    navigator.permissions.query({ name: 'geolocation' }).then(async result => {
-        if (result.state !== 'granted') return;
-        localStorage.setItem('geo_permission_granted', '1');
-        if (typeof supabaseClient === 'undefined') return;
-        // Aspetta che ci sia una sessione autenticata
-        try {
-            const { data: { session } } = await supabaseClient.auth.getSession();
-            if (session?.user?.id) {
-                await supabaseClient.rpc('set_geo_enabled', { p_enabled: true });
-                console.log('[Geo] geo_enabled salvato per', session.user.email);
-            }
-        } catch (e) {
-            console.warn('[Geo] sync geo_enabled fallito:', e);
-        }
-    }).catch(() => {});
-}
-// Lancia dopo 5s per dare tempo a initAuth
-setTimeout(_syncGeoEnabled, 5000);
 
 // Rileva iOS
 function _isIOS() {
@@ -364,73 +342,24 @@ function _isStandalone() {
     return window.matchMedia('(display-mode: standalone)').matches || navigator.standalone === true;
 }
 
-// ── Geolocation proximity: notifica admin quando un utente con prenotazione si avvicina ──
-
-const GYM_COORDS = { lat: 45.6603401, lng: 10.4199751 };
-const PROXIMITY_RADIUS_M = 200;
-const PROXIMITY_ADMIN_UID = 'cf5f39f3-1581-40be-80e9-15b56acee337';
-
-function _haversineMeters(lat1, lon1, lat2, lon2) {
-    const R = 6371000;
-    const toRad = x => x * Math.PI / 180;
-    const dLat = toRad(lat2 - lat1);
-    const dLon = toRad(lon2 - lon1);
-    const a = Math.sin(dLat / 2) ** 2 + Math.cos(toRad(lat1)) * Math.cos(toRad(lat2)) * Math.sin(dLon / 2) ** 2;
-    return R * 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
-}
-
-// Restituisce la prossima prenotazione confermata entro 2 ore (o null)
-function _getUpcomingBooking() {
-    if (typeof BookingStorage === 'undefined') return null;
-    const now = new Date();
-    const user = typeof getCurrentUser === 'function' ? getCurrentUser() : null;
-    if (!user) return null;
-
-    const todayStr = typeof _localDateStr === 'function' ? _localDateStr(now) : now.toISOString().slice(0, 10);
-    const bookings = BookingStorage.getAllBookings().filter(b =>
-        b.date === todayStr && b.status === 'confirmed' && b.userId === user.id
-    );
-
-    for (const b of bookings) {
-        const startTime = (b.time || '').split(' - ')[0]?.trim();
-        if (!startTime) continue;
-        const [h, m] = startTime.split(':').map(Number);
-        const slotStart = new Date(now);
-        slotStart.setHours(h, m, 0, 0);
-        const diffMin = (slotStart - now) / 60000;
-        // Prenotazione che inizia tra -120 min (ritardatari) e +120 min (in anticipo)
-        if (diffMin >= -120 && diffMin <= 120) return b;
-    }
-    return null;
-}
-
-let _proximityWatchId = null;
-
-// Banner per permessi negati — guida l'utente a riabilitare dalle impostazioni.
-// Appare al massimo una volta ogni 7 giorni per tipo (geo/push).
-function _showDeniedBanner(type) {
+// Banner per permesso notifiche negato — guida l'utente a riabilitare dalle impostazioni.
+// Appare al massimo una volta ogni 7 giorni.
+function _showDeniedBanner() {
     if (!_userHasBookings()) return;
-    const storageKey = `denied_banner_shown_${type}`;
+    const storageKey = 'denied_banner_shown_push';
     const lastShown = localStorage.getItem(storageKey);
     if (lastShown && Date.now() - Number(lastShown) < 7 * 24 * 60 * 60 * 1000) return;
-    if (document.getElementById('pushBanner') || document.getElementById('geoBanner') || document.getElementById('deniedBanner')) return;
-
-    const isGeo = type === 'geo';
-    const icon = isGeo ? '📍' : '🔔';
-    const title = isGeo ? 'Posizione bloccata' : 'Notifiche bloccate';
-    const desc = isGeo
-        ? 'Per verificare la tua presenza in palestra, riabilita l\'accesso alla posizione nelle impostazioni del sito.'
-        : 'Per ricevere promemoria e avvisi, riabilita le notifiche nelle impostazioni del sito.';
+    if (document.getElementById('pushBanner') || document.getElementById('deniedBanner')) return;
 
     const banner = document.createElement('div');
     banner.id = 'deniedBanner';
     banner.style.cssText = 'position:fixed;bottom:20px;left:50%;transform:translateX(-50%);width:calc(100% - 32px);max-width:400px;background:#1a1a1a;color:#fff;border-radius:18px;padding:18px 18px 16px;z-index:9999;box-shadow:0 8px 32px rgba(0,0,0,0.4);font-family:inherit;box-sizing:border-box';
     banner.innerHTML = `
         <div style="display:flex;align-items:center;gap:12px;margin-bottom:14px">
-            <span style="font-size:26px;line-height:1">${icon}</span>
+            <span style="font-size:26px;line-height:1">🔔</span>
             <div>
-                <div style="font-weight:700;font-size:15px;line-height:1.2">${title}</div>
-                <div style="font-size:12px;color:#aaa;margin-top:4px;line-height:1.5">${desc}</div>
+                <div style="font-weight:700;font-size:15px;line-height:1.2">Notifiche bloccate</div>
+                <div style="font-size:12px;color:#aaa;margin-top:4px;line-height:1.5">Per ricevere promemoria e avvisi, riabilita le notifiche nelle impostazioni del sito.</div>
             </div>
         </div>
         <div style="display:flex;gap:10px">
@@ -456,170 +385,6 @@ function _userHasBookings() {
     return all.some(b => b.userId === user.id);
 }
 
-function startProximityWatch() {
-    if (_proximityWatchId !== null) return; // già attivo
-    if (!('geolocation' in navigator)) return;
-    if (typeof SUPABASE_URL === 'undefined') return;
-    // iOS non permette permessi geolocalizzazione permanenti nelle PWA — disabilita
-    if (_isIOS()) return;
-
-    const user = typeof getCurrentUser === 'function' ? getCurrentUser() : null;
-
-    // Verifica sempre il permesso reale del browser (non fidarsi solo del localStorage)
-    if (navigator.permissions) {
-        navigator.permissions.query({ name: 'geolocation' }).then(result => {
-            if (result.state === 'granted') {
-                localStorage.setItem('geo_permission_granted', '1');
-                if (typeof supabaseClient !== 'undefined') {
-                    supabaseClient.rpc('set_geo_enabled', { p_enabled: true }).catch(() => {});
-                }
-                _tryStartWatch(user);
-            } else if (result.state === 'denied') {
-                localStorage.removeItem('geo_permission_granted');
-                _showDeniedBanner('geo');
-                return;
-            } else {
-                // 'prompt' — su iOS PWA il permesso non persiste tra sessioni
-                if (localStorage.getItem('geo_permission_granted') === '1') {
-                    // Utente ha già accettato in passato — ri-chiedi silenziosamente senza banner
-                    navigator.geolocation.getCurrentPosition(
-                        () => _tryStartWatch(user),
-                        () => { localStorage.removeItem('geo_permission_granted'); },
-                        { enableHighAccuracy: true, timeout: 10000 }
-                    );
-                } else if (_userHasBookings()) {
-                    _showGeoBanner();
-                }
-            }
-        }).catch(() => {
-            // Fallback: se aveva già concesso, prova ad avviare
-            if (localStorage.getItem('geo_permission_granted') === '1') {
-                _tryStartWatch(user);
-            } else if (_userHasBookings()) {
-                _showGeoBanner();
-            }
-        });
-    } else {
-        // Browser senza permissions API — fallback su localStorage
-        if (localStorage.getItem('geo_permission_granted') === '1') {
-            _tryStartWatch(user);
-        } else if (_userHasBookings()) {
-            _showGeoBanner();
-        }
-    }
-}
-
-// Avvia il watch GPS — con o senza prenotazione
-function _tryStartWatch(user) {
-    const booking = _getUpcomingBooking();
-    const sentKey = booking ? `proximity_sent_${booking.id}` : `proximity_sent_nobook_${_localDateStr ? _localDateStr() : new Date().toISOString().slice(0,10)}`;
-    if (sessionStorage.getItem(sentKey)) return;
-    _startWatch(booking, user, sentKey);
-}
-
-function _showGeoBanner() {
-    // Non mostrare se un altro banner (push/install) è già visibile
-    if (document.getElementById('pushBanner') || document.getElementById('geoBanner')) return;
-
-    const banner = document.createElement('div');
-    banner.id = 'geoBanner';
-    banner.style.cssText = 'position:fixed;bottom:20px;left:50%;transform:translateX(-50%);width:calc(100% - 32px);max-width:400px;background:#1a1a1a;color:#fff;border-radius:18px;padding:18px 18px 16px;z-index:9999;box-shadow:0 8px 32px rgba(0,0,0,0.4);font-family:inherit;box-sizing:border-box';
-    banner.innerHTML = `
-        <div style="display:flex;align-items:center;gap:12px;margin-bottom:14px">
-            <span style="font-size:26px;line-height:1">📍</span>
-            <div>
-                <div style="font-weight:700;font-size:15px;line-height:1.2">Segna il tuo arrivo in automatico</div>
-                <div style="font-size:12px;color:#aaa;margin-top:4px;line-height:1.5">Per verificare la tua presenza in palestra.</div>
-            </div>
-        </div>
-        <button id="geoBannerYes" style="width:100%;background:#00AEEF;color:#fff;border:none;padding:12px;border-radius:10px;cursor:pointer;font-weight:700;font-size:14px;letter-spacing:0.01em">Abilita posizione</button>
-    `;
-    document.body.appendChild(banner);
-
-    document.getElementById('geoBannerYes').addEventListener('click', () => {
-        banner.remove();
-        // Il browser mostrerà il popup nativo di conferma
-        navigator.geolocation.getCurrentPosition(
-            () => {
-                localStorage.setItem('geo_permission_granted', '1');
-                // Salva geo_enabled nel profilo utente
-                if (typeof supabaseClient !== 'undefined') {
-                    supabaseClient.rpc('set_geo_enabled', { p_enabled: true }).catch(() => {});
-                }
-                // Prova ad avviare il watch se c'è già una prenotazione
-                const user = typeof getCurrentUser === 'function' ? getCurrentUser() : null;
-                _tryStartWatch(user);
-            },
-            (err) => {
-                console.warn('[Proximity] Permesso geolocation negato:', err.message);
-            },
-            { enableHighAccuracy: true, timeout: 10000 }
-        );
-    });
-}
-
-function _startWatch(booking, user, sentKey) {
-    if (_proximityWatchId !== null) return;
-    if (sessionStorage.getItem(sentKey)) return;
-
-    console.log('[Proximity] Watch attivato', booking ? `per prenotazione ${booking.id}` : 'senza prenotazione');
-
-    _proximityWatchId = navigator.geolocation.watchPosition(
-        async (pos) => {
-            if (sessionStorage.getItem(sentKey)) {
-                _stopProximityWatch();
-                return;
-            }
-            const dist = _haversineMeters(pos.coords.latitude, pos.coords.longitude, GYM_COORDS.lat, GYM_COORDS.lng);
-            console.log(`[Proximity] Distanza dalla palestra: ${Math.round(dist)}m`);
-
-            if (dist <= PROXIMITY_RADIUS_M) {
-                sessionStorage.setItem(sentKey, '1');
-                _stopProximityWatch();
-
-                // Recupera nome utente
-                let userName = user?.name || 'Utente';
-                if (booking) userName = booking.name || userName;
-                if ((!userName || userName === 'Utente') && typeof supabaseClient !== 'undefined') {
-                    try {
-                        const { data: { session } } = await supabaseClient.auth.getSession();
-                        userName = session?.user?.user_metadata?.name || userName;
-                    } catch {}
-                }
-
-                if (booking) {
-                    // CON prenotazione: segna arrivo
-                    console.log('[Proximity] Utente vicino — segno arrivo (con prenotazione)');
-                    const bookingDbId = booking._sbId || booking.id;
-                    if (typeof supabaseClient !== 'undefined') {
-                        supabaseClient.rpc('mark_booking_arrived', { p_booking_id: bookingDbId }).catch(e => {
-                            console.warn('[Proximity] Errore mark_booking_arrived:', e);
-                        });
-                    }
-                } else {
-                    console.log('[Proximity] Utente vicino SENZA prenotazione');
-                }
-            }
-        },
-        (err) => {
-            console.warn('[Proximity] Geolocation error:', err.message);
-            _stopProximityWatch();
-        },
-        { enableHighAccuracy: true, maximumAge: 30000, timeout: 10000 }
-    );
-
-    // Auto-stop dopo 2.5 ore per risparmiare batteria
-    setTimeout(() => _stopProximityWatch(), 2.5 * 60 * 60 * 1000);
-}
-
-function _stopProximityWatch() {
-    if (_proximityWatchId !== null) {
-        navigator.geolocation.clearWatch(_proximityWatchId);
-        _proximityWatchId = null;
-        console.log('[Proximity] Watch fermato');
-    }
-}
-
 // Mostra banner "Abilita notifiche" ad ogni apertura finché non viene accettato o negato dal browser.
 // Chiamata da index.html dopo initAuth().
 async function promptPushPermission() {
@@ -642,7 +407,7 @@ async function promptPushPermission() {
     if (Notification.permission === 'denied') {
         localStorage.setItem('push_permission_was_denied', '1');
         localStorage.removeItem('push_permission_granted');
-        _showDeniedBanner('push');
+        _showDeniedBanner();
         return;
     }
 

@@ -480,10 +480,6 @@
             if (typeof promptPushPermission === 'function' && getCurrentUser()) {
                 setTimeout(promptPushPermission, 1500);
             }
-            // Geolocation proximity: notifica admin quando l'utente si avvicina alla palestra
-            if (typeof startProximityWatch === 'function' && getCurrentUser()) {
-                setTimeout(startProximityWatch, 3000);
-            }
         }
         _boot();
         // bfcache: quando la pagina viene ripristinata dalla memoria (es. tasto Indietro)
@@ -1019,10 +1015,6 @@
                 }
             }
 
-            // Warning documento non firmato (solo admin può impostare il flag)
-            if (!user.documento_firmato) {
-                html += `<a href="modulo_viewer.html" class="preno-cert-warning preno-cert-expiring preno-cert-clickable" style="text-decoration:none;display:block">📝 Porta documento firmato — Apri modulo</a>`;
-            }
 
             el.innerHTML = html;
         }
