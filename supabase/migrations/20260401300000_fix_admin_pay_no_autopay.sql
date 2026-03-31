@@ -111,9 +111,9 @@ BEGIN
             -- Credito in eccesso: salva come saldo (NO auto-pay di altre prenotazioni)
             v_balance := round((v_balance + v_credit_delta)::numeric, 2);
 
-            INSERT INTO credit_history (credit_id, amount, display_amount, note, created_at)
+            INSERT INTO credit_history (credit_id, amount, display_amount, note, created_at, method)
             VALUES (v_credit_id, v_credit_delta, p_amount_paid,
-                    'Pagamento in acconto di €' || p_amount_paid, v_now);
+                    'Pagamento in acconto di €' || p_amount_paid, v_now, p_payment_method);
 
             UPDATE credits
             SET    balance      = v_balance,
@@ -121,8 +121,8 @@ BEGIN
             WHERE  id = v_credit_id;
         ELSE
             -- Pagamento esatto o parziale: inserisce voce informativa
-            INSERT INTO credit_history (credit_id, amount, display_amount, note, created_at)
-            VALUES (v_credit_id, 0, p_amount_paid, v_method_label || ' ricevuto', v_now);
+            INSERT INTO credit_history (credit_id, amount, display_amount, note, created_at, method)
+            VALUES (v_credit_id, 0, p_amount_paid, v_method_label || ' ricevuto', v_now, p_payment_method);
         END IF;
 
     END IF;

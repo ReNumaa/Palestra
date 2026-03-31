@@ -192,7 +192,7 @@ function buildRegistroEntries() {
                 notes:         creditNote,
                 eventType:     isRefund ? 'booking_refund' : 'credit_added',
                 timestamp:     ts,
-                amount:        Math.abs(h.amount || 0),
+                amount:        Math.abs(h.displayAmount != null ? h.displayAmount : (h.amount || 0)),
                 paymentMethod: creditMethod,
                 freeLesson:    h.freeLesson || false,
                 bookingStatus: 'credit',
