@@ -2106,7 +2106,10 @@ async function downloadWeeklyReport() {
         const allBookings = await BookingStorage.fetchForAdmin(fromStr, toStr);
 
         // ── Credit history: fonte primaria per pagamenti via admin_pay_bookings ──
+        // Passo 1: raccogli tutte le entry con displayAmount > 0 (pagamenti RPC),
+        //          indipendentemente dal method (vecchie entry potrebbero non averlo).
         const allCredits = CreditStorage._getAll();
+        const rpcEntries = new Map();       // email|date → {name, email, date, cashValue, method, note}
         const rpcPaymentKeys = new Set();
         const manualCreditPayments = [];
         Object.values(allCredits).forEach(c => {
@@ -2114,29 +2117,56 @@ async function downloadWeeklyReport() {
             (c.history || []).forEach(h => {
                 if (h.freeLesson || h.hiddenRefund) return;
                 if ((h.note || '').startsWith('Rimborso')) return;
-                if (!REPORT_METHODS.has(h.method || '')) return;
                 const hDate = h.date ? h.date.slice(0, 10) : '';
                 if (hDate < fromStr || hDate > toStr) return;
                 const hasDisplayAmount = h.displayAmount != null && h.displayAmount > 0;
-                const cashValue = hasDisplayAmount ? h.displayAmount : h.amount;
-                if (cashValue <= 0) return;
-                manualCreditPayments.push({
-                    name: c.name, email: c.email, date: h.date,
-                    type: hasDisplayAmount ? 'Pagamento' : 'Credito manuale',
-                    amount: cashValue, method: h.method, note: h.note || ''
-                });
                 if (hasDisplayAmount && email) {
-                    rpcPaymentKeys.add(email + '|' + h.date);
+                    // Entry da admin_pay_bookings — il method potrebbe essere vuoto (vecchie entry)
+                    const key = email + '|' + h.date;
+                    rpcPaymentKeys.add(key);
+                    rpcEntries.set(key, {
+                        name: c.name, email: c.email, date: h.date,
+                        cashValue: h.displayAmount, method: h.method || '',
+                        note: h.note || ''
+                    });
+                } else {
+                    // Entry da admin_add_credit (credito diretto)
+                    const cashValue = h.amount;
+                    if (cashValue <= 0) return;
+                    if (!REPORT_METHODS.has(h.method || '')) return;
+                    manualCreditPayments.push({
+                        name: c.name, email: c.email, date: h.date,
+                        type: 'Credito manuale', amount: cashValue,
+                        method: h.method, note: h.note || ''
+                    });
                 }
             });
         });
 
-        // Booking pagati con carta/iban, esclusi quelli già in displayAmount
-        const cardBookings = allBookings.filter(b => {
-            if (!b.paid || !REPORT_METHODS.has(b.paymentMethod) || b.status === 'cancelled') return false;
-            if (b.paidAt && b.email && rpcPaymentKeys.has(b.email.toLowerCase() + '|' + b.paidAt)) return false;
-            return true;
+        // Passo 2: booking pagati con carta/iban.
+        // Se matchano un rpcEntry, inferisci il method sull'entry RPC (per vecchie entry senza method).
+        const cardBookings = [];
+        allBookings.forEach(b => {
+            if (!b.paid || !REPORT_METHODS.has(b.paymentMethod) || b.status === 'cancelled') return;
+            const key = b.paidAt && b.email ? b.email.toLowerCase() + '|' + b.paidAt : null;
+            if (key && rpcPaymentKeys.has(key)) {
+                // Booking già catturato da displayAmount — inferisci method se mancante
+                const entry = rpcEntries.get(key);
+                if (entry && !entry.method) entry.method = b.paymentMethod;
+                return; // escludi dal report (già in rpcEntries)
+            }
+            cardBookings.push(b);
         });
+
+        // Passo 3: aggiungi rpcEntries con method carta/iban al report come riga unica
+        for (const entry of rpcEntries.values()) {
+            if (!REPORT_METHODS.has(entry.method)) continue;
+            manualCreditPayments.push({
+                name: entry.name, email: entry.email, date: entry.date,
+                type: 'Pagamento', amount: entry.cashValue,
+                method: entry.method, note: entry.note
+            });
+        }
 
         // Debiti saldati con carta/iban, esclusi quelli già in displayAmount
         const allDebts = ManualDebtStorage._getAll();
@@ -2298,6 +2328,7 @@ async function downloadFiscalReport() {
 
         // ── Credit history: fonte primaria per pagamenti via admin_pay_bookings ──
         const allCredits = CreditStorage._getAll();
+        const rpcEntries = new Map();
         const rpcPaymentKeys = new Set();
         const manualCreditPayments = [];
         Object.values(allCredits).forEach(c => {
@@ -2305,27 +2336,48 @@ async function downloadFiscalReport() {
             (c.history || []).forEach(h => {
                 if (h.freeLesson || h.hiddenRefund) return;
                 if ((h.note || '').startsWith('Rimborso')) return;
-                if (!REPORT_METHODS.has(h.method || '')) return;
                 const hasDisplayAmount = h.displayAmount != null && h.displayAmount > 0;
-                const cashValue = hasDisplayAmount ? h.displayAmount : h.amount;
-                if (cashValue <= 0) return;
-                manualCreditPayments.push({
-                    name: c.name, email: c.email, date: h.date,
-                    type: hasDisplayAmount ? 'Pagamento' : 'Credito manuale',
-                    amount: cashValue, method: h.method
-                });
                 if (hasDisplayAmount && email) {
-                    rpcPaymentKeys.add(email + '|' + h.date);
+                    const key = email + '|' + h.date;
+                    rpcPaymentKeys.add(key);
+                    rpcEntries.set(key, {
+                        name: c.name, email: c.email, date: h.date,
+                        cashValue: h.displayAmount, method: h.method || '',
+                        note: h.note || ''
+                    });
+                } else {
+                    const cashValue = h.amount;
+                    if (cashValue <= 0) return;
+                    if (!REPORT_METHODS.has(h.method || '')) return;
+                    manualCreditPayments.push({
+                        name: c.name, email: c.email, date: h.date,
+                        type: 'Credito manuale', amount: cashValue, method: h.method
+                    });
                 }
             });
         });
 
-        // Booking pagati con carta/iban, esclusi quelli già in displayAmount
-        const cardBookings = (allBookings || []).filter(b => {
-            if (!b.paid || !REPORT_METHODS.has(b.paymentMethod) || b.status === 'cancelled') return false;
-            if (b.paidAt && b.email && rpcPaymentKeys.has(b.email.toLowerCase() + '|' + b.paidAt)) return false;
-            return true;
+        // Booking: inferisci method su vecchie rpcEntries senza method
+        const cardBookings = [];
+        (allBookings || []).forEach(b => {
+            if (!b.paid || !REPORT_METHODS.has(b.paymentMethod) || b.status === 'cancelled') return;
+            const key = b.paidAt && b.email ? b.email.toLowerCase() + '|' + b.paidAt : null;
+            if (key && rpcPaymentKeys.has(key)) {
+                const entry = rpcEntries.get(key);
+                if (entry && !entry.method) entry.method = b.paymentMethod;
+                return;
+            }
+            cardBookings.push(b);
         });
+
+        // Aggiungi rpcEntries con method carta/iban al report
+        for (const entry of rpcEntries.values()) {
+            if (!REPORT_METHODS.has(entry.method)) continue;
+            manualCreditPayments.push({
+                name: entry.name, email: entry.email, date: entry.date,
+                type: 'Pagamento', amount: entry.cashValue, method: entry.method
+            });
+        }
 
         // Debiti saldati con carta/iban, esclusi quelli già in displayAmount
         const allDebts = ManualDebtStorage._getAll();
