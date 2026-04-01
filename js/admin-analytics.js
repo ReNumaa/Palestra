@@ -610,8 +610,11 @@ function renderFatturatoDetail(panel) {
     //             oppure amount (da admin_add_credit, = importo credito = soldi ricevuti).
     // _rpcPaymentKeys: Set di "email|paidAt" per booking processati via admin_pay_bookings,
     //                  usato per deduplicare (il loro incasso è già in displayAmount).
+    // Passo 1: raccogli credit entries. Per entry con displayAmount (da admin_pay_bookings),
+    // il method potrebbe essere vuoto (vecchie entry) — verrà inferito dal booking al passo 2.
     let _creditEntries = [];
     const _rpcPaymentKeys = new Set();
+    const _rpcEntryMap = new Map();   // email|date → credit entry (per inferire method)
     if (isReale) {
         const allCredits = CreditStorage._getAll();
         for (const key in allCredits) {
@@ -625,7 +628,9 @@ function renderFatturatoDetail(panel) {
                     h._cashValue = cashValue;
                     _creditEntries.push(h);
                     if (hasDisplayAmount && email) {
-                        _rpcPaymentKeys.add(email + '|' + h.date);
+                        const mapKey = email + '|' + h.date;
+                        _rpcPaymentKeys.add(mapKey);
+                        if (!h.method) _rpcEntryMap.set(mapKey, h);
                     }
                 }
             });
@@ -657,15 +662,19 @@ function renderFatturatoDetail(panel) {
         .reduce((s, h) => s + h.amount, 0);
 
     // ── Booking filter ──────────────────────────────────────────────────────
-    // In Reale: solo booking pagati con metodo reale (contanti/carta/iban),
-    // escludendo quelli già conteggiati in displayAmount (admin_pay_bookings).
+    // Passo 2: in Reale, escludi booking già in displayAmount e inferisci method su vecchie entry.
     const allBookings = (_statsBookings ?? _excludeAdminBookings(BookingStorage.getAllBookings()))
         .filter(b => {
             if (b.status === 'cancelled') return false;
             if (isReale) {
                 if (!b.paid || !REAL_METHODS.has(b.paymentMethod)) return false;
-                // Escludi booking il cui incasso è già catturato dal displayAmount di credit_history
-                if (b.paidAt && b.email && _rpcPaymentKeys.has(b.email.toLowerCase() + '|' + b.paidAt)) return false;
+                const rpcKey = b.paidAt && b.email ? b.email.toLowerCase() + '|' + b.paidAt : null;
+                if (rpcKey && _rpcPaymentKeys.has(rpcKey)) {
+                    // Inferisci method dal booking su vecchie credit entry senza method
+                    const entry = _rpcEntryMap.get(rpcKey);
+                    if (entry) entry.method = b.paymentMethod;
+                    return false; // escludi, già catturato da displayAmount
+                }
                 return true;
             }
             return b.paymentMethod !== 'lezione-gratuita';
