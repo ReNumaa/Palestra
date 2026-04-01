@@ -1463,6 +1463,29 @@ function renderClientiDetail(panel) {
     const moraUsersList = Object.values(moraUsers).sort((a, b) => b.total - a.total);
     const moraTotalAmount = Math.round(moraUsersList.reduce((s, c) => s + c.total, 0) * 100) / 100;
 
+    // ── Clienti persi: attivi nel periodo precedente, assenti in quello corrente ─
+    const prevRange = getPreviousFilterDateRange(currentFilter);
+    let lostClients = [];
+    if (prevRange) {
+        const prevClientKeys = new Set();
+        const currClientKeys = new Set();
+        allBookings.forEach(b => {
+            if (b.status === 'cancelled') return;
+            const key = b.email || b.whatsapp || b.name;
+            const bd = new Date(b.date + 'T00:00:00');
+            if (bd >= prevRange.from && bd <= prevRange.to) prevClientKeys.add(key);
+            if (bd >= periodFrom && bd <= periodTo) currClientKeys.add(key);
+        });
+        lostClients = [...prevClientKeys]
+            .filter(k => !currClientKeys.has(k))
+            .map(k => {
+                // Trova il nome dall'ultimo booking
+                const lastB = allBookings.filter(b => (b.email || b.whatsapp || b.name) === k && b.status !== 'cancelled').pop();
+                return { name: lastB ? lastB.name : k };
+            })
+            .sort((a, b) => a.name.localeCompare(b.name));
+    }
+
     const _emptyRow = '<div class="sdb-row"><span class="sdb-label" style="color:#9ca3af">Nessun dato</span></div>';
     const _clientRows = (list, valueFn) => list.length === 0 ? _emptyRow :
         list.map((c, i) => `
@@ -1555,7 +1578,7 @@ function renderClientiDetail(panel) {
         </div>
 
         <div class="stat-detail-charts">
-            <div class="stat-detail-breakdown" style="grid-column:1/-1">
+            <div class="stat-detail-breakdown">
                 <h4>🆕 Nuovi clienti nel periodo (${newClients.length})</h4>
                 <div class="sdb-rows">
                     ${newClients.length === 0
@@ -1564,6 +1587,18 @@ function renderClientiDetail(panel) {
                             <div class="sdb-row">
                                 <span class="sdb-label">${i + 1}. ${c.name}</span>
                                 <span class="sdb-value" style="color:#9ca3af;font-size:0.8rem">${c.date.getDate()}/${c.date.getMonth()+1}/${c.date.getFullYear()}</span>
+                            </div>`).join('')
+                    }
+                </div>
+            </div>
+            <div class="stat-detail-breakdown">
+                <h4>📉 Clienti persi (${lostClients.length})</h4>
+                <div class="sdb-rows">
+                    ${lostClients.length === 0
+                        ? '<div class="sdb-row"><span class="sdb-label" style="color:#9ca3af">Nessun cliente perso</span></div>'
+                        : lostClients.map((c, i) => `
+                            <div class="sdb-row">
+                                <span class="sdb-label">${i + 1}. ${c.name}</span>
                             </div>`).join('')
                     }
                 </div>
