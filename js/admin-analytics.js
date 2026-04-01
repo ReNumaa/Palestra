@@ -973,7 +973,7 @@ function renderFatturatoDetail(panel) {
     // ── Fatturato per tipo di pagamento (solo Reale) ───────────────────────
     // Soldi in cassa raggruppati per metodo di pagamento.
     // Booking deduplicati (stessa logica di allBookings) + credit _cashValue.
-    let payMethodStats = [], payMethodPieData = {}, payMethodColors = [];
+    let payMethodStats = [], payMethodPieData = {}, payMethodColors = [], freeLessonCount = 0;
     if (isReale) {
         const allPaidInPeriod = allBookings.filter(b => {
             const d = new Date(b.date + 'T00:00:00');
@@ -1013,6 +1013,14 @@ function renderFatturatoDetail(panel) {
             values: payMethodStats.map(m => m.rev),
         };
         payMethodColors = payMethodStats.map(m => m.color);
+        // Lezioni gratuite nel periodo
+        const _rawForFree = _statsBookings ?? _excludeAdminBookings(BookingStorage.getAllBookings());
+        freeLessonCount = _rawForFree.filter(b => {
+            if (b.status === 'cancelled') return false;
+            if (b.paymentMethod !== 'lezione-gratuita') return false;
+            const d = new Date(b.date + 'T00:00:00');
+            return d >= from && d <= to;
+        }).length;
     }
 
     // ── Render ────────────────────────────────────────────────────────────────
@@ -1067,12 +1075,16 @@ function renderFatturatoDetail(panel) {
         ${isReale ? `<div class="stat-detail-chart-block stat-detail-type-section">
             <h4>Fatturato per tipo di pagamento</h4>
             <canvas id="detailPayMethodChart" style="width:100%;display:block;"></canvas>
-            ${payMethodStats.length > 0 ? `<div class="stat-detail-breakdown" style="margin-top:0.5rem">
+            ${(payMethodStats.length > 0 || freeLessonCount > 0) ? `<div class="stat-detail-breakdown" style="margin-top:0.5rem">
                 <div class="sdb-rows">
                     ${payMethodStats.map(m => `<div class="sdb-row">
                         <span class="sdb-label"><span style="display:inline-block;width:10px;height:10px;border-radius:50%;background:${m.color};margin-right:6px"></span>${m.label}</span>
                         <span class="sdb-value sdb-bold">€${m.rev}</span>
                     </div>`).join('')}
+                    ${freeLessonCount > 0 ? `<div class="sdb-row">
+                        <span class="sdb-label"><span style="display:inline-block;width:10px;height:10px;border-radius:50%;background:#a855f7;margin-right:6px"></span>Lezione gratuita</span>
+                        <span class="sdb-value sdb-bold">${freeLessonCount} ${freeLessonCount === 1 ? 'lezione' : 'lezioni'}</span>
+                    </div>` : ''}
                 </div>
             </div>` : ''}
         </div>` : `<div class="stat-detail-chart-block stat-detail-type-section">
