@@ -974,7 +974,7 @@ function renderFatturatoDetail(panel) {
     // ── Fatturato per tipo di pagamento (solo Reale) ───────────────────────
     // Soldi in cassa raggruppati per metodo di pagamento.
     // Booking deduplicati (stessa logica di allBookings) + credit _cashValue.
-    let payMethodStats = [], payMethodPieData = {}, payMethodColors = [], freeLessonCount = 0;
+    let payMethodStats = [], payMethodPieData = {}, payMethodColors = [], freeLessonCount = 0, freeLessonValue = 0;
     if (isReale) {
         const allPaidInPeriod = allBookings.filter(b => {
             const d = new Date(b.date + 'T00:00:00');
@@ -1016,12 +1016,14 @@ function renderFatturatoDetail(panel) {
         payMethodColors = payMethodStats.map(m => m.color);
         // Lezioni gratuite nel periodo
         const _rawForFree = _statsBookings ?? _excludeAdminBookings(BookingStorage.getAllBookings());
-        freeLessonCount = _rawForFree.filter(b => {
+        const _freeLessons = _rawForFree.filter(b => {
             if (b.status === 'cancelled') return false;
             if (b.paymentMethod !== 'lezione-gratuita') return false;
             const d = new Date(b.date + 'T00:00:00');
             return d >= from && d <= to;
-        }).length;
+        });
+        freeLessonCount = _freeLessons.length;
+        freeLessonValue = _freeLessons.reduce((s, b) => s + (SLOT_PRICES[b.slotType] || 0), 0);
     }
 
     // ── Render ────────────────────────────────────────────────────────────────
@@ -1084,7 +1086,7 @@ function renderFatturatoDetail(panel) {
                     </div>`).join('')}
                     ${freeLessonCount > 0 ? `<div class="sdb-row">
                         <span class="sdb-label"><span style="display:inline-block;width:10px;height:10px;border-radius:50%;background:#a855f7;margin-right:6px"></span>Lezione gratuita</span>
-                        <span class="sdb-value sdb-bold">${freeLessonCount} ${freeLessonCount === 1 ? 'lezione' : 'lezioni'}</span>
+                        <span class="sdb-value sdb-bold">€${freeLessonValue}</span>
                     </div>` : ''}
                 </div>
             </div>` : ''}
