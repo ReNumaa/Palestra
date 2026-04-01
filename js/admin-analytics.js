@@ -688,7 +688,8 @@ function renderFatturatoDetail(panel) {
 
     // Past bookings (before pastCutoff) + crediti passati + more passate
     const pastBookings   = periodBookings.filter(b => new Date(b.date + 'T00:00:00') < pastCutoff);
-    const pastRevenue    = pastBookings.reduce(revFn, 0) + creditInRange(from, new Date(pastCutoff.getTime() - 1)) + moraInRange(from, new Date(pastCutoff.getTime() - 1));
+    const pastCreditEnd  = new Date(Math.min(to.getTime(), pastCutoff.getTime() - 1));
+    const pastRevenue    = pastBookings.reduce(revFn, 0) + creditInRange(from, pastCreditEnd) + moraInRange(from, pastCreditEnd);
 
     // Future confirmed bookings in period + crediti futuri + more future
     const futureBookings = periodBookings.filter(b => new Date(b.date + 'T00:00:00') >= pastCutoff);
@@ -992,7 +993,7 @@ function renderFatturatoDetail(panel) {
             if (d >= from && d <= to) {
                 if (h.method && REAL_METHODS.has(h.method)) {
                     creditByMethod[h.method] = (creditByMethod[h.method] || 0) + h._cashValue;
-                } else if (!h.method) {
+                } else {
                     creditNoMethod += h._cashValue;
                 }
             }
