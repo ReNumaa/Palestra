@@ -624,7 +624,7 @@ function renderFatturatoDetail(panel) {
             rec.history.forEach(h => {
                 const hasDisplayAmount = h.displayAmount != null && h.displayAmount > 0;
                 const cashValue = hasDisplayAmount ? h.displayAmount : h.amount;
-                if (cashValue > 0 && !h.freeLesson && !h.hiddenRefund && !/^Rimborso/i.test(h.note || '')) {
+                if (cashValue > 0 && !h.freeLesson && h.method !== 'lezione-gratuita' && !h.hiddenRefund && !/^Rimborso/i.test(h.note || '')) {
                     h._cashValue = cashValue;
                     _creditEntries.push(h);
                     if (hasDisplayAmount && email) {
@@ -2137,7 +2137,7 @@ async function downloadWeeklyReport() {
         Object.values(allCredits).forEach(c => {
             const email = (c.email || '').toLowerCase();
             (c.history || []).forEach(h => {
-                if (h.freeLesson || h.hiddenRefund) return;
+                if (h.freeLesson || h.hiddenRefund || h.method === 'lezione-gratuita') return;
                 if ((h.note || '').startsWith('Rimborso')) return;
                 const hDate = h.date ? h.date.slice(0, 10) : '';
                 if (hDate < fromStr || hDate > toStr) return;
@@ -2356,7 +2356,7 @@ async function downloadFiscalReport() {
         Object.values(allCredits).forEach(c => {
             const email = (c.email || '').toLowerCase();
             (c.history || []).forEach(h => {
-                if (h.freeLesson || h.hiddenRefund) return;
+                if (h.freeLesson || h.hiddenRefund || h.method === 'lezione-gratuita') return;
                 if ((h.note || '').startsWith('Rimborso')) return;
                 const hasDisplayAmount = h.displayAmount != null && h.displayAmount > 0;
                 if (hasDisplayAmount && email) {
