@@ -2104,52 +2104,57 @@ async function downloadWeeklyReport() {
         const REPORT_METHODS = new Set(['carta', 'iban']);
         const METHOD_LABEL_REPORT = { carta: 'Carta', iban: 'Bonifico' };
         const allBookings = await BookingStorage.fetchForAdmin(fromStr, toStr);
-        const cardBookings = allBookings.filter(b =>
-            b.paid && REPORT_METHODS.has(b.paymentMethod) && b.status !== 'cancelled'
-        );
 
-        // Also check manual debts paid with carta/iban in this period
-        const allDebts = ManualDebtStorage._getAll();
-        const manualCardPayments = [];
-        Object.values(allDebts).forEach(d => {
-            (d.history || []).filter(h => {
-                if (h.amount >= 0) return false; // only payments (negative = paid)
-                if (!REPORT_METHODS.has(h.method || '')) return false;
+        // ── Credit history: fonte primaria per pagamenti via admin_pay_bookings ──
+        const allCredits = CreditStorage._getAll();
+        const rpcPaymentKeys = new Set();
+        const manualCreditPayments = [];
+        Object.values(allCredits).forEach(c => {
+            const email = (c.email || '').toLowerCase();
+            (c.history || []).forEach(h => {
+                if (h.freeLesson || h.hiddenRefund) return;
+                if ((h.note || '').startsWith('Rimborso')) return;
+                if (!REPORT_METHODS.has(h.method || '')) return;
                 const hDate = h.date ? h.date.slice(0, 10) : '';
-                return hDate >= fromStr && hDate <= toStr;
-            }).forEach(h => {
-                manualCardPayments.push({
-                    name: d.name,
-                    email: d.email,
-                    date: h.date,
-                    type: 'Saldo debito manuale',
-                    amount: Math.abs(h.amount),
-                    method: h.method,
-                    note: h.note || ''
+                if (hDate < fromStr || hDate > toStr) return;
+                const hasDisplayAmount = h.displayAmount != null && h.displayAmount > 0;
+                const cashValue = hasDisplayAmount ? h.displayAmount : h.amount;
+                if (cashValue <= 0) return;
+                manualCreditPayments.push({
+                    name: c.name, email: c.email, date: h.date,
+                    type: hasDisplayAmount ? 'Pagamento' : 'Credito manuale',
+                    amount: cashValue, method: h.method, note: h.note || ''
                 });
+                if (hasDisplayAmount && email) {
+                    rpcPaymentKeys.add(email + '|' + h.date);
+                }
             });
         });
 
-        // Also check manual credits (CreditStorage) paid with carta/iban in this period
-        const allCredits = CreditStorage._getAll();
-        const manualCreditPayments = [];
-        Object.values(allCredits).forEach(c => {
-            (c.history || []).filter(h => {
-                if (h.amount <= 0) return false;              // only positive credits (money received)
-                if (h.hiddenRefund) return false;              // skip hidden refunds
-                if ((h.note || '').startsWith('Rimborso')) return false; // skip refunds
+        // Booking pagati con carta/iban, esclusi quelli già in displayAmount
+        const cardBookings = allBookings.filter(b => {
+            if (!b.paid || !REPORT_METHODS.has(b.paymentMethod) || b.status === 'cancelled') return false;
+            if (b.paidAt && b.email && rpcPaymentKeys.has(b.email.toLowerCase() + '|' + b.paidAt)) return false;
+            return true;
+        });
+
+        // Debiti saldati con carta/iban, esclusi quelli già in displayAmount
+        const allDebts = ManualDebtStorage._getAll();
+        const manualCardPayments = [];
+        Object.values(allDebts).forEach(d => {
+            const email = (d.email || '').toLowerCase();
+            (d.history || []).filter(h => {
+                if (h.amount >= 0) return false;
                 if (!REPORT_METHODS.has(h.method || '')) return false;
                 const hDate = h.date ? h.date.slice(0, 10) : '';
-                return hDate >= fromStr && hDate <= toStr;
+                if (hDate < fromStr || hDate > toStr) return false;
+                if (email && h.date && rpcPaymentKeys.has(email + '|' + h.date)) return false;
+                return true;
             }).forEach(h => {
-                manualCreditPayments.push({
-                    name: c.name,
-                    email: c.email,
-                    date: h.date,
-                    type: 'Credito manuale',
-                    amount: h.amount,
-                    method: h.method,
-                    note: h.note || ''
+                manualCardPayments.push({
+                    name: d.name, email: d.email, date: h.date,
+                    type: 'Saldo debito manuale', amount: Math.abs(h.amount),
+                    method: h.method, note: h.note || ''
                 });
             });
         });
@@ -2290,39 +2295,52 @@ async function downloadFiscalReport() {
 
         // Fetch ALL bookings (no date filter)
         const allBookings = await BookingStorage.fetchForAdmin(null, null);
-        const cardBookings = (allBookings || []).filter(b =>
-            b.paid && REPORT_METHODS.has(b.paymentMethod) && b.status !== 'cancelled'
-        );
 
-        // Manual debts paid with carta/iban
+        // ── Credit history: fonte primaria per pagamenti via admin_pay_bookings ──
+        const allCredits = CreditStorage._getAll();
+        const rpcPaymentKeys = new Set();
+        const manualCreditPayments = [];
+        Object.values(allCredits).forEach(c => {
+            const email = (c.email || '').toLowerCase();
+            (c.history || []).forEach(h => {
+                if (h.freeLesson || h.hiddenRefund) return;
+                if ((h.note || '').startsWith('Rimborso')) return;
+                if (!REPORT_METHODS.has(h.method || '')) return;
+                const hasDisplayAmount = h.displayAmount != null && h.displayAmount > 0;
+                const cashValue = hasDisplayAmount ? h.displayAmount : h.amount;
+                if (cashValue <= 0) return;
+                manualCreditPayments.push({
+                    name: c.name, email: c.email, date: h.date,
+                    type: hasDisplayAmount ? 'Pagamento' : 'Credito manuale',
+                    amount: cashValue, method: h.method
+                });
+                if (hasDisplayAmount && email) {
+                    rpcPaymentKeys.add(email + '|' + h.date);
+                }
+            });
+        });
+
+        // Booking pagati con carta/iban, esclusi quelli già in displayAmount
+        const cardBookings = (allBookings || []).filter(b => {
+            if (!b.paid || !REPORT_METHODS.has(b.paymentMethod) || b.status === 'cancelled') return false;
+            if (b.paidAt && b.email && rpcPaymentKeys.has(b.email.toLowerCase() + '|' + b.paidAt)) return false;
+            return true;
+        });
+
+        // Debiti saldati con carta/iban, esclusi quelli già in displayAmount
         const allDebts = ManualDebtStorage._getAll();
         const manualCardPayments = [];
         Object.values(allDebts).forEach(d => {
+            const email = (d.email || '').toLowerCase();
             (d.history || []).filter(h => {
                 if (h.amount >= 0) return false;
-                return REPORT_METHODS.has(h.method || '');
+                if (!REPORT_METHODS.has(h.method || '')) return false;
+                if (email && h.date && rpcPaymentKeys.has(email + '|' + h.date)) return false;
+                return true;
             }).forEach(h => {
                 manualCardPayments.push({
                     name: d.name, email: d.email, date: h.date,
                     type: 'Saldo debito manuale', amount: Math.abs(h.amount),
-                    method: h.method
-                });
-            });
-        });
-
-        // Manual credits paid with carta/iban
-        const allCredits = CreditStorage._getAll();
-        const manualCreditPayments = [];
-        Object.values(allCredits).forEach(c => {
-            (c.history || []).filter(h => {
-                if (h.amount <= 0) return false;
-                if (h.hiddenRefund) return false;
-                if ((h.note || '').startsWith('Rimborso')) return false;
-                return REPORT_METHODS.has(h.method || '');
-            }).forEach(h => {
-                manualCreditPayments.push({
-                    name: c.name, email: c.email, date: h.date,
-                    type: 'Credito manuale', amount: h.amount,
                     method: h.method
                 });
             });
