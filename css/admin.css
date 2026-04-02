@@ -6376,6 +6376,8 @@ canvas {
 @media (max-width: 768px) {
     .sett-card { padding: 0.9rem 1rem; border-radius: 12px; }
     .sett-card-header { flex-wrap: wrap; gap: 0.6rem; }
+    .sett-card-header .settings-toggle-wrap { width: 100%; padding-top: 0.5rem; border-top: 1px solid #f1f5f9; }
+    .sett-card-header .sett-action-btn { width: 100%; justify-content: center; }
     .sett-card-icon { width: 32px; height: 32px; font-size: 0.95rem; border-radius: 8px; }
     .sett-card-title { font-size: 0.88rem; }
     .sett-card-desc { font-size: 0.75rem; }
