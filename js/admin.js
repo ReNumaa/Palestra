@@ -32,7 +32,7 @@ function _applyPrivacyMask() {
         if (cl) cl.style.display = 'none';
     }
     const btn = document.getElementById('btnToggleSensitive');
-    if (btn) btn.textContent = '⚙️';
+    if (btn) btn.textContent = _sensitiveHidden ? '🙈' : '👁';
 }
 
 function toggleSensitiveData() {
