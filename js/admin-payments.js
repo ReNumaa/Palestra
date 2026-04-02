@@ -307,7 +307,6 @@ function createCreditCard(credit, index, showActions = false) {
                 </div>
                 <div class="debtor-contact">
                     <span>📱 ${_escHtml(credit.whatsapp)}</span>
-                    <span>✉️ ${_escHtml(credit.email)}</span>
                 </div>
             </div>
             <div class="debtor-amount credit-amount">Credito: €${credit.balance}</div>
@@ -487,7 +486,6 @@ function createDebtorCard(debtor, cardId) {
                 <div class="debtor-name">${_escHtml(debtor.name)}</div>
                 <div class="debtor-contact">
                     <span>📱 ${_escHtml(debtor.whatsapp)}</span>
-                    <span>✉️ ${_escHtml(debtor.email)}</span>
                 </div>
             </div>
             <div class="debtor-amount">Debito: €${debtor.totalAmount}</div>
