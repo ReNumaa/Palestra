@@ -680,6 +680,9 @@ function clearSearch() {
     if (resultsContainer) resultsContainer.style.display = 'none';
     if (searchInput) searchInput.value = '';
     closeSearchDropdown();
+    // Ripristina stat cards
+    const stats = document.querySelector('.payments-stats');
+    if (stats) stats.style.display = '';
 }
 
 function closeSearchDropdown() {
@@ -738,6 +741,9 @@ function selectDebtorFromDropdown(index) {
     resultsContainer.style.display = 'block';
     closeSearchDropdown();
     document.getElementById('debtorSearchInput').value = r.data.name;
+    // Nascondi stat cards durante la ricerca
+    const stats = document.querySelector('.payments-stats');
+    if (stats) stats.style.display = 'none';
     resultsContainer.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
 }
 
