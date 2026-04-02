@@ -483,10 +483,10 @@
 
                 <!-- Filter bar -->
                 <div class="registro-filters">
-                    <button class="registro-filters-toggle" id="registroFiltersToggle" onclick="toggleRegistroFiltersPanel()">
-                        🔍 Filtri <span class="registro-filters-toggle-icon" id="registroFiltersToggleIcon">▼</span>
+                    <button class="reg-filters-toggle" onclick="toggleRegFilters(this)">
+                        🔍 Filtri <span class="reg-filters-toggle-icon">▼</span>
                     </button>
-                    <div class="registro-filters-body" id="registroFiltersBody">
+                    <div class="reg-filters-collapsible">
                     <!-- Periodo -->
                     <div class="registro-filter-row">
                         <div class="registro-filter-group" style="width:100%;">
@@ -561,7 +561,7 @@
                             </div>
                         </div>
                     </div>
-                    </div><!-- /registro-filters-body -->
+                    </div><!-- /reg-filters-collapsible -->
                 </div>
 
                 <!-- Table -->
@@ -607,14 +607,21 @@
                             <h3>📩 Storico notifiche</h3>
                         </div>
                         <div class="reg-panel-filters">
-                            <select id="msgFilterType" onchange="renderMessaggiTable()" class="reg-panel-select">
-                                <option value="">Tutti i tipi</option>
-                                <option value="booking">✔️ Prenotazioni</option>
-                                <option value="cancellation">❌ Annullamenti</option>
-                                <option value="new_client">🆕 Nuovi iscritti</option>
-                            </select>
-                            <input type="date" id="msgFilterDate" onchange="renderMessaggiTable()" class="reg-panel-date">
-                            <button class="rfilter-btn rfilter-btn--reset" onclick="document.getElementById('msgFilterType').value='';document.getElementById('msgFilterDate').value='';renderMessaggiTable()">↺ Reset</button>
+                            <button class="reg-filters-toggle" onclick="toggleRegFilters(this)">
+                                🔍 Filtri <span class="reg-filters-toggle-icon">▼</span>
+                            </button>
+                            <div class="reg-filters-collapsible">
+                                <div class="reg-panel-filters-row">
+                                    <select id="msgFilterType" onchange="renderMessaggiTable()" class="reg-panel-select">
+                                        <option value="">Tutti i tipi</option>
+                                        <option value="booking">✔️ Prenotazioni</option>
+                                        <option value="cancellation">❌ Annullamenti</option>
+                                        <option value="new_client">🆕 Nuovi iscritti</option>
+                                    </select>
+                                    <input type="date" id="msgFilterDate" onchange="renderMessaggiTable()" class="reg-panel-date">
+                                    <button class="rfilter-btn rfilter-btn--reset" onclick="document.getElementById('msgFilterType').value='';document.getElementById('msgFilterDate').value='';renderMessaggiTable()">↺ Reset</button>
+                                </div>
+                            </div>
                         </div>
                         <div class="registro-table-wrap">
                             <table class="registro-table reg-panel-table">
@@ -647,22 +654,29 @@
                             <h3>📬 Notifiche ai clienti</h3>
                         </div>
                         <div class="reg-panel-filters">
-                            <select id="cnFilterType" onchange="renderClientNotifTable()" class="reg-panel-select">
-                                <option value="">Tutti i tipi</option>
-                                <option value="reminder_24h">⏰ Promemoria 24h</option>
-                                <option value="reminder_1h">⏰ Promemoria 1h</option>
-                                <option value="slot_available">🟢 Slot disponibile</option>
-                                <option value="broadcast">📢 Broadcast</option>
-                            </select>
-                            <select id="cnFilterStatus" onchange="renderClientNotifTable()" class="reg-panel-select">
-                                <option value="">Tutti gli stati</option>
-                                <option value="sent">✅ Inviata</option>
-                                <option value="failed">❌ Fallita</option>
-                                <option value="no_subscription">⚠️ No subscription</option>
-                            </select>
-                            <input type="text" id="cnFilterClient" placeholder="Cerca cliente..." oninput="_debouncedCnFilter()" class="reg-panel-search">
-                            <input type="date" id="cnFilterDate" onchange="renderClientNotifTable()" class="reg-panel-date">
-                            <button class="rfilter-btn rfilter-btn--reset" onclick="document.getElementById('cnFilterType').value='';document.getElementById('cnFilterStatus').value='';document.getElementById('cnFilterClient').value='';document.getElementById('cnFilterDate').value='';renderClientNotifTable()">↺ Reset</button>
+                            <button class="reg-filters-toggle" onclick="toggleRegFilters(this)">
+                                🔍 Filtri <span class="reg-filters-toggle-icon">▼</span>
+                            </button>
+                            <div class="reg-filters-collapsible">
+                                <div class="reg-panel-filters-row">
+                                    <select id="cnFilterType" onchange="renderClientNotifTable()" class="reg-panel-select">
+                                        <option value="">Tutti i tipi</option>
+                                        <option value="reminder_24h">⏰ Promemoria 24h</option>
+                                        <option value="reminder_1h">⏰ Promemoria 1h</option>
+                                        <option value="slot_available">🟢 Slot disponibile</option>
+                                        <option value="broadcast">📢 Broadcast</option>
+                                    </select>
+                                    <select id="cnFilterStatus" onchange="renderClientNotifTable()" class="reg-panel-select">
+                                        <option value="">Tutti gli stati</option>
+                                        <option value="sent">✅ Inviata</option>
+                                        <option value="failed">❌ Fallita</option>
+                                        <option value="no_subscription">⚠️ No subscription</option>
+                                    </select>
+                                    <input type="text" id="cnFilterClient" placeholder="Cerca cliente..." oninput="_debouncedCnFilter()" class="reg-panel-search">
+                                    <input type="date" id="cnFilterDate" onchange="renderClientNotifTable()" class="reg-panel-date">
+                                    <button class="rfilter-btn rfilter-btn--reset" onclick="document.getElementById('cnFilterType').value='';document.getElementById('cnFilterStatus').value='';document.getElementById('cnFilterClient').value='';document.getElementById('cnFilterDate').value='';renderClientNotifTable()">↺ Reset</button>
+                                </div>
+                            </div>
                         </div>
                         <div class="registro-table-wrap">
                             <table class="registro-table reg-panel-table">

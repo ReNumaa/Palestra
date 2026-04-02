@@ -4092,49 +4092,54 @@ canvas {
     letter-spacing: -0.01em;
 }
 
-/* Toggle filtri mobile */
-.registro-filters-toggle {
-    display: none;
+/* ── Collapsible filter toggle (all screens) ─────────────────────────────── */
+.reg-filters-toggle {
+    display: flex;
+    align-items: center;
+    gap: 0.45rem;
     width: 100%;
     background: none;
     border: none;
-    padding: 0.5rem 0;
-    font-size: 0.9rem;
+    padding: 0.4rem 0;
+    font-size: 0.85rem;
     font-weight: 700;
     color: #00AEEF;
     cursor: pointer;
     font-family: inherit;
     text-align: left;
-    align-items: center;
-    gap: 0.4rem;
-    letter-spacing: 0.01em;
+    letter-spacing: 0.02em;
+    transition: color 0.2s;
 }
-.registro-filters-toggle-icon {
-    font-size: 0.7rem;
-    transition: transform 0.25s ease;
+.reg-filters-toggle:hover { color: #0090cc; }
+.reg-filters-toggle-icon {
+    font-size: 0.65rem;
+    transition: transform 0.3s cubic-bezier(0.4,0,0.2,1);
     display: inline-block;
 }
-.registro-filters-toggle-icon.open {
+.reg-filters-toggle-icon.open {
     transform: rotate(180deg);
 }
-.registro-filters-body {
-    display: flex;
-    flex-direction: column;
-    gap: 0.85rem;
+
+.reg-filters-collapsible {
+    overflow: hidden;
+    max-height: 0;
+    opacity: 0;
+    transition: max-height 0.35s cubic-bezier(0.4,0,0.2,1), opacity 0.25s ease;
+}
+.reg-filters-collapsible.open {
+    max-height: 800px;
+    opacity: 1;
+}
+
+/* Legacy (unused, kept for safety) */
+.registro-filters-toggle { display: none; }
+
+/* Inner layout for main Registro collapsible body */
+.reg-filters-collapsible .registro-filter-row {
+    margin-top: 0.4rem;
 }
 
 @media (max-width: 640px) {
-    .registro-filters-toggle { display: flex; }
-    .registro-filters-body {
-        overflow: hidden;
-        max-height: 0;
-        opacity: 0;
-        transition: max-height 0.3s ease, opacity 0.2s ease;
-    }
-    .registro-filters-body.open {
-        max-height: 800px;
-        opacity: 1;
-    }
     .registro-filters { padding: 0.7rem 1rem; border-radius: 12px; }
     .registro-filter-row { flex-direction: column; }
     .registro-filter-group--sm,
@@ -6045,12 +6050,18 @@ canvas {
 }
 .reg-panel-filters {
     display: flex;
+    flex-direction: column;
     gap: 0.5rem;
     padding: 0.9rem 1.3rem;
-    flex-wrap: wrap;
-    align-items: center;
     background: #f8fafc;
     border-bottom: 1px solid #f1f5f9;
+}
+.reg-panel-filters-row {
+    display: flex;
+    gap: 0.5rem;
+    flex-wrap: wrap;
+    align-items: center;
+    padding-top: 0.4rem;
 }
 .reg-panel-select,
 .reg-panel-date,
@@ -6087,7 +6098,8 @@ canvas {
 }
 
 @media (max-width: 640px) {
-    .reg-panel-filters { flex-direction: column; padding: 0.7rem 1rem; }
+    .reg-panel-filters { padding: 0.7rem 1rem; }
+    .reg-panel-filters-row { flex-direction: column; }
     .reg-panel-select,
     .reg-panel-date,
     .reg-panel-search { width: 100%; }

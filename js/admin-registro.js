@@ -508,13 +508,20 @@ function registroPrevPage() {
     if (_registroState.page > 0) { _registroState.page--; renderRegistroTable(); }
 }
 
-// ── Toggle pannello filtri (mobile) ──────────────────────────────────────
-function toggleRegistroFiltersPanel() {
-    const body = document.getElementById('registroFiltersBody');
-    const icon = document.getElementById('registroFiltersToggleIcon');
+// ── Toggle pannello filtri (generico, usato da tutti i subtab) ──────────
+function toggleRegFilters(btn) {
+    const container = btn.parentElement;
+    const body = container.querySelector('.reg-filters-collapsible');
+    const icon = btn.querySelector('.reg-filters-toggle-icon');
     if (!body) return;
     body.classList.toggle('open');
     if (icon) icon.classList.toggle('open');
+}
+
+// Legacy alias
+function toggleRegistroFiltersPanel() {
+    const btn = document.querySelector('#tab-registro .reg-filters-toggle');
+    if (btn) toggleRegFilters(btn);
 }
 
 // ── Sub-tab switching dentro Registro ────────────────────────────────────
