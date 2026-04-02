@@ -162,32 +162,18 @@
             <div id="tab-clients" class="tab-content">
                 <div class="dashboard-card">
                     <div class="clients-search-bar" style="position:relative;">
-                        <div class="search-input-group">
-                            <input type="text" id="clientSearchInput"
-                                   placeholder="Cerca cliente.."
-                                   oninput="liveSearchClients()"
-                                   onkeydown="if(event.key==='Escape') closeClientsSearchDropdown()">
+                        <div class="clients-search-row">
+                            <div class="search-input-group" style="flex:1;">
+                                <input type="text" id="clientSearchInput"
+                                       placeholder="Cerca cliente.."
+                                       oninput="liveSearchClients()"
+                                       onkeydown="if(event.key==='Escape') closeClientsSearchDropdown()">
+                            </div>
+                            <button class="clients-filter-toggle" id="clientsFilterToggle" onclick="toggleClientsFiltersMenu()">
+                                <span class="filter-toggle-emoji">🔍</span><span class="filter-toggle-text"> Filtri</span> <span id="clientsFilterToggleArrow">▼</span>
+                            </button>
                         </div>
                         <div id="clientsSearchDropdown" class="debtor-search-dropdown" style="display:none;"></div>
-                    </div>
-                    <div class="payments-stats clients-stats-grid" id="clientsStatsGrid">
-                        <div class="payment-stat-card payment-stat-card--clickable payment-stat-card--clients" onclick="toggleClientsTotalList()" title="Clicca per vedere la lista">
-                            <div class="payment-stat-icon">👥</div>
-                            <h4>Clienti<br>Totali</h4>
-                            <p class="payment-total" id="clientsTotalCount">0</p>
-                            <span class="debtors-toggle-hint" id="clientsTotalHint">▼ Mostra lista</span>
-                        </div>
-                        <div class="payment-stat-card payment-stat-card--clickable payment-stat-card--clients" onclick="toggleClientsActiveList()" title="Clicca per vedere la lista">
-                            <div class="payment-stat-icon">💪</div>
-                            <h4>Clienti<br>Attivi</h4>
-                            <p class="payment-total" id="clientsActiveCount">0</p>
-                            <span class="debtors-toggle-hint" id="clientsActiveHint">▼ Mostra lista</span>
-                        </div>
-                    </div>
-                    <div class="clients-filter-bar" id="clientsFilterBar">
-                        <button class="clients-filter-toggle" id="clientsFilterToggle" onclick="toggleClientsFiltersMenu()">
-                            🔍 Filtri <span id="clientsFilterToggleArrow">▼</span>
-                        </button>
                         <div class="clients-filter-chips" id="clientsFilterChips">
                             <button class="clients-filter-chip" id="certFilterBtn" onclick="toggleCertFilter()">
                                 🏥 Senza certificato
@@ -204,6 +190,20 @@
                             <button class="clients-filter-chip" id="privacyFilterBtn" onclick="togglePrivacyFilter()">
                                 🔒 Anonimi
                             </button>
+                        </div>
+                    </div>
+                    <div class="payments-stats clients-stats-grid" id="clientsStatsGrid">
+                        <div class="payment-stat-card payment-stat-card--clickable payment-stat-card--clients" onclick="toggleClientsTotalList()" title="Clicca per vedere la lista">
+                            <div class="payment-stat-icon">👥</div>
+                            <h4>Clienti<br>Totali</h4>
+                            <p class="payment-total" id="clientsTotalCount">0</p>
+                            <span class="debtors-toggle-hint" id="clientsTotalHint">▼ Mostra lista</span>
+                        </div>
+                        <div class="payment-stat-card payment-stat-card--clickable payment-stat-card--clients" onclick="toggleClientsActiveList()" title="Clicca per vedere la lista">
+                            <div class="payment-stat-icon">💪</div>
+                            <h4>Clienti<br>Attivi</h4>
+                            <p class="payment-total" id="clientsActiveCount">0</p>
+                            <span class="debtors-toggle-hint" id="clientsActiveHint">▼ Mostra lista</span>
                         </div>
                     </div>
                     <div class="clients-list" id="clientsList" style="display:none;">

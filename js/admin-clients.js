@@ -191,9 +191,9 @@ function clearClientsSearch() {
     closeClientsSearchDropdown();
     // Ripristina stat cards e filtri
     const statsGrid = document.getElementById('clientsStatsGrid');
-    const filterBar = document.getElementById('clientsFilterBar');
+    const filterToggle = document.getElementById('clientsFilterToggle');
     if (statsGrid) statsGrid.style.display = '';
-    if (filterBar) filterBar.style.display = '';
+    if (filterToggle) filterToggle.style.display = '';
     // Nascondi lista (torna allo stato iniziale)
     const listEl = document.getElementById('clientsList');
     if (listEl) { listEl.innerHTML = ''; listEl.style.display = 'none'; }
@@ -223,9 +223,11 @@ function selectClientFromDropdown(index) {
     document.getElementById('clientSearchInput').value = client.name;
     // Nascondi stat cards e filtri durante la ricerca
     const statsGrid = document.getElementById('clientsStatsGrid');
-    const filterBar = document.getElementById('clientsFilterBar');
+    const filterToggle = document.getElementById('clientsFilterToggle');
+    const filterChips = document.getElementById('clientsFilterChips');
     if (statsGrid) statsGrid.style.display = 'none';
-    if (filterBar) filterBar.style.display = 'none';
+    if (filterToggle) filterToggle.style.display = 'none';
+    if (filterChips) filterChips.style.display = 'none';
     card.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
 }
 
@@ -342,9 +344,9 @@ function renderClientsTab() {
     renderClientsSummary();
     // Ripristina stat cards e filtri (nascosti durante ricerca)
     const statsGrid = document.getElementById('clientsStatsGrid');
-    const filterBar = document.getElementById('clientsFilterBar');
+    const filterToggle = document.getElementById('clientsFilterToggle');
     if (statsGrid) statsGrid.style.display = '';
-    if (filterBar) filterBar.style.display = '';
+    if (filterToggle) filterToggle.style.display = '';
     // Pulisci campo ricerca
     const searchInput = document.getElementById('clientSearchInput');
     if (searchInput) searchInput.value = '';

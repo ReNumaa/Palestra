@@ -1009,28 +1009,28 @@ canvas {
 .payment-stat-card--clients .payment-total { color: var(--primary-cyan-dark); }
 .payment-stat-card--clients .payment-stat-icon { background: rgba(0,174,239,0.10); }
 
-/* Filter bar */
-.clients-filter-bar {
+/* Search row: input + filter toggle inline */
+.clients-search-row {
     display: flex;
-    flex-direction: column;
     gap: 0.5rem;
-    margin-bottom: 1.25rem;
+    align-items: stretch;
 }
 
 .clients-filter-toggle {
-    align-self: flex-start;
     display: flex;
     align-items: center;
-    gap: 0.4rem;
+    gap: 0.3rem;
     background: #fff;
     border: 1.5px solid #e5e7eb;
     color: #6b7280;
     font-size: 0.85rem;
     font-weight: 600;
     padding: 0.4rem 0.9rem;
-    border-radius: 10px;
+    border-radius: 12px;
     cursor: pointer;
     transition: background 0.15s, border-color 0.15s, color 0.15s;
+    white-space: nowrap;
+    flex-shrink: 0;
 }
 
 .clients-filter-toggle:hover {
@@ -1045,10 +1045,13 @@ canvas {
     color: var(--primary-cyan-dark);
 }
 
+.filter-toggle-text { display: inline; }
+
 .clients-filter-chips {
     display: none;
     flex-wrap: wrap;
     gap: 0.45rem;
+    margin-top: 0.5rem;
 }
 
 .clients-filter-chips.open {
@@ -4619,77 +4622,8 @@ canvas {
     }
     .registro-subtabs::-webkit-scrollbar { display: none; }
     .registro-subtab { flex-shrink: 0; padding: 0.45rem 0.6rem; font-size: 0.72rem; border-radius: 9px; }
-
-    /* ── Card layout mobile ────────────────────────────── */
-    .registro-table-wrap {
-        overflow-x: visible;
-        border: none;
-        box-shadow: none;
-        border-radius: 0;
-    }
-    .registro-table {
-        min-width: unset;
-        border-collapse: separate;
-        border-spacing: 0 0.5rem;
-    }
-    .registro-table thead { display: none; }
-    .registro-table tbody { display: flex; flex-direction: column; gap: 0.5rem; }
-    .registro-row {
-        display: grid;
-        grid-template-columns: 1fr 1fr;
-        gap: 0.3rem 0.75rem;
-        background: #fff;
-        border: 1px solid #e2e8f0;
-        border-radius: 12px;
-        padding: 0.7rem 0.85rem;
-        box-shadow: 0 1px 4px rgba(0,0,0,0.04);
-    }
-    .registro-admin {
-        border-left: 3px solid #f87171;
-    }
-    .registro-admin td { background: #fef2f2; }
-    .registro-system {
-        border-left: 3px solid #4ade80;
-    }
-    .registro-system td { background: #f0fdf4; }
-    .registro-row td {
-        display: flex;
-        align-items: center;
-        justify-content: space-between;
-        padding: 0.2rem 0;
-        border-bottom: none;
-        font-size: 0.82rem;
-        min-height: 1.4rem;
-    }
-    .registro-row td::before {
-        content: attr(data-label);
-        font-weight: 700;
-        font-size: 0.7rem;
-        color: #64748b;
-        text-transform: uppercase;
-        letter-spacing: 0.04em;
-        flex-shrink: 0;
-        margin-right: 0.4rem;
-    }
-    /* Tipo e Cliente occupano tutta la larghezza */
-    .registro-row td:nth-child(1) { grid-column: 1 / -1; }
-    .registro-row td:nth-child(2) { grid-column: 1 / -1; }
-    .registro-row td:nth-child(3) { grid-column: 1 / -1; }
-    /* Nota occupa tutta la riga */
-    .registro-row td:nth-child(10) { grid-column: 1 / -1; }
-    .registro-row td:nth-child(10) .registro-note,
-    .registro-row td.registro-note {
-        max-width: none;
-        white-space: normal;
-        overflow: visible;
-        text-overflow: unset;
-    }
-    /* Importo più visibile */
-    .registro-row td.registro-amount { font-size: 0.9rem; }
-    /* Badge tipo full-width a sinistra */
-    .registro-row td:nth-child(2) { justify-content: flex-start; }
-    /* Client cell */
-    .registro-row td.registro-client { justify-content: flex-start; }
+    .registro-table { font-size: 0.85rem; }
+    .registro-table th { font-size: 0.72rem; }
 }
 
 /* Debt Threshold Setting */
@@ -5413,8 +5347,8 @@ canvas {
     .clients-search-bar { gap: 0.4rem; margin-bottom: 0.75rem; }
     .clients-search-bar input { padding: 0.7rem 1rem 0.7rem 2.5rem; font-size: 16px; }
 
-    .clients-filter-bar { gap: 0.35rem; margin-bottom: 0.9rem; }
-    .clients-filter-toggle { font-size: 0.8rem; padding: 0.35rem 0.75rem; }
+    .clients-filter-toggle { font-size: 0.85rem; padding: 0.35rem 0.6rem; }
+    .filter-toggle-text { display: none; }
     .clients-filter-chip { font-size: 0.72rem; padding: 0.25rem 0.65rem; }
 
     .client-card-header {
