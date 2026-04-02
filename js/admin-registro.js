@@ -520,7 +520,7 @@ function toggleRegFilters(btn) {
 
 // Legacy alias
 function toggleRegistroFiltersPanel() {
-    const btn = document.querySelector('#tab-registro .reg-filters-toggle');
+    const btn = document.querySelector('#tab-registro .reg-header-toggle');
     if (btn) toggleRegFilters(btn);
 }
 

@@ -4092,30 +4092,34 @@ canvas {
     letter-spacing: -0.01em;
 }
 
-/* ── Collapsible filter toggle (all screens) ─────────────────────────────── */
-.reg-filters-toggle {
+/* ── Header toggle (title + chevron) ──────────────────────────────────── */
+.reg-header-toggle {
     display: flex;
     align-items: center;
-    gap: 0.45rem;
+    justify-content: space-between;
     width: 100%;
     background: none;
     border: none;
-    padding: 0.4rem 0;
-    font-size: 0.85rem;
-    font-weight: 700;
-    color: #00AEEF;
+    padding: 0;
     cursor: pointer;
     font-family: inherit;
     text-align: left;
-    letter-spacing: 0.02em;
-    transition: color 0.2s;
 }
-.reg-filters-toggle:hover { color: #0090cc; }
+.reg-header-toggle h3 {
+    margin: 0;
+    font-size: 1.05rem;
+    font-weight: 800;
+    color: #0f172a;
+    letter-spacing: -0.02em;
+}
 .reg-filters-toggle-icon {
-    font-size: 0.65rem;
-    transition: transform 0.3s cubic-bezier(0.4,0,0.2,1);
+    font-size: 0.7rem;
+    color: #94a3b8;
+    transition: transform 0.3s cubic-bezier(0.4,0,0.2,1), color 0.2s;
     display: inline-block;
+    padding: 0.3rem;
 }
+.reg-header-toggle:hover .reg-filters-toggle-icon { color: #00AEEF; }
 .reg-filters-toggle-icon.open {
     transform: rotate(180deg);
 }
@@ -4131,8 +4135,9 @@ canvas {
     opacity: 1;
 }
 
-/* Legacy (unused, kept for safety) */
+/* Legacy (unused) */
 .registro-filters-toggle { display: none; }
+.reg-filters-toggle { display: none; }
 
 /* Inner layout for main Registro collapsible body */
 .reg-filters-collapsible .registro-filter-row {
@@ -6034,20 +6039,7 @@ canvas {
     overflow: hidden;
     box-shadow: 0 2px 8px rgba(0,0,0,0.04), 0 0 0 1px rgba(0,0,0,0.02);
 }
-.reg-panel-header {
-    padding: 1rem 1.3rem;
-    border-bottom: 2px solid transparent;
-    background-image: linear-gradient(#fff, #fff), linear-gradient(90deg, #00AEEF, transparent);
-    background-origin: padding-box, border-box;
-    background-clip: padding-box, border-box;
-}
-.reg-panel-header h3 {
-    margin: 0;
-    font-size: 1.1rem;
-    font-weight: 800;
-    color: #0f172a;
-    letter-spacing: -0.02em;
-}
+/* reg-panel-header removed — title now lives in reg-header-toggle inside reg-panel-filters */
 .reg-panel-filters {
     display: flex;
     flex-direction: column;
