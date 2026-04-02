@@ -26,19 +26,19 @@ function renderScheduleManager() {
     const weekHasAnySlot = weekDates.some(d => overrides[d.formatted] && overrides[d.formatted].length > 0);
 
     let html = `
-        <div class="admin-calendar-controls" style="margin-bottom: 1rem;">
-            <button class="btn-control" onclick="changeScheduleWeek(-1)">&larr; Settimana Precedente</button>
-            <h4>${firstDate.getDate()}/${firstDate.getMonth() + 1} - ${lastDate.getDate()}/${lastDate.getMonth() + 1}/${lastDate.getFullYear()}</h4>
-            <button class="btn-control" onclick="changeScheduleWeek(1)">Settimana Successiva &rarr;</button>
-        </div>
-        <div class="schedule-import-bar">
-            <span class="schedule-week-status ${weekHasAnySlot ? 'has-slots' : 'is-blank'}">
-                ${weekHasAnySlot ? '● Settimana configurata' : '○ Settimana vuota'}
-            </span>
-            <button class="btn-import-week" onclick="importWeekTemplate(${scheduleWeekOffset})">
-                📥 Importa: ${_escHtml(_getActiveTemplateName())}
-            </button>
-            ${weekHasAnySlot ? `<button class="btn-clear-week" onclick="clearWeekSchedule(${scheduleWeekOffset})">🗑 Svuota settimana</button>` : ''}
+        <div class="schedule-week-bar">
+            <div class="schedule-week-nav">
+                <button class="schedule-week-btn" onclick="changeScheduleWeek(-1)" title="Settimana precedente">&larr;</button>
+                <div class="schedule-week-title">
+                    <span class="schedule-week-dates">${firstDate.getDate()}/${firstDate.getMonth() + 1} – ${lastDate.getDate()}/${lastDate.getMonth() + 1}/${lastDate.getFullYear()}</span>
+                    <span class="schedule-week-status ${weekHasAnySlot ? 'has-slots' : 'is-blank'}">${weekHasAnySlot ? '● Configurata' : '○ Vuota'}</span>
+                </div>
+                <button class="schedule-week-btn" onclick="changeScheduleWeek(1)" title="Settimana successiva">&rarr;</button>
+            </div>
+            <div class="schedule-week-actions">
+                <button class="btn-import-week" onclick="importWeekTemplate(${scheduleWeekOffset})">📥 Importa: ${_escHtml(_getActiveTemplateName())}</button>
+                ${weekHasAnySlot ? `<button class="btn-clear-week" onclick="clearWeekSchedule(${scheduleWeekOffset})">🗑 Svuota</button>` : ''}
+            </div>
         </div>
     `;
 

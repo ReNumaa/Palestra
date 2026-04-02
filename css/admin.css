@@ -1432,59 +1432,11 @@ canvas {
     animation: msg-fade-in 0.4s ease-out;
 }
 
-/* Week nav controls inside schedule — refined buttons */
-#scheduleManager .admin-calendar-controls {
-    background: #fff;
-    border: 1px solid #e2e8f0;
-    border-radius: 14px;
-    padding: 0.75rem 1.3rem;
-    box-shadow: 0 2px 8px rgba(0,0,0,0.04), 0 0 0 1px rgba(0,0,0,0.02);
-    position: relative;
-    overflow: hidden;
-    margin-bottom: 0;
-}
-#scheduleManager .admin-calendar-controls::before {
-    content: "";
-    position: absolute;
-    top: 0; left: 0; right: 0;
-    height: 3px;
-    background: linear-gradient(90deg, #00AEEF, #0090cc, #00AEEF);
-    background-size: 200% 100%;
-}
-#scheduleManager .admin-calendar-controls h4 {
-    font-size: 1.1rem;
-    font-weight: 800;
-    color: #0f172a;
-    letter-spacing: -0.02em;
-}
-#scheduleManager .btn-control {
-    background: linear-gradient(135deg, #0f172a, #1e293b);
-    color: #fff;
-    border: none;
-    border-radius: 10px;
-    padding: 0.55rem 1rem;
-    font-size: 0.82rem;
-    font-weight: 700;
-    font-family: inherit;
-    cursor: pointer;
-    transition: all 0.25s cubic-bezier(0.4,0,0.2,1);
-    box-shadow: 0 2px 6px rgba(0,0,0,0.12);
-}
-#scheduleManager .btn-control:hover {
-    box-shadow: 0 4px 12px rgba(0,0,0,0.2);
-    transform: translateY(-1px);
-}
-#scheduleManager .btn-control:active {
-    transform: translateY(0);
-    box-shadow: 0 1px 3px rgba(0,0,0,0.1);
-}
-
-/* Import bar — styled as a card with cyan top accent */
-.schedule-import-bar {
+/* ── Week bar — unified nav + actions card ──────────────────────────────── */
+.schedule-week-bar {
     display: flex;
-    align-items: center;
-    gap: 0.75rem;
-    flex-wrap: wrap;
+    flex-direction: column;
+    gap: 0.65rem;
     padding: 1rem 1.3rem;
     background: #fff;
     border: 1px solid #e2e8f0;
@@ -1493,7 +1445,7 @@ canvas {
     position: relative;
     overflow: hidden;
 }
-.schedule-import-bar::before {
+.schedule-week-bar::before {
     content: "";
     position: absolute;
     top: 0; left: 0; right: 0;
@@ -1502,15 +1454,77 @@ canvas {
     background-size: 200% 100%;
 }
 
-.schedule-week-status {
-    flex: 1;
-    font-size: 0.88rem;
-    font-weight: 700;
-    letter-spacing: -0.01em;
+/* Top row: arrows + date range + status */
+.schedule-week-nav {
+    display: flex;
+    align-items: center;
+    gap: 0.6rem;
+}
+.schedule-week-btn {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 36px;
+    height: 36px;
+    background: linear-gradient(135deg, #0f172a, #1e293b);
+    color: #fff;
+    border: none;
+    border-radius: 10px;
+    font-size: 1rem;
+    font-family: inherit;
+    cursor: pointer;
+    transition: all 0.25s cubic-bezier(0.4,0,0.2,1);
+    box-shadow: 0 2px 6px rgba(0,0,0,0.12);
+    flex-shrink: 0;
+}
+.schedule-week-btn:hover {
+    box-shadow: 0 4px 12px rgba(0,0,0,0.2);
+    transform: translateY(-1px);
+}
+.schedule-week-btn:active {
+    transform: translateY(0);
+    box-shadow: 0 1px 3px rgba(0,0,0,0.1);
 }
 
-.schedule-week-status.has-slots { color: #00AEEF; }
-.schedule-week-status.is-blank  { color: #94a3b8; }
+.schedule-week-title {
+    flex: 1;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 0.6rem;
+    flex-wrap: wrap;
+}
+.schedule-week-dates {
+    font-size: 1.05rem;
+    font-weight: 800;
+    color: #0f172a;
+    letter-spacing: -0.02em;
+}
+.schedule-week-status {
+    font-size: 0.72rem;
+    font-weight: 700;
+    letter-spacing: 0.04em;
+    padding: 0.2rem 0.6rem;
+    border-radius: 20px;
+}
+.schedule-week-status.has-slots {
+    color: #00AEEF;
+    background: rgba(0,174,239,0.08);
+}
+.schedule-week-status.is-blank {
+    color: #94a3b8;
+    background: #f1f5f9;
+}
+
+/* Bottom row: action buttons */
+.schedule-week-actions {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    justify-content: center;
+    padding-top: 0.55rem;
+    border-top: 1px solid #f1f5f9;
+}
 
 .btn-import-week {
     display: inline-flex;
@@ -1520,8 +1534,8 @@ canvas {
     color: white;
     border: none;
     border-radius: 10px;
-    padding: 0.55rem 1.1rem;
-    font-size: 0.85rem;
+    padding: 0.5rem 1rem;
+    font-size: 0.82rem;
     font-weight: 700;
     font-family: inherit;
     cursor: pointer;
@@ -1545,8 +1559,8 @@ canvas {
     background: #fff;
     border: 1.5px solid #e2e8f0;
     border-radius: 10px;
-    padding: 0.5rem 1rem;
-    font-size: 0.85rem;
+    padding: 0.45rem 0.9rem;
+    font-size: 0.82rem;
     font-weight: 600;
     font-family: inherit;
     color: #64748b;
@@ -2082,35 +2096,24 @@ canvas {
 
 /* ── Schedule Manager — Mobile ─────────────────────────────────────────── */
 @media (max-width: 768px) {
-    #scheduleManager .admin-calendar-controls {
-        padding: 0.6rem 0.9rem;
-        border-radius: 12px;
-        gap: 0.5rem;
-    }
-    #scheduleManager .admin-calendar-controls h4 { font-size: 0.88rem; }
-    #scheduleManager .btn-control {
-        font-size: 0.72rem;
-        padding: 0.42rem 0.7rem;
-        border-radius: 8px;
-    }
-
-    .schedule-import-bar {
-        padding: 0.75rem 1rem;
+    .schedule-week-bar {
+        padding: 0.75rem 0.9rem;
         gap: 0.5rem;
         border-radius: 12px;
     }
-    .schedule-week-status { font-size: 0.8rem; }
+    .schedule-week-btn { width: 32px; height: 32px; font-size: 0.9rem; border-radius: 8px; }
+    .schedule-week-dates { font-size: 0.88rem; }
+    .schedule-week-status { font-size: 0.65rem; padding: 0.15rem 0.5rem; }
+    .schedule-week-actions { gap: 0.4rem; padding-top: 0.45rem; }
     .btn-import-week {
-        font-size: 0.78rem;
-        padding: 0.45rem 0.85rem;
-        width: 100%;
+        font-size: 0.75rem;
+        padding: 0.4rem 0.8rem;
+        flex: 1;
         justify-content: center;
     }
     .btn-clear-week {
-        font-size: 0.78rem;
-        padding: 0.4rem 0.75rem;
-        width: 100%;
-        justify-content: center;
+        font-size: 0.75rem;
+        padding: 0.35rem 0.7rem;
     }
 
     .schedule-day-tabs {
