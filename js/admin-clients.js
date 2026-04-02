@@ -163,6 +163,11 @@ function selectClientFromDropdown(index) {
 
     closeClientsSearchDropdown();
     document.getElementById('clientSearchInput').value = client.name;
+    // Nascondi stat cards e filtri durante la ricerca
+    const statsGrid = document.getElementById('clientsStatsGrid');
+    const filterBar = document.getElementById('clientsFilterBar');
+    if (statsGrid) statsGrid.style.display = 'none';
+    if (filterBar) filterBar.style.display = 'none';
     card.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
 }
 
@@ -277,6 +282,15 @@ function _refreshOpenClientCard(whatsapp, email) {
 
 function renderClientsTab() {
     renderClientsSummary();
+    // Ripristina stat cards e filtri (nascosti durante ricerca)
+    const statsGrid = document.getElementById('clientsStatsGrid');
+    const filterBar = document.getElementById('clientsFilterBar');
+    if (statsGrid) statsGrid.style.display = '';
+    if (filterBar) filterBar.style.display = '';
+    // Pulisci campo ricerca
+    const searchInput = document.getElementById('clientSearchInput');
+    if (searchInput) searchInput.value = '';
+    closeClientsSearchDropdown();
     const listEl = document.getElementById('clientsList');
     const hasFilter = clientCertFilter || clientAssicFilter || clientAnagFilter;
     if (!clientsListMode && !hasFilter) {

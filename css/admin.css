@@ -1004,43 +1004,50 @@ canvas {
     top: 42px;
 }
 
-.clients-filter-row {
-    display: flex;
-    flex-direction: column;
-    gap: 0.5rem;
-}
+/* Stat cards — clients theme */
+.payment-stat-card--clients::before { background: linear-gradient(180deg, var(--primary-cyan), #0284c7); }
+.payment-stat-card--clients .payment-total { color: var(--primary-cyan-dark); }
+.payment-stat-card--clients .payment-stat-icon { background: rgba(0,174,239,0.10); }
 
-.clients-filter-toggle {
-    display: none;
-}
-
-.clients-filter-btns {
+/* Filter chips bar */
+.clients-filter-bar {
     display: flex;
     flex-wrap: wrap;
-    gap: 0.5rem;
-    justify-content: center;
+    align-items: center;
+    gap: 0.45rem;
+    margin-bottom: 1.25rem;
 }
 
-.clients-cert-filter-btn {
-    background: none;
+.clients-filter-label {
+    font-size: 0.78rem;
+    font-weight: 600;
+    color: #9ca3af;
+    text-transform: uppercase;
+    letter-spacing: 0.04em;
+    margin-right: 0.15rem;
+}
+
+.clients-filter-chip {
+    background: #fff;
     border: 1.5px solid #e5e7eb;
     color: #6b7280;
-    font-size: 0.82rem;
+    font-size: 0.8rem;
     font-weight: 600;
-    padding: 0.35rem 0.85rem;
+    padding: 0.3rem 0.8rem;
     border-radius: 20px;
     cursor: pointer;
-    transition: background 0.15s, border-color 0.15s, color 0.15s;
+    transition: background 0.15s, border-color 0.15s, color 0.15s, box-shadow 0.15s;
 }
-.clients-cert-filter-btn:hover {
+.clients-filter-chip:hover {
     background: #fef2f2;
-    border-color: #dc2626;
+    border-color: #fca5a5;
     color: #dc2626;
 }
-.clients-cert-filter-btn.active {
+.clients-filter-chip.active {
     background: #fef2f2;
-    border-color: #dc2626;
+    border-color: #ef4444;
     color: #dc2626;
+    box-shadow: 0 1px 4px rgba(239,68,68,0.15);
 }
 
 .clients-list {
@@ -1052,22 +1059,34 @@ canvas {
 .client-card {
     border: 1px solid #e5e7eb;
     border-left: 4px solid var(--primary-cyan);
-    border-radius: 10px;
+    border-radius: 14px;
     overflow: hidden;
-    transition: box-shadow 0.18s;
+    transition: box-shadow 0.2s, border-left-color 0.2s;
+    box-shadow: 0 1px 3px rgba(0,0,0,0.03);
 }
 
-.client-card:hover { box-shadow: 0 2px 10px rgba(0,0,0,0.08); }
-.client-card.open  { box-shadow: 0 3px 14px rgba(0,0,0,0.11); }
+.client-card:hover {
+    box-shadow: 0 4px 14px rgba(0,0,0,0.07);
+    border-left-color: var(--primary-cyan-dark);
+}
+.client-card.open {
+    box-shadow: 0 4px 18px rgba(0,0,0,0.10);
+    border-left-color: var(--primary-cyan-dark);
+}
 
 .client-card-header {
     display: flex;
     align-items: center;
     gap: 1rem;
-    padding: 1rem 1.25rem;
+    padding: 1rem 1.15rem;
     cursor: pointer;
-    background: #fafafa;
+    background: #fff;
     user-select: none;
+    transition: background 0.15s;
+}
+
+.client-card-header:hover {
+    background: #fafbfc;
 }
 
 .client-card.open .client-card-header {
@@ -5365,32 +5384,10 @@ canvas {
     /* -- Clients tab -- */
     .clients-search-bar { gap: 0.4rem; margin-bottom: 0.75rem; }
     .clients-search-bar input { padding: 0.7rem 1rem 0.7rem 2.5rem; font-size: 16px; }
-    .clients-cert-filter-btn { font-size: 0.82rem; padding: 0.35rem 0.85rem; }
 
-    .clients-filter-toggle {
-        display: flex;
-        align-items: center;
-        gap: 0.4rem;
-        background: none;
-        border: 1.5px solid #e5e7eb;
-        color: #6b7280;
-        font-size: 0.85rem;
-        font-weight: 600;
-        padding: 0.4rem 0.85rem;
-        border-radius: 20px;
-        cursor: pointer;
-        align-self: center;
-    }
-    .clients-filter-btns {
-        display: none;
-        flex-direction: row;
-        flex-wrap: wrap;
-        gap: 0.4rem;
-        justify-content: center;
-    }
-    .clients-filter-btns.open {
-        display: flex;
-    }
+    .clients-filter-bar { gap: 0.35rem; margin-bottom: 0.9rem; }
+    .clients-filter-label { font-size: 0.7rem; }
+    .clients-filter-chip { font-size: 0.72rem; padding: 0.25rem 0.65rem; }
 
     .client-card-header {
         flex-direction: column;

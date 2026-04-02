@@ -169,36 +169,32 @@
                                    onkeydown="if(event.key==='Escape') closeClientsSearchDropdown()">
                         </div>
                         <div id="clientsSearchDropdown" class="debtor-search-dropdown" style="display:none;"></div>
-                        <div class="clients-filter-row">
-                            <button class="clients-filter-toggle" id="clientsFilterToggle" onclick="toggleClientsFiltersMenu()">
-                                🔍 Filtri <span id="clientsFilterToggleArrow">▼</span>
-                            </button>
-                            <div class="clients-filter-btns" id="clientsFilterBtns">
-                                <button class="clients-cert-filter-btn" id="certFilterBtn" onclick="toggleCertFilter()">
-                                    🏥 Senza certificato
-                                </button>
-                                <button class="clients-cert-filter-btn" id="assicFilterBtn" onclick="toggleAssicFilter()">
-                                    📋 Senza assicurazione
-                                </button>
-                                <button class="clients-cert-filter-btn" id="anagFilterBtn" onclick="toggleAnagFilter()">
-                                    📝 Senza anagrafica
-                                </button>
-                            </div>
-                        </div>
                     </div>
-                    <div class="payments-stats">
-                        <div class="payment-stat-card payment-stat-card--clickable" onclick="toggleClientsTotalList()" title="Clicca per vedere la lista">
+                    <div class="payments-stats clients-stats-grid" id="clientsStatsGrid">
+                        <div class="payment-stat-card payment-stat-card--clickable payment-stat-card--clients" onclick="toggleClientsTotalList()" title="Clicca per vedere la lista">
                             <div class="payment-stat-icon">👥</div>
-                            <h4>Clienti Totali</h4>
+                            <h4>Clienti<br>Totali</h4>
                             <p class="payment-total" id="clientsTotalCount">0</p>
                             <span class="debtors-toggle-hint" id="clientsTotalHint">▼ Mostra lista</span>
                         </div>
-                        <div class="payment-stat-card payment-stat-card--clickable" onclick="toggleClientsActiveList()" title="Clicca per vedere la lista">
+                        <div class="payment-stat-card payment-stat-card--clickable payment-stat-card--clients" onclick="toggleClientsActiveList()" title="Clicca per vedere la lista">
                             <div class="payment-stat-icon">💪</div>
-                            <h4>Clienti Attivi</h4>
+                            <h4>Clienti<br>Attivi</h4>
                             <p class="payment-total" id="clientsActiveCount">0</p>
                             <span class="debtors-toggle-hint" id="clientsActiveHint">▼ Mostra lista</span>
                         </div>
+                    </div>
+                    <div class="clients-filter-bar" id="clientsFilterBar">
+                        <span class="clients-filter-label">Filtri:</span>
+                        <button class="clients-filter-chip" id="certFilterBtn" onclick="toggleCertFilter()">
+                            🏥 Senza certificato
+                        </button>
+                        <button class="clients-filter-chip" id="assicFilterBtn" onclick="toggleAssicFilter()">
+                            📋 Senza assicurazione
+                        </button>
+                        <button class="clients-filter-chip" id="anagFilterBtn" onclick="toggleAnagFilter()">
+                            📝 Senza anagrafica
+                        </button>
                     </div>
                     <div class="clients-list" id="clientsList" style="display:none;">
                         <!-- Populated by JavaScript -->
