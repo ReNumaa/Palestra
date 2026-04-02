@@ -13,7 +13,7 @@
     <link rel="icon" type="image/jpeg" href="images/logo-tb---nero.jpg">
     <link rel="stylesheet" href="css/style.css?v=8">
     <link rel="stylesheet" href="css/login.css?v=4">
-    <link rel="stylesheet" href="css/allenamento.css?v=2">
+    <link rel="stylesheet" href="css/allenamento.css?v=3">
 </head>
 <body class="allenamento-body">
     <nav class="navbar">
@@ -98,6 +98,7 @@
         let _allPlan = null;
         let _allPlans = [];  // tutte le schede (attive e vecchie)
         let _allLogs = [];
+        let _activeDay = null;  // giorno selezionato (session picker)
         let _filterPeriod = 'all';
         let _filterMuscle = 'all';
 
@@ -208,6 +209,55 @@
             }
         }
 
+        // ── Helpers: last-done per day, previous session per exercise ──
+        function _dayLastDone(dayLabel) {
+            // Trova la data più recente in cui è stato loggato qualcosa per un esercizio di questo giorno
+            const dayExIds = new Set(
+                (_allPlan?.workout_exercises || []).filter(e => e.day_label === dayLabel).map(e => e.id)
+            );
+            let latest = null;
+            for (const l of _allLogs) {
+                if (dayExIds.has(l.exercise_id) && (!latest || l.log_date > latest)) latest = l.log_date;
+            }
+            return latest;
+        }
+
+        function _dayDoneToday(dayLabel) {
+            const today = _localDateStr();
+            const dayExIds = new Set(
+                (_allPlan?.workout_exercises || []).filter(e => e.day_label === dayLabel).map(e => e.id)
+            );
+            // Considerato fatto se almeno 1 esercizio ha log oggi
+            return _allLogs.some(l => l.exercise_id && dayExIds.has(l.exercise_id) && l.log_date === today);
+        }
+
+        function _prevSessionLogs(exerciseId) {
+            // Restituisce i log della sessione precedente (non oggi) per questo esercizio
+            const today = _localDateStr();
+            const prevLogs = _allLogs.filter(l => l.exercise_id === exerciseId && l.log_date < today);
+            if (!prevLogs.length) return [];
+            // Prendi la data più recente
+            const latestDate = prevLogs.reduce((max, l) => l.log_date > max ? l.log_date : max, prevLogs[0].log_date);
+            return prevLogs.filter(l => l.log_date === latestDate).sort((a, b) => a.set_number - b.set_number);
+        }
+
+        function _suggestDay(days) {
+            // Suggerisci il giorno fatto più tempo fa, o mai fatto
+            let best = null;
+            let bestDate = 'zzzz'; // sempre dopo qualsiasi data
+            for (const day of days) {
+                const last = _dayLastDone(day);
+                if (!last) return day; // mai fatto → suggerisci subito
+                if (last < bestDate) { bestDate = last; best = day; }
+            }
+            return best || days[0];
+        }
+
+        function switchDay(dayLabel) {
+            _activeDay = dayLabel;
+            renderScheda();
+        }
+
         // ── Render Scheda ─────────────────────────────────────────────────
         function renderScheda() {
             const container = document.getElementById('allContent');
@@ -218,9 +268,12 @@
             const today = _localDateStr();
             const todayLogs = _allLogs.filter(l => l.log_date === today);
 
+            // Auto-select day
+            if (!_activeDay || !days.includes(_activeDay)) _activeDay = _suggestDay(days);
+
             let html = '';
 
-            // Plan info card
+            // Plan info card (compact)
             html += `<div class="all-plan-card">
                 <div class="all-plan-name">${_escHtml(_allPlan.name)}</div>
                 ${_allPlan.notes ? `<div class="all-plan-notes">${_escHtml(_allPlan.notes)}</div>` : ''}
@@ -230,57 +283,88 @@
                 </div>
             </div>`;
 
-            // Day sections
+            // ── Day selector tabs ────────────────────────────────────────
+            html += '<div class="all-day-tabs">';
             for (const day of days) {
-                const dayExercises = exercises.filter(e => e.day_label === day);
-                html += `<div class="all-day">
-                    <div class="all-day-header">
-                        <span class="all-day-label">${_escHtml(day)}</span>
-                        <span class="all-day-count">${dayExercises.length} esercizi</span>
-                    </div>`;
+                const isActive = day === _activeDay;
+                const doneToday = _dayDoneToday(day);
+                const lastDone = _dayLastDone(day);
+                const lastStr = doneToday ? 'oggi' : lastDone ? _fmtDateAll(lastDone) : 'mai';
 
-                for (const ex of dayExercises) {
-                    const target = `${ex.sets} × ${ex.reps}${ex.weight_kg != null ? ' @ ' + ex.weight_kg + ' kg' : ''}`;
-                    const hasLogs = todayLogs.some(l => l.exercise_id === ex.id);
+                html += `<button class="all-day-tab ${isActive ? 'active' : ''} ${doneToday ? 'done' : ''}" onclick="switchDay('${_escHtml(day)}')">
+                    <span class="all-day-tab-name">${_escHtml(day)}${doneToday ? ' &#10003;' : ''}</span>
+                    <span class="all-day-tab-last">ultimo: ${lastStr}</span>
+                </button>`;
+            }
+            html += '</div>';
 
-                    html += `<div class="all-ex-card ${hasLogs ? 'all-ex-done' : ''}" id="ex-${ex.id}">
-                        <div class="all-ex-header" onclick="toggleExCard('${ex.id}')">
-                            <div class="all-ex-info">
-                                <div class="all-ex-name">${_escHtml(ex.exercise_name)}</div>
-                                <div class="all-ex-target">${target}${ex.rest_seconds ? ' &middot; rec. ' + ex.rest_seconds + 's' : ''}</div>
-                            </div>
-                            <div class="all-ex-status">${hasLogs ? '<span class="all-ex-check">&#10003;</span>' : '<span class="all-ex-chevron">&#9662;</span>'}</div>
+            // ── Exercises for selected day only ──────────────────────────
+            const dayExercises = exercises.filter(e => e.day_label === _activeDay);
+            const dayDoneCount = dayExercises.filter(ex => todayLogs.some(l => l.exercise_id === ex.id)).length;
+
+            html += `<div class="all-day">
+                <div class="all-day-header">
+                    <span class="all-day-label">${_escHtml(_activeDay)}</span>
+                    <span class="all-day-count">${dayDoneCount}/${dayExercises.length} completati</span>
+                </div>`;
+
+            for (const ex of dayExercises) {
+                const target = `${ex.sets} × ${ex.reps}${ex.weight_kg != null ? ' @ ' + ex.weight_kg + ' kg' : ''}`;
+                const hasLogs = todayLogs.some(l => l.exercise_id === ex.id);
+                const prevLogs = _prevSessionLogs(ex.id);
+
+                html += `<div class="all-ex-card ${hasLogs ? 'all-ex-done' : ''}" id="ex-${ex.id}">
+                    <div class="all-ex-header" onclick="toggleExCard('${ex.id}')">
+                        <div class="all-ex-info">
+                            <div class="all-ex-name">${_escHtml(ex.exercise_name)}</div>
+                            <div class="all-ex-target">${target}${ex.rest_seconds ? ' &middot; rec. ' + ex.rest_seconds + 's' : ''}</div>
                         </div>
-                        <div class="all-ex-body">
-                            ${ex.notes ? `<div class="all-ex-note">${_escHtml(ex.notes)}</div>` : ''}
-                            <div class="all-log-section" data-ex-id="${ex.id}">
-                                <div class="all-log-header">Registra per oggi — ${_fmtDateAll(today)}</div>
-                                <div class="all-log-grid">
-                                    <div class="all-log-grid-header">
-                                        <span>Serie</span><span>Reps</span><span>Kg</span><span>RPE</span>
-                                    </div>`;
+                        <div class="all-ex-status">${hasLogs ? '<span class="all-ex-check">&#10003;</span>' : '<span class="all-ex-chevron">&#9662;</span>'}</div>
+                    </div>
+                    <div class="all-ex-body">
+                        ${ex.notes ? `<div class="all-ex-note">${_escHtml(ex.notes)}</div>` : ''}`;
 
-                    for (let s = 1; s <= ex.sets; s++) {
-                        const existing = todayLogs.find(l => l.exercise_id === ex.id && l.set_number === s);
-                        const rVal = existing?.reps_done ?? (parseInt(ex.reps) || '');
-                        const wVal = existing?.weight_done ?? (ex.weight_kg ?? '');
-                        const rpeVal = existing?.rpe ?? '';
-                        html += `<div class="all-log-row">
-                            <span class="all-log-set">${s}</span>
-                            <input type="number" inputmode="numeric" min="0" value="${rVal}" class="all-log-input" data-field="reps" data-set="${s}">
-                            <input type="number" inputmode="decimal" min="0" step="0.5" value="${wVal}" class="all-log-input" data-field="weight" data-set="${s}">
-                            <input type="number" inputmode="numeric" min="1" max="10" value="${rpeVal}" class="all-log-input all-log-input--sm" data-field="rpe" data-set="${s}" placeholder="—">
-                        </div>`;
+                // Previous session reference
+                if (prevLogs.length) {
+                    const prevDate = prevLogs[0].log_date;
+                    html += `<div class="all-prev-session">
+                        <span class="all-prev-label">Sessione precedente — ${_fmtDateAll(prevDate)}</span>
+                        <div class="all-prev-sets">`;
+                    for (const pl of prevLogs) {
+                        html += `<span class="all-prev-set">${pl.set_number}. ${pl.reps_done || '—'}×${pl.weight_done != null ? pl.weight_done + 'kg' : '—'}${pl.rpe ? ' RPE ' + pl.rpe : ''}</span>`;
                     }
+                    html += `</div></div>`;
+                }
 
-                    html += `</div>
-                                <button class="all-log-save" onclick="saveLog('${ex.id}', ${ex.sets}, this)">Salva</button>
-                            </div>
-                        </div>
+                html += `<div class="all-log-section" data-ex-id="${ex.id}">
+                            <div class="all-log-header">Registra per oggi — ${_fmtDateAll(today)}</div>
+                            <div class="all-log-grid">
+                                <div class="all-log-grid-header">
+                                    <span>Serie</span><span>Reps</span><span>Kg</span><span>RPE</span>
+                                </div>`;
+
+                for (let s = 1; s <= ex.sets; s++) {
+                    const existing = todayLogs.find(l => l.exercise_id === ex.id && l.set_number === s);
+                    const prev = prevLogs.find(l => l.set_number === s);
+                    // Priorità: log di oggi → valori sessione precedente → default scheda
+                    const rVal = existing?.reps_done ?? prev?.reps_done ?? (parseInt(ex.reps) || '');
+                    const wVal = existing?.weight_done ?? prev?.weight_done ?? (ex.weight_kg ?? '');
+                    const rpeVal = existing?.rpe ?? '';
+                    html += `<div class="all-log-row">
+                        <span class="all-log-set">${s}</span>
+                        <input type="number" inputmode="numeric" min="0" value="${rVal}" class="all-log-input" data-field="reps" data-set="${s}">
+                        <input type="number" inputmode="decimal" min="0" step="0.5" value="${wVal}" class="all-log-input" data-field="weight" data-set="${s}">
+                        <input type="number" inputmode="numeric" min="1" max="10" value="${rpeVal}" class="all-log-input all-log-input--sm" data-field="rpe" data-set="${s}" placeholder="—">
                     </div>`;
                 }
-                html += '</div>';
+
+                html += `</div>
+                            <button class="all-log-save" onclick="saveLog('${ex.id}', ${ex.sets}, this)">Salva</button>
+                        </div>
+                    </div>
+                </div>`;
             }
+            html += '</div>';
 
             container.innerHTML = html;
         }
