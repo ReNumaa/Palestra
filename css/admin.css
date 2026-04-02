@@ -1466,24 +1466,27 @@ canvas {
     justify-content: center;
     width: 36px;
     height: 36px;
-    background: linear-gradient(135deg, #0f172a, #1e293b);
-    color: #fff;
-    border: none;
+    background: linear-gradient(135deg, #f1f5f9, #e8ecf1);
+    color: #334155;
+    border: 1px solid #e2e8f0;
     border-radius: 10px;
     font-size: 1rem;
     font-family: inherit;
     cursor: pointer;
     transition: all 0.25s cubic-bezier(0.4,0,0.2,1);
-    box-shadow: 0 2px 6px rgba(0,0,0,0.12);
+    box-shadow: 0 1px 3px rgba(0,0,0,0.06);
     flex-shrink: 0;
 }
 .schedule-week-btn:hover {
-    box-shadow: 0 4px 12px rgba(0,0,0,0.2);
+    background: linear-gradient(135deg, #00AEEF, #0090cc);
+    color: #fff;
+    border-color: #00AEEF;
+    box-shadow: 0 3px 10px rgba(0,174,239,0.3);
     transform: translateY(-1px);
 }
 .schedule-week-btn:active {
     transform: translateY(0);
-    box-shadow: 0 1px 3px rgba(0,0,0,0.1);
+    box-shadow: 0 1px 4px rgba(0,174,239,0.2);
 }
 
 .schedule-week-title {
@@ -1575,16 +1578,17 @@ canvas {
     box-shadow: 0 2px 8px rgba(239,68,68,0.1);
 }
 
-/* Day tabs — dark subnav pill bar, mirrors .schede-subnav */
+/* Day tabs — soft pill bar */
 .schedule-day-tabs {
     display: flex;
     gap: 4px;
     padding: 4px;
     flex-wrap: wrap;
     justify-content: center;
-    background: linear-gradient(135deg, #0f172a, #1e293b);
+    background: linear-gradient(135deg, #f1f5f9, #e8ecf1);
+    border: 1px solid #e2e8f0;
     border-radius: 14px;
-    box-shadow: 0 2px 12px rgba(0,0,0,0.15), inset 0 1px 0 rgba(255,255,255,0.05);
+    box-shadow: 0 1px 4px rgba(0,0,0,0.04);
 }
 
 .schedule-day-tab {
@@ -1597,7 +1601,7 @@ canvas {
     cursor: pointer;
     transition: all 0.25s cubic-bezier(0.4,0,0.2,1);
     border: none;
-    color: #94a3b8;
+    color: #64748b;
     font-family: inherit;
 }
 .schedule-day-tab .admin-day-name {
@@ -1618,14 +1622,14 @@ canvas {
 }
 
 .schedule-day-tab:hover {
-    background: rgba(255,255,255,0.06);
-    color: #cbd5e1;
+    background: rgba(255,255,255,0.7);
+    color: #334155;
 }
 
 .schedule-day-tab.active {
     background: linear-gradient(135deg, #00AEEF, #0090cc);
     color: white;
-    box-shadow: 0 2px 10px rgba(0,174,239,0.4), inset 0 1px 0 rgba(255,255,255,0.15);
+    box-shadow: 0 2px 8px rgba(0,174,239,0.3);
 }
 .schedule-day-tab.active .admin-day-count {
     opacity: 1;
@@ -1642,7 +1646,8 @@ canvas {
 }
 
 .schedule-day-tab.missing-client {
-    box-shadow: inset 0 0 0 2px rgba(252,165,165,0.5);
+    box-shadow: inset 0 0 0 2px rgba(252,165,165,0.6);
+    background: rgba(254,226,226,0.5);
 }
 .schedule-day-tab.missing-client.active {
     background: linear-gradient(135deg, #00AEEF, #0090cc);
@@ -4018,16 +4023,17 @@ canvas {
     gap: 0;
     margin-bottom: 1.5rem;
     padding: 4px;
-    background: linear-gradient(135deg, #0f172a, #1e293b);
+    background: linear-gradient(135deg, #f1f5f9, #e8ecf1);
+    border: 1px solid #e2e8f0;
     border-radius: 14px;
-    box-shadow: 0 2px 12px rgba(0,0,0,0.15), inset 0 1px 0 rgba(255,255,255,0.05);
+    box-shadow: 0 1px 4px rgba(0,0,0,0.04);
 }
 .registro-subtab {
     flex: 1;
     padding: 0.6rem 1rem;
     border: none;
     background: transparent;
-    color: #94a3b8;
+    color: #64748b;
     font-size: 0.82rem;
     font-weight: 700;
     border-radius: 11px;
@@ -4039,14 +4045,13 @@ canvas {
     white-space: nowrap;
 }
 .registro-subtab:hover {
-    color: #e2e8f0;
-    background: rgba(255,255,255,0.08);
+    color: #334155;
+    background: rgba(255,255,255,0.7);
 }
 .registro-subtab.active {
     background: linear-gradient(135deg, #00AEEF, #0090cc);
     color: #fff;
-    box-shadow: 0 2px 10px rgba(0,174,239,0.4), inset 0 1px 0 rgba(255,255,255,0.15);
-    text-shadow: 0 1px 2px rgba(0,0,0,0.2);
+    box-shadow: 0 2px 8px rgba(0,174,239,0.3);
 }
 .registro-subtab-content {
     display: none;
@@ -4191,14 +4196,14 @@ canvas {
     min-width: 860px;
 }
 .registro-table thead {
-    background: linear-gradient(135deg, #0f172a, #1e293b);
+    background: linear-gradient(135deg, #f1f5f9, #e8ecf1);
 }
 .registro-table th {
     padding: 0.65rem 0.5rem;
     text-align: left;
     font-size: 0.78rem;
     font-weight: 700;
-    color: #94a3b8;
+    color: #475569;
     text-transform: uppercase;
     letter-spacing: 0.06em;
     white-space: nowrap;
@@ -5287,46 +5292,46 @@ canvas {
 
 .schede-subnav {
     display: flex; gap: 0; margin-bottom: 1.5rem; padding: 4px;
-    background: linear-gradient(135deg, #0f172a, #1e293b);
+    background: linear-gradient(135deg, #f1f5f9, #e8ecf1);
+    border: 1px solid #e2e8f0;
     border-radius: 14px; max-width: 340px;
-    box-shadow: 0 2px 12px rgba(0,0,0,0.15), inset 0 1px 0 rgba(255,255,255,0.05);
+    box-shadow: 0 1px 4px rgba(0,0,0,0.04);
 }
 .schede-subnav-pill {
     flex: 1; padding: 0.6rem 1.2rem; border: none; background: transparent;
-    color: #94a3b8; font-size: 0.9rem; font-weight: 700; border-radius: 11px;
+    color: #64748b; font-size: 0.9rem; font-weight: 700; border-radius: 11px;
     cursor: pointer; transition: all 0.25s cubic-bezier(0.4,0,0.2,1);
     text-align: center; letter-spacing: 0.03em; text-transform: uppercase;
 }
 .schede-subnav-pill.active {
     background: linear-gradient(135deg, #00AEEF, #0090cc);
     color: #fff;
-    box-shadow: 0 2px 10px rgba(0,174,239,0.4), inset 0 1px 0 rgba(255,255,255,0.15);
-    text-shadow: 0 1px 2px rgba(0,0,0,0.2);
+    box-shadow: 0 2px 8px rgba(0,174,239,0.3);
 }
 .schede-subnav-pill:hover:not(.active) {
-    color: #e2e8f0; background: rgba(255,255,255,0.08);
+    color: #334155; background: rgba(255,255,255,0.7);
 }
 
 .schede-assign-bar {
-    background: linear-gradient(135deg, #0c2a1c, #0f3425);
-    border: 1px solid rgba(34,197,94,0.2); border-radius: 14px;
+    background: linear-gradient(135deg, #ecfdf5, #d1fae5);
+    border: 1px solid #a7f3d0; border-radius: 14px;
     padding: 0.9rem 1rem; margin-bottom: 1rem;
-    box-shadow: 0 2px 10px rgba(34,197,94,0.08);
+    box-shadow: 0 1px 4px rgba(34,197,94,0.08);
 }
 .schede-assign-row { display: flex; gap: 0.6rem; align-items: center; flex-wrap: wrap; }
 .schede-assign-row select {
-    padding: 0.55rem 0.7rem; border: 1px solid rgba(255,255,255,0.12);
+    padding: 0.55rem 0.7rem; border: 1.5px solid #d1d5db;
     border-radius: 10px; font-size: 0.9rem; min-width: 160px;
-    background: rgba(255,255,255,0.06); color: #e2e8f0; transition: border-color 0.2s;
+    background: #fff; color: #0f172a; transition: border-color 0.2s;
 }
-.schede-assign-row select:focus { border-color: #22c55e; outline: none; }
+.schede-assign-row select:focus { border-color: #22c55e; outline: none; box-shadow: 0 0 0 3px rgba(34,197,94,0.1); }
 .schede-assign-row input {
-    padding: 0.55rem 0.7rem; border: 1px solid rgba(255,255,255,0.12);
+    padding: 0.55rem 0.7rem; border: 1.5px solid #d1d5db;
     border-radius: 10px; font-size: 0.9rem; width: 100%;
-    background: rgba(255,255,255,0.06); color: #e2e8f0;
+    background: #fff; color: #0f172a;
 }
-.schede-assign-row input::placeholder { color: #64748b; }
-.schede-assign-row input:focus { border-color: #22c55e; outline: none; }
+.schede-assign-row input::placeholder { color: #94a3b8; }
+.schede-assign-row input:focus { border-color: #22c55e; outline: none; box-shadow: 0 0 0 3px rgba(34,197,94,0.1); }
 .schede-assign-row .btn-primary {
     background: linear-gradient(135deg, #22c55e, #16a34a);
     border-color: transparent; box-shadow: 0 2px 8px rgba(34,197,94,0.3);
@@ -5458,21 +5463,22 @@ canvas {
     display: flex; align-items: center; gap: 1rem;
     margin-bottom: 1.4rem; padding-bottom: 0.9rem;
     border-bottom: 2px solid transparent;
-    background-image: linear-gradient(#fff, #fff), linear-gradient(90deg, #0f172a 0%, #00AEEF 60%, transparent 100%);
+    background-image: linear-gradient(#fff, #fff), linear-gradient(90deg, #e2e8f0 0%, #00AEEF 60%, transparent 100%);
     background-origin: padding-box, border-box;
     background-clip: padding-box, border-box;
 }
 .schede-editor-topbar h3 { margin: 0; font-size: 1.25rem; font-weight: 800; color: #0f172a; letter-spacing: -0.01em; }
 .schede-back-btn {
-    background: linear-gradient(135deg, #0f172a, #1e293b);
-    border: none; color: #00AEEF; cursor: pointer;
+    background: linear-gradient(135deg, #f1f5f9, #e8ecf1);
+    border: 1px solid #e2e8f0; color: #00AEEF; cursor: pointer;
     font-size: 0.85rem; font-weight: 700; padding: 0.4rem 0.9rem;
     border-radius: 10px; transition: all 0.2s;
-    box-shadow: 0 1px 4px rgba(0,0,0,0.1); letter-spacing: 0.01em;
+    box-shadow: 0 1px 3px rgba(0,0,0,0.06); letter-spacing: 0.01em;
 }
 .schede-back-btn:hover {
-    background: linear-gradient(135deg, #1e293b, #334155);
-    box-shadow: 0 2px 8px rgba(0,0,0,0.15); transform: translateX(-2px);
+    background: linear-gradient(135deg, #00AEEF, #0090cc);
+    color: #fff; border-color: #00AEEF;
+    box-shadow: 0 2px 8px rgba(0,174,239,0.3); transform: translateX(-2px);
 }
 
 .schede-editor-form {
@@ -5529,8 +5535,8 @@ canvas {
     font-weight: 600; transition: all 0.2s; color: #64748b;
 }
 .schede-day-tab.active {
-    background: linear-gradient(135deg, #0f172a, #1e293b);
-    color: #00AEEF; box-shadow: 0 2px 8px rgba(0,0,0,0.15); font-weight: 700;
+    background: linear-gradient(135deg, #00AEEF, #0090cc);
+    color: #fff; box-shadow: 0 2px 8px rgba(0,174,239,0.3); font-weight: 700;
 }
 .schede-day-tab:hover:not(.active) { background: rgba(255,255,255,0.7); color: #334155; }
 .schede-day-tab--add { background: transparent; color: #22c55e; font-weight: 800; font-size: 1rem; }
@@ -5697,24 +5703,24 @@ canvas {
 .schede-stats-grid { display: flex; gap: 0.6rem; margin-bottom: 1.2rem; flex-wrap: wrap; }
 .schede-stat-card {
     flex: 1; min-width: 90px; text-align: center;
-    background: linear-gradient(145deg, #0f172a, #1e293b);
-    border: 1px solid rgba(255,255,255,0.06); border-radius: 14px;
-    padding: 0.9rem 0.6rem; box-shadow: 0 4px 12px rgba(0,0,0,0.12);
+    background: #fff;
+    border: 1px solid #e2e8f0; border-radius: 14px;
+    padding: 0.9rem 0.6rem; box-shadow: 0 1px 4px rgba(0,0,0,0.04);
     position: relative; overflow: hidden;
 }
 .schede-stat-card::before {
     content: ""; position: absolute; top: -50%; right: -50%;
     width: 100%; height: 100%; border-radius: 50%;
-    background: radial-gradient(circle, rgba(0,174,239,0.08), transparent);
+    background: radial-gradient(circle, rgba(0,174,239,0.05), transparent);
     pointer-events: none;
 }
-.schede-stat-icon { font-size: 1.4rem; margin-bottom: 0.3rem; filter: saturate(1.2); }
+.schede-stat-icon { font-size: 1.4rem; margin-bottom: 0.3rem; }
 .schede-stat-label {
-    font-size: 0.72rem; color: #94a3b8; font-weight: 700;
+    font-size: 0.72rem; color: #64748b; font-weight: 700;
     text-transform: uppercase; letter-spacing: 0.06em;
 }
 .schede-stat-value {
-    font-size: 1.4rem; font-weight: 900; color: #fff;
+    font-size: 1.4rem; font-weight: 900; color: #0f172a;
     margin-top: 0.15rem; letter-spacing: -0.01em;
 }
 
@@ -6194,8 +6200,18 @@ canvas {
     justify-content: space-between;
     align-items: center;
     padding: 1.1rem 1.4rem;
-    background: linear-gradient(135deg, #0f172a, #1e293b);
-    color: #fff;
+    background: linear-gradient(135deg, #f8fafc, #f1f5f9);
+    border-bottom: 1px solid #e2e8f0;
+    color: #0f172a;
+    position: relative;
+    overflow: hidden;
+}
+.msg-popup-header::before {
+    content: "";
+    position: absolute;
+    top: 0; left: 0; right: 0;
+    height: 3px;
+    background: linear-gradient(90deg, #00AEEF, #0090cc, #00AEEF);
 }
 .msg-popup-header h3 {
     margin: 0;
@@ -6206,9 +6222,9 @@ canvas {
     gap: 0.4rem;
 }
 .msg-popup-close {
-    background: rgba(255,255,255,0.1);
+    background: rgba(0,0,0,0.04);
     border: none;
-    color: #94a3b8;
+    color: #64748b;
     font-size: 1.1rem;
     cursor: pointer;
     padding: 0.3rem 0.5rem;
@@ -6217,8 +6233,8 @@ canvas {
     line-height: 1;
 }
 .msg-popup-close:hover {
-    background: rgba(255,255,255,0.15);
-    color: #fff;
+    background: rgba(0,0,0,0.08);
+    color: #0f172a;
 }
 .msg-popup-body {
     padding: 1.2rem 1.4rem;
