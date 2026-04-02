@@ -5975,7 +5975,7 @@ canvas {
     justify-content: center;
     width: 26px;
     height: 26px;
-    background: linear-gradient(135deg, #0f172a, #1e293b);
+    background: linear-gradient(135deg, rgba(0,174,239,0.1), rgba(0,174,239,0.18));
     border-radius: 7px;
     font-size: 0.85rem;
     flex-shrink: 0;
@@ -6084,7 +6084,7 @@ canvas {
     justify-content: center;
     width: 32px;
     height: 32px;
-    background: linear-gradient(135deg, #0f172a, #1e293b);
+    background: linear-gradient(135deg, rgba(0,174,239,0.1), rgba(0,174,239,0.18));
     border-radius: 8px;
     font-size: 1rem;
     flex-shrink: 0;
