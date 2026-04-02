@@ -625,19 +625,19 @@ canvas {
     color: #64748b;
 }
 .admin-day-card .admin-day-name {
-    font-size: 0.68rem;
+    font-size: 0.78rem;
     font-weight: 700;
     text-transform: uppercase;
     letter-spacing: 0.04em;
 }
 .admin-day-card .admin-day-name .day-short { display: none; }
 .admin-day-card .admin-day-date {
-    font-size: 1.05rem;
+    font-size: 1.2rem;
     font-weight: 800;
     line-height: 1.25;
 }
 .admin-day-card .admin-day-count {
-    font-size: 0.6rem;
+    font-size: 0.68rem;
     opacity: 0.7;
     font-weight: 600;
 }
@@ -1669,19 +1669,19 @@ canvas {
     font-family: inherit;
 }
 .schedule-day-tab .admin-day-name {
-    font-size: 0.68rem;
+    font-size: 0.78rem;
     font-weight: 700;
     text-transform: uppercase;
     letter-spacing: 0.04em;
 }
 .schedule-day-tab .admin-day-name .day-short { display: none; }
 .schedule-day-tab .admin-day-date {
-    font-size: 1.05rem;
+    font-size: 1.2rem;
     font-weight: 800;
     line-height: 1.25;
 }
 .schedule-day-tab .admin-day-count {
-    font-size: 0.6rem;
+    font-size: 0.68rem;
     opacity: 0.7;
     font-weight: 600;
 }
