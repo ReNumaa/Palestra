@@ -2244,14 +2244,11 @@ canvas {
     border-radius: 16px 0 0 16px;
 }
 
-.payment-stat-card--incasso::before   { background: linear-gradient(180deg, #f59e0b, #d97706); }
 .payment-stat-card--debitori::before  { background: linear-gradient(180deg, #ef4444, #dc2626); }
-.payment-stat-card--creditori::before { background: linear-gradient(180deg, var(--primary-cyan), #0284c7); }
-.payment-stat-card--credit::before    { background: linear-gradient(180deg, #22c55e, #16a34a); }
+.payment-stat-card--creditori::before { background: linear-gradient(180deg, #22c55e, #16a34a); }
 
-.payment-stat-card--incasso  .payment-total { color: #d97706; }
 .payment-stat-card--debitori .payment-total { color: #ef4444; }
-.payment-stat-card--creditori .payment-total { color: var(--primary-cyan-dark); }
+.payment-stat-card--creditori .payment-total { color: #16a34a; }
 
 .payment-stat-icon {
     font-size: 1.5rem;
@@ -2266,10 +2263,8 @@ canvas {
     margin: 0 auto 0.45rem;
 }
 
-.payment-stat-card--incasso  .payment-stat-icon { background: rgba(245,158,11,0.10); }
 .payment-stat-card--debitori .payment-stat-icon { background: rgba(239,68,68,0.10); }
-.payment-stat-card--creditori .payment-stat-icon { background: rgba(0,174,239,0.10); }
-.payment-stat-card--credit   .payment-stat-icon { background: rgba(34,197,94,0.10); }
+.payment-stat-card--creditori .payment-stat-icon { background: rgba(34,197,94,0.10); }
 
 .payment-stat-card h4 {
     margin: 0 0 0.25rem 0;
@@ -2289,40 +2284,51 @@ canvas {
     box-shadow: 0 6px 20px rgba(0,0,0,0.09);
 }
 
-/* Add button inside stat cards */
-.stat-card-add-btn {
-    position: absolute;
-    top: 0.4rem;
-    right: 0.4rem;
-    width: 1.75rem;
-    height: 1.75rem;
-    border-radius: 50%;
-    border: none;
-    font-size: 1.35rem;
-    font-weight: 400;
-    line-height: 1;
-    cursor: pointer;
+/* Action buttons below stats */
+.payments-actions {
     display: flex;
-    align-items: center;
-    justify-content: center;
-    transition: background 0.15s, transform 0.15s, box-shadow 0.15s;
-    z-index: 2;
-    padding: 0;
+    justify-content: flex-end;
+    gap: 0.5rem;
+    margin-bottom: 1.5rem;
 }
-.stat-card-add-btn:hover {
-    transform: scale(1.18);
-    box-shadow: 0 3px 10px rgba(0,0,0,0.15);
+
+.payments-action-btn {
+    border: none;
+    border-radius: 10px;
+    padding: 0.5rem 1.1rem;
+    font-size: 0.85rem;
+    font-weight: 700;
+    cursor: pointer;
+    transition: transform 0.15s, box-shadow 0.15s, opacity 0.15s;
+    letter-spacing: 0.01em;
 }
-.payment-stat-card--debitori .stat-card-add-btn {
-    background: rgba(239,68,68,0.14);
-    color: #ef4444;
+
+.payments-action-btn:hover {
+    transform: translateY(-1px);
+    box-shadow: 0 3px 10px rgba(0,0,0,0.12);
 }
-.payment-stat-card--debitori .stat-card-add-btn:hover { background: rgba(239,68,68,0.26); }
-.payment-stat-card--creditori .stat-card-add-btn {
-    background: rgba(0,174,239,0.14);
-    color: var(--primary-cyan-dark);
+
+.payments-action-btn:active {
+    transform: translateY(0);
 }
-.payment-stat-card--creditori .stat-card-add-btn:hover { background: rgba(0,174,239,0.26); }
+
+.payments-action-btn--debt {
+    background: rgba(239,68,68,0.12);
+    color: #dc2626;
+}
+
+.payments-action-btn--debt:hover {
+    background: rgba(239,68,68,0.20);
+}
+
+.payments-action-btn--credit {
+    background: rgba(34,197,94,0.12);
+    color: #16a34a;
+}
+
+.payments-action-btn--credit:hover {
+    background: rgba(34,197,94,0.20);
+}
 
 /* Manual entry popup */
 .manual-entry-modal { max-height: min(92vh, 560px); }
@@ -3821,13 +3827,9 @@ canvas {
     }
 }
 
-/* ===== Stat card credits ===== */
-.payment-stat-card--credit .payment-total {
-    color: #22c55e;
-}
-
+/* ===== Credit total ===== */
 .credit-total {
-    color: #22c55e !important;
+    color: #16a34a !important;
 }
 
 /* ===== Debt popup — payment section ===== */

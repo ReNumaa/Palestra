@@ -612,3 +612,36 @@
 | Tempo prompt utente (stimato) | ~5 min |
 | Token input (stimati) | ~80k |
 | Token output (stimati) | ~10k |
+
+## Task: Redesign Pagamenti + fix bug dati a 0
+**Data:** 2026-04-02
+**Durata stimata:** ~25 min Claude + ~5 min prompt utente
+
+### Modifiche effettuate
+- **Bug fix**: Aggiunto skeleton loading alle stat cards Pagamenti per evitare che mostrino €0 durante il caricamento asincrono RPC. Il tab diventava visibile prima che `renderPaymentsTab()` completasse la fetch, mostrando i valori default. Ora un timer 150ms attiva un'animazione pulse se il fetch è lento, rimossa appena i dati arrivano.
+- **Stat cards redesign**: Barra laterale sinistra con gradient al posto della top bar, icone in container con sfondo colorato semitrasparente, box-shadow sottile, hover con lift effect
+- **Search bar**: Icona di ricerca integrata dentro l'input, bordo arrotondato 12px, sfondo #fafafa, focus con ring cyan
+- **Debtor/credit cards**: Border-radius 14px, hover più delicato, booking items con bordo e hover, credit cards con border-left verde su hover
+- **Credits list**: Separatore più sottile con padding migliorato
+- **Search results**: Sfondo neutro con shadow leggera al posto del bordo rosso
+- **Toggle hints**: Transizione colore su hover della card padre
+- **Responsive**: Icone stat adattate per tablet (2.1rem) e mobile (1.8rem)
+
+### Decisioni prese
+- Usato lo stesso pattern skeleton-pulse già presente per le stat cards analytics (coerenza)
+- Timer 150ms anti-flicker (mostra skeleton solo se fetch lento, evita flash)
+- Barra laterale sinistra con gradient invece che top bar piatta: più moderno e meno invadente
+- Icone in container arrotondato con sfondo tinted: migliore gerarchia visuale
+
+### File toccati
+- `css/admin.css` — Redesign completo sezione Pagamenti (stat cards, search, debtor cards, credits, skeleton)
+- `js/admin-payments.js` — Aggiunto `_setPaymentCardsLoading()` e skeleton timer in `renderPaymentsTab()`
+- `sw.js` — Cache bump v239 → v240
+
+### Consumo risorse (solo per progetti cliente)
+| Voce | Valore |
+|------|--------|
+| Tempo task Claude | ~25 min |
+| Tempo prompt utente (stimato) | ~5 min |
+| Token input (stimati) | ~120k |
+| Token output (stimati) | ~15k |

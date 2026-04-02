@@ -111,30 +111,33 @@
                     </div>
 
                     <div class="payments-stats">
-                        <div class="payment-stat-card payment-stat-card--incasso">
+                        <div class="payment-stat-card payment-stat-card--clickable payment-stat-card--debitori" onclick="toggleDebtorsList()" title="Clicca per vedere la lista">
                             <div class="payment-stat-icon">💰</div>
                             <h4>Totale da Incassare</h4>
                             <p class="payment-total" id="totalUnpaid">€0</p>
                         </div>
                         <div class="payment-stat-card payment-stat-card--clickable payment-stat-card--debitori" onclick="toggleDebtorsList()" title="Clicca per vedere la lista">
-                            <button class="stat-card-add-btn" onclick="event.stopPropagation(); openManualEntryPopup('debt')" title="Aggiungi debito manuale">+</button>
                             <div class="payment-stat-icon">👤</div>
                             <h4>Clienti Debitori</h4>
                             <p class="payment-total" id="totalDebtors">0</p>
                             <span class="debtors-toggle-hint" id="debtorsToggleHint">▼ Mostra lista</span>
                         </div>
                         <div class="payment-stat-card payment-stat-card--clickable payment-stat-card--creditori" onclick="toggleCreditsList()" title="Clicca per vedere la lista">
-                            <button class="stat-card-add-btn" onclick="event.stopPropagation(); openManualEntryPopup('credit')" title="Aggiungi credito manuale">+</button>
                             <div class="payment-stat-icon">⭐</div>
                             <h4>Clienti Creditori</h4>
                             <p class="payment-total" id="totalCreditors">0</p>
                             <span class="debtors-toggle-hint" id="creditorsToggleHint">▼ Mostra lista</span>
                         </div>
-                        <div class="payment-stat-card payment-stat-card--credit">
+                        <div class="payment-stat-card payment-stat-card--creditori">
                             <div class="payment-stat-icon">💳</div>
                             <h4>Totale Crediti</h4>
                             <p class="payment-total credit-total" id="totalCreditAmount">€0</p>
                         </div>
+                    </div>
+
+                    <div class="payments-actions">
+                        <button class="payments-action-btn payments-action-btn--debt" onclick="openManualEntryPopup('debt')">+ Debito</button>
+                        <button class="payments-action-btn payments-action-btn--credit" onclick="openManualEntryPopup('credit')">+ Credito</button>
                     </div>
 
                     <!-- Search Results -->
