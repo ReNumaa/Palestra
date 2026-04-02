@@ -4470,7 +4470,7 @@ canvas {
     color: #888 !important;
     font-size: 0.78rem !important;
 }
-.registro-client { display: flex; flex-direction: column; gap: 0.06rem; }
+.registro-client { }
 .registro-client-name { font-weight: 600; white-space: nowrap; }
 .registro-client-phone { font-size: 0.74rem; color: #888; }
 .registro-empty {
