@@ -197,9 +197,7 @@ function renderAllTimeSlots() {
     // Get slots for this specific date
     const daySlots = getScheduleForDate(selectedScheduleDate.formatted, selectedScheduleDate.dayName);
 
-    let html = `<p style="color: #666; margin-bottom: 1rem;">
-        <strong>Giorno:</strong> ${selectedScheduleDate.dayName} ${selectedScheduleDate.date.getDate()}/${selectedScheduleDate.date.getMonth() + 1}/${selectedScheduleDate.date.getFullYear()}
-    </p>`;
+    let html = `<p><strong>Giorno:</strong> ${selectedScheduleDate.dayName} ${selectedScheduleDate.date.getDate()}/${selectedScheduleDate.date.getMonth() + 1}/${selectedScheduleDate.date.getFullYear()}</p>`;
 
     html += '<div class="schedule-slots-list">';
 

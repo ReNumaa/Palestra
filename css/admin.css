@@ -1422,124 +1422,253 @@ canvas {
     .client-edit-fields  { flex-direction: column; }
 }
 
-/* Schedule Manager Styles */
+/* ── Schedule Manager Styles ────────────────────────────────────────────── */
+
+/* Hub wrapper — mirrors .msg-hub */
+#scheduleManager {
+    display: flex;
+    flex-direction: column;
+    gap: 1rem;
+    animation: msg-fade-in 0.4s ease-out;
+}
+
+/* Week nav controls inside schedule — refined buttons */
+#scheduleManager .admin-calendar-controls {
+    background: #fff;
+    border: 1px solid #e2e8f0;
+    border-radius: 14px;
+    padding: 0.75rem 1.3rem;
+    box-shadow: 0 2px 8px rgba(0,0,0,0.04), 0 0 0 1px rgba(0,0,0,0.02);
+    position: relative;
+    overflow: hidden;
+    margin-bottom: 0;
+}
+#scheduleManager .admin-calendar-controls::before {
+    content: "";
+    position: absolute;
+    top: 0; left: 0; right: 0;
+    height: 3px;
+    background: linear-gradient(90deg, #00AEEF, #0090cc, #00AEEF);
+    background-size: 200% 100%;
+}
+#scheduleManager .admin-calendar-controls h4 {
+    font-size: 1.1rem;
+    font-weight: 800;
+    color: #0f172a;
+    letter-spacing: -0.02em;
+}
+#scheduleManager .btn-control {
+    background: linear-gradient(135deg, #0f172a, #1e293b);
+    color: #fff;
+    border: none;
+    border-radius: 10px;
+    padding: 0.55rem 1rem;
+    font-size: 0.82rem;
+    font-weight: 700;
+    font-family: inherit;
+    cursor: pointer;
+    transition: all 0.25s cubic-bezier(0.4,0,0.2,1);
+    box-shadow: 0 2px 6px rgba(0,0,0,0.12);
+}
+#scheduleManager .btn-control:hover {
+    box-shadow: 0 4px 12px rgba(0,0,0,0.2);
+    transform: translateY(-1px);
+}
+#scheduleManager .btn-control:active {
+    transform: translateY(0);
+    box-shadow: 0 1px 3px rgba(0,0,0,0.1);
+}
+
+/* Import bar — styled as a card with cyan top accent */
 .schedule-import-bar {
     display: flex;
     align-items: center;
     gap: 0.75rem;
     flex-wrap: wrap;
-    margin-bottom: 1.25rem;
-    padding: 0.75rem 1rem;
-    background: #f9fafb;
-    border: 1px solid #e5e7eb;
-    border-radius: 10px;
+    padding: 1rem 1.3rem;
+    background: #fff;
+    border: 1px solid #e2e8f0;
+    border-radius: 14px;
+    box-shadow: 0 2px 8px rgba(0,0,0,0.04), 0 0 0 1px rgba(0,0,0,0.02);
+    position: relative;
+    overflow: hidden;
+}
+.schedule-import-bar::before {
+    content: "";
+    position: absolute;
+    top: 0; left: 0; right: 0;
+    height: 3px;
+    background: linear-gradient(90deg, #00AEEF, #0090cc, #00AEEF);
+    background-size: 200% 100%;
 }
 
 .schedule-week-status {
     flex: 1;
     font-size: 0.88rem;
-    font-weight: 600;
+    font-weight: 700;
+    letter-spacing: -0.01em;
 }
 
-.schedule-week-status.has-slots { color: #0369a1; }
-.schedule-week-status.is-blank  { color: #aaa; }
+.schedule-week-status.has-slots { color: #00AEEF; }
+.schedule-week-status.is-blank  { color: #94a3b8; }
 
 .btn-import-week {
-    background: var(--primary-cyan);
+    display: inline-flex;
+    align-items: center;
+    gap: 0.4rem;
+    background: linear-gradient(135deg, #00AEEF, #0090cc);
     color: white;
     border: none;
-    border-radius: 8px;
-    padding: 0.42rem 1rem;
-    font-size: 0.88rem;
-    font-weight: 600;
+    border-radius: 10px;
+    padding: 0.55rem 1.1rem;
+    font-size: 0.85rem;
+    font-weight: 700;
+    font-family: inherit;
     cursor: pointer;
-    transition: background 0.15s;
+    transition: all 0.25s cubic-bezier(0.4,0,0.2,1);
     white-space: nowrap;
+    box-shadow: 0 2px 8px rgba(0,174,239,0.25);
 }
-
-.btn-import-week:hover { background: var(--primary-cyan-dark); }
+.btn-import-week:hover {
+    box-shadow: 0 4px 14px rgba(0,174,239,0.4);
+    transform: translateY(-1px);
+}
+.btn-import-week:active {
+    transform: translateY(0);
+    box-shadow: 0 1px 4px rgba(0,174,239,0.2);
+}
 
 .btn-clear-week {
-    background: none;
-    border: 1px solid #e5e7eb;
-    border-radius: 8px;
-    padding: 0.42rem 0.85rem;
+    display: inline-flex;
+    align-items: center;
+    gap: 0.3rem;
+    background: #fff;
+    border: 1.5px solid #e2e8f0;
+    border-radius: 10px;
+    padding: 0.5rem 1rem;
     font-size: 0.85rem;
-    color: #999;
+    font-weight: 600;
+    font-family: inherit;
+    color: #64748b;
     cursor: pointer;
-    transition: all 0.15s;
+    transition: all 0.2s cubic-bezier(0.4,0,0.2,1);
     white-space: nowrap;
 }
-
-.btn-clear-week:hover { border-color: #ef4444; color: #ef4444; }
-
-/* Dot indicator on day tabs that have slots */
-.schedule-day-tab.has-slots .admin-day-count {
-    color: var(--primary-cyan);
-    font-weight: 700;
+.btn-clear-week:hover {
+    border-color: #ef4444;
+    color: #ef4444;
+    background: #fef2f2;
+    box-shadow: 0 2px 8px rgba(239,68,68,0.1);
 }
 
+/* Day tabs — dark subnav pill bar, mirrors .schede-subnav */
 .schedule-day-tabs {
     display: flex;
-    gap: 0.5rem;
-    padding: 0.75rem 0;
-    margin-bottom: 1rem;
+    gap: 4px;
+    padding: 4px;
     flex-wrap: wrap;
     justify-content: center;
+    background: linear-gradient(135deg, #0f172a, #1e293b);
+    border-radius: 14px;
+    box-shadow: 0 2px 12px rgba(0,0,0,0.15), inset 0 1px 0 rgba(255,255,255,0.05);
 }
 
 .schedule-day-tab {
-    flex: 0 0 auto;
-    min-width: 76px;
-    padding: 0.6rem 0.5rem;
-    background-color: var(--light-gray);
-    border-radius: 12px;
+    flex: 1 0 0;
+    min-width: 68px;
+    padding: 0.55rem 0.4rem;
+    background: transparent;
+    border-radius: 10px;
     text-align: center;
     cursor: pointer;
-    transition: all 0.3s;
-    border: 2px solid #ddd;
-    color: inherit;
+    transition: all 0.25s cubic-bezier(0.4,0,0.2,1);
+    border: none;
+    color: #94a3b8;
     font-family: inherit;
+}
+.schedule-day-tab .admin-day-name {
+    font-size: 0.72rem;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 0.04em;
+}
+.schedule-day-tab .admin-day-date {
+    font-size: 1.15rem;
+    font-weight: 800;
+    line-height: 1.3;
+}
+.schedule-day-tab .admin-day-count {
+    font-size: 0.65rem;
+    opacity: 0.7;
+    font-weight: 600;
 }
 
 .schedule-day-tab:hover {
-    transform: translateY(-3px);
-    box-shadow: 0 4px 8px rgba(0,0,0,0.15);
+    background: rgba(255,255,255,0.06);
+    color: #cbd5e1;
 }
 
 .schedule-day-tab.active {
-    background: linear-gradient(135deg, var(--primary-cyan), var(--primary-cyan-dark));
+    background: linear-gradient(135deg, #00AEEF, #0090cc);
     color: white;
-    border-color: var(--primary-cyan);
-    transform: scale(1.05);
+    box-shadow: 0 2px 10px rgba(0,174,239,0.4), inset 0 1px 0 rgba(255,255,255,0.15);
+}
+.schedule-day-tab.active .admin-day-count {
+    opacity: 1;
+    color: inherit;
+}
+
+.schedule-day-tab.has-slots .admin-day-count {
+    color: #00AEEF;
+    font-weight: 700;
+    opacity: 1;
+}
+.schedule-day-tab.active.has-slots .admin-day-count {
+    color: inherit;
 }
 
 .schedule-day-tab.missing-client {
-    background-color: #fee2e2;
-    border-color: #fca5a5;
+    box-shadow: inset 0 0 0 2px rgba(252,165,165,0.5);
 }
-
 .schedule-day-tab.missing-client.active {
-    background: linear-gradient(135deg, var(--primary-cyan), var(--primary-cyan-dark));
-    border-color: var(--primary-cyan);
+    background: linear-gradient(135deg, #00AEEF, #0090cc);
+    box-shadow: 0 2px 10px rgba(0,174,239,0.4), inset 0 1px 0 rgba(255,255,255,0.15);
 }
 
+/* Day info label */
+#scheduleDaySlots > p {
+    font-size: 0.82rem;
+    font-weight: 600;
+    color: #64748b;
+    margin: 0.5rem 0 0.75rem;
+    padding: 0;
+}
+#scheduleDaySlots > p strong {
+    color: #0f172a;
+}
+
+/* Slots list */
 .schedule-slots-list {
     display: flex;
     flex-direction: column;
-    gap: 1rem;
-    margin-bottom: 1.5rem;
+    gap: 0.6rem;
+    margin-bottom: 1rem;
 }
 
 .schedule-slot-item {
-    background-color: var(--light-gray);
-    padding: 1.25rem;
-    border-radius: 8px;
+    background: #fff;
+    padding: 1rem 1.2rem;
+    border-radius: 14px;
     display: flex;
     justify-content: space-between;
     align-items: center;
     gap: 1rem;
     flex-wrap: wrap;
+    border: 1px solid #e2e8f0;
+    transition: box-shadow 0.25s cubic-bezier(0.4,0,0.2,1);
+}
+.schedule-slot-item:hover {
+    box-shadow: 0 4px 14px rgba(0,0,0,0.06);
 }
 
 .schedule-slot-info {
@@ -1551,16 +1680,18 @@ canvas {
 }
 
 .schedule-slot-time {
-    font-weight: 600;
-    color: var(--dark-bg);
-    font-size: 1.1rem;
+    font-weight: 700;
+    color: #0f172a;
+    font-size: 1rem;
+    letter-spacing: -0.01em;
 }
 
 .schedule-slot-type-badge {
-    padding: 0.4rem 1rem;
+    padding: 0.35rem 0.9rem;
     border-radius: 20px;
-    font-size: 0.85rem;
-    font-weight: 600;
+    font-size: 0.8rem;
+    font-weight: 700;
+    letter-spacing: 0.02em;
 }
 
 .schedule-slot-type-badge.personal-training {
@@ -1589,30 +1720,39 @@ canvas {
 }
 
 .btn-delete {
-    background-color: #dc3545;
+    background: linear-gradient(135deg, #ef4444, #dc2626);
     color: white;
     border: none;
-    padding: 0.5rem 1rem;
-    border-radius: 5px;
+    padding: 0.45rem 0.9rem;
+    border-radius: 10px;
     cursor: pointer;
-    transition: all 0.3s;
+    font-weight: 600;
+    font-size: 0.85rem;
+    transition: all 0.25s cubic-bezier(0.4,0,0.2,1);
+    box-shadow: 0 2px 6px rgba(239,68,68,0.2);
 }
 
 .btn-delete:hover {
-    background-color: #c82333;
-    transform: scale(1.05);
+    box-shadow: 0 4px 12px rgba(239,68,68,0.35);
+    transform: translateY(-1px);
 }
 
 .add-slot-form {
-    background-color: var(--light-gray);
-    padding: 1.5rem;
-    border-radius: 12px;
-    margin-top: 1.5rem;
+    background: linear-gradient(180deg, #f8fafc 0%, #f1f5f9 100%);
+    padding: 1.3rem;
+    border-radius: 14px;
+    margin-top: 1rem;
+    border: 1px solid #e2e8f0;
+    box-shadow: inset 0 2px 4px rgba(0,0,0,0.03);
 }
 
 .add-slot-form h4 {
     margin-bottom: 1rem;
-    color: var(--dark-bg);
+    color: #0f172a;
+    font-size: 0.82rem;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
 }
 
 .form-row {
@@ -1625,100 +1765,137 @@ canvas {
 .form-group-schedule {
     display: flex;
     flex-direction: column;
-    gap: 0.5rem;
+    gap: 0.35rem;
 }
 
 .form-group-schedule label {
-    font-weight: 600;
-    color: var(--dark-bg);
-    font-size: 0.9rem;
+    font-weight: 700;
+    color: #334155;
+    font-size: 0.78rem;
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
 }
 
 .form-group-schedule select,
 .form-group-schedule input {
-    padding: 0.75rem;
-    border: 2px solid #ddd;
-    border-radius: 5px;
-    font-size: 1rem;
+    padding: 0.6rem 0.85rem;
+    border: 2px solid #e2e8f0;
+    border-radius: 10px;
+    font-size: 0.95rem;
+    font-family: inherit;
+    color: #0f172a;
+    background: #fff;
+    transition: all 0.25s cubic-bezier(0.4,0,0.2,1);
+    box-shadow: 0 1px 3px rgba(0,0,0,0.03);
 }
 
 .form-group-schedule select:focus,
 .form-group-schedule input:focus {
     outline: none;
-    border-color: var(--primary-cyan);
+    border-color: #00AEEF;
+    box-shadow: 0 0 0 4px rgba(0,174,239,0.1), 0 4px 12px rgba(0,174,239,0.06);
 }
 
 .btn-add-slot {
-    background-color: var(--success);
+    display: inline-flex;
+    align-items: center;
+    gap: 0.4rem;
+    background: linear-gradient(135deg, #06d6a0, #05b886);
     color: white;
     border: none;
-    padding: 0.75rem 1.5rem;
-    border-radius: 5px;
+    padding: 0.65rem 1.4rem;
+    border-radius: 10px;
     cursor: pointer;
-    font-size: 1rem;
-    font-weight: 600;
-    transition: all 0.3s;
+    font-size: 0.9rem;
+    font-weight: 700;
+    font-family: inherit;
+    transition: all 0.25s cubic-bezier(0.4,0,0.2,1);
+    box-shadow: 0 2px 8px rgba(6,214,160,0.3);
 }
 
 .btn-add-slot:hover {
-    background-color: #05b886;
-    transform: translateY(-2px);
-    box-shadow: 0 4px 8px rgba(6, 214, 160, 0.3);
+    box-shadow: 0 4px 14px rgba(6,214,160,0.45);
+    transform: translateY(-1px);
+}
+.btn-add-slot:active {
+    transform: translateY(0);
+    box-shadow: 0 1px 4px rgba(6,214,160,0.2);
 }
 
-/* Schedule Slot Item with Dropdown Selector */
+/* ── Slot selector cards ─────────────────────────────────────────────────── */
 .schedule-slot-item-selector {
-    background-color: white;
-    padding: 1.25rem;
-    border-radius: 8px;
+    background: #fff;
+    padding: 1rem 1.2rem;
+    border-radius: 14px;
     display: flex;
     justify-content: space-between;
     align-items: center;
     gap: 1rem;
     flex-wrap: wrap;
-    border: 2px solid #ddd;
-    transition: all 0.3s;
+    border: 1px solid #e2e8f0;
+    transition: all 0.25s cubic-bezier(0.4,0,0.2,1);
+    position: relative;
+    overflow: hidden;
+}
+.schedule-slot-item-selector::before {
+    content: "";
+    position: absolute;
+    left: 0; top: 0; bottom: 0;
+    width: 3px;
+    background: #e2e8f0;
+    border-radius: 3px 0 0 3px;
+    transition: background 0.25s;
+}
+.schedule-slot-item-selector:hover {
+    box-shadow: 0 4px 14px rgba(0,0,0,0.06), 0 0 0 1px rgba(0,174,239,0.06);
+}
+.schedule-slot-item-selector:hover::before {
+    background: #00AEEF;
 }
 
-.schedule-slot-item-selector:hover {
-    border-color: var(--primary-cyan);
-    box-shadow: 0 2px 8px rgba(0, 174, 239, 0.15);
+/* When a type is selected, accent the left border */
+.schedule-slot-item-selector:has(.current-type-badge)::before {
+    background: #00AEEF;
 }
 
 .schedule-slot-dropdown {
     flex: 1;
-    min-width: 200px;
+    min-width: 180px;
 }
 
 .slot-type-select {
     width: 100%;
-    padding: 0.75rem 1rem;
-    border: 2px solid #ddd;
-    border-radius: 5px;
-    font-size: 1rem;
+    padding: 0.6rem 0.85rem;
+    border: 2px solid #e2e8f0;
+    border-radius: 10px;
+    font-size: 0.92rem;
     font-weight: 500;
+    font-family: inherit;
     background-color: white;
+    color: #0f172a;
     cursor: pointer;
-    transition: all 0.3s;
+    transition: all 0.25s cubic-bezier(0.4,0,0.2,1);
+    box-shadow: 0 1px 3px rgba(0,0,0,0.03);
 }
 
 .slot-type-select:hover {
-    border-color: var(--primary-cyan);
-    background-color: rgba(0, 174, 239, 0.05);
+    border-color: #cbd5e1;
+    background-color: #f8fafc;
 }
 
 .slot-type-select:focus {
     outline: none;
-    border-color: var(--primary-cyan);
-    box-shadow: 0 0 0 3px rgba(0, 174, 239, 0.1);
+    border-color: #00AEEF;
+    box-shadow: 0 0 0 4px rgba(0,174,239,0.1);
 }
 
 .current-type-badge {
-    padding: 0.5rem 1rem;
+    padding: 0.4rem 0.9rem;
     border-radius: 20px;
-    font-size: 0.85rem;
-    font-weight: 600;
+    font-size: 0.8rem;
+    font-weight: 700;
     white-space: nowrap;
+    letter-spacing: 0.02em;
 }
 
 .current-type-badge.personal-training {
@@ -1760,9 +1937,9 @@ canvas {
 
 /* Client picker panel */
 .slot-client-picker {
-    background: #f8f9fa;
-    border: 1px solid #e0e0e0;
-    border-radius: 8px;
+    background: linear-gradient(180deg, #f8fafc 0%, #f1f5f9 100%);
+    border: 1px solid #e2e8f0;
+    border-radius: 10px;
     padding: 0.75rem 1rem;
     display: flex;
     flex-direction: column;
@@ -1770,19 +1947,21 @@ canvas {
 }
 
 .slot-client-label {
-    font-size: 0.85rem;
-    font-weight: 600;
-    color: #555;
+    font-size: 0.78rem;
+    font-weight: 700;
+    color: #64748b;
+    text-transform: uppercase;
+    letter-spacing: 0.04em;
 }
 
 .slot-client-warning {
     font-size: 0.85rem;
     color: #c07000;
     font-weight: 600;
-    background: #fff8e1;
-    border: 1px solid #ffe082;
-    border-radius: 6px;
-    padding: 0.4rem 0.75rem;
+    background: linear-gradient(135deg, #fffbeb, #fef3c7);
+    border: 1px solid #fcd34d;
+    border-radius: 10px;
+    padding: 0.5rem 0.85rem;
 }
 
 /* Selected client badge */
@@ -1790,36 +1969,40 @@ canvas {
     display: flex;
     align-items: center;
     gap: 0.6rem;
-    background: #e8f5e9;
-    border: 1px solid #a5d6a7;
-    border-radius: 6px;
-    padding: 0.4rem 0.75rem;
+    background: linear-gradient(135deg, #ecfdf5, #d1fae5);
+    border: 1px solid #6ee7b7;
+    border-radius: 10px;
+    padding: 0.5rem 0.85rem;
 }
 
 .slot-client-name {
-    font-weight: 600;
-    color: #2e7d32;
+    font-weight: 700;
+    color: #166534;
     flex: 1;
+    font-size: 0.92rem;
 }
 
 .slot-client-sub {
-    font-size: 0.8rem;
-    color: #555;
+    font-size: 0.78rem;
+    color: #64748b;
 }
 
 .btn-clear-client {
     background: none;
     border: none;
-    color: #c00;
+    color: #ef4444;
     cursor: pointer;
-    padding: 0 0.2rem;
-    font-size: 1rem;
+    padding: 0.15rem 0.3rem;
+    font-size: 0.9rem;
     line-height: 1;
     flex-shrink: 0;
+    border-radius: 6px;
+    transition: all 0.15s;
 }
 
 .btn-clear-client:hover {
-    color: #900;
+    color: #dc2626;
+    background: rgba(239,68,68,0.08);
 }
 
 /* Search input + autocomplete */
@@ -1829,17 +2012,21 @@ canvas {
 
 .slot-client-input {
     width: 100%;
-    padding: 0.5rem 0.75rem;
-    border: 1px solid #ccc;
-    border-radius: 6px;
+    padding: 0.55rem 0.85rem;
+    border: 2px solid #e2e8f0;
+    border-radius: 10px;
     font-size: 0.9rem;
+    font-family: inherit;
+    color: #0f172a;
     box-sizing: border-box;
+    transition: all 0.25s cubic-bezier(0.4,0,0.2,1);
+    box-shadow: 0 1px 3px rgba(0,0,0,0.03);
 }
 
 .slot-client-input:focus {
     outline: none;
-    border-color: var(--primary-cyan);
-    box-shadow: 0 0 0 2px rgba(0, 174, 239, 0.15);
+    border-color: #00AEEF;
+    box-shadow: 0 0 0 4px rgba(0,174,239,0.1), 0 4px 12px rgba(0,174,239,0.06);
 }
 
 .slot-client-results {
@@ -1848,22 +2035,23 @@ canvas {
     left: 0;
     right: 0;
     background: white;
-    border: 1px solid #ccc;
+    border: 1px solid #e2e8f0;
     border-top: none;
-    border-radius: 0 0 6px 6px;
+    border-radius: 0 0 12px 12px;
     z-index: 200;
     max-height: 200px;
     overflow-y: auto;
-    box-shadow: 0 4px 12px rgba(0,0,0,0.1);
+    box-shadow: 0 8px 24px rgba(0,0,0,0.1);
 }
 
 .slot-client-result {
-    padding: 0.55rem 0.75rem;
+    padding: 0.6rem 0.85rem;
     cursor: pointer;
     display: flex;
     flex-direction: column;
-    gap: 0.1rem;
-    border-bottom: 1px solid #f0f0f0;
+    gap: 0.15rem;
+    border-bottom: 1px solid #f1f5f9;
+    transition: background 0.15s;
 }
 
 .slot-client-result:last-child {
@@ -1871,25 +2059,93 @@ canvas {
 }
 
 .slot-client-result:hover {
-    background: rgba(0, 174, 239, 0.08);
+    background: linear-gradient(135deg, rgba(0,174,239,0.05), rgba(0,174,239,0.02));
 }
 
 .slot-client-result-name {
-    font-weight: 600;
-    color: #222;
+    font-weight: 700;
+    color: #0f172a;
     font-size: 0.9rem;
 }
 
 .slot-client-result-sub {
-    font-size: 0.78rem;
-    color: #777;
+    font-size: 0.75rem;
+    color: #94a3b8;
 }
 
 .slot-client-no-results {
-    padding: 0.75rem;
-    color: #999;
+    padding: 0.85rem;
+    color: #94a3b8;
     font-size: 0.85rem;
     text-align: center;
+}
+
+/* ── Schedule Manager — Mobile ─────────────────────────────────────────── */
+@media (max-width: 768px) {
+    #scheduleManager .admin-calendar-controls {
+        padding: 0.6rem 0.9rem;
+        border-radius: 12px;
+        gap: 0.5rem;
+    }
+    #scheduleManager .admin-calendar-controls h4 { font-size: 0.88rem; }
+    #scheduleManager .btn-control {
+        font-size: 0.72rem;
+        padding: 0.42rem 0.7rem;
+        border-radius: 8px;
+    }
+
+    .schedule-import-bar {
+        padding: 0.75rem 1rem;
+        gap: 0.5rem;
+        border-radius: 12px;
+    }
+    .schedule-week-status { font-size: 0.8rem; }
+    .btn-import-week {
+        font-size: 0.78rem;
+        padding: 0.45rem 0.85rem;
+        width: 100%;
+        justify-content: center;
+    }
+    .btn-clear-week {
+        font-size: 0.78rem;
+        padding: 0.4rem 0.75rem;
+        width: 100%;
+        justify-content: center;
+    }
+
+    .schedule-day-tabs {
+        gap: 3px;
+        padding: 3px;
+        border-radius: 12px;
+    }
+    .schedule-day-tab {
+        min-width: 0;
+        padding: 0.45rem 0.25rem;
+        border-radius: 8px;
+    }
+    .schedule-day-tab .admin-day-name { font-size: 0.6rem; }
+    .schedule-day-tab .admin-day-date { font-size: 0.95rem; }
+    .schedule-day-tab .admin-day-count { font-size: 0.55rem; }
+
+    .schedule-slots-list { gap: 0.5rem; }
+    .schedule-slot-item-selector {
+        padding: 0.85rem 1rem;
+        gap: 0.75rem;
+        border-radius: 12px;
+    }
+    .schedule-slot-time { font-size: 0.88rem; }
+    .slot-type-select {
+        font-size: 0.85rem;
+        padding: 0.5rem 0.7rem;
+    }
+    .schedule-slot-dropdown { min-width: 140px; }
+    .current-type-badge {
+        font-size: 0.72rem;
+        padding: 0.3rem 0.7rem;
+    }
+
+    .slot-client-picker { padding: 0.6rem 0.8rem; }
+    .slot-client-input { font-size: 0.85rem; padding: 0.45rem 0.7rem; }
 }
 
 /* Payments Section */
