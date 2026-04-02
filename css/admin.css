@@ -988,19 +988,15 @@ canvas {
     gap: 0.6rem;
 }
 
-.clients-search-bar input {
+.clients-search-bar .search-input-group input {
     width: 100%;
-    padding: 0.75rem 1rem;
-    border: 2px solid #e0e0e0;
-    border-radius: 8px;
-    font-size: 1rem;
-    outline: none;
-    transition: border-color 0.2s;
     box-sizing: border-box;
 }
 
-.clients-search-bar input:focus {
-    border-color: #ff6b6b;
+.clients-search-bar .search-input-group input:focus {
+    border-color: var(--primary-cyan);
+    box-shadow: 0 0 0 3px rgba(0,174,239,0.10);
+    background: #fff;
 }
 
 .clients-search-bar .debtor-search-dropdown {
@@ -5368,7 +5364,7 @@ canvas {
 
     /* -- Clients tab -- */
     .clients-search-bar { gap: 0.4rem; margin-bottom: 0.75rem; }
-    .clients-search-bar input { padding: 0.6rem 0.8rem; font-size: 0.9rem; }
+    .clients-search-bar input { padding: 0.6rem 0.8rem 0.6rem 2.2rem; font-size: 0.9rem; }
     .clients-cert-filter-btn { font-size: 0.82rem; padding: 0.35rem 0.85rem; }
 
     .clients-filter-toggle {

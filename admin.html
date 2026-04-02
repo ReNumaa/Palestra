@@ -162,10 +162,12 @@
             <div id="tab-clients" class="tab-content">
                 <div class="dashboard-card">
                     <div class="clients-search-bar" style="position:relative;">
-                        <input type="text" id="clientSearchInput"
-                               placeholder="Cerca cliente.."
-                               oninput="liveSearchClients()"
-                               onkeydown="if(event.key==='Escape') closeClientsSearchDropdown()">
+                        <div class="search-input-group">
+                            <input type="text" id="clientSearchInput"
+                                   placeholder="Cerca cliente.."
+                                   oninput="liveSearchClients()"
+                                   onkeydown="if(event.key==='Escape') closeClientsSearchDropdown()">
+                        </div>
                         <div id="clientsSearchDropdown" class="debtor-search-dropdown" style="display:none;"></div>
                         <div class="clients-filter-row">
                             <button class="clients-filter-toggle" id="clientsFilterToggle" onclick="toggleClientsFiltersMenu()">
