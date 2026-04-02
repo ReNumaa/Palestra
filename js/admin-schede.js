@@ -266,7 +266,6 @@ var _schedeQuickSearchClient = _debounce(function() {
         dropdown.innerHTML = matches.slice(0, 10).map(u =>
             `<div class="dropdown-item" onclick="_schedeQuickSelectClient('${u.userId}', '${_escHtml(u.name || u.email).replace(/'/g, "\\'")}')">
                 <span class="dropdown-item-name">${_escHtml(u.name || 'Senza nome')}</span>
-                <span style="color:#888;font-size:0.82rem">${_escHtml(u.email || '')}</span>
             </div>`
         ).join('');
     }
@@ -864,7 +863,6 @@ var _schedeSearchClient = _debounce(function() {
         dropdown.innerHTML = matches.slice(0, 10).map(u =>
             `<div class="dropdown-item" onclick="_schedeSelectClient('${u.userId}', '${_escHtml(u.name || u.email).replace(/'/g, "\\'")}')">
                 <span class="dropdown-item-name">${_escHtml(u.name || 'Senza nome')}</span>
-                <span style="color:#888;font-size:0.82rem">${_escHtml(u.email || '')}</span>
             </div>`
         ).join('');
     }

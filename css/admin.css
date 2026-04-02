@@ -5916,6 +5916,16 @@ canvas {
     border-radius: 20px;
 }
 
+/* ── Cards row (desktop side-by-side) ────────────────────────────────────── */
+.msg-cards-row {
+    display: flex;
+    gap: 1rem;
+}
+.msg-cards-row > .msg-card {
+    flex: 1;
+    min-width: 0;
+}
+
 /* ── Cards ───────────────────────────────────────────────────────────────── */
 .msg-card {
     background: #fff;
@@ -6110,6 +6120,7 @@ canvas {
 .msg-send-bar {
     display: flex;
     align-items: center;
+    justify-content: center;
     gap: 1rem;
     padding: 1rem 1.3rem;
     background: linear-gradient(135deg, #f8fafc, #f1f5f9);
@@ -6271,6 +6282,7 @@ canvas {
 @media (max-width: 768px) {
     .msg-header h3 { font-size: 1.15rem; }
     .msg-header-badge { font-size: 0.62rem; padding: 0.2rem 0.6rem; }
+    .msg-cards-row { flex-direction: column; }
     .msg-card { padding: 1rem; border-radius: 12px; }
     .msg-card-title { font-size: 0.72rem; }
     .msg-recipient-icon { width: 28px; height: 28px; font-size: 0.85rem; }

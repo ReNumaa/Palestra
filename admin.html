@@ -103,7 +103,7 @@
                     <!-- Search Bar -->
                     <div class="payment-search">
                         <div class="search-input-group">
-                            <input type="text" id="debtorSearchInput" placeholder="Cerca cliente per nome, telefono o email..."
+                            <input type="text" id="debtorSearchInput" placeholder="Cerca cliente per nome o telefono..."
                                    oninput="liveSearchDebtor()"
                                    onkeydown="if(event.key==='Escape') closeSearchDropdown()" />
                         </div>
@@ -165,7 +165,7 @@
                 <div class="dashboard-card">
                     <div class="clients-search-bar" style="position:relative;">
                         <input type="text" id="clientSearchInput"
-                               placeholder="Cerca per nome, telefono o email..."
+                               placeholder="Cerca per nome o telefono..."
                                oninput="liveSearchClients()"
                                onkeydown="if(event.key==='Escape') closeClientsSearchDropdown()">
                         <div id="clientsSearchDropdown" class="debtor-search-dropdown" style="display:none;"></div>
@@ -581,7 +581,7 @@
                                     <div class="registro-search-row">
                                         <div class="registro-filter-group registro-filter-group--search">
                                             <label class="registro-filter-label">Cerca cliente</label>
-                                            <input type="text" id="registroSearch" placeholder="Nome, telefono, email..." oninput="_debouncedRegistroFilter()">
+                                            <input type="text" id="registroSearch" placeholder="Nome, telefono..." oninput="_debouncedRegistroFilter()">
                                         </div>
                                         <div class="registro-filter-group">
                                             <label class="registro-filter-label">&nbsp;</label>
@@ -735,6 +735,7 @@
                         <span class="msg-header-badge">📡 Broadcast</span>
                     </div>
 
+                    <div class="msg-cards-row">
                     <!-- Compose -->
                     <div class="msg-card">
                         <div class="msg-card-title">
@@ -802,6 +803,7 @@
                                 <option value="">Seleziona prima una data</option>
                             </select>
                         </div>
+                    </div>
                     </div>
 
                     <!-- Send -->
@@ -935,7 +937,7 @@
                 <div class="manual-client-search-wrap">
                     <div class="manual-search-input-wrap">
                         <svg class="manual-search-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"><circle cx="11" cy="11" r="8"/><path d="m21 21-4.35-4.35"/></svg>
-                        <input type="text" id="manualClientInput" placeholder="Nome, telefono o email..."
+                        <input type="text" id="manualClientInput" placeholder="Nome o telefono..."
                                oninput="liveSearchManualClient()"
                                onkeydown="if(event.key==='Escape') document.getElementById('manualClientDropdown').style.display='none'"
                                autocomplete="off">

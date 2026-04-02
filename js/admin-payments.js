@@ -837,7 +837,6 @@ function liveSearchManualClient() {
         const safeE = (u.email || '').replace(/'/g, "\\'");
         return `<div class="debtor-search-option" onclick="selectManualClient('${safeN}','${safeW}','${safeE}')">
             <strong>${u.name}</strong>
-            <small>${[u.whatsapp, u.email].filter(Boolean).join(' · ')}</small>
         </div>`;
     }).join('');
     dropdown.style.display = 'block';

@@ -133,10 +133,8 @@ var liveSearchClients = _debounce(function() {
         dropdown.innerHTML = '<div class="dropdown-no-results">Nessun risultato</div>';
     } else {
         dropdown.innerHTML = matches.slice(0, 15).map((c, i) => {
-            const sub = c.email || (c.whatsapp || '').replace(/^\+39\s*/, '') || '';
             return `<div class="dropdown-item" onclick="selectClientFromDropdown(${i})">
                 <span class="dropdown-item-name">${_escHtml(c.name)}</span>
-                <span style="color:#888;font-size:0.82rem">${_escHtml(sub)}</span>
             </div>`;
         }).join('');
         dropdown._matches = matches;

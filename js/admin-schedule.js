@@ -626,7 +626,6 @@ var searchClientsForSlot = _debounce(function(timeSlot, query) {
     resultsDiv.innerHTML = results.map((user, i) => `
         <div class="slot-client-result" onclick="selectSlotClient('${timeSlot}', ${i})">
             <span class="slot-client-result-name">${user.name}</span>
-            <span class="slot-client-result-sub">${user.whatsapp || user.email}</span>
         </div>
     `).join('');
 }, 250);

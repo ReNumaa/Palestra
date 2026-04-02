@@ -163,7 +163,6 @@ function _filterClientList(query) {
         row.innerHTML = `
             <div>
                 <div style="font-weight:600">${_escHtml(c.name)}</div>
-                <div style="font-size:11px;color:#888">${_escHtml(c.email || c.whatsapp || '')}</div>
             </div>
             <span style="font-size:11px;color:#aaa">›</span>
         `;

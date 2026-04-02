@@ -543,3 +543,45 @@
 | Tempo prompt utente (stimato) | ~5 min |
 | Token input (stimati) | ~100k |
 | Token output (stimati) | ~12k |
+
+## Task: Fix fatturato reale — soldi in cassa senza double counting
+**Data:** 2026-04-01
+**Durata stimata:** ~60 min Claude + ~20 min prompt utente
+
+### Modifiche effettuate
+
+#### Fatturato reale
+- Ristrutturato calcolo fatturato "Reale" per rappresentare i **soldi effettivamente incassati** (cassa)
+- Credit history entries con `displayAmount` (da `admin_pay_bookings`) usano `displayAmount` come valore cassa (= soldi totali ricevuti dall'admin)
+- Credit history entries senza `displayAmount` (da `admin_add_credit`) usano `amount` come prima
+- Booking processati via RPC esclusi dal conteggio (matching `email|paidAt`): il loro incasso è già catturato dal `displayAmount`
+- More (penalità cancellazione) rimosse dal fatturato reale: rappresentano creazione debito, non soldi incassati. Il cash arriva quando vengono pagate via `admin_pay_bookings`
+- Inferenza method da booking per vecchie credit_history senza campo `method` (pre-migration)
+
+#### Grafico a torta "Per tipo di pagamento"
+- Rimossa categoria `lezione-gratuita` (non sono soldi reali)
+- Applicata stessa deduplicazione e `_cashValue` del fatturato
+- Filtro coerente con il KPI principale
+
+#### Report settimanale e fiscale
+- Transazione unica per pagamenti processati via `admin_pay_bookings`: usa `displayAmount` come importo, esclude booking e debiti corrispondenti
+- Inferenza method da booking per vecchie entry senza `method`
+- Es. Valentina Bertelli: prima 2 righe (€10 booking + €50 debito), ora 1 riga (€60 Pagamento)
+
+### Decisioni prese
+- **displayAmount come fonte primaria**: `admin_pay_bookings` salva sempre `displayAmount = p_amount_paid` (soldi totali ricevuti). Questa è la fonte di verità per il cash
+- **Deduplicazione per timestamp**: il matching `email|paidAt` funziona perché la RPC PostgreSQL usa lo stesso `v_now` per booking e credit_history (precisione al microsecondo, stessa transazione)
+- **More escluse in Reale**: le more sono debiti creati, non cash. Quando vengono pagate, il cash entra tramite `displayAmount`. Restano attive in modalità "Prenotazioni"
+- **Non ristrutturato con tabella payments separata**: il fix pragmatico funziona correttamente per tutti i casi d'uso attuali. Una tabella payments dedicata sarebbe più elegante ma richiederebbe una migrazione importante
+
+### File toccati
+- `js/admin-analytics.js` — Ristrutturato `renderFatturatoDetail()`: credit entries con `_cashValue`, `_rpcPaymentKeys` Set per deduplicazione, `_rpcEntryMap` per inferenza method; fix grafico a torta; fix report settimanale e fiscale
+- `sw.js` — Bump CACHE_NAME v214 → v217
+
+### Consumo risorse (solo per progetti cliente)
+| Voce | Valore |
+|------|--------|
+| Tempo task Claude | ~60 min |
+| Tempo prompt utente (stimato) | ~20 min |
+| Token input (stimati) | ~350k |
+| Token output (stimati) | ~40k |
