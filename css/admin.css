@@ -5364,7 +5364,7 @@ canvas {
 
     /* -- Clients tab -- */
     .clients-search-bar { gap: 0.4rem; margin-bottom: 0.75rem; }
-    .clients-search-bar input { padding: 0.6rem 0.8rem 0.6rem 2.2rem; font-size: 0.9rem; }
+    .clients-search-bar input { padding: 0.7rem 1rem 0.7rem 2.5rem; font-size: 16px; }
     .clients-cert-filter-btn { font-size: 0.82rem; padding: 0.35rem 0.85rem; }
 
     .clients-filter-toggle {
