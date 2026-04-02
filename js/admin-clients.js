@@ -185,15 +185,35 @@ function closeClientsSearchDropdown() {
     if (dropdown) dropdown.style.display = 'none';
 }
 
+function clearClientsSearch() {
+    const searchInput = document.getElementById('clientSearchInput');
+    if (searchInput) searchInput.value = '';
+    closeClientsSearchDropdown();
+    // Ripristina stat cards e filtri
+    const statsGrid = document.getElementById('clientsStatsGrid');
+    const filterBar = document.getElementById('clientsFilterBar');
+    if (statsGrid) statsGrid.style.display = '';
+    if (filterBar) filterBar.style.display = '';
+    // Nascondi lista (torna allo stato iniziale)
+    const listEl = document.getElementById('clientsList');
+    if (listEl) { listEl.innerHTML = ''; listEl.style.display = 'none'; }
+    clientsListMode = null;
+    _updateClientsHints();
+}
+
 function selectClientFromDropdown(index) {
     const dropdown = document.getElementById('clientsSearchDropdown');
     const matches = dropdown._matches;
     if (!matches || !matches[index]) return;
     const client = matches[index];
 
-    // Show only the selected client's card
+    // Show only the selected client's card with close button
     const container = document.getElementById('clientsList');
     container.innerHTML = '';
+    const header = document.createElement('div');
+    header.className = 'search-results-header';
+    header.innerHTML = '<h4>Risultato ricerca</h4><button class="btn-clear-search" onclick="clearClientsSearch()">✕ Chiudi</button>';
+    container.appendChild(header);
     const card = createClientCard(client, 0);
     card.classList.add('open');
     container.appendChild(card);
