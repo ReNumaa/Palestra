@@ -639,6 +639,33 @@
     box-shadow: 0 2px 8px rgba(16, 185, 129, 0.3);
 }
 
+/* ── Add set button ────────────────────────────────────────────────────────── */
+.all-log-add-set {
+    display: block;
+    width: 100%;
+    margin-top: 0.4rem;
+    padding: 0.45rem;
+    border: 1.5px dashed var(--all-border);
+    border-radius: var(--all-radius-sm);
+    background: transparent;
+    color: var(--all-muted);
+    font-size: 0.78rem;
+    font-weight: 700;
+    cursor: pointer;
+    transition: all 0.2s;
+    -webkit-tap-highlight-color: transparent;
+}
+
+.all-log-add-set:hover {
+    border-color: var(--all-cyan);
+    color: var(--all-cyan);
+    background: var(--all-cyan-glow);
+}
+
+.all-log-add-set:active {
+    transform: scale(0.98);
+}
+
 /* ── Log actions row ───────────────────────────────────────────────────────── */
 .all-log-actions {
     display: flex;

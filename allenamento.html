@@ -13,7 +13,7 @@
     <link rel="icon" type="image/jpeg" href="images/logo-tb---nero.jpg">
     <link rel="stylesheet" href="css/style.css?v=8">
     <link rel="stylesheet" href="css/login.css?v=4">
-    <link rel="stylesheet" href="css/allenamento.css?v=4">
+    <link rel="stylesheet" href="css/allenamento.css?v=5">
 </head>
 <body class="allenamento-body">
     <nav class="navbar">
@@ -343,12 +343,18 @@
                                     <span>Serie</span><span>Reps</span><span>Kg</span><span>RPE</span>
                                 </div>`;
 
-                for (let s = 1; s <= ex.sets; s++) {
+                // Calcola il numero totale di righe: max tra serie previste, log di oggi e log precedenti
+                const todayMaxSet = todayLogs.filter(l => l.exercise_id === ex.id).reduce((m, l) => Math.max(m, l.set_number), 0);
+                const prevMaxSet = prevLogs.reduce((m, l) => Math.max(m, l.set_number), 0);
+                const totalRows = Math.max(ex.sets, todayMaxSet, prevMaxSet);
+
+                for (let s = 1; s <= totalRows; s++) {
                     const existing = todayLogs.find(l => l.exercise_id === ex.id && l.set_number === s);
                     const prev = prevLogs.find(l => l.set_number === s);
-                    // Priorità: log di oggi → valori sessione precedente → default scheda
-                    const rVal = existing?.reps_done ?? prev?.reps_done ?? (parseInt(ex.reps) || '');
-                    const wVal = existing?.weight_done ?? prev?.weight_done ?? (ex.weight_kg ?? '');
+                    const isExtra = s > ex.sets;
+                    // Priorità: log di oggi → valori sessione precedente → default scheda (solo per serie base)
+                    const rVal = existing?.reps_done ?? prev?.reps_done ?? (isExtra ? '' : (parseInt(ex.reps) || ''));
+                    const wVal = existing?.weight_done ?? prev?.weight_done ?? (isExtra ? '' : (ex.weight_kg ?? ''));
                     const rpeVal = existing?.rpe ?? '';
                     html += `<div class="all-log-row">
                         <span class="all-log-set">${s}</span>
@@ -359,8 +365,9 @@
                 }
 
                 html += `</div>
+                            <button class="all-log-add-set" onclick="addExtraSet('${ex.id}', this)">+ Serie</button>
                             <div class="all-log-actions">
-                                <button class="all-log-save" onclick="saveLog('${ex.id}', ${ex.sets}, this)">Salva</button>
+                                <button class="all-log-save" onclick="saveLog('${ex.id}', this)">Salva</button>
                                 ${hasLogs ? `<button class="all-log-delete" onclick="deleteTodayLog('${ex.id}', this)">Elimina log di oggi</button>` : ''}
                             </div>
                         </div>
@@ -377,18 +384,20 @@
             if (card) card.classList.toggle('open');
         }
 
-        async function saveLog(exerciseId, totalSets, btn) {
+        async function saveLog(exerciseId, btn) {
             const user = getCurrentUser();
             if (!user) return;
             const section = btn.closest('.all-log-section');
+            const rows = section.querySelectorAll('.all-log-row');
             const today = _localDateStr();
             btn.disabled = true;
             btn.textContent = 'Salvataggio...';
             try {
-                for (let s = 1; s <= totalSets; s++) {
-                    const reps = section.querySelector(`input[data-field="reps"][data-set="${s}"]`);
-                    const weight = section.querySelector(`input[data-field="weight"][data-set="${s}"]`);
-                    const rpe = section.querySelector(`input[data-field="rpe"][data-set="${s}"]`);
+                for (const row of rows) {
+                    const s = parseInt(row.querySelector('.all-log-set').textContent);
+                    const reps = row.querySelector('input[data-field="reps"]');
+                    const weight = row.querySelector('input[data-field="weight"]');
+                    const rpe = row.querySelector('input[data-field="rpe"]');
                     await WorkoutLogStorage.logSet({
                         exercise_id: exerciseId,
                         user_id: user.id,
@@ -399,10 +408,6 @@
                         rpe: rpe.value ? parseInt(rpe.value) : null,
                     });
                 }
-                btn.textContent = 'Salvato!';
-                btn.classList.add('all-log-save--done');
-                const card = document.getElementById('ex-' + exerciseId);
-                if (card) card.classList.add('all-ex-done');
                 // Update local logs
                 const { data } = await supabaseClient
                     .from('workout_logs')
@@ -414,7 +419,45 @@
                     _allLogs = _allLogs.filter(l => !(l.exercise_id === exerciseId && l.log_date === today));
                     _allLogs.push(...data);
                 }
+                // Update UI: checkmark + done state
+                const card = document.getElementById('ex-' + exerciseId);
+                if (card) {
+                    card.classList.add('all-ex-done');
+                    const statusEl = card.querySelector('.all-ex-status');
+                    if (statusEl) statusEl.innerHTML = '<span class="all-ex-check">&#10003;</span>';
+                    // Show delete button if not present
+                    const actions = card.querySelector('.all-log-actions');
+                    if (actions && !actions.querySelector('.all-log-delete')) {
+                        const delBtn = document.createElement('button');
+                        delBtn.className = 'all-log-delete';
+                        delBtn.textContent = 'Elimina log di oggi';
+                        delBtn.onclick = function() { deleteTodayLog(exerciseId, delBtn); };
+                        actions.appendChild(delBtn);
+                    }
+                }
+                // Update day done count
+                const dayExercises = (_allPlan?.workout_exercises || []).filter(e => e.day_label === _activeDay);
+                const todayLogs = _allLogs.filter(l => l.log_date === today);
+                const doneCount = dayExercises.filter(ex => todayLogs.some(l => l.exercise_id === ex.id)).length;
+                const countEl = document.querySelector('.all-day-count');
+                if (countEl) countEl.textContent = `${doneCount}/${dayExercises.length} completati`;
+                // Update day tab
+                const dayTabs = document.querySelectorAll('.all-day-tab');
+                dayTabs.forEach(tab => {
+                    if (tab.querySelector('.all-day-tab-name')?.textContent.replace(' ✓', '').trim() === _activeDay) {
+                        if (!tab.classList.contains('done')) {
+                            tab.classList.add('done');
+                            const nameEl = tab.querySelector('.all-day-tab-name');
+                            if (nameEl && !nameEl.textContent.includes('✓')) nameEl.innerHTML += ' &#10003;';
+                            const lastEl = tab.querySelector('.all-day-tab-last');
+                            if (lastEl) lastEl.textContent = 'ultimo: oggi';
+                        }
+                    }
+                });
+
                 if (typeof showToast === 'function') showToast('Log salvato', 'success');
+                btn.textContent = 'Salvato!';
+                btn.classList.add('all-log-save--done');
                 setTimeout(() => { btn.textContent = 'Salva'; btn.disabled = false; btn.classList.remove('all-log-save--done'); }, 2000);
             } catch (e) {
                 console.error('[Allenamento] log error:', e);
@@ -422,6 +465,23 @@
                 btn.disabled = false;
                 if (typeof showToast === 'function') showToast('Errore salvataggio', 'error');
             }
+        }
+
+        function addExtraSet(exerciseId, btn) {
+            const section = btn.closest('.all-log-section');
+            const grid = section.querySelector('.all-log-grid');
+            const rows = grid.querySelectorAll('.all-log-row');
+            const nextSet = rows.length + 1;
+            const row = document.createElement('div');
+            row.className = 'all-log-row';
+            row.innerHTML = `
+                <span class="all-log-set">${nextSet}</span>
+                <input type="number" inputmode="numeric" min="0" value="" class="all-log-input" data-field="reps" data-set="${nextSet}">
+                <input type="number" inputmode="decimal" min="0" step="0.5" value="" class="all-log-input" data-field="weight" data-set="${nextSet}">
+                <input type="number" inputmode="numeric" min="1" max="10" value="" class="all-log-input all-log-input--sm" data-field="rpe" data-set="${nextSet}" placeholder="—">
+            `;
+            grid.appendChild(row);
+            row.querySelector('input[data-field="reps"]').focus();
         }
 
         async function deleteTodayLog(exerciseId, btn) {
