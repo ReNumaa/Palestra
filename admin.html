@@ -78,12 +78,13 @@
 
             <!-- Tab: Bookings -->
             <div id="tab-bookings" class="tab-content active">
-                <!-- Admin Calendar with Enrolled Users -->
-                <div class="dashboard-card admin-calendar-card">
-                    <div class="admin-calendar-controls">
-                        <button id="adminPrevWeek" class="btn-control">&larr; Settimana Precedente</button>
-                        <h4 id="adminCurrentWeek">Settimana Corrente</h4>
-                        <button id="adminNextWeek" class="btn-control">Settimana Successiva &rarr;</button>
+                <div class="bookings-hub">
+                    <div class="bookings-week-bar">
+                        <div class="bookings-week-nav">
+                            <button id="adminPrevWeek" class="schedule-week-btn" title="Settimana precedente">&larr;</button>
+                            <span class="schedule-week-dates" id="adminCurrentWeek">Settimana Corrente</span>
+                            <button id="adminNextWeek" class="schedule-week-btn" title="Settimana successiva">&rarr;</button>
+                        </div>
                     </div>
 
                     <div class="admin-day-selector" id="adminDaySelector">
