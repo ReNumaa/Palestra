@@ -1009,22 +1009,50 @@ canvas {
 .payment-stat-card--clients .payment-total { color: var(--primary-cyan-dark); }
 .payment-stat-card--clients .payment-stat-icon { background: rgba(0,174,239,0.10); }
 
-/* Filter chips bar */
+/* Filter bar */
 .clients-filter-bar {
     display: flex;
-    flex-wrap: wrap;
-    align-items: center;
-    gap: 0.45rem;
+    flex-direction: column;
+    gap: 0.5rem;
     margin-bottom: 1.25rem;
 }
 
-.clients-filter-label {
-    font-size: 0.78rem;
+.clients-filter-toggle {
+    align-self: flex-start;
+    display: flex;
+    align-items: center;
+    gap: 0.4rem;
+    background: #fff;
+    border: 1.5px solid #e5e7eb;
+    color: #6b7280;
+    font-size: 0.85rem;
     font-weight: 600;
-    color: #9ca3af;
-    text-transform: uppercase;
-    letter-spacing: 0.04em;
-    margin-right: 0.15rem;
+    padding: 0.4rem 0.9rem;
+    border-radius: 10px;
+    cursor: pointer;
+    transition: background 0.15s, border-color 0.15s, color 0.15s;
+}
+
+.clients-filter-toggle:hover {
+    background: #f9fafb;
+    border-color: #d1d5db;
+    color: #374151;
+}
+
+.clients-filter-toggle.active {
+    background: #f0f9ff;
+    border-color: var(--primary-cyan);
+    color: var(--primary-cyan-dark);
+}
+
+.clients-filter-chips {
+    display: none;
+    flex-wrap: wrap;
+    gap: 0.45rem;
+}
+
+.clients-filter-chips.open {
+    display: flex;
 }
 
 .clients-filter-chip {
@@ -5386,7 +5414,7 @@ canvas {
     .clients-search-bar input { padding: 0.7rem 1rem 0.7rem 2.5rem; font-size: 16px; }
 
     .clients-filter-bar { gap: 0.35rem; margin-bottom: 0.9rem; }
-    .clients-filter-label { font-size: 0.7rem; }
+    .clients-filter-toggle { font-size: 0.8rem; padding: 0.35rem 0.75rem; }
     .clients-filter-chip { font-size: 0.72rem; padding: 0.25rem 0.65rem; }
 
     .client-card-header {

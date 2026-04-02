@@ -4,6 +4,7 @@ let clientsSearchQuery = '';
 let clientCertFilter  = false;
 let clientAssicFilter = false;
 let clientAnagFilter  = false;
+let clientBonusFilter = false;
 
 function clientHasCertIssue(client) {
     const userRecord = _getUserRecord(client.email, client.whatsapp);
@@ -23,25 +24,36 @@ function _syncFilterButtons() {
     document.getElementById('certFilterBtn')?.classList.toggle('active', clientCertFilter);
     document.getElementById('assicFilterBtn')?.classList.toggle('active', clientAssicFilter);
     document.getElementById('anagFilterBtn')?.classList.toggle('active', clientAnagFilter);
+    document.getElementById('bonusFilterBtn')?.classList.toggle('active', clientBonusFilter);
+    // Evidenzia toggle se un filtro è attivo
+    const toggle = document.getElementById('clientsFilterToggle');
+    if (toggle) toggle.classList.toggle('active', clientCertFilter || clientAssicFilter || clientAnagFilter || clientBonusFilter);
 }
 
 function toggleClientsFiltersMenu() {
-    const btns  = document.getElementById('clientsFilterBtns');
+    const chips = document.getElementById('clientsFilterChips');
     const arrow = document.getElementById('clientsFilterToggleArrow');
-    const open  = btns.classList.toggle('open');
+    const open  = chips.classList.toggle('open');
     if (arrow) arrow.textContent = open ? '▲' : '▼';
+}
+
+function _clearOtherFilters(keep) {
+    if (keep !== 'cert')  clientCertFilter = false;
+    if (keep !== 'assic') clientAssicFilter = false;
+    if (keep !== 'anag')  clientAnagFilter = false;
+    if (keep !== 'bonus') clientBonusFilter = false;
 }
 
 function toggleCertFilter() {
     clientCertFilter = !clientCertFilter;
-    if (clientCertFilter) { clientAssicFilter = false; clientAnagFilter = false; }
+    if (clientCertFilter) _clearOtherFilters('cert');
     _syncFilterButtons();
     renderClientsTab();
 }
 
 function toggleAssicFilter() {
     clientAssicFilter = !clientAssicFilter;
-    if (clientAssicFilter) { clientCertFilter = false; clientAnagFilter = false; }
+    if (clientAssicFilter) _clearOtherFilters('assic');
     _syncFilterButtons();
     renderClientsTab();
 }
@@ -58,7 +70,18 @@ function clientHasAnagIssue(client) {
 
 function toggleAnagFilter() {
     clientAnagFilter = !clientAnagFilter;
-    if (clientAnagFilter) { clientCertFilter = false; clientAssicFilter = false; }
+    if (clientAnagFilter) _clearOtherFilters('anag');
+    _syncFilterButtons();
+    renderClientsTab();
+}
+
+function clientHasBonusIssue(client) {
+    return BonusStorage.getBonus(client.whatsapp, client.email) === 0;
+}
+
+function toggleBonusFilter() {
+    clientBonusFilter = !clientBonusFilter;
+    if (clientBonusFilter) _clearOtherFilters('bonus');
     _syncFilterButtons();
     renderClientsTab();
 }
@@ -292,7 +315,7 @@ function renderClientsTab() {
     if (searchInput) searchInput.value = '';
     closeClientsSearchDropdown();
     const listEl = document.getElementById('clientsList');
-    const hasFilter = clientCertFilter || clientAssicFilter || clientAnagFilter;
+    const hasFilter = clientCertFilter || clientAssicFilter || clientAnagFilter || clientBonusFilter;
     if (!clientsListMode && !hasFilter) {
         if (listEl) listEl.style.display = 'none';
         return;
@@ -304,6 +327,7 @@ function renderClientsTab() {
     if (clientCertFilter)  filtered = filtered.filter(clientHasCertIssue);
     if (clientAssicFilter) filtered = filtered.filter(clientHasAssicIssue);
     if (clientAnagFilter)  filtered = filtered.filter(clientHasAnagIssue);
+    if (clientBonusFilter) filtered = filtered.filter(clientHasBonusIssue);
 
     const container = document.getElementById('clientsList');
     container.innerHTML = '';

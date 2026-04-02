@@ -185,16 +185,23 @@
                         </div>
                     </div>
                     <div class="clients-filter-bar" id="clientsFilterBar">
-                        <span class="clients-filter-label">Filtri:</span>
-                        <button class="clients-filter-chip" id="certFilterBtn" onclick="toggleCertFilter()">
-                            🏥 Senza certificato
+                        <button class="clients-filter-toggle" id="clientsFilterToggle" onclick="toggleClientsFiltersMenu()">
+                            🔍 Filtri <span id="clientsFilterToggleArrow">▼</span>
                         </button>
-                        <button class="clients-filter-chip" id="assicFilterBtn" onclick="toggleAssicFilter()">
-                            📋 Senza assicurazione
-                        </button>
-                        <button class="clients-filter-chip" id="anagFilterBtn" onclick="toggleAnagFilter()">
-                            📝 Senza anagrafica
-                        </button>
+                        <div class="clients-filter-chips" id="clientsFilterChips">
+                            <button class="clients-filter-chip" id="certFilterBtn" onclick="toggleCertFilter()">
+                                🏥 Senza certificato
+                            </button>
+                            <button class="clients-filter-chip" id="assicFilterBtn" onclick="toggleAssicFilter()">
+                                📋 Senza assicurazione
+                            </button>
+                            <button class="clients-filter-chip" id="anagFilterBtn" onclick="toggleAnagFilter()">
+                                📝 Senza anagrafica
+                            </button>
+                            <button class="clients-filter-chip" id="bonusFilterBtn" onclick="toggleBonusFilter()">
+                                🎁 Senza bonus
+                            </button>
+                        </div>
                     </div>
                     <div class="clients-list" id="clientsList" style="display:none;">
                         <!-- Populated by JavaScript -->
