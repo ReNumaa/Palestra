@@ -2,7 +2,15 @@
 let debtorsListVisible = false;
 let creditsListVisible = false;
 
+function _setPaymentCardsLoading(on) {
+    document.querySelectorAll('.payment-stat-card').forEach(c =>
+        c.classList.toggle('payment-stat-card--loading', on));
+}
+
 async function renderPaymentsTab() {
+    // Skeleton anti-flicker: mostra solo se il fetch dura >150ms
+    let skeletonTimer = setTimeout(() => _setPaymentCardsLoading(true), 150);
+
     // RPC server-side (veloce, dati freschi), fallback al JS locale se non disponibile
     let debtors;
     if (typeof supabaseClient !== 'undefined') {
@@ -14,6 +22,10 @@ async function renderPaymentsTab() {
         } catch (_) { /* Supabase non raggiungibile — usa fallback JS */ }
     }
     if (!debtors) debtors = getDebtors();
+
+    // Rimuovi skeleton
+    if (skeletonTimer) clearTimeout(skeletonTimer);
+    _setPaymentCardsLoading(false);
 
     const totalUnpaid = debtors.reduce((sum, debtor) => sum + debtor.totalAmount, 0);
     // Net debts against credit balance: only show as creditor if credit > debt

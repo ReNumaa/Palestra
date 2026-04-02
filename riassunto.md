@@ -585,3 +585,30 @@
 | Tempo prompt utente (stimato) | ~20 min |
 | Token input (stimati) | ~350k |
 | Token output (stimati) | ~40k |
+
+## Task: Fix allineamento mobile Registro Operazioni
+**Data:** 2026-04-02
+**Durata stimata:** ~15 min Claude + ~5 min prompt utente
+
+### Modifiche effettuate
+- Trasformata la tabella Registro Operazioni in card layout su mobile (≤640px)
+- Nascosto `<thead>` su mobile, ogni `<td>` mostra la propria etichetta via `data-label` e pseudo-elemento `::before`
+- Layout a griglia 2 colonne con Data/Ora, Tipo e Cliente full-width; nota full-width con testo che va a capo
+- Card con bordo sinistro colorato per azioni admin (rosso) e system (verde)
+
+### Decisioni prese
+- Approccio CSS-only con `data-label`: minimo impatto sul JS (solo aggiunta attributi), massima flessibilità CSS
+- Breakpoint 640px: coerente con gli altri media query mobile già presenti nel file
+
+### File toccati
+- `js/admin-registro.js` — Aggiunto `data-label` a ogni `<td>` nel rendering delle righe
+- `css/admin.css` — Aggiunto card layout mobile nel media query 640px (thead nascosto, grid 2 colonne, bordi colorati)
+- `sw.js` — Bump CACHE_NAME v238 → v239
+
+### Consumo risorse (solo per progetti cliente)
+| Voce | Valore |
+|------|--------|
+| Tempo task Claude | ~15 min |
+| Tempo prompt utente (stimato) | ~5 min |
+| Token input (stimati) | ~80k |
+| Token output (stimati) | ~10k |

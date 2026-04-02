@@ -2219,47 +2219,61 @@ canvas {
 .payments-stats {
     display: grid;
     grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
-    gap: 1rem;
+    gap: 0.85rem;
     margin-bottom: 1.75rem;
 }
 
 .payment-stat-card {
     background: white;
     border: 1px solid #e5e7eb;
-    border-radius: 14px;
-    padding: 1.4rem 1.25rem 1.25rem;
+    border-radius: 16px;
+    padding: 1.2rem 1.1rem 1rem;
     text-align: center;
     position: relative;
     overflow: hidden;
+    box-shadow: 0 1px 3px rgba(0,0,0,0.04);
+    transition: transform 0.2s, box-shadow 0.2s;
 }
 
 .payment-stat-card::before {
     content: '';
     position: absolute;
-    top: 0; left: 0; right: 0;
-    height: 4px;
+    top: 0; left: 0;
+    width: 4px; height: 100%;
     background: #e5e7eb;
-    border-radius: 14px 14px 0 0;
+    border-radius: 16px 0 0 16px;
 }
 
-.payment-stat-card--incasso::before   { background: #f59e0b; }
-.payment-stat-card--debitori::before  { background: #ef4444; }
-.payment-stat-card--creditori::before { background: var(--primary-cyan); }
-.payment-stat-card--credit::before    { background: #22c55e; }
+.payment-stat-card--incasso::before   { background: linear-gradient(180deg, #f59e0b, #d97706); }
+.payment-stat-card--debitori::before  { background: linear-gradient(180deg, #ef4444, #dc2626); }
+.payment-stat-card--creditori::before { background: linear-gradient(180deg, var(--primary-cyan), #0284c7); }
+.payment-stat-card--credit::before    { background: linear-gradient(180deg, #22c55e, #16a34a); }
 
 .payment-stat-card--incasso  .payment-total { color: #d97706; }
 .payment-stat-card--debitori .payment-total { color: #ef4444; }
 .payment-stat-card--creditori .payment-total { color: var(--primary-cyan-dark); }
 
 .payment-stat-icon {
-    font-size: 1.6rem;
-    margin-bottom: 0.4rem;
+    font-size: 1.5rem;
+    margin-bottom: 0.3rem;
     line-height: 1;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    width: 2.4rem;
+    height: 2.4rem;
+    border-radius: 10px;
+    margin: 0 auto 0.45rem;
 }
 
+.payment-stat-card--incasso  .payment-stat-icon { background: rgba(245,158,11,0.10); }
+.payment-stat-card--debitori .payment-stat-icon { background: rgba(239,68,68,0.10); }
+.payment-stat-card--creditori .payment-stat-icon { background: rgba(0,174,239,0.10); }
+.payment-stat-card--credit   .payment-stat-icon { background: rgba(34,197,94,0.10); }
+
 .payment-stat-card h4 {
-    margin: 0 0 0.35rem 0;
-    font-size: 0.78rem;
+    margin: 0 0 0.25rem 0;
+    font-size: 0.72rem;
     color: #888;
     font-weight: 600;
     text-transform: uppercase;
@@ -2268,12 +2282,11 @@ canvas {
 
 .payment-stat-card--clickable {
     cursor: pointer;
-    transition: transform 0.2s, box-shadow 0.2s;
 }
 
 .payment-stat-card--clickable:hover {
     transform: translateY(-2px);
-    box-shadow: 0 6px 18px rgba(0,0,0,0.08);
+    box-shadow: 0 6px 20px rgba(0,0,0,0.09);
 }
 
 /* Add button inside stat cards */
@@ -2527,10 +2540,15 @@ canvas {
 
 .debtors-toggle-hint {
     display: block;
-    font-size: 0.75rem;
-    color: #bbb;
-    margin-top: 0.35rem;
+    font-size: 0.72rem;
+    color: #b0b0b0;
+    margin-top: 0.3rem;
     letter-spacing: 0.03em;
+    transition: color 0.15s;
+}
+
+.payment-stat-card--clickable:hover .debtors-toggle-hint {
+    color: #888;
 }
 
 /* Search Bar */
@@ -2616,10 +2634,11 @@ canvas {
 }
 
 .payment-total {
-    font-size: 2rem;
+    font-size: 1.85rem;
     font-weight: 800;
     margin: 0;
     color: var(--dark-bg);
+    letter-spacing: -0.02em;
 }
 
 .debtors-list {
@@ -2651,12 +2670,13 @@ canvas {
 .debtor-amount {
     background: rgba(239,68,68,0.08);
     color: #ef4444;
-    border: 1px solid rgba(239,68,68,0.2);
+    border: 1px solid rgba(239,68,68,0.15);
     padding: 0.3rem 0.85rem;
     border-radius: 20px;
-    font-size: 0.95rem;
+    font-size: 0.9rem;
     font-weight: 700;
     white-space: nowrap;
+    letter-spacing: -0.01em;
 }
 
 .debtor-bookings {
@@ -2680,14 +2700,20 @@ canvas {
 .show-more-btn:hover { background: #f3f4f6; color: #374151; }
 
 .debtor-booking-item {
-    background-color: #f8f9fa;
-    padding: 0.75rem;
-    border-radius: 6px;
+    background-color: #f8f9fb;
+    padding: 0.65rem 0.85rem;
+    border-radius: 8px;
     display: flex;
     justify-content: space-between;
     align-items: center;
     flex-wrap: wrap;
     gap: 0.5rem;
+    border: 1px solid #f0f1f3;
+    transition: background-color 0.15s;
+}
+
+.debtor-booking-item:hover {
+    background-color: #f1f3f5;
 }
 
 .debtor-booking-details {
@@ -3315,20 +3341,36 @@ canvas {
 .search-input-group {
     display: flex;
     gap: 0.5rem;
+    position: relative;
+}
+
+.search-input-group::before {
+    content: '🔍';
+    position: absolute;
+    left: 0.85rem;
+    top: 50%;
+    transform: translateY(-50%);
+    font-size: 0.9rem;
+    opacity: 0.45;
+    pointer-events: none;
+    z-index: 1;
 }
 
 .search-input-group input {
     flex: 1;
-    padding: 0.75rem 1rem;
-    border: 2px solid #e0e0e0;
-    border-radius: 8px;
-    font-size: 1rem;
-    transition: border-color 0.2s;
+    padding: 0.7rem 1rem 0.7rem 2.5rem;
+    border: 1.5px solid #e5e7eb;
+    border-radius: 12px;
+    font-size: 0.95rem;
+    transition: border-color 0.2s, box-shadow 0.2s;
     outline: none;
+    background: #fafafa;
 }
 
 .search-input-group input:focus {
-    border-color: #ff6b6b;
+    border-color: var(--primary-cyan);
+    box-shadow: 0 0 0 3px rgba(0,174,239,0.10);
+    background: #fff;
 }
 
 .btn-search {
@@ -3350,11 +3392,12 @@ canvas {
 
 /* Search Results Section */
 .debtor-search-results {
-    background-color: #fff8f8;
-    border: 2px solid #ff6b6b;
-    border-radius: 12px;
-    padding: 1rem 1.25rem;
+    background-color: #fafbfc;
+    border: 1.5px solid #e5e7eb;
+    border-radius: 14px;
+    padding: 1rem 1.15rem;
     margin-bottom: 1.5rem;
+    box-shadow: 0 2px 8px rgba(0,0,0,0.04);
 }
 
 .search-results-header {
@@ -3388,15 +3431,15 @@ canvas {
 /* Collapsible Debtor Cards */
 .debtor-card {
     background-color: white;
-    border-radius: 12px;
+    border-radius: 14px;
     border: 1px solid #e5e7eb;
     border-left: 4px solid #e5e7eb;
     overflow: hidden;
-    transition: box-shadow 0.2s, border-left-color 0.2s;
+    transition: box-shadow 0.25s, border-left-color 0.25s;
 }
 
 .debtor-card:hover {
-    box-shadow: 0 4px 12px rgba(0,0,0,0.08);
+    box-shadow: 0 4px 16px rgba(0,0,0,0.07);
     border-left-color: #ef4444;
 }
 
@@ -3404,16 +3447,16 @@ canvas {
     display: flex;
     justify-content: space-between;
     align-items: center;
-    padding: 1.1rem 1.25rem;
+    padding: 1rem 1.15rem;
     cursor: pointer;
     user-select: none;
     flex-wrap: wrap;
-    gap: 0.75rem;
+    gap: 0.65rem;
     transition: background-color 0.15s;
 }
 
 .debtor-card-header:hover {
-    background-color: #fafafa;
+    background-color: #fafbfc;
 }
 
 .debtor-card-header .debtor-info {
@@ -3433,8 +3476,8 @@ canvas {
 
 .debtor-card-body {
     display: none;
-    padding: 0 1.25rem 1.1rem;
-    border-top: 1px solid #f3f4f6;
+    padding: 0 1.15rem 1rem;
+    border-top: 1px solid #f0f1f3;
 }
 
 .debtor-card.open .debtor-card-body {
@@ -3650,7 +3693,7 @@ canvas {
         padding: 0.9rem 0.65rem 0.75rem;
     }
 
-    .payment-stat-icon { font-size: 1.2rem; }
+    .payment-stat-icon { font-size: 1.1rem; width: 2.1rem; height: 2.1rem; border-radius: 9px; }
 
     .payment-stat-card h4 {
         font-size: 0.72rem;
@@ -3954,18 +3997,23 @@ canvas {
 
 /* ===== Credits list & cards ===== */
 .credits-list {
-    margin-top: 1rem;
-    border-top: 2px solid rgba(34, 197, 94, 0.2);
+    margin-top: 1.25rem;
+    padding-top: 1rem;
+    border-top: 1.5px solid rgba(34, 197, 94, 0.15);
 }
 
 .credit-client-card .debtor-amount.credit-amount {
     color: #16a34a;
     background: rgba(34, 197, 94, 0.08);
-    border: 1px solid rgba(34, 197, 94, 0.2);
-    border-radius: 8px;
-    padding: 0.3rem 0.75rem;
+    border: 1px solid rgba(34, 197, 94, 0.15);
+    border-radius: 20px;
+    padding: 0.3rem 0.85rem;
     font-size: 0.9rem;
     font-weight: 700;
+}
+
+.credit-client-card:hover {
+    border-left-color: #22c55e;
 }
 
 /* ── M-section: desktop = transparent wrapper ──────────────────── */
@@ -3994,7 +4042,7 @@ canvas {
     /* Payment stat cards: compact 2×2 */
     .payments-stats { gap: 0.4rem; margin-bottom: 0.6rem; }
     .payment-stat-card { padding: 0.55rem 0.45rem 0.5rem; }
-    .payment-stat-icon { font-size: 0.9rem; margin-bottom: 0.15rem; }
+    .payment-stat-icon { font-size: 0.85rem; margin-bottom: 0.1rem; width: 1.8rem; height: 1.8rem; border-radius: 8px; }
     .payment-stat-card h4 { font-size: 0.6rem; margin-bottom: 0.1rem; }
     .payment-total { font-size: 1.2rem; }
     .debtors-toggle-hint { font-size: 0.6rem; margin-top: 0.1rem; }
@@ -4481,8 +4529,77 @@ canvas {
     }
     .registro-subtabs::-webkit-scrollbar { display: none; }
     .registro-subtab { flex-shrink: 0; padding: 0.45rem 0.6rem; font-size: 0.72rem; border-radius: 9px; }
-    .registro-table { font-size: 0.85rem; }
-    .registro-table th { font-size: 0.72rem; }
+
+    /* ── Card layout mobile ────────────────────────────── */
+    .registro-table-wrap {
+        overflow-x: visible;
+        border: none;
+        box-shadow: none;
+        border-radius: 0;
+    }
+    .registro-table {
+        min-width: unset;
+        border-collapse: separate;
+        border-spacing: 0 0.5rem;
+    }
+    .registro-table thead { display: none; }
+    .registro-table tbody { display: flex; flex-direction: column; gap: 0.5rem; }
+    .registro-row {
+        display: grid;
+        grid-template-columns: 1fr 1fr;
+        gap: 0.3rem 0.75rem;
+        background: #fff;
+        border: 1px solid #e2e8f0;
+        border-radius: 12px;
+        padding: 0.7rem 0.85rem;
+        box-shadow: 0 1px 4px rgba(0,0,0,0.04);
+    }
+    .registro-admin {
+        border-left: 3px solid #f87171;
+    }
+    .registro-admin td { background: #fef2f2; }
+    .registro-system {
+        border-left: 3px solid #4ade80;
+    }
+    .registro-system td { background: #f0fdf4; }
+    .registro-row td {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        padding: 0.2rem 0;
+        border-bottom: none;
+        font-size: 0.82rem;
+        min-height: 1.4rem;
+    }
+    .registro-row td::before {
+        content: attr(data-label);
+        font-weight: 700;
+        font-size: 0.7rem;
+        color: #64748b;
+        text-transform: uppercase;
+        letter-spacing: 0.04em;
+        flex-shrink: 0;
+        margin-right: 0.4rem;
+    }
+    /* Tipo e Cliente occupano tutta la larghezza */
+    .registro-row td:nth-child(1) { grid-column: 1 / -1; }
+    .registro-row td:nth-child(2) { grid-column: 1 / -1; }
+    .registro-row td:nth-child(3) { grid-column: 1 / -1; }
+    /* Nota occupa tutta la riga */
+    .registro-row td:nth-child(10) { grid-column: 1 / -1; }
+    .registro-row td:nth-child(10) .registro-note,
+    .registro-row td.registro-note {
+        max-width: none;
+        white-space: normal;
+        overflow: visible;
+        text-overflow: unset;
+    }
+    /* Importo più visibile */
+    .registro-row td.registro-amount { font-size: 0.9rem; }
+    /* Badge tipo full-width a sinistra */
+    .registro-row td:nth-child(2) { justify-content: flex-start; }
+    /* Client cell */
+    .registro-row td.registro-client { justify-content: flex-start; }
 }
 
 /* Debt Threshold Setting */
@@ -4958,6 +5075,22 @@ canvas {
 .stat-card--loading .stat-value { width: 60%; min-height: 2rem; display: inline-block; }
 .stat-card--loading .stat-change { width: 80%; min-height: 0.9rem; display: inline-block; }
 
+/* ── Skeleton loading for payment stat cards ──────────────────────────────── */
+.payment-stat-card--loading .payment-total {
+    color: transparent !important;
+    background: #e5e7eb;
+    border-radius: 6px;
+    animation: skeleton-pulse 1.2s ease-in-out infinite;
+    pointer-events: none;
+    user-select: none;
+    width: 55%;
+    min-height: 1.8rem;
+    display: inline-block;
+}
+.payment-stat-card--loading .debtors-toggle-hint {
+    color: transparent !important;
+}
+
 /* ── Statistics Detail Panel ─────────────────────────────────────────────── */
 .stats-detail-panel {
     background: white;
@@ -5287,10 +5420,11 @@ canvas {
     .manual-amount-input { font-size: 16px; }
 
     /* -- Payment stats cards -- */
-    .payments-stats { gap: 0.5rem; }
-    .payment-stat-card { padding: 0.75rem; }
-    .payment-stat-card h4 { font-size: 0.78rem; }
-    .payment-total { font-size: 1.1rem; }
+    .payments-stats { gap: 0.65rem; }
+    .payment-stat-card { padding: 0.85rem 0.75rem; }
+    .payment-stat-card h4 { font-size: 0.75rem; }
+    .payment-total { font-size: 1.15rem; }
+    .payment-stat-icon { width: 2rem; height: 2rem; font-size: 1.1rem; }
 
     /* -- Admin calendar -- */
     .admin-calendar-controls { gap: 0.25rem; }

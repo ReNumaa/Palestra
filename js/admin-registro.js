@@ -410,18 +410,18 @@ function renderRegistroTable() {
                      : e.actorType === 'system' ? 'registro-row registro-system'
                      : 'registro-row';
         return `<tr class="${rowCls}">
-            <td class="registro-ts">${fmtTs(e.timestamp)}</td>
-            <td><span class="rtype-badge ${cfg.cls}">${cfg.icon} ${cfg.label}</span></td>
-            <td class="registro-client">
+            <td class="registro-ts" data-label="Data/Ora">${fmtTs(e.timestamp)}</td>
+            <td data-label="Tipo"><span class="rtype-badge ${cfg.cls}">${cfg.icon} ${cfg.label}</span></td>
+            <td class="registro-client" data-label="Cliente">
                 <span class="registro-client-name">${_escHtml(e.clientName)}</span>
             </td>
-            <td>${fmtDate(e.lessonDate)}</td>
-            <td class="registro-time">${_escHtml(e.lessonTime || '—')}</td>
-            <td>${_escHtml(e.slotLabel || '—')}</td>
-            <td class="registro-amount">${amount}</td>
-            <td class="registro-method">${mi} ${_escHtml(ml)}</td>
-            <td>${statusHTML(e)}</td>
-            <td class="registro-note" title="${_escHtml(e.notes || '')}">${_escHtml(e.notes || '—')}</td>
+            <td data-label="Data Lezione">${fmtDate(e.lessonDate)}</td>
+            <td class="registro-time" data-label="Ora">${_escHtml(e.lessonTime || '—')}</td>
+            <td data-label="Tipo Lezione">${_escHtml(e.slotLabel || '—')}</td>
+            <td class="registro-amount" data-label="Importo">${amount}</td>
+            <td class="registro-method" data-label="Metodo">${mi} ${_escHtml(ml)}</td>
+            <td data-label="Stato">${statusHTML(e)}</td>
+            <td class="registro-note" data-label="Nota" title="${_escHtml(e.notes || '')}">${_escHtml(e.notes || '—')}</td>
         </tr>`;
     }).join('');
 }
