@@ -2814,8 +2814,8 @@ canvas {
 .credit-action-btn:hover { opacity: 0.85; }
 
 .credit-action-btn--credit {
-    background: rgba(0,174,239,0.12);
-    color: #0369a1;
+    background: rgba(34,197,94,0.12);
+    color: #16a34a;
 }
 .credit-action-btn--debt {
     background: rgba(239,68,68,0.12);
