@@ -639,6 +639,47 @@
     box-shadow: 0 2px 8px rgba(16, 185, 129, 0.3);
 }
 
+/* ── Log actions row ───────────────────────────────────────────────────────── */
+.all-log-actions {
+    display: flex;
+    gap: 0.5rem;
+    margin-top: 0.8rem;
+}
+
+.all-log-actions .all-log-save {
+    flex: 1;
+    margin-top: 0;
+}
+
+.all-log-delete {
+    flex-shrink: 0;
+    padding: 0.7rem 0.9rem;
+    border: 1.5px solid #fecaca;
+    background: #fef2f2;
+    color: #dc2626;
+    font-size: 0.78rem;
+    font-weight: 700;
+    border-radius: var(--all-radius-sm);
+    cursor: pointer;
+    transition: all 0.2s;
+    -webkit-tap-highlight-color: transparent;
+}
+
+.all-log-delete:hover {
+    background: #fee2e2;
+    border-color: #f87171;
+}
+
+.all-log-delete:active {
+    transform: scale(0.97);
+    background: #fecaca;
+}
+
+.all-log-delete:disabled {
+    opacity: 0.5;
+    cursor: not-allowed;
+}
+
 /* ── Stats overview (progressi) ────────────────────────────────────────────── */
 .all-stats-row {
     display: grid;

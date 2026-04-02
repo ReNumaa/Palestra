@@ -13,7 +13,7 @@
     <link rel="icon" type="image/jpeg" href="images/logo-tb---nero.jpg">
     <link rel="stylesheet" href="css/style.css?v=8">
     <link rel="stylesheet" href="css/login.css?v=4">
-    <link rel="stylesheet" href="css/allenamento.css?v=3">
+    <link rel="stylesheet" href="css/allenamento.css?v=4">
 </head>
 <body class="allenamento-body">
     <nav class="navbar">
@@ -359,7 +359,10 @@
                 }
 
                 html += `</div>
-                            <button class="all-log-save" onclick="saveLog('${ex.id}', ${ex.sets}, this)">Salva</button>
+                            <div class="all-log-actions">
+                                <button class="all-log-save" onclick="saveLog('${ex.id}', ${ex.sets}, this)">Salva</button>
+                                ${hasLogs ? `<button class="all-log-delete" onclick="deleteTodayLog('${ex.id}', this)">Elimina log di oggi</button>` : ''}
+                            </div>
                         </div>
                     </div>
                 </div>`;
@@ -418,6 +421,29 @@
                 btn.textContent = 'Salva';
                 btn.disabled = false;
                 if (typeof showToast === 'function') showToast('Errore salvataggio', 'error');
+            }
+        }
+
+        async function deleteTodayLog(exerciseId, btn) {
+            if (!confirm('Eliminare il log di oggi per questo esercizio?')) return;
+            const user = getCurrentUser();
+            if (!user) return;
+            const today = _localDateStr();
+            btn.disabled = true;
+            btn.textContent = 'Eliminazione...';
+            try {
+                const todayForEx = _allLogs.filter(l => l.exercise_id === exerciseId && l.log_date === today);
+                for (const log of todayForEx) {
+                    await WorkoutLogStorage.deleteLog(log.id);
+                }
+                _allLogs = _allLogs.filter(l => !(l.exercise_id === exerciseId && l.log_date === today));
+                if (typeof showToast === 'function') showToast('Log eliminato', 'success');
+                renderScheda();
+            } catch (e) {
+                console.error('[Allenamento] delete error:', e);
+                btn.disabled = false;
+                btn.textContent = 'Elimina log di oggi';
+                if (typeof showToast === 'function') showToast('Errore eliminazione', 'error');
             }
         }
 
