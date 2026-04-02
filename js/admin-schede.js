@@ -133,33 +133,30 @@ async function renderSchedeTab() {
     try {
         await WorkoutPlanStorage.syncFromSupabase({ adminMode: true });
         await WorkoutPlanStorage.loadSuggestions();
+
+        // Sub-navigation pills
+        let html = `<div class="schede-subnav">
+            <button class="schede-subnav-pill ${_schedeSection === 'schede' ? 'active' : ''}" onclick="_schedeSwitchSection('schede')">Schede</button>
+            <button class="schede-subnav-pill ${_schedeSection === 'clienti' ? 'active' : ''}" onclick="_schedeSwitchSection('clienti')">Clienti</button>
+        </div><div id="schedeInner"></div>`;
+        container.innerHTML = html;
+
+        const inner = document.getElementById('schedeInner');
+        if (_schedeSection === 'clienti') {
+            if (_schedeView === 'client-detail') await _renderClientDetail(inner);
+            else _renderClientsList(inner);
+        } else {
+            if (_schedeView === 'edit') _renderPlanEditor(inner);
+            else if (_schedeView === 'progress') await _renderProgressView(inner);
+            else _renderSchedeList(inner);
+        }
     } catch (e) {
+        console.error('[Schede] renderSchedeTab error:', e);
         container.innerHTML = '<div class="empty-slot">Errore caricamento schede</div>';
+    } finally {
         _schedeRendering = false;
         if (_schedeRenderQueued) renderSchedeTab();
-        return;
     }
-
-    // Sub-navigation pills
-    let html = `<div class="schede-subnav">
-        <button class="schede-subnav-pill ${_schedeSection === 'schede' ? 'active' : ''}" onclick="_schedeSwitchSection('schede')">Schede</button>
-        <button class="schede-subnav-pill ${_schedeSection === 'clienti' ? 'active' : ''}" onclick="_schedeSwitchSection('clienti')">Clienti</button>
-    </div><div id="schedeInner"></div>`;
-    container.innerHTML = html;
-
-    const inner = document.getElementById('schedeInner');
-    if (_schedeSection === 'clienti') {
-        if (_schedeView === 'client-detail') await _renderClientDetail(inner);
-        else _renderClientsList(inner);
-    } else {
-        if (_schedeView === 'edit') _renderPlanEditor(inner);
-        else if (_schedeView === 'progress') await _renderProgressView(inner);
-        else _renderSchedeList(inner);
-    }
-
-    _schedeRendering = false;
-    // If a render was requested while we were busy, do one more pass
-    if (_schedeRenderQueued) renderSchedeTab();
 }
 
 function _schedeSwitchSection(section) {
