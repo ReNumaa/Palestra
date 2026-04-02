@@ -9,43 +9,48 @@ function showMsgResultPopup(recipients, failed) {
     const oldOverlay = document.getElementById('msgResultOverlay');
     if (oldOverlay) oldOverlay.remove();
 
+    const getInitials = (name) => {
+        const parts = name.trim().split(/\s+/);
+        return (parts[0]?.[0] || '') + (parts[1]?.[0] || '');
+    };
+
     let html = '';
     if (recipients.length > 0) {
-        html += `<div style="margin-bottom:${failed.length > 0 ? '1rem' : '0'}">`;
-        html += `<div style="font-weight:600; color:#16a34a; margin-bottom:0.5rem;">✅ Notifica inviata a (${recipients.length}):</div>`;
-        html += '<ul style="margin:0; padding-left:1.2rem; list-style:none;">';
+        html += '<div class="msg-popup-section">';
+        html += `<div class="msg-popup-section-title msg-popup-section-title--ok">✅ Inviate con successo (${recipients.length})</div>`;
+        html += '<ul class="msg-popup-list msg-popup-list--ok">';
         recipients.forEach(name => {
-            html += `<li style="padding:0.25rem 0; font-size:0.95rem;">👤 ${name}</li>`;
+            html += `<li><span class="msg-popup-avatar">${getInitials(name)}</span> ${name}</li>`;
         });
         html += '</ul></div>';
     }
     if (failed.length > 0) {
-        html += '<div>';
-        html += `<div style="font-weight:600; color:#dc2626; margin-bottom:0.5rem;">❌ Non recapitate (${failed.length}):</div>`;
-        html += '<ul style="margin:0; padding-left:1.2rem; list-style:none;">';
+        html += '<div class="msg-popup-section">';
+        html += `<div class="msg-popup-section-title msg-popup-section-title--fail">❌ Non recapitate (${failed.length})</div>`;
+        html += '<ul class="msg-popup-list msg-popup-list--fail">';
         failed.forEach(name => {
-            html += `<li style="padding:0.25rem 0; font-size:0.95rem;">👤 ${name}</li>`;
+            html += `<li><span class="msg-popup-avatar">${getInitials(name)}</span> ${name}</li>`;
         });
         html += '</ul></div>';
     }
     if (recipients.length === 0 && failed.length === 0) {
-        html = '<div style="color:#6b7280; text-align:center;">Nessun destinatario trovato.</div>';
+        html = '<div class="msg-popup-empty">Nessun destinatario trovato.</div>';
     }
 
     const overlay = document.createElement('div');
     overlay.id = 'msgResultOverlay';
-    overlay.style.cssText = 'position:fixed;inset:0;background:rgba(0,0,0,0.4);z-index:9998;';
+    overlay.className = 'msg-popup-overlay';
     overlay.onclick = (e) => { e.stopPropagation(); };
 
     const popup = document.createElement('div');
     popup.id = 'msgResultPopup';
-    popup.style.cssText = 'position:fixed;top:50%;left:50%;transform:translate(-50%,-50%);background:#fff;border-radius:16px;padding:1.5rem;max-width:400px;width:90%;max-height:70vh;overflow-y:auto;z-index:9999;box-shadow:0 20px 60px rgba(0,0,0,0.3);';
+    popup.className = 'msg-popup';
     popup.innerHTML = `
-        <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:1rem;">
-            <h3 style="margin:0; font-size:1.1rem;">📩 Risultato invio</h3>
-            <button onclick="document.getElementById('msgResultOverlay').remove();document.getElementById('msgResultPopup').remove();" style="background:none;border:none;font-size:1.3rem;cursor:pointer;padding:0.25rem;">✕</button>
+        <div class="msg-popup-header">
+            <h3>📩 Risultato invio</h3>
+            <button class="msg-popup-close" onclick="document.getElementById('msgResultOverlay').remove();document.getElementById('msgResultPopup').remove();">✕</button>
         </div>
-        ${html}
+        <div class="msg-popup-body">${html}</div>
     `;
 
     document.body.appendChild(overlay);
