@@ -6442,14 +6442,14 @@ canvas {
     justify-content: center;
     width: 22px;
     height: 22px;
-    background: linear-gradient(135deg, #0f172a, #1e293b);
+    background: linear-gradient(135deg, rgba(0,174,239,0.1), rgba(0,174,239,0.18));
     border-radius: 6px;
     font-size: 0.7rem;
     flex-shrink: 0;
 }
 .sett-group-label--danger { color: #dc2626; }
 .sett-group-label--danger .sett-group-label-icon {
-    background: linear-gradient(135deg, #ef4444, #dc2626);
+    background: linear-gradient(135deg, rgba(239,68,68,0.1), rgba(239,68,68,0.18));
 }
 
 /* ── Card ─────────────────────────────────────────────────────────────── */
@@ -6500,14 +6500,13 @@ canvas {
     border-radius: 10px;
     font-size: 1.05rem;
     flex-shrink: 0;
-    background: linear-gradient(135deg, #0f172a, #1e293b);
 }
-.sett-card-icon--cyan   { box-shadow: 0 2px 8px rgba(0,174,239,0.2); }
-.sett-card-icon--amber  { box-shadow: 0 2px 8px rgba(251,191,36,0.25); }
-.sett-card-icon--red    { box-shadow: 0 2px 8px rgba(239,68,68,0.2); }
-.sett-card-icon--blue   { box-shadow: 0 2px 8px rgba(37,99,235,0.2); }
-.sett-card-icon--green  { box-shadow: 0 2px 8px rgba(5,150,105,0.2); }
-.sett-card-icon--purple { box-shadow: 0 2px 8px rgba(124,58,237,0.2); }
+.sett-card-icon--cyan   { background: linear-gradient(135deg, rgba(0,174,239,0.1), rgba(0,174,239,0.18)); }
+.sett-card-icon--amber  { background: linear-gradient(135deg, rgba(251,191,36,0.1), rgba(251,191,36,0.2)); }
+.sett-card-icon--red    { background: linear-gradient(135deg, rgba(239,68,68,0.08), rgba(239,68,68,0.16)); }
+.sett-card-icon--blue   { background: linear-gradient(135deg, rgba(37,99,235,0.08), rgba(37,99,235,0.16)); }
+.sett-card-icon--green  { background: linear-gradient(135deg, rgba(5,150,105,0.08), rgba(5,150,105,0.16)); }
+.sett-card-icon--purple { background: linear-gradient(135deg, rgba(124,58,237,0.08), rgba(124,58,237,0.16)); }
 
 .sett-card-title {
     margin: 0;
