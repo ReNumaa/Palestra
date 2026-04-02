@@ -13,7 +13,7 @@
     <link rel="icon" type="image/jpeg" href="images/logo-tb---nero.jpg">
     <link rel="stylesheet" href="css/style.css?v=8">
     <link rel="stylesheet" href="css/login.css?v=4">
-    <link rel="stylesheet" href="css/allenamento.css?v=5">
+    <link rel="stylesheet" href="css/allenamento.css?v=6">
 </head>
 <body class="allenamento-body">
     <nav class="navbar">
@@ -48,14 +48,14 @@
     <main class="all-page">
         <div class="container" style="padding-top:1rem;">
             <!-- Navigation pills -->
-            <div class="all-nav">
-                <button class="all-nav-pill active" id="pillScheda" onclick="switchAllView('scheda')">Scheda</button>
-                <button class="all-nav-pill" id="pillProgressi" onclick="switchAllView('progressi')">Progressi</button>
+            <div class="all-nav" role="tablist" aria-label="Sezioni allenamento">
+                <button class="all-nav-pill active" id="pillScheda" role="tab" aria-selected="true" aria-controls="allContent" onclick="switchAllView('scheda')">Scheda</button>
+                <button class="all-nav-pill" id="pillProgressi" role="tab" aria-selected="false" aria-controls="allContent" onclick="switchAllView('progressi')">Progressi</button>
             </div>
 
             <!-- Content -->
-            <div id="allContent" class="all-content">
-                <div class="all-loading">Caricamento...</div>
+            <div id="allContent" class="all-content" role="tabpanel" aria-live="polite">
+                <div class="all-loading" role="status" aria-label="Caricamento in corso">Caricamento...</div>
             </div>
         </div>
     </main>
@@ -104,8 +104,12 @@
 
         function switchAllView(view) {
             _allView = view;
-            document.getElementById('pillScheda').classList.toggle('active', view === 'scheda');
-            document.getElementById('pillProgressi').classList.toggle('active', view === 'progressi');
+            const pillScheda = document.getElementById('pillScheda');
+            const pillProgressi = document.getElementById('pillProgressi');
+            pillScheda.classList.toggle('active', view === 'scheda');
+            pillProgressi.classList.toggle('active', view === 'progressi');
+            pillScheda.setAttribute('aria-selected', view === 'scheda');
+            pillProgressi.setAttribute('aria-selected', view === 'progressi');
             if (view === 'scheda') renderScheda();
             else renderProgressi();
         }
@@ -284,14 +288,14 @@
             </div>`;
 
             // ── Day selector tabs ────────────────────────────────────────
-            html += '<div class="all-day-tabs">';
+            html += '<div class="all-day-tabs" role="tablist" aria-label="Giorni di allenamento">';
             for (const day of days) {
                 const isActive = day === _activeDay;
                 const doneToday = _dayDoneToday(day);
                 const lastDone = _dayLastDone(day);
                 const lastStr = doneToday ? 'oggi' : lastDone ? _fmtDateAll(lastDone) : 'mai';
 
-                html += `<button class="all-day-tab ${isActive ? 'active' : ''} ${doneToday ? 'done' : ''}" onclick="switchDay('${_escHtml(day)}')">
+                html += `<button class="all-day-tab ${isActive ? 'active' : ''} ${doneToday ? 'done' : ''}" role="tab" aria-selected="${isActive}" aria-label="${_escHtml(day)}${doneToday ? ', completato' : ''}" onclick="switchDay('${_escHtml(day)}')">
                     <span class="all-day-tab-name">${_escHtml(day)}${doneToday ? ' &#10003;' : ''}</span>
                     <span class="all-day-tab-last">ultimo: ${lastStr}</span>
                 </button>`;
@@ -358,9 +362,9 @@
                     const rpeVal = existing?.rpe ?? '';
                     html += `<div class="all-log-row">
                         <span class="all-log-set">${s}</span>
-                        <input type="number" inputmode="numeric" min="0" value="${rVal}" class="all-log-input" data-field="reps" data-set="${s}">
-                        <input type="number" inputmode="decimal" min="0" step="0.5" value="${wVal}" class="all-log-input" data-field="weight" data-set="${s}">
-                        <input type="number" inputmode="numeric" min="1" max="10" value="${rpeVal}" class="all-log-input all-log-input--sm" data-field="rpe" data-set="${s}" placeholder="—">
+                        <input type="number" inputmode="numeric" min="0" value="${rVal}" class="all-log-input" data-field="reps" data-set="${s}" aria-label="Ripetizioni serie ${s}">
+                        <input type="number" inputmode="decimal" min="0" step="0.5" value="${wVal}" class="all-log-input" data-field="weight" data-set="${s}" aria-label="Peso serie ${s}">
+                        <input type="number" inputmode="numeric" min="1" max="10" value="${rpeVal}" class="all-log-input all-log-input--sm" data-field="rpe" data-set="${s}" placeholder="—" aria-label="RPE serie ${s}">
                     </div>`;
                 }
 
@@ -476,9 +480,9 @@
             row.className = 'all-log-row';
             row.innerHTML = `
                 <span class="all-log-set">${nextSet}</span>
-                <input type="number" inputmode="numeric" min="0" value="" class="all-log-input" data-field="reps" data-set="${nextSet}">
-                <input type="number" inputmode="decimal" min="0" step="0.5" value="" class="all-log-input" data-field="weight" data-set="${nextSet}">
-                <input type="number" inputmode="numeric" min="1" max="10" value="" class="all-log-input all-log-input--sm" data-field="rpe" data-set="${nextSet}" placeholder="—">
+                <input type="number" inputmode="numeric" min="0" value="" class="all-log-input" data-field="reps" data-set="${nextSet}" aria-label="Ripetizioni serie ${nextSet}">
+                <input type="number" inputmode="decimal" min="0" step="0.5" value="" class="all-log-input" data-field="weight" data-set="${nextSet}" aria-label="Peso serie ${nextSet}">
+                <input type="number" inputmode="numeric" min="1" max="10" value="" class="all-log-input all-log-input--sm" data-field="rpe" data-set="${nextSet}" placeholder="—" aria-label="RPE serie ${nextSet}">
             `;
             grid.appendChild(row);
             row.querySelector('input[data-field="reps"]').focus();
