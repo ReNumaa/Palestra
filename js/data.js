@@ -2306,6 +2306,7 @@ class UserStorage {
                     indirizzoPaese: row.indirizzo_paese ?? existing.indirizzoPaese ?? null,
                     indirizzoCap: row.indirizzo_cap ?? existing.indirizzoCap ?? null,
                     documentoFirmato: row.documento_firmato ?? existing.documentoFirmato ?? false,
+                    privacyPrenotazioni: row.privacy_prenotazioni ?? existing.privacyPrenotazioni ?? false,
                     geoEnabled: row.geo_enabled ?? existing.geoEnabled ?? false,
                     pushEnabled: row.push_enabled ?? existing.pushEnabled ?? false,
                 };

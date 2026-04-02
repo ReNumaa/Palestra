@@ -5,6 +5,7 @@ let clientCertFilter  = false;
 let clientAssicFilter = false;
 let clientAnagFilter  = false;
 let clientBonusFilter = false;
+let clientPrivacyFilter = false;
 
 function clientHasCertIssue(client) {
     const userRecord = _getUserRecord(client.email, client.whatsapp);
@@ -25,9 +26,10 @@ function _syncFilterButtons() {
     document.getElementById('assicFilterBtn')?.classList.toggle('active', clientAssicFilter);
     document.getElementById('anagFilterBtn')?.classList.toggle('active', clientAnagFilter);
     document.getElementById('bonusFilterBtn')?.classList.toggle('active', clientBonusFilter);
+    document.getElementById('privacyFilterBtn')?.classList.toggle('active', clientPrivacyFilter);
     // Evidenzia toggle se un filtro è attivo
     const toggle = document.getElementById('clientsFilterToggle');
-    if (toggle) toggle.classList.toggle('active', clientCertFilter || clientAssicFilter || clientAnagFilter || clientBonusFilter);
+    if (toggle) toggle.classList.toggle('active', clientCertFilter || clientAssicFilter || clientAnagFilter || clientBonusFilter || clientPrivacyFilter);
 }
 
 function toggleClientsFiltersMenu() {
@@ -38,10 +40,11 @@ function toggleClientsFiltersMenu() {
 }
 
 function _clearOtherFilters(keep) {
-    if (keep !== 'cert')  clientCertFilter = false;
-    if (keep !== 'assic') clientAssicFilter = false;
-    if (keep !== 'anag')  clientAnagFilter = false;
-    if (keep !== 'bonus') clientBonusFilter = false;
+    if (keep !== 'cert')    clientCertFilter = false;
+    if (keep !== 'assic')   clientAssicFilter = false;
+    if (keep !== 'anag')    clientAnagFilter = false;
+    if (keep !== 'bonus')   clientBonusFilter = false;
+    if (keep !== 'privacy') clientPrivacyFilter = false;
 }
 
 function toggleCertFilter() {
@@ -82,6 +85,18 @@ function clientHasBonusIssue(client) {
 function toggleBonusFilter() {
     clientBonusFilter = !clientBonusFilter;
     if (clientBonusFilter) _clearOtherFilters('bonus');
+    _syncFilterButtons();
+    renderClientsTab();
+}
+
+function clientHasPrivacy(client) {
+    const userRecord = _getUserRecord(client.email, client.whatsapp);
+    return userRecord?.privacyPrenotazioni === true;
+}
+
+function togglePrivacyFilter() {
+    clientPrivacyFilter = !clientPrivacyFilter;
+    if (clientPrivacyFilter) _clearOtherFilters('privacy');
     _syncFilterButtons();
     renderClientsTab();
 }
@@ -315,7 +330,7 @@ function renderClientsTab() {
     if (searchInput) searchInput.value = '';
     closeClientsSearchDropdown();
     const listEl = document.getElementById('clientsList');
-    const hasFilter = clientCertFilter || clientAssicFilter || clientAnagFilter || clientBonusFilter;
+    const hasFilter = clientCertFilter || clientAssicFilter || clientAnagFilter || clientBonusFilter || clientPrivacyFilter;
     if (!clientsListMode && !hasFilter) {
         if (listEl) listEl.style.display = 'none';
         return;
@@ -328,6 +343,7 @@ function renderClientsTab() {
     if (clientAssicFilter) filtered = filtered.filter(clientHasAssicIssue);
     if (clientAnagFilter)  filtered = filtered.filter(clientHasAnagIssue);
     if (clientBonusFilter) filtered = filtered.filter(clientHasBonusIssue);
+    if (clientPrivacyFilter) filtered = filtered.filter(clientHasPrivacy);
 
     const container = document.getElementById('clientsList');
     container.innerHTML = '';
