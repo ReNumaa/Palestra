@@ -4139,6 +4139,8 @@ canvas {
     .registro-filter-group--search { min-width: unset; width: 100%; }
     .registro-subtabs { border-radius: 12px; padding: 3px; }
     .registro-subtab { padding: 0.45rem 0.6rem; font-size: 0.72rem; border-radius: 9px; }
+    .registro-table { font-size: 0.85rem; }
+    .registro-table th { font-size: 0.72rem; }
 }
 
 /* Debt Threshold Setting */
