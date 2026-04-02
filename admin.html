@@ -276,48 +276,57 @@
 
             <!-- Tab: Impostazioni -->
             <div id="tab-settings" class="tab-content">
-                <div class="dashboard-card settings-card">
+                <div class="sett-hub">
 
                     <!-- Soglia blocco prenotazioni -->
-                    <div class="settings-section settings-section--inline">
-                        <div class="debt-threshold-text">
-                            <h4 class="settings-section-title">🚫 Soglia blocco prenotazioni</h4>
-                            <p class="settings-section-desc">Chi ha debiti passati superiori a questa soglia non può prenotare (0 = nessun blocco).</p>
-                        </div>
-                        <div class="debt-threshold-controls" id="debtThresholdSetting">
-                            <div class="debt-threshold-input-wrap">
-                                <span class="debt-euro-sign">€</span>
-                                <input type="number" id="debtThresholdInput" class="debt-threshold-input" min="0" step="1" placeholder="0">
+                    <div class="sett-card">
+                        <div class="sett-card-header">
+                            <span class="sett-card-icon sett-card-icon--amber">🚫</span>
+                            <div>
+                                <h4 class="sett-card-title">Soglia blocco prenotazioni</h4>
+                                <p class="sett-card-desc">Chi ha debiti superiori a questa soglia non può prenotare (0 = nessun blocco).</p>
                             </div>
-                            <button class="debt-threshold-save-btn" onclick="saveDebtThreshold()">✅ Salva</button>
-                            <span id="debtThresholdSavedMsg" style="display:none; color:#16a34a; font-size:0.85rem;">Salvato</span>
+                        </div>
+                        <div class="sett-card-controls" id="debtThresholdSetting">
+                            <div class="sett-euro-wrap">
+                                <span class="sett-euro-sign">€</span>
+                                <input type="number" id="debtThresholdInput" class="sett-euro-input" min="0" step="1" placeholder="0">
+                            </div>
+                            <button class="sett-save-btn" onclick="saveDebtThreshold()">Salva</button>
+                            <span id="debtThresholdSavedMsg" class="sett-saved-msg">Salvato</span>
                         </div>
                     </div>
-                    <!-- End: soglia blocco -->
 
                     <!-- Certificato medico -->
-                    <div class="settings-section settings-section--inline">
-                        <div class="debt-threshold-text">
-                            <h4 class="settings-section-title">🏥 Certificato medico</h4>
-                            <p class="settings-section-desc">Se attivo, i clienti possono modificare autonomamente la data di scadenza del proprio certificato medico nel profilo.</p>
+                    <div class="sett-card">
+                        <div class="sett-card-header">
+                            <span class="sett-card-icon sett-card-icon--cyan">🏥</span>
+                            <div>
+                                <h4 class="sett-card-title">Certificato medico</h4>
+                                <p class="sett-card-desc">Se attivo, i clienti possono modificare la data di scadenza del proprio certificato medico nel profilo.</p>
+                            </div>
+                            <label class="settings-toggle-wrap">
+                                <input type="checkbox" id="certEditableToggle" onchange="saveCertEditable(this.checked)">
+                                <span class="settings-toggle-track"><span class="settings-toggle-thumb"></span></span>
+                                <span class="settings-toggle-text" id="certEditableText"></span>
+                            </label>
                         </div>
-                        <label class="settings-toggle-wrap">
-                            <input type="checkbox" id="certEditableToggle" onchange="saveCertEditable(this.checked)">
-                            <span class="settings-toggle-track"><span class="settings-toggle-thumb"></span></span>
-                            <span class="settings-toggle-text" id="certEditableText"></span>
-                        </label>
                     </div>
-                    <!-- End: certificato medico -->
 
                     <!-- Blocco prenotazioni cert -->
-                    <div class="settings-section">
-                        <h4 class="settings-section-title">🚫 Blocco prenotazioni per certificato medico</h4>
-                        <p class="settings-section-desc">Impedisci ai clienti di prenotare in base allo stato del loro certificato medico.</p>
-                        <div class="cert-block-toggles">
-                            <div class="settings-section--inline" style="margin-bottom:0; padding-bottom:0; border-bottom:none;">
-                                <div class="debt-threshold-text">
-                                    <strong class="settings-option-body-strong">Certificato scaduto</strong>
-                                    <span class="settings-section-desc" style="margin:0;">Blocca la prenotazione se il certificato medico risulta scaduto.</span>
+                    <div class="sett-card">
+                        <div class="sett-card-header sett-card-header--top">
+                            <span class="sett-card-icon sett-card-icon--red">🚫</span>
+                            <div>
+                                <h4 class="sett-card-title">Blocco prenotazioni per certificato medico</h4>
+                                <p class="sett-card-desc">Impedisci ai clienti di prenotare in base allo stato del loro certificato medico.</p>
+                            </div>
+                        </div>
+                        <div class="sett-toggle-list">
+                            <div class="sett-toggle-row">
+                                <div class="sett-toggle-text">
+                                    <strong>Certificato scaduto</strong>
+                                    <span>Blocca la prenotazione se il certificato medico risulta scaduto.</span>
                                 </div>
                                 <label class="settings-toggle-wrap">
                                     <input type="checkbox" id="certBlockExpiredToggle" onchange="saveCertBlockExpired(this.checked)">
@@ -325,10 +334,10 @@
                                     <span class="settings-toggle-text" id="certBlockExpiredText"></span>
                                 </label>
                             </div>
-                            <div class="settings-section--inline" style="margin-bottom:0; padding-bottom:0; border-bottom:none; margin-top:1rem;">
-                                <div class="debt-threshold-text">
-                                    <strong class="settings-option-body-strong">Certificato non impostato</strong>
-                                    <span class="settings-section-desc" style="margin:0;">Blocca la prenotazione se il cliente non ha ancora inserito la data di scadenza.</span>
+                            <div class="sett-toggle-row">
+                                <div class="sett-toggle-text">
+                                    <strong>Certificato non impostato</strong>
+                                    <span>Blocca la prenotazione se il cliente non ha ancora inserito la data di scadenza.</span>
                                 </div>
                                 <label class="settings-toggle-wrap">
                                     <input type="checkbox" id="certBlockNotSetToggle" onchange="saveCertBlockNotSet(this.checked)">
@@ -338,17 +347,21 @@
                             </div>
                         </div>
                     </div>
-                    <!-- End: blocco prenotazioni cert -->
 
                     <!-- Blocco prenotazioni assicurazione -->
-                    <div class="settings-section">
-                        <h4 class="settings-section-title">🚫 Blocco prenotazioni per assicurazione</h4>
-                        <p class="settings-section-desc">Impedisci ai clienti di prenotare in base allo stato della loro assicurazione.</p>
-                        <div class="cert-block-toggles">
-                            <div class="settings-section--inline" style="margin-bottom:0; padding-bottom:0; border-bottom:none;">
-                                <div class="debt-threshold-text">
-                                    <strong class="settings-option-body-strong">Assicurazione scaduta</strong>
-                                    <span class="settings-section-desc" style="margin:0;">Blocca la prenotazione se l'assicurazione risulta scaduta.</span>
+                    <div class="sett-card">
+                        <div class="sett-card-header sett-card-header--top">
+                            <span class="sett-card-icon sett-card-icon--red">🚫</span>
+                            <div>
+                                <h4 class="sett-card-title">Blocco prenotazioni per assicurazione</h4>
+                                <p class="sett-card-desc">Impedisci ai clienti di prenotare in base allo stato della loro assicurazione.</p>
+                            </div>
+                        </div>
+                        <div class="sett-toggle-list">
+                            <div class="sett-toggle-row">
+                                <div class="sett-toggle-text">
+                                    <strong>Assicurazione scaduta</strong>
+                                    <span>Blocca la prenotazione se l'assicurazione risulta scaduta.</span>
                                 </div>
                                 <label class="settings-toggle-wrap">
                                     <input type="checkbox" id="assicBlockExpiredToggle" onchange="saveAssicBlockExpired(this.checked)">
@@ -356,10 +369,10 @@
                                     <span class="settings-toggle-text" id="assicBlockExpiredText"></span>
                                 </label>
                             </div>
-                            <div class="settings-section--inline" style="margin-bottom:0; padding-bottom:0; border-bottom:none; margin-top:1rem;">
-                                <div class="debt-threshold-text">
-                                    <strong class="settings-option-body-strong">Assicurazione non impostata</strong>
-                                    <span class="settings-section-desc" style="margin:0;">Blocca la prenotazione se il cliente non ha ancora inserito la data di scadenza.</span>
+                            <div class="sett-toggle-row">
+                                <div class="sett-toggle-text">
+                                    <strong>Assicurazione non impostata</strong>
+                                    <span>Blocca la prenotazione se il cliente non ha ancora inserito la data di scadenza.</span>
                                 </div>
                                 <label class="settings-toggle-wrap">
                                     <input type="checkbox" id="assicBlockNotSetToggle" onchange="saveAssicBlockNotSet(this.checked)">
@@ -369,71 +382,91 @@
                             </div>
                         </div>
                     </div>
-                    <!-- End: blocco prenotazioni assicurazione -->
 
                     <!-- Settimane Standard -->
-                    <div class="settings-section">
-                        <h4 class="settings-section-title">📅 Settimane Standard</h4>
-                        <p class="settings-section-desc">Configura fino a 3 settimane tipo. Quella attiva viene usata quando importi la "settimana standard" in Gestione Orari.</p>
+                    <div class="sett-card">
+                        <div class="sett-card-header sett-card-header--top">
+                            <span class="sett-card-icon sett-card-icon--cyan">📅</span>
+                            <div>
+                                <h4 class="sett-card-title">Settimane Standard</h4>
+                                <p class="sett-card-desc">Configura fino a 3 settimane tipo. Quella attiva viene usata quando importi la "settimana standard" in Gestione Orari.</p>
+                            </div>
+                        </div>
                         <div id="weekTemplatesContainer"></div>
                     </div>
-                    <!-- End: settimane standard -->
 
                     <!-- Backup & Ripristino -->
-                    <div class="settings-section">
-                        <h4 class="settings-section-title">💾 Backup & Ripristino</h4>
-                        <p class="settings-section-desc">Esporta tutti i dati in formato JSON (reimportabile) o CSV (apribile con Excel). Il ripristino sovrascrive tutti i dati attuali.</p>
-                        <div style="display:flex;gap:0.75rem;flex-wrap:wrap;margin-top:0.75rem">
-                            <button class="btn-action" onclick="exportBackup('json')" style="background:#2563eb">📤 Esporta JSON</button>
-                            <button class="btn-action" onclick="exportBackup('csv')" style="background:#7c3aed">📤 Esporta CSV</button>
-                            <button class="btn-action" onclick="document.getElementById('importBackupFile').click()" style="background:#059669">📥 Importa backup</button>
+                    <div class="sett-card">
+                        <div class="sett-card-header sett-card-header--top">
+                            <span class="sett-card-icon sett-card-icon--blue">💾</span>
+                            <div>
+                                <h4 class="sett-card-title">Backup & Ripristino</h4>
+                                <p class="sett-card-desc">Esporta tutti i dati in formato JSON o CSV. Il ripristino sovrascrive tutti i dati attuali.</p>
+                            </div>
+                        </div>
+                        <div class="sett-btn-row">
+                            <button class="sett-action-btn sett-action-btn--blue" onclick="exportBackup('json')">📤 Esporta JSON</button>
+                            <button class="sett-action-btn sett-action-btn--purple" onclick="exportBackup('csv')">📤 Esporta CSV</button>
+                            <button class="sett-action-btn sett-action-btn--green" onclick="document.getElementById('importBackupFile').click()">📥 Importa backup</button>
                         </div>
                         <input type="file" id="importBackupFile" accept=".json" style="display:none" onchange="importBackup(this)">
-                        <div id="backupStatus" style="margin-top:0.6rem;font-size:0.85rem;color:#6b7280"></div>
+                        <div id="backupStatus" class="sett-status-text"></div>
                     </div>
-                    <!-- End: backup -->
 
                     <!-- Report settimanale -->
-                    <div class="settings-section settings-section--inline">
-                        <div class="debt-threshold-text">
-                            <h4 class="settings-section-title">📊 Report settimanale pagamenti carta e bonifico</h4>
-                            <p class="settings-section-desc">Genera il report XLSX dei pagamenti con carta e bonifico della settimana precedente (lunedì–domenica). Utile se hai già chiuso la notifica o vuoi rigenerarlo.</p>
+                    <div class="sett-card">
+                        <div class="sett-card-header">
+                            <span class="sett-card-icon sett-card-icon--blue">📊</span>
+                            <div>
+                                <h4 class="sett-card-title">Report settimanale pagamenti</h4>
+                                <p class="sett-card-desc">Genera il report XLSX dei pagamenti carta e bonifico della settimana precedente (lun–dom).</p>
+                            </div>
+                            <button class="sett-action-btn sett-action-btn--blue" onclick="downloadWeeklyReport()">📥 Rigenera</button>
                         </div>
-                        <button class="btn-action" onclick="downloadWeeklyReport()" style="background:#2563eb; white-space:nowrap;">📥 Rigenera report settimanale</button>
                     </div>
-                    <!-- End: report settimanale -->
 
                     <!-- Report fiscale completo -->
-                    <div class="settings-section settings-section--inline">
-                        <div class="debt-threshold-text">
-                            <h4 class="settings-section-title">🧾 Report fiscale completo</h4>
-                            <p class="settings-section-desc">Scarica un report XLSX con tutti i pagamenti effettuati con carta e bonifico (esclusi contanti e lezioni gratuite). Include prenotazioni, debiti manuali e crediti.</p>
+                    <div class="sett-card">
+                        <div class="sett-card-header">
+                            <span class="sett-card-icon sett-card-icon--green">🧾</span>
+                            <div>
+                                <h4 class="sett-card-title">Report fiscale completo</h4>
+                                <p class="sett-card-desc">Scarica XLSX con tutti i pagamenti carta e bonifico. Include prenotazioni, debiti e crediti.</p>
+                            </div>
+                            <button class="sett-action-btn sett-action-btn--green" id="fiscalReportBtn" onclick="downloadFiscalReport()">🧾 Scarica</button>
                         </div>
-                        <button class="btn-action" id="fiscalReportBtn" onclick="downloadFiscalReport()" style="background:#059669; white-space:nowrap;">🧾 Scarica report fiscale</button>
                     </div>
-                    <!-- End: report fiscale -->
 
                     <!-- Verifica integrità dati -->
-                    <div class="settings-section">
-                        <h4 class="settings-section-title">🔍 Verifica integrità dati</h4>
-                        <p class="settings-section-desc">Controlla anomalie: utenti senza profilo, prenotazioni orfane, email non corrispondenti, crediti/debiti/bonus collegati a utenti inesistenti.</p>
-                        <div style="display:flex;gap:0.75rem;flex-wrap:wrap;margin-top:0.75rem">
-                            <button class="btn-action" id="healthCheckBtn" onclick="runHealthCheck()" style="background:#7c3aed">🔍 Verifica</button>
-                            <button class="btn-action" id="healthFixBtn" onclick="runHealthFix()" style="background:#dc2626;display:none">🔧 Correggi anomalie</button>
+                    <div class="sett-card">
+                        <div class="sett-card-header sett-card-header--top">
+                            <span class="sett-card-icon sett-card-icon--purple">🔍</span>
+                            <div>
+                                <h4 class="sett-card-title">Verifica integrità dati</h4>
+                                <p class="sett-card-desc">Controlla anomalie: utenti senza profilo, prenotazioni orfane, crediti/debiti/bonus collegati a utenti inesistenti.</p>
+                            </div>
+                        </div>
+                        <div class="sett-btn-row">
+                            <button class="sett-action-btn sett-action-btn--purple" id="healthCheckBtn" onclick="runHealthCheck()">🔍 Verifica</button>
+                            <button class="sett-action-btn sett-action-btn--red" id="healthFixBtn" onclick="runHealthFix()" style="display:none">🔧 Correggi anomalie</button>
                         </div>
                         <div id="healthCheckResult" style="display:none; margin-top:1rem;"></div>
                     </div>
-                    <!-- End: verifica integrità -->
 
                     <!-- Modalità manutenzione -->
-                    <div class="settings-section">
-                        <h4 class="settings-section-title">🔧 Modalità manutenzione</h4>
-                        <p class="settings-section-desc">Quando attiva, gli utenti vedono un overlay "sistema non disponibile" su tutte le pagine. L'admin continua ad accedere normalmente.</p>
-                        <div class="cert-block-toggles">
-                            <div class="settings-section--inline" style="margin-bottom:0; padding-bottom:0; border-bottom:none;">
-                                <div class="debt-threshold-text">
-                                    <strong class="settings-option-body-strong">Attiva manutenzione</strong>
-                                    <span class="settings-section-desc" style="margin:0;">Blocca l'accesso agli utenti mostrando un messaggio di manutenzione.</span>
+                    <div class="sett-card sett-card--danger">
+                        <div class="sett-card-header sett-card-header--top">
+                            <span class="sett-card-icon sett-card-icon--red">🔧</span>
+                            <div>
+                                <h4 class="sett-card-title">Modalità manutenzione</h4>
+                                <p class="sett-card-desc">Quando attiva, gli utenti vedono un overlay "sistema non disponibile". L'admin continua ad accedere normalmente.</p>
+                            </div>
+                        </div>
+                        <div class="sett-toggle-list">
+                            <div class="sett-toggle-row">
+                                <div class="sett-toggle-text">
+                                    <strong>Attiva manutenzione</strong>
+                                    <span>Blocca l'accesso agli utenti mostrando un messaggio di manutenzione.</span>
                                 </div>
                                 <label class="settings-toggle-wrap">
                                     <input type="checkbox" id="maintenanceModeToggle" onchange="saveMaintenanceMode(this.checked)">
@@ -441,10 +474,10 @@
                                     <span class="settings-toggle-text" id="maintenanceModeText"></span>
                                 </label>
                             </div>
-                            <div class="settings-section--inline" style="margin-bottom:0; padding-bottom:0; border-bottom:none; margin-top:1rem;">
-                                <div class="debt-threshold-text">
-                                    <strong class="settings-option-body-strong">Blocca anche admin</strong>
-                                    <span class="settings-section-desc" style="margin:0;">Blocca anche l'interfaccia admin. Per sbloccare dovrai andare su Supabase.</span>
+                            <div class="sett-toggle-row">
+                                <div class="sett-toggle-text">
+                                    <strong>Blocca anche admin</strong>
+                                    <span>Blocca anche l'interfaccia admin. Per sbloccare dovrai andare su Supabase.</span>
                                 </div>
                                 <label class="settings-toggle-wrap">
                                     <input type="checkbox" id="maintenanceAdminToggle" onchange="saveMaintenanceAdmin(this.checked)">
@@ -452,17 +485,16 @@
                                     <span class="settings-toggle-text" id="maintenanceAdminText"></span>
                                 </label>
                             </div>
-                            <div style="margin-top:1rem;">
-                                <label style="font-size:0.85rem;color:#9ca3af;display:block;margin-bottom:0.4rem;">Messaggio personalizzato (opzionale)</label>
-                                <div style="display:flex;gap:0.5rem;align-items:center;">
-                                    <input type="text" id="maintenanceMessageInput" placeholder="Sistema temporaneamente non disponibile..." style="flex:1;padding:0.5rem 0.75rem;border-radius:8px;border:1px solid #333;background:#1a1a2e;color:#e0e0e0;font-size:0.9rem;">
-                                    <button class="debt-threshold-save-btn" onclick="saveMaintenanceMessage()">✅ Salva</button>
-                                    <span id="maintenanceMessageSaved" style="display:none; color:#16a34a; font-size:0.85rem;">Salvato</span>
+                            <div class="sett-toggle-row sett-toggle-row--input">
+                                <label class="sett-input-label">Messaggio personalizzato (opzionale)</label>
+                                <div class="sett-input-row">
+                                    <input type="text" id="maintenanceMessageInput" placeholder="Sistema temporaneamente non disponibile..." class="sett-text-input">
+                                    <button class="sett-save-btn" onclick="saveMaintenanceMessage()">Salva</button>
+                                    <span id="maintenanceMessageSaved" class="sett-saved-msg">Salvato</span>
                                 </div>
                             </div>
                         </div>
                     </div>
-                    <!-- End: modalità manutenzione -->
 
                 </div>
             </div>
