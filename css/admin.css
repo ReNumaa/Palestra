@@ -5091,11 +5091,10 @@ canvas {
 .schede-plan-list { display: flex; flex-direction: column; gap: 0.7rem; }
 .schede-plan-card {
     background: #fff; border: 1px solid #e2e8f0;
-    border-left: 5px solid; border-image: linear-gradient(180deg, #00AEEF, #0070a8) 1;
+    border-left: 5px solid #00AEEF;
     border-radius: 14px; padding: 1rem 1.2rem;
     transition: all 0.25s cubic-bezier(0.4,0,0.2,1);
     position: relative; overflow: hidden;
-    animation: schede-slide-up 0.35s ease-out both;
 }
 .schede-plan-card::before {
     content: ""; position: absolute; top: 0; right: 0; width: 100px; height: 100px;
@@ -5245,7 +5244,7 @@ canvas {
     padding: 0.9rem; background: #fff;
     border: 1px solid #e2e8f0; border-left: 4px solid #00AEEF;
     border-radius: 12px; box-shadow: 0 1px 4px rgba(0,0,0,0.04);
-    transition: all 0.2s; animation: schede-slide-up 0.3s ease-out both;
+    transition: all 0.2s;
 }
 .schede-exercise-row:nth-child(even) { border-left-color: #0090cc; }
 .schede-exercise-row:hover { box-shadow: 0 4px 12px rgba(0,0,0,0.06); border-left-color: #00d4ff; }
