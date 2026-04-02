@@ -2,6 +2,27 @@
 let debtorsListVisible = false;
 let creditsListVisible = false;
 
+/**
+ * Dopo salvataggio debito/credito, riapre la card del contatto nella lista
+ * mostrando i dati aggiornati senza perdere il contesto.
+ */
+function _reopenContactCard(name, whatsapp, email) {
+    // Simula la ricerca per riaprire la card del contatto
+    const dropdown = document.getElementById('debtorSearchDropdown');
+    const normPhone = normalizePhone(whatsapp);
+    const emailLow = (email || '').toLowerCase();
+    const matches = _searchAllContacts(name);
+    const match = matches.find(r => {
+        const d = r.data;
+        return (normPhone && normalizePhone(d.whatsapp) === normPhone) ||
+               (emailLow && (d.email || '').toLowerCase() === emailLow);
+    });
+    if (match) {
+        dropdown._matches = [match];
+        selectDebtorFromDropdown(0);
+    }
+}
+
 function _setPaymentCardsLoading(on) {
     document.querySelectorAll('.payment-stat-card').forEach(c =>
         c.classList.toggle('payment-stat-card--loading', on));
@@ -945,9 +966,8 @@ async function saveManualEntry() {
             }
             closeManualEntryPopup();
             showToast('Debito aggiunto con successo', 'success');
-            renderPaymentsTab();
-            debtorsListVisible = false;
-            toggleDebtorsList();
+            await renderPaymentsTab();
+            _reopenContactCard(name, whatsapp, email);
         } else {
             // Credito: operazione atomica server-side via RPC
             const isFreeLesson = method === 'lezione-gratuita';
@@ -981,9 +1001,8 @@ async function saveManualEntry() {
 
             closeManualEntryPopup();
             showToast('Credito aggiunto con successo', 'success');
-            renderPaymentsTab();
-            creditsListVisible = false;
-            toggleCreditsList();
+            await renderPaymentsTab();
+            _reopenContactCard(name, whatsapp, email);
         }
     } catch (err) {
         console.error('[saveManualEntry] unexpected error:', err);
