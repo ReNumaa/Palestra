@@ -1089,7 +1089,7 @@ canvas {
 
 .client-card {
     border: 1px solid #e5e7eb;
-    border-left: 4px solid var(--primary-cyan);
+    border-left: 4px solid #3b82f6;
     border-radius: 14px;
     overflow: hidden;
     transition: box-shadow 0.2s, border-left-color 0.2s;
@@ -1098,11 +1098,11 @@ canvas {
 
 .client-card:hover {
     box-shadow: 0 4px 14px rgba(0,0,0,0.07);
-    border-left-color: var(--primary-cyan-dark);
+    border-left-color: #1d4ed8;
 }
 .client-card.open {
     box-shadow: 0 4px 18px rgba(0,0,0,0.10);
-    border-left-color: var(--primary-cyan-dark);
+    border-left-color: #1d4ed8;
 }
 
 .client-card-header {
