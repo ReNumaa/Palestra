@@ -403,18 +403,18 @@ async function _renderClientDetail(container) {
     html += `<div class="schede-stats-grid">
         <div class="schede-stat-card">
             <div class="schede-stat-icon">📊</div>
-            <div class="schede-stat-label">Sessioni</div>
             <div class="schede-stat-value">${totalSessions}</div>
+            <div class="schede-stat-label">Sessioni</div>
         </div>
         <div class="schede-stat-card">
             <div class="schede-stat-icon">🏋️</div>
-            <div class="schede-stat-label">Serie</div>
             <div class="schede-stat-value">${logs.length}</div>
+            <div class="schede-stat-label">Serie totali</div>
         </div>
         <div class="schede-stat-card">
             <div class="schede-stat-icon">📈</div>
-            <div class="schede-stat-label">Volume</div>
             <div class="schede-stat-value">${totalVolume >= 1000 ? (totalVolume/1000).toFixed(1) + 't' : totalVolume + 'kg'}</div>
+            <div class="schede-stat-label">Volume</div>
         </div>
     </div>`;
 
@@ -467,17 +467,28 @@ async function _renderClientDetail(container) {
     container.innerHTML = html;
 }
 
-// Simple line chart for admin (light theme)
+// Premium line chart for admin dashboard
 function _drawAdminChart(canvas, labels, values) {
     const ctx = canvas.getContext('2d');
     const rect = canvas.getBoundingClientRect();
     const w = rect.width > 0 ? rect.width : 400;
-    const h = 140;
+    const h = 150;
     canvas.width = Math.round(w * 2);
     canvas.height = Math.round(h * 2);
     ctx.scale(2, 2);
 
-    const pad = { top: 16, right: 12, bottom: 28, left: 36 };
+    // Background
+    ctx.fillStyle = '#f8fafc';
+    const r = 10;
+    ctx.beginPath();
+    ctx.moveTo(r, 0); ctx.lineTo(w - r, 0); ctx.quadraticCurveTo(w, 0, w, r);
+    ctx.lineTo(w, h - r); ctx.quadraticCurveTo(w, h, w - r, h);
+    ctx.lineTo(r, h); ctx.quadraticCurveTo(0, h, 0, h - r);
+    ctx.lineTo(0, r); ctx.quadraticCurveTo(0, 0, r, 0);
+    ctx.closePath();
+    ctx.fill();
+
+    const pad = { top: 22, right: 14, bottom: 30, left: 42 };
     const cw = w - pad.left - pad.right;
     const ch = h - pad.top - pad.bottom;
     if (!values.length) return;
@@ -489,62 +500,102 @@ function _drawAdminChart(canvas, labels, values) {
     const yMax = maxV + range * 0.1;
     const yRange = yMax - yMin || 1;
 
-    // Grid
-    ctx.strokeStyle = '#e5e7eb';
-    ctx.lineWidth = 1;
+    // Grid lines — dashed, subtle
+    ctx.strokeStyle = '#e2e8f0';
+    ctx.lineWidth = 0.8;
+    ctx.setLineDash([3, 3]);
     for (let i = 0; i <= 4; i++) {
         const y = pad.top + ch - (ch * i / 4);
         ctx.beginPath(); ctx.moveTo(pad.left, y); ctx.lineTo(pad.left + cw, y); ctx.stroke();
-        ctx.fillStyle = '#9ca3af';
-        ctx.font = '9px sans-serif';
+        ctx.fillStyle = '#94a3b8';
+        ctx.font = '500 8.5px system-ui, sans-serif';
         ctx.textAlign = 'right';
-        ctx.fillText(Math.round(yMin + yRange * i / 4), pad.left - 4, y + 3);
+        ctx.fillText(Math.round(yMin + yRange * i / 4), pad.left - 6, y + 3);
     }
+    ctx.setLineDash([]);
 
     const pts = values.map((v, i) => ({
         x: pad.left + (values.length === 1 ? cw / 2 : (i / (values.length - 1)) * cw),
         y: pad.top + ch - ((v - yMin) / yRange) * ch,
+        v,
     }));
 
-    // Fill
+    // Area fill — smooth gradient
     ctx.beginPath();
     ctx.moveTo(pts[0].x, pad.top + ch);
     pts.forEach(p => ctx.lineTo(p.x, p.y));
     ctx.lineTo(pts[pts.length - 1].x, pad.top + ch);
     ctx.closePath();
     const grad = ctx.createLinearGradient(0, pad.top, 0, pad.top + ch);
-    grad.addColorStop(0, 'rgba(0,174,239,0.2)');
-    grad.addColorStop(1, 'rgba(0,174,239,0.02)');
+    grad.addColorStop(0, 'rgba(0,174,239,0.22)');
+    grad.addColorStop(0.6, 'rgba(0,174,239,0.08)');
+    grad.addColorStop(1, 'rgba(0,174,239,0.01)');
     ctx.fillStyle = grad;
     ctx.fill();
 
-    // Line
+    // Line — thicker, rounded
     ctx.strokeStyle = '#00AEEF';
-    ctx.lineWidth = 2.5;
+    ctx.lineWidth = 2.8;
     ctx.lineJoin = 'round';
+    ctx.lineCap = 'round';
     ctx.beginPath();
     pts.forEach((p, i) => i === 0 ? ctx.moveTo(p.x, p.y) : ctx.lineTo(p.x, p.y));
     ctx.stroke();
 
     // Dots
-    pts.forEach(p => {
+    pts.forEach((p, i) => {
+        const isLast = i === pts.length - 1;
         ctx.beginPath();
-        ctx.arc(p.x, p.y, 3.5, 0, Math.PI * 2);
-        ctx.fillStyle = '#00AEEF';
+        ctx.arc(p.x, p.y, isLast ? 4.5 : 3, 0, Math.PI * 2);
+        ctx.fillStyle = isLast ? '#00AEEF' : '#fff';
         ctx.fill();
-        ctx.strokeStyle = '#fff';
-        ctx.lineWidth = 1.5;
+        ctx.strokeStyle = isLast ? '#fff' : '#00AEEF';
+        ctx.lineWidth = isLast ? 2 : 1.5;
         ctx.stroke();
+        if (isLast) {
+            ctx.beginPath();
+            ctx.arc(p.x, p.y, 7, 0, Math.PI * 2);
+            ctx.strokeStyle = 'rgba(0,174,239,0.2)';
+            ctx.lineWidth = 2;
+            ctx.stroke();
+        }
     });
 
     // X labels
-    ctx.fillStyle = '#9ca3af';
-    ctx.font = '8px sans-serif';
+    ctx.fillStyle = '#94a3b8';
+    ctx.font = '500 7.5px system-ui, sans-serif';
     ctx.textAlign = 'center';
     const step = Math.max(1, Math.floor(labels.length / 6));
     labels.forEach((lbl, i) => {
         if (i % step === 0 || i === labels.length - 1) ctx.fillText(lbl, pts[i].x, pad.top + ch + 14);
     });
+
+    // Value badge on last point
+    if (pts.length > 0) {
+        const last = pts[pts.length - 1];
+        const label = last.v + 'kg';
+        ctx.font = 'bold 9.5px system-ui, sans-serif';
+        const tw = ctx.measureText(label).width;
+        const bx = Math.min(last.x, w - pad.right - tw / 2 - 6);
+        const by = last.y - 14;
+        ctx.fillStyle = '#0f172a';
+        ctx.beginPath();
+        const br = 4;
+        ctx.moveTo(bx - tw/2 - 5 + br, by - 8);
+        ctx.lineTo(bx + tw/2 + 5 - br, by - 8);
+        ctx.quadraticCurveTo(bx + tw/2 + 5, by - 8, bx + tw/2 + 5, by - 8 + br);
+        ctx.lineTo(bx + tw/2 + 5, by + 2 - br);
+        ctx.quadraticCurveTo(bx + tw/2 + 5, by + 2, bx + tw/2 + 5 - br, by + 2);
+        ctx.lineTo(bx - tw/2 - 5 + br, by + 2);
+        ctx.quadraticCurveTo(bx - tw/2 - 5, by + 2, bx - tw/2 - 5, by + 2 - br);
+        ctx.lineTo(bx - tw/2 - 5, by - 8 + br);
+        ctx.quadraticCurveTo(bx - tw/2 - 5, by - 8, bx - tw/2 - 5 + br, by - 8);
+        ctx.closePath();
+        ctx.fill();
+        ctx.fillStyle = '#fff';
+        ctx.textAlign = 'center';
+        ctx.fillText(label, bx, by - 1);
+    }
 }
 
 // ═══════════════════════════════════════════════════════════════════════════════
