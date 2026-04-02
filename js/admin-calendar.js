@@ -83,10 +83,11 @@ function renderAdminDaySelector(weekDates) {
             dayCard.classList.add('active');
         }
 
+        const shortName = dateInfo.dayName.slice(0, 3);
         dayCard.innerHTML = `
-            <div class="admin-day-name">${dateInfo.dayName}</div>
+            <div class="admin-day-name"><span class="day-full">${dateInfo.dayName}</span><span class="day-short">${shortName}</span></div>
             <div class="admin-day-date">${dateInfo.date.getDate()}</div>
-            <div class="admin-day-count">${dayBookingsCount} prenotazioni</div>
+            <div class="admin-day-count">${dayBookingsCount} pren.</div>
         `;
 
         dayCard.addEventListener('click', () => {

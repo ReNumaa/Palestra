@@ -568,57 +568,64 @@ canvas {
 
 .admin-day-selector {
     display: flex;
-    gap: 0.5rem;
-    padding: 0.75rem 0;
+    gap: 4px;
+    padding: 4px;
     margin-bottom: 1rem;
     justify-content: center;
     flex-wrap: wrap;
     position: sticky;
     top: 0;
     z-index: 11;
-    background-color: white;
+    background: linear-gradient(135deg, #f1f5f9, #e8ecf1);
+    border: 1px solid #e2e8f0;
+    border-radius: 14px;
+    box-shadow: 0 1px 4px rgba(0,0,0,0.04);
 }
 
 .admin-day-card {
-    flex: 0 0 auto;
-    min-width: 76px;
-    padding: 0.6rem 0.5rem;
-    background-color: var(--light-gray);
-    border-radius: 12px;
+    flex: 1 0 0;
+    min-width: 52px;
+    padding: 0.4rem 0.3rem;
+    background: transparent;
+    border-radius: 10px;
     text-align: center;
     cursor: pointer;
-    transition: all 0.3s;
-    border: 2px solid #ddd;
+    transition: all 0.25s cubic-bezier(0.4,0,0.2,1);
+    border: none;
+    color: #64748b;
+}
+.admin-day-card .admin-day-name {
+    font-size: 0.68rem;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 0.04em;
+}
+.admin-day-card .admin-day-name .day-short { display: none; }
+.admin-day-card .admin-day-date {
+    font-size: 1.05rem;
+    font-weight: 800;
+    line-height: 1.25;
+}
+.admin-day-card .admin-day-count {
+    font-size: 0.6rem;
+    opacity: 0.7;
+    font-weight: 600;
 }
 
 .admin-day-card.active {
-    background: linear-gradient(135deg, var(--primary-cyan), var(--primary-cyan-dark));
+    background: linear-gradient(135deg, #00AEEF, #0090cc);
     color: white;
-    border-color: var(--primary-cyan);
-    transform: scale(1.05);
+    box-shadow: 0 2px 8px rgba(0,174,239,0.3);
+}
+.admin-day-card.active .admin-day-count {
+    opacity: 1;
 }
 
-.admin-day-card:hover {
-    transform: translateY(-3px);
-    box-shadow: 0 4px 8px rgba(0,0,0,0.15);
+.admin-day-card:hover:not(.active) {
+    background: rgba(255,255,255,0.7);
+    color: #334155;
 }
 
-.admin-day-name {
-    font-size: 0.9rem;
-    font-weight: bold;
-    margin-bottom: 0.25rem;
-}
-
-.admin-day-date {
-    font-size: 1.3rem;
-    font-weight: bold;
-}
-
-.admin-day-count {
-    font-size: 0.75rem;
-    margin-top: 0.25rem;
-    opacity: 0.8;
-}
 
 .admin-day-view {
     display: flex;
@@ -3489,20 +3496,23 @@ canvas {
 
     /* Day selector cards */
     .admin-day-selector {
-        gap: 0.25rem;
-        padding: 0.4rem 0;
+        gap: 3px;
+        padding: 3px;
         margin-bottom: 0.75rem;
+        border-radius: 12px;
     }
 
     .admin-day-card {
         min-width: 0;
-        padding: 0.4rem 0.2rem;
+        padding: 0.35rem 0.2rem;
         border-radius: 8px;
     }
+    .admin-day-card .admin-day-name { font-size: 0.6rem; }
+    .admin-day-card .admin-day-name .day-full { display: none; }
+    .admin-day-card .admin-day-name .day-short { display: inline; }
+    .admin-day-card .admin-day-date { font-size: 0.95rem; }
+    .admin-day-card .admin-day-count { font-size: 0.55rem; }
 
-    .admin-day-name  { font-size: 0.62rem; }
-    .admin-day-date  { font-size: 0.95rem; }
-    .admin-day-count { font-size: 0.55rem; }
 
     /* Slot cards */
     .admin-slot-card {
