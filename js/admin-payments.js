@@ -821,8 +821,11 @@ function openManualEntryPopup(type, prefillEmail, prefillName, prefillWhatsapp) 
     const manualSelect = document.getElementById('manualMethodSelect');
     if (manualSelect) manualSelect.value = '';
     document.getElementById('manualMethodField').style.display = isDebt ? 'none' : '';
+    const modal = document.getElementById('manualEntryModal');
+    modal.classList.remove('manual-entry--debt', 'manual-entry--credit');
+    modal.classList.add(isDebt ? 'manual-entry--debt' : 'manual-entry--credit');
     document.getElementById('manualEntryOverlay').classList.add('open');
-    document.getElementById('manualEntryModal').classList.add('open');
+    modal.classList.add('open');
 
     if (prefillName && prefillEmail) {
         selectManualClient(prefillName, prefillWhatsapp || '', prefillEmail);

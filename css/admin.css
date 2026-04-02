@@ -2336,6 +2336,48 @@ canvas {
 /* Manual entry popup */
 .manual-entry-modal { max-height: min(92vh, 560px); }
 
+/* Debt theme */
+.manual-entry--debt {
+    background: #fef2f2;
+}
+.manual-entry--debt .debt-popup-header {
+    border-bottom-color: rgba(239,68,68,0.15);
+}
+.manual-entry--debt .debt-popup-header h3 {
+    color: #dc2626;
+}
+.manual-entry--debt .debt-popup-footer {
+    border-top-color: rgba(239,68,68,0.12);
+}
+.manual-entry--debt .debt-popup-pay-btn {
+    background: #ef4444;
+}
+.manual-entry--debt .debt-popup-pay-btn:hover:not(:disabled) {
+    background: #dc2626;
+    box-shadow: 0 4px 14px rgba(239,68,68,0.3);
+}
+
+/* Credit theme */
+.manual-entry--credit {
+    background: #f0fdf4;
+}
+.manual-entry--credit .debt-popup-header {
+    border-bottom-color: rgba(34,197,94,0.15);
+}
+.manual-entry--credit .debt-popup-header h3 {
+    color: #16a34a;
+}
+.manual-entry--credit .debt-popup-footer {
+    border-top-color: rgba(34,197,94,0.12);
+}
+.manual-entry--credit .debt-popup-pay-btn {
+    background: #22c55e;
+}
+.manual-entry--credit .debt-popup-pay-btn:hover:not(:disabled) {
+    background: #16a34a;
+    box-shadow: 0 4px 14px rgba(34,197,94,0.3);
+}
+
 .manual-entry-form {
     padding: 1.1rem 1.5rem 0.5rem;
     display: flex;
