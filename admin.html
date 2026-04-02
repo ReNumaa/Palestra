@@ -135,11 +135,6 @@
                         </div>
                     </div>
 
-                    <div class="payments-actions">
-                        <button class="payments-action-btn payments-action-btn--debt" onclick="openManualEntryPopup('debt')">+ Debito</button>
-                        <button class="payments-action-btn payments-action-btn--credit" onclick="openManualEntryPopup('credit')">+ Credito</button>
-                    </div>
-
                     <!-- Search Results -->
                     <div id="debtorSearchResults" class="debtor-search-results" style="display: none;">
                         <div class="search-results-header">
@@ -1188,5 +1183,11 @@
     </script>
     <script src="js/sw-update.js"></script>
     <script src="js/pwa-install.js"></script>
+
+    <!-- FAB Pagamenti -->
+    <div id="paymentsFab" class="payments-fab" style="display:none;">
+        <button class="payments-fab-btn payments-fab-btn--debt" onclick="openManualEntryPopup('debt')">+ Debito</button>
+        <button class="payments-fab-btn payments-fab-btn--credit" onclick="openManualEntryPopup('credit')">+ Credito</button>
+    </div>
 </body>
 </html>

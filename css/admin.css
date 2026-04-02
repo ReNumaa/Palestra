@@ -2284,50 +2284,44 @@ canvas {
     box-shadow: 0 6px 20px rgba(0,0,0,0.09);
 }
 
-/* Action buttons below stats */
-.payments-actions {
+/* FAB buttons — Pagamenti */
+.payments-fab {
+    position: fixed;
+    bottom: 1.5rem;
+    right: 1.5rem;
     display: flex;
-    justify-content: flex-end;
     gap: 0.5rem;
-    margin-bottom: 1.5rem;
+    z-index: 1000;
 }
 
-.payments-action-btn {
+.payments-fab-btn {
     border: none;
-    border-radius: 10px;
-    padding: 0.5rem 1.1rem;
-    font-size: 0.85rem;
+    border-radius: 12px;
+    padding: 0.6rem 1.15rem;
+    font-size: 0.88rem;
     font-weight: 700;
     cursor: pointer;
-    transition: transform 0.15s, box-shadow 0.15s, opacity 0.15s;
-    letter-spacing: 0.01em;
+    transition: transform 0.15s, box-shadow 0.15s;
+    box-shadow: 0 4px 14px rgba(0,0,0,0.15);
 }
 
-.payments-action-btn:hover {
-    transform: translateY(-1px);
-    box-shadow: 0 3px 10px rgba(0,0,0,0.12);
+.payments-fab-btn:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 6px 20px rgba(0,0,0,0.2);
 }
 
-.payments-action-btn:active {
+.payments-fab-btn:active {
     transform: translateY(0);
 }
 
-.payments-action-btn--debt {
-    background: rgba(239,68,68,0.12);
-    color: #dc2626;
+.payments-fab-btn--debt {
+    background: #ef4444;
+    color: #fff;
 }
 
-.payments-action-btn--debt:hover {
-    background: rgba(239,68,68,0.20);
-}
-
-.payments-action-btn--credit {
-    background: rgba(34,197,94,0.12);
-    color: #16a34a;
-}
-
-.payments-action-btn--credit:hover {
-    background: rgba(34,197,94,0.20);
+.payments-fab-btn--credit {
+    background: #22c55e;
+    color: #fff;
 }
 
 /* Manual entry popup */

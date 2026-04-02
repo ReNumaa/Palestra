@@ -145,6 +145,10 @@ function switchTab(tabName) {
     });
     document.getElementById(`tab-${tabName}`).classList.add('active');
 
+    // Mostra/nascondi FAB Pagamenti
+    const fab = document.getElementById('paymentsFab');
+    if (fab) fab.style.display = tabName === 'payments' ? 'flex' : 'none';
+
     // Scroll to top per tutti i tab tranne Prenotazioni (che ha l'auto-scroll allo slot corrente)
     if (tabName !== 'bookings') {
         window.scrollTo({ top: 0 });
