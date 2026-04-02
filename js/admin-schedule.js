@@ -25,6 +25,23 @@ function renderScheduleManager() {
     const overrides = BookingStorage.getScheduleOverrides();
     const weekHasAnySlot = weekDates.some(d => overrides[d.formatted] && overrides[d.formatted].length > 0);
 
+    // Day selector tabs with dates
+    const monthNames = ['Gen','Feb','Mar','Apr','Mag','Giu','Lug','Ago','Set','Ott','Nov','Dic'];
+    let dayTabsHtml = '<div class="schedule-day-tabs">';
+    weekDates.forEach(dateInfo => {
+        const isActive = selectedScheduleDate && selectedScheduleDate.formatted === dateInfo.formatted ? 'active' : '';
+        const daySlots = overrides[dateInfo.formatted] || [];
+        const hasSlots = daySlots.length > 0;
+        const hasMissingClient = daySlots.some(s => s.type === SLOT_TYPES.GROUP_CLASS && !s.client);
+        const shortName = dateInfo.dayName.slice(0, 3);
+        dayTabsHtml += `<button class="schedule-day-tab ${isActive} ${hasSlots ? 'has-slots' : ''} ${hasMissingClient ? 'missing-client' : ''}" data-date="${dateInfo.formatted}" onclick="selectScheduleDate('${dateInfo.formatted}', '${dateInfo.dayName}')">
+            <div class="admin-day-name"><span class="day-full">${dateInfo.dayName}</span><span class="day-short">${shortName}</span></div>
+            <div class="admin-day-date">${dateInfo.date.getDate()}</div>
+            <div class="admin-day-count">${monthNames[dateInfo.date.getMonth()]}</div>
+        </button>`;
+    });
+    dayTabsHtml += '</div>';
+
     let html = `
         <div class="schedule-week-bar">
             <div class="schedule-week-nav">
@@ -35,29 +52,13 @@ function renderScheduleManager() {
                 </div>
                 <button class="schedule-week-btn" onclick="changeScheduleWeek(1)" title="Settimana successiva">&rarr;</button>
             </div>
+            ${dayTabsHtml}
             <div class="schedule-week-actions">
                 <button class="btn-import-week" onclick="importWeekTemplate(${scheduleWeekOffset})">📥 Importa: ${_escHtml(_getActiveTemplateName())}</button>
                 ${weekHasAnySlot ? `<button class="btn-clear-week" onclick="clearWeekSchedule(${scheduleWeekOffset})">🗑 Svuota</button>` : ''}
             </div>
         </div>
     `;
-
-    // Day selector tabs with dates
-    const monthNames = ['Gen','Feb','Mar','Apr','Mag','Giu','Lug','Ago','Set','Ott','Nov','Dic'];
-    html += '<div class="schedule-day-tabs">';
-    weekDates.forEach(dateInfo => {
-        const isActive = selectedScheduleDate && selectedScheduleDate.formatted === dateInfo.formatted ? 'active' : '';
-        const daySlots = overrides[dateInfo.formatted] || [];
-        const hasSlots = daySlots.length > 0;
-        const hasMissingClient = daySlots.some(s => s.type === SLOT_TYPES.GROUP_CLASS && !s.client);
-        const shortName = dateInfo.dayName.slice(0, 3);
-        html += `<button class="schedule-day-tab ${isActive} ${hasSlots ? 'has-slots' : ''} ${hasMissingClient ? 'missing-client' : ''}" data-date="${dateInfo.formatted}" onclick="selectScheduleDate('${dateInfo.formatted}', '${dateInfo.dayName}')">
-            <div class="admin-day-name"><span class="day-full">${dateInfo.dayName}</span><span class="day-short">${shortName}</span></div>
-            <div class="admin-day-date">${dateInfo.date.getDate()}</div>
-            <div class="admin-day-count">${monthNames[dateInfo.date.getMonth()]}</div>
-        </button>`;
-    });
-    html += '</div>';
 
     html += '<div id="scheduleDaySlots"></div>';
 

@@ -1636,7 +1636,7 @@ canvas {
     box-shadow: 0 2px 8px rgba(239,68,68,0.1);
 }
 
-/* Day tabs — soft pill bar */
+/* Day tabs — soft pill bar (inside schedule-week-bar) */
 .schedule-day-tabs {
     display: flex;
     gap: 4px;
@@ -1644,9 +1644,7 @@ canvas {
     flex-wrap: wrap;
     justify-content: center;
     background: linear-gradient(135deg, #f1f5f9, #e8ecf1);
-    border: 1px solid #e2e8f0;
-    border-radius: 14px;
-    box-shadow: 0 1px 4px rgba(0,0,0,0.04);
+    border-radius: 12px;
 }
 
 .schedule-day-tab {
