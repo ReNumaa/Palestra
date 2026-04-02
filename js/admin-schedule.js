@@ -217,7 +217,6 @@ function renderAllTimeSlots() {
             const selectedClientHtml = client
                 ? `<div class="slot-client-selected">
                        <span class="slot-client-name">${_escHtml(client.name)}</span>
-                       <span class="slot-client-sub">${_escHtml(client.whatsapp || client.email)}</span>
                        <button class="btn-clear-client" onclick="clearSlotClient('${timeSlot}')" title="Rimuovi cliente">✕</button>
                    </div>`
                 : `<div class="slot-client-warning">⚠️ Cliente obbligatorio — cerca e seleziona un iscritto</div>`;
