@@ -982,7 +982,7 @@ canvas {
 
 /* ===== Clients Tab ===== */
 .clients-search-bar {
-    margin-bottom: 1.25rem;
+    margin-bottom: 1.5rem;
     display: flex;
     flex-direction: column;
     gap: 0.6rem;
