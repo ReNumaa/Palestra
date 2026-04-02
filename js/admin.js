@@ -32,7 +32,7 @@ function _applyPrivacyMask() {
         if (cl) cl.style.display = 'none';
     }
     const btn = document.getElementById('btnToggleSensitive');
-    if (btn) btn.textContent = _sensitiveHidden ? '👁 Mostra dati' : '👁 Nascondi dati';
+    if (btn) btn.textContent = '⚙️';
 }
 
 function toggleSensitiveData() {
