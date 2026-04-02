@@ -50,8 +50,9 @@ function renderScheduleManager() {
         const daySlots = overrides[dateInfo.formatted] || [];
         const hasSlots = daySlots.length > 0;
         const hasMissingClient = daySlots.some(s => s.type === SLOT_TYPES.GROUP_CLASS && !s.client);
+        const shortName = dateInfo.dayName.slice(0, 3);
         html += `<button class="schedule-day-tab ${isActive} ${hasSlots ? 'has-slots' : ''} ${hasMissingClient ? 'missing-client' : ''}" data-date="${dateInfo.formatted}" onclick="selectScheduleDate('${dateInfo.formatted}', '${dateInfo.dayName}')">
-            <div class="admin-day-name">${dateInfo.dayName}</div>
+            <div class="admin-day-name"><span class="day-full">${dateInfo.dayName}</span><span class="day-short">${shortName}</span></div>
             <div class="admin-day-date">${dateInfo.date.getDate()}</div>
             <div class="admin-day-count">${monthNames[dateInfo.date.getMonth()]}</div>
         </button>`;
