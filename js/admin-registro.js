@@ -414,7 +414,6 @@ function renderRegistroTable() {
             <td><span class="rtype-badge ${cfg.cls}">${cfg.icon} ${cfg.label}</span></td>
             <td class="registro-client">
                 <span class="registro-client-name">${_escHtml(e.clientName)}</span>
-                ${e.clientPhone ? `<span class="registro-client-phone">${_escHtml(e.clientPhone)}</span>` : ''}
             </td>
             <td>${fmtDate(e.lessonDate)}</td>
             <td class="registro-time">${_escHtml(e.lessonTime || '—')}</td>
@@ -796,7 +795,7 @@ function _renderCnPage() {
             return `<tr>
                 <td>${dateStr} ${timeStr}</td>
                 <td>${typeLabel}</td>
-                <td>${_escHtml(n.user_name || '')}${n.user_email ? `<br><small style="color:#888">${_escHtml(n.user_email)}</small>` : ''}</td>
+                <td>${_escHtml(n.user_name || '')}</td>
                 <td>${_escHtml(n.title)}</td>
                 <td>${_escHtml(n.body)}${n.error ? `<br><small style="color:#ef4444">${_escHtml(n.error)}</small>` : ''}</td>
                 <td style="${statusStyle};font-weight:600">${statusLabel}</td>
