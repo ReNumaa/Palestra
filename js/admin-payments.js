@@ -299,14 +299,32 @@ function createCreditCard(credit, index, showActions = false) {
     const safeE = (credit.email || '').replace(/'/g, "\\'");
     const safeN = (credit.name || '').replace(/'/g, "\\'");
 
-    const allCreditItems = [...(credit.history || [])].reverse().map(entry => {
+    // Unisci storico crediti + debiti manuali, ordinati per data decrescente
+    const creditEntries = (credit.history || []).map(e => ({ ...e, _type: 'credit' }));
+    const debtRecord = ManualDebtStorage.getRecord(credit.whatsapp, credit.email);
+    const debtEntries = (debtRecord?.history || []).map(e => ({ ...e, _type: 'debt' }));
+    const allEntries = [...creditEntries, ...debtEntries]
+        .sort((a, b) => new Date(b.date) - new Date(a.date));
+
+    const allCreditItems = allEntries.map(entry => {
         const d = new Date(entry.date);
         const dateStr = `${d.getDate()}/${d.getMonth() + 1}/${d.getFullYear()}`;
-        const sign = entry.amount >= 0 ? '+' : '';
-        const color = entry.amount >= 0 ? '#22c55e' : '#ef4444';
         const safeDate = (entry.date || '').replace(/'/g, "\\'");
         const safeNote = _escHtml((entry.note || '').replace(/'/g, "\\'"));
         const safeMethod = _escHtml((entry.method || '').replace(/'/g, "\\'"));
+        if (entry._type === 'debt') {
+            return `
+            <div class="debtor-booking-item debtor-booking-manual">
+                <div class="debtor-booking-details">📅 ${dateStr} — ${_escHtml(entry.note || 'Debito manuale')}</div>
+                <div style="display:flex;align-items:center;gap:0.35rem;">
+                    <div class="debtor-booking-price" style="color:#ef4444">-€${Math.abs(entry.amount)}</div>
+                    <button class="debt-entry-edit-btn" onclick="openEditEntryPopup('debt','${safeE}','${safeDate}',${entry.amount},'${safeNote}','${safeMethod}')" title="Modifica">✏️</button>
+                    <button class="debt-entry-delete-btn" onclick="deleteManualDebtEntry('${safeW}','${safeE}','${safeDate}')" title="Elimina">✕</button>
+                </div>
+            </div>`;
+        }
+        const sign = entry.amount >= 0 ? '+' : '';
+        const color = entry.amount >= 0 ? '#22c55e' : '#ef4444';
         return `
             <div class="debtor-booking-item">
                 <div class="debtor-booking-details">📅 ${dateStr} — ${_escHtml(entry.note || 'Movimento credito')}</div>
