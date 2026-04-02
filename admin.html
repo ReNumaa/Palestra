@@ -602,87 +602,91 @@
 
                 <!-- Sezione: Notifiche admin -->
                 <div id="registroSubtab-notifiche-admin" class="registro-subtab-content">
-                <div class="dashboard-card">
-                    <h3 style="margin:0 0 16px;font-size:17px;font-weight:700">📩 Storico notifiche</h3>
-                    <div style="display:flex;gap:8px;margin-bottom:12px;flex-wrap:wrap">
-                        <select id="msgFilterType" onchange="renderMessaggiTable()" style="padding:8px 12px;border-radius:8px;border:1px solid #e5e7eb;font-size:13px">
-                            <option value="">Tutti i tipi</option>
-                            <option value="booking">✔️ Prenotazioni</option>
-                            <option value="cancellation">❌ Annullamenti</option>
-                            <option value="new_client">🆕 Nuovi iscritti</option>
-                        </select>
-                        <input type="date" id="msgFilterDate" onchange="renderMessaggiTable()" style="padding:8px 12px;border-radius:8px;border:1px solid #e5e7eb;font-size:13px">
-                        <button onclick="document.getElementById('msgFilterType').value='';document.getElementById('msgFilterDate').value='';renderMessaggiTable()" style="padding:8px 12px;border-radius:8px;border:1px solid #e5e7eb;background:#fff;cursor:pointer;font-size:13px">Reset</button>
+                    <div class="reg-panel">
+                        <div class="reg-panel-header">
+                            <h3>📩 Storico notifiche</h3>
+                        </div>
+                        <div class="reg-panel-filters">
+                            <select id="msgFilterType" onchange="renderMessaggiTable()" class="reg-panel-select">
+                                <option value="">Tutti i tipi</option>
+                                <option value="booking">✔️ Prenotazioni</option>
+                                <option value="cancellation">❌ Annullamenti</option>
+                                <option value="new_client">🆕 Nuovi iscritti</option>
+                            </select>
+                            <input type="date" id="msgFilterDate" onchange="renderMessaggiTable()" class="reg-panel-date">
+                            <button class="rfilter-btn rfilter-btn--reset" onclick="document.getElementById('msgFilterType').value='';document.getElementById('msgFilterDate').value='';renderMessaggiTable()">↺ Reset</button>
+                        </div>
+                        <div class="registro-table-wrap">
+                            <table class="registro-table reg-panel-table">
+                                <thead>
+                                    <tr>
+                                        <th>Data/Ora</th>
+                                        <th>Tipo</th>
+                                        <th>Titolo</th>
+                                        <th>Dettaglio</th>
+                                        <th>Cliente</th>
+                                    </tr>
+                                </thead>
+                                <tbody id="messaggiTableBody">
+                                    <tr><td colspan="5" class="registro-empty">Caricamento...</td></tr>
+                                </tbody>
+                            </table>
+                        </div>
+                        <div class="registro-pagination">
+                            <button class="registro-pag-btn" onclick="messaggiPrevPage()" id="messaggiPrevBtn" disabled>← Prec</button>
+                            <span class="registro-pag-info" id="messaggiPaginationInfo">—</span>
+                            <button class="registro-pag-btn" onclick="messaggiNextPage()" id="messaggiNextBtn" disabled>Succ →</button>
+                        </div>
                     </div>
-                    <div style="overflow-x:auto">
-                        <table class="registro-table" style="font-size:13px">
-                            <thead>
-                                <tr>
-                                    <th>Data/Ora</th>
-                                    <th>Tipo</th>
-                                    <th>Titolo</th>
-                                    <th>Dettaglio</th>
-                                    <th>Cliente</th>
-                                </tr>
-                            </thead>
-                            <tbody id="messaggiTableBody">
-                                <tr><td colspan="5" class="registro-empty">Caricamento...</td></tr>
-                            </tbody>
-                        </table>
-                    </div>
-                    <div class="registro-pagination">
-                        <button class="registro-pag-btn" onclick="messaggiPrevPage()" id="messaggiPrevBtn" disabled>← Prec</button>
-                        <span class="registro-pag-info" id="messaggiPaginationInfo">—</span>
-                        <button class="registro-pag-btn" onclick="messaggiNextPage()" id="messaggiNextBtn" disabled>Succ →</button>
-                    </div>
-                </div>
                 </div><!-- /registroSubtab-notifiche-admin -->
 
                 <!-- Sezione: Notifiche clienti -->
                 <div id="registroSubtab-notifiche-clienti" class="registro-subtab-content">
-                <div class="dashboard-card">
-                    <h3 style="margin:0 0 16px;font-size:17px;font-weight:700">📬 Notifiche ai clienti</h3>
-                    <div style="display:flex;gap:8px;margin-bottom:12px;flex-wrap:wrap">
-                        <select id="cnFilterType" onchange="renderClientNotifTable()" style="padding:8px 12px;border-radius:8px;border:1px solid #e5e7eb;font-size:13px">
-                            <option value="">Tutti i tipi</option>
-                            <option value="reminder_24h">⏰ Promemoria 24h</option>
-                            <option value="reminder_1h">⏰ Promemoria 1h</option>
-                            <option value="slot_available">🟢 Slot disponibile</option>
-                            <option value="broadcast">📢 Broadcast</option>
-                        </select>
-                        <select id="cnFilterStatus" onchange="renderClientNotifTable()" style="padding:8px 12px;border-radius:8px;border:1px solid #e5e7eb;font-size:13px">
-                            <option value="">Tutti gli stati</option>
-                            <option value="sent">✅ Inviata</option>
-                            <option value="failed">❌ Fallita</option>
-                            <option value="no_subscription">⚠️ No subscription</option>
-                        </select>
-                        <input type="text" id="cnFilterClient" placeholder="🔍 Cerca cliente..." oninput="_debouncedCnFilter()" style="padding:8px 12px;border-radius:8px;border:1px solid #e5e7eb;font-size:13px;min-width:160px">
-                        <input type="date" id="cnFilterDate" onchange="renderClientNotifTable()" style="padding:8px 12px;border-radius:8px;border:1px solid #e5e7eb;font-size:13px">
-                        <button onclick="document.getElementById('cnFilterType').value='';document.getElementById('cnFilterStatus').value='';document.getElementById('cnFilterClient').value='';document.getElementById('cnFilterDate').value='';renderClientNotifTable()" style="padding:8px 12px;border-radius:8px;border:1px solid #e5e7eb;background:#fff;cursor:pointer;font-size:13px">Reset</button>
+                    <div class="reg-panel">
+                        <div class="reg-panel-header">
+                            <h3>📬 Notifiche ai clienti</h3>
+                        </div>
+                        <div class="reg-panel-filters">
+                            <select id="cnFilterType" onchange="renderClientNotifTable()" class="reg-panel-select">
+                                <option value="">Tutti i tipi</option>
+                                <option value="reminder_24h">⏰ Promemoria 24h</option>
+                                <option value="reminder_1h">⏰ Promemoria 1h</option>
+                                <option value="slot_available">🟢 Slot disponibile</option>
+                                <option value="broadcast">📢 Broadcast</option>
+                            </select>
+                            <select id="cnFilterStatus" onchange="renderClientNotifTable()" class="reg-panel-select">
+                                <option value="">Tutti gli stati</option>
+                                <option value="sent">✅ Inviata</option>
+                                <option value="failed">❌ Fallita</option>
+                                <option value="no_subscription">⚠️ No subscription</option>
+                            </select>
+                            <input type="text" id="cnFilterClient" placeholder="Cerca cliente..." oninput="_debouncedCnFilter()" class="reg-panel-search">
+                            <input type="date" id="cnFilterDate" onchange="renderClientNotifTable()" class="reg-panel-date">
+                            <button class="rfilter-btn rfilter-btn--reset" onclick="document.getElementById('cnFilterType').value='';document.getElementById('cnFilterStatus').value='';document.getElementById('cnFilterClient').value='';document.getElementById('cnFilterDate').value='';renderClientNotifTable()">↺ Reset</button>
+                        </div>
+                        <div class="registro-table-wrap">
+                            <table class="registro-table reg-panel-table">
+                                <thead>
+                                    <tr>
+                                        <th>Data/Ora</th>
+                                        <th>Tipo</th>
+                                        <th>Cliente</th>
+                                        <th>Titolo</th>
+                                        <th>Dettaglio</th>
+                                        <th>Stato</th>
+                                    </tr>
+                                </thead>
+                                <tbody id="clientNotifTableBody">
+                                    <tr><td colspan="6" class="registro-empty">Caricamento...</td></tr>
+                                </tbody>
+                            </table>
+                        </div>
+                        <div class="registro-pagination">
+                            <button class="registro-pag-btn" onclick="cnPrevPage()" id="cnPrevBtn" disabled>← Prec</button>
+                            <span class="registro-pag-info" id="cnPaginationInfo">—</span>
+                            <button class="registro-pag-btn" onclick="cnNextPage()" id="cnNextBtn" disabled>Succ →</button>
+                        </div>
                     </div>
-                    <div style="overflow-x:auto">
-                        <table class="registro-table" style="font-size:13px">
-                            <thead>
-                                <tr>
-                                    <th>Data/Ora</th>
-                                    <th>Tipo</th>
-                                    <th>Cliente</th>
-                                    <th>Titolo</th>
-                                    <th>Dettaglio</th>
-                                    <th>Stato</th>
-                                </tr>
-                            </thead>
-                            <tbody id="clientNotifTableBody">
-                                <tr><td colspan="6" class="registro-empty">Caricamento...</td></tr>
-                            </tbody>
-                        </table>
-                    </div>
-                    <div class="registro-pagination">
-                        <button class="registro-pag-btn" onclick="cnPrevPage()" id="cnPrevBtn" disabled>← Prec</button>
-                        <span class="registro-pag-info" id="cnPaginationInfo">—</span>
-                        <button class="registro-pag-btn" onclick="cnNextPage()" id="cnNextBtn" disabled>Succ →</button>
-                    </div>
-                </div>
                 </div><!-- /registroSubtab-notifiche-clienti -->
 
             </div>

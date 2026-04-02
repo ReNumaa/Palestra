@@ -305,19 +305,23 @@
 }
 
 .btn-apply-filter {
-    background: var(--primary-cyan);
+    background: linear-gradient(135deg, #00AEEF, #0090cc);
     color: white;
     border: none;
-    padding: 0.4rem 1rem;
-    border-radius: 8px;
+    padding: 0.4rem 1.1rem;
+    border-radius: 10px;
     cursor: pointer;
-    font-size: 0.9rem;
-    font-weight: 600;
-    transition: background 0.2s;
+    font-size: 0.85rem;
+    font-weight: 700;
+    font-family: inherit;
+    transition: all 0.2s cubic-bezier(0.4,0,0.2,1);
+    box-shadow: 0 2px 6px rgba(0,174,239,0.25);
+    letter-spacing: 0.02em;
 }
 
 .btn-apply-filter:hover {
-    background: var(--primary-cyan-dark);
+    box-shadow: 0 4px 12px rgba(0,174,239,0.35);
+    transform: translateY(-1px);
 }
 
 /* Stats Grid */
@@ -3752,27 +3756,38 @@ canvas {
 /* Sub-tabs */
 .registro-subtabs {
     display: flex;
-    gap: 0.5rem;
-    margin-bottom: 1.25rem;
+    gap: 0;
+    margin-bottom: 1.5rem;
+    padding: 4px;
+    background: linear-gradient(135deg, #0f172a, #1e293b);
+    border-radius: 14px;
+    box-shadow: 0 2px 12px rgba(0,0,0,0.15), inset 0 1px 0 rgba(255,255,255,0.05);
 }
 .registro-subtab {
-    padding: 0.55rem 1.1rem;
-    border: 1px solid #e5e7eb;
-    border-radius: 10px;
-    background: #fff;
-    font-size: 0.85rem;
-    font-weight: 600;
-    color: #555;
+    flex: 1;
+    padding: 0.6rem 1rem;
+    border: none;
+    background: transparent;
+    color: #94a3b8;
+    font-size: 0.82rem;
+    font-weight: 700;
+    border-radius: 11px;
     cursor: pointer;
-    transition: all 0.2s;
+    transition: all 0.25s cubic-bezier(0.4,0,0.2,1);
+    text-align: center;
+    letter-spacing: 0.02em;
+    font-family: inherit;
+    white-space: nowrap;
 }
 .registro-subtab:hover {
-    background: #f3f4f6;
+    color: #e2e8f0;
+    background: rgba(255,255,255,0.08);
 }
 .registro-subtab.active {
-    background: var(--dark-bg, #1e293b);
+    background: linear-gradient(135deg, #00AEEF, #0090cc);
     color: #fff;
-    border-color: var(--dark-bg, #1e293b);
+    box-shadow: 0 2px 10px rgba(0,174,239,0.4), inset 0 1px 0 rgba(255,255,255,0.15);
+    text-shadow: 0 1px 2px rgba(0,0,0,0.2);
 }
 .registro-subtab-content {
     display: none;
@@ -3783,14 +3798,21 @@ canvas {
 
 /* Filter bar */
 .registro-filters {
-    background: white;
-    border-radius: 12px;
-    box-shadow: 0 2px 8px rgba(0,0,0,0.08);
-    padding: 1rem 1.25rem;
-    margin-bottom: 1.5rem;
+    background: #fff;
+    border: 1px solid #e2e8f0;
+    border-radius: 14px;
+    box-shadow: 0 2px 8px rgba(0,0,0,0.04), 0 0 0 1px rgba(0,0,0,0.02);
+    padding: 1.1rem 1.3rem;
+    margin-bottom: 1.25rem;
     display: flex;
     flex-direction: column;
     gap: 0.85rem;
+    position: relative;
+    overflow: hidden;
+    transition: box-shadow 0.25s;
+}
+.registro-filters:focus-within {
+    box-shadow: 0 4px 16px rgba(0,174,239,0.08), 0 0 0 1px rgba(0,174,239,0.06);
 }
 .registro-filter-row {
     display: flex;
@@ -3808,10 +3830,10 @@ canvas {
 .registro-filter-group--search { flex: 1; min-width: 160px; }
 .registro-filter-label {
     font-size: 0.7rem;
-    color: #888;
+    color: #64748b;
     font-weight: 700;
     text-transform: uppercase;
-    letter-spacing: 0.5px;
+    letter-spacing: 0.06em;
 }
 .registro-date-btns {
     display: flex;
@@ -3819,31 +3841,41 @@ canvas {
     gap: 0.4rem;
 }
 .rfilter-btn {
-    background: var(--light-gray);
-    border: 2px solid #ddd;
-    color: #555;
+    background: #f8fafc;
+    border: 1.5px solid #e2e8f0;
+    color: #475569;
     border-radius: 20px;
-    padding: 0.35rem 0.85rem;
-    font-size: 0.82rem;
+    padding: 0.38rem 0.9rem;
+    font-size: 0.8rem;
     font-weight: 600;
     cursor: pointer;
-    transition: border-color 0.2s, color 0.2s, background 0.2s;
+    transition: all 0.2s cubic-bezier(0.4,0,0.2,1);
     white-space: nowrap;
     font-family: inherit;
 }
 .rfilter-btn:hover {
-    border-color: var(--primary-cyan);
-    color: var(--primary-cyan);
+    border-color: #00AEEF;
+    color: #00AEEF;
+    background: rgba(0,174,239,0.04);
 }
 .rfilter-btn.active {
-    background: var(--primary-cyan);
-    border-color: var(--primary-cyan);
+    background: linear-gradient(135deg, #00AEEF, #0090cc);
+    border-color: transparent;
     color: white;
+    box-shadow: 0 2px 8px rgba(0,174,239,0.3);
 }
 .rfilter-btn--reset {
     height: 34px;
     padding: 0 1rem;
     border-radius: 8px;
+    border-color: #fca5a5;
+    color: #dc2626;
+    background: #fef2f2;
+}
+.rfilter-btn--reset:hover {
+    background: #fee2e2;
+    border-color: #f87171;
+    color: #b91c1c;
 }
 
 .rfilter-type-pills {
@@ -3860,34 +3892,40 @@ canvas {
     margin-top: 0.3rem;
 }
 .registro-custom-dates input[type="date"] {
-    padding: 0.35rem 0.6rem;
-    border: 2px solid #ddd;
-    border-radius: 8px;
+    padding: 0.4rem 0.7rem;
+    border: 1.5px solid #e2e8f0;
+    border-radius: 10px;
     font-size: 0.85rem;
     font-family: inherit;
     outline: none;
-    transition: border-color 0.2s;
+    transition: all 0.25s cubic-bezier(0.4,0,0.2,1);
+    box-shadow: 0 1px 3px rgba(0,0,0,0.03);
 }
-.registro-custom-dates input[type="date"]:focus { border-color: var(--primary-cyan); }
-.registro-custom-dates span { color: #aaa; }
+.registro-custom-dates input[type="date"]:focus {
+    border-color: #00AEEF;
+    box-shadow: 0 0 0 3px rgba(0,174,239,0.1), 0 2px 6px rgba(0,174,239,0.06);
+}
+.registro-custom-dates span { color: #94a3b8; font-weight: 600; }
 
 .registro-filter-group select,
 .registro-filter-group input[type="text"] {
-    background: white;
-    border: 2px solid #ddd;
-    border-radius: 8px;
-    color: var(--dark-bg);
-    padding: 0.35rem 0.6rem;
+    background: #fff;
+    border: 1.5px solid #e2e8f0;
+    border-radius: 10px;
+    color: #0f172a;
+    padding: 0.4rem 0.7rem;
     font-size: 0.85rem;
     width: 100%;
-    height: 34px;
+    height: 36px;
     font-family: inherit;
-    transition: border-color 0.2s;
+    transition: all 0.25s cubic-bezier(0.4,0,0.2,1);
     outline: none;
+    box-shadow: 0 1px 3px rgba(0,0,0,0.03);
 }
 .registro-filter-group select:focus,
 .registro-filter-group input[type="text"]:focus {
-    border-color: var(--primary-cyan);
+    border-color: #00AEEF;
+    box-shadow: 0 0 0 3px rgba(0,174,239,0.1), 0 2px 6px rgba(0,174,239,0.06);
 }
 
 /* Table */
@@ -3895,6 +3933,9 @@ canvas {
     overflow-x: auto;
     margin-bottom: 0.5rem;
     padding: 0 !important;
+    border: 1px solid #e2e8f0;
+    border-radius: 14px;
+    box-shadow: 0 2px 8px rgba(0,0,0,0.04), 0 0 0 1px rgba(0,0,0,0.02);
 }
 .registro-table {
     width: 100%;
@@ -3903,16 +3944,16 @@ canvas {
     min-width: 860px;
 }
 .registro-table thead {
-    background-color: var(--dark-bg);
+    background: linear-gradient(135deg, #0f172a, #1e293b);
 }
 .registro-table th {
-    padding: 0.75rem 0.85rem;
+    padding: 0.8rem 0.85rem;
     text-align: left;
-    font-size: 0.75rem;
-    font-weight: 600;
-    color: white;
+    font-size: 0.72rem;
+    font-weight: 700;
+    color: #94a3b8;
     text-transform: uppercase;
-    letter-spacing: 0.5px;
+    letter-spacing: 0.06em;
     white-space: nowrap;
 }
 .registro-th-ts,
@@ -3921,21 +3962,21 @@ canvas {
     user-select: none;
 }
 .registro-th-ts:hover,
-.registro-th-lesson:hover { color: var(--primary-cyan); }
+.registro-th-lesson:hover { color: #00AEEF; }
 .registro-sort-icon { font-size: 0.78rem; margin-left: 0.2rem; }
 
 .registro-table td {
-    padding: 0.65rem 0.85rem;
-    border-bottom: 1px solid #eee;
+    padding: 0.7rem 0.85rem;
+    border-bottom: 1px solid #f1f5f9;
     vertical-align: middle;
-    color: var(--dark-bg);
+    color: #1e293b;
 }
 .registro-row:last-child td { border-bottom: none; }
-.registro-row:hover td { background: var(--light-gray); }
-.registro-admin td { background: #fff0f0; }
-.registro-admin:hover td { background: #ffe0e0; }
-.registro-system td { background: #f0fff0; }
-.registro-system:hover td { background: #e0ffe0; }
+.registro-row:hover td { background: #f8fafc; }
+.registro-admin td { background: #fef2f2; }
+.registro-admin:hover td { background: #fee2e2; }
+.registro-system td { background: #f0fdf4; }
+.registro-system:hover td { background: #dcfce7; }
 
 .registro-ts {
     white-space: nowrap;
@@ -3970,8 +4011,9 @@ canvas {
 .registro-empty {
     text-align: center;
     padding: 3rem 1rem;
-    color: #aaa;
+    color: #94a3b8;
     font-size: 0.9rem;
+    font-weight: 500;
 }
 
 /* Event-type badges */
@@ -4017,32 +4059,37 @@ canvas {
     display: flex;
     align-items: center;
     justify-content: center;
-    gap: 1.25rem;
+    gap: 0.75rem;
     padding: 1rem 0 0.5rem;
 }
 .registro-pag-btn {
-    background: var(--light-gray);
-    border: 2px solid #ddd;
-    color: #555;
-    border-radius: 8px;
-    padding: 0.4rem 1rem;
-    font-size: 0.85rem;
-    font-weight: 600;
+    background: #fff;
+    border: 1.5px solid #e2e8f0;
+    color: #475569;
+    border-radius: 10px;
+    padding: 0.45rem 1.1rem;
+    font-size: 0.82rem;
+    font-weight: 700;
     cursor: pointer;
     font-family: inherit;
-    transition: border-color 0.2s, color 0.2s;
+    transition: all 0.2s cubic-bezier(0.4,0,0.2,1);
+    box-shadow: 0 1px 3px rgba(0,0,0,0.04);
 }
 .registro-pag-btn:hover:not(:disabled) {
-    border-color: var(--primary-cyan);
-    color: var(--primary-cyan);
+    border-color: #00AEEF;
+    color: #00AEEF;
+    background: rgba(0,174,239,0.04);
+    box-shadow: 0 2px 8px rgba(0,174,239,0.1);
 }
-.registro-pag-btn:disabled { opacity: 0.35; cursor: not-allowed; }
+.registro-pag-btn:disabled { opacity: 0.3; cursor: not-allowed; }
 .registro-pag-info {
-    color: #666;
-    font-size: 0.85rem;
+    color: #64748b;
+    font-size: 0.82rem;
+    font-weight: 600;
     min-width: 130px;
     text-align: center;
     font-variant-numeric: tabular-nums;
+    letter-spacing: -0.01em;
 }
 
 /* Toggle filtri mobile */
@@ -4052,14 +4099,15 @@ canvas {
     background: none;
     border: none;
     padding: 0.5rem 0;
-    font-size: 0.95rem;
+    font-size: 0.9rem;
     font-weight: 700;
-    color: var(--primary-cyan);
+    color: #00AEEF;
     cursor: pointer;
     font-family: inherit;
     text-align: left;
     align-items: center;
     gap: 0.4rem;
+    letter-spacing: 0.01em;
 }
 .registro-filters-toggle-icon {
     font-size: 0.7rem;
@@ -4087,12 +4135,12 @@ canvas {
         max-height: 800px;
         opacity: 1;
     }
-    .registro-filters { padding: 0.6rem 1rem; }
+    .registro-filters { padding: 0.7rem 1rem; border-radius: 12px; }
     .registro-filter-row { flex-direction: column; }
     .registro-filter-group--sm,
     .registro-filter-group--search { min-width: unset; width: 100%; }
-    .registro-subtabs { gap: 0.35rem; }
-    .registro-subtab { padding: 0.45rem 0.75rem; font-size: 0.78rem; }
+    .registro-subtabs { border-radius: 12px; padding: 3px; }
+    .registro-subtab { padding: 0.45rem 0.6rem; font-size: 0.72rem; border-radius: 9px; }
 }
 
 /* Debt Threshold Setting */
@@ -5967,4 +6015,80 @@ canvas {
     .msg-send-btn { width: 100%; justify-content: center; padding: 0.8rem; }
     .msg-status { text-align: center; }
     .msg-input--date, .msg-input--select { max-width: 100%; }
+}
+
+
+/* ══════════════════════════════════════════════════════════════════════════
+   ██  REGISTRO — Sub-panel cards (Notifiche admin / Notifiche clienti)
+   ══════════════════════════════════════════════════════════════════════════ */
+
+.reg-panel {
+    background: #fff;
+    border: 1px solid #e2e8f0;
+    border-radius: 14px;
+    overflow: hidden;
+    box-shadow: 0 2px 8px rgba(0,0,0,0.04), 0 0 0 1px rgba(0,0,0,0.02);
+}
+.reg-panel-header {
+    padding: 1rem 1.3rem;
+    border-bottom: 2px solid transparent;
+    background-image: linear-gradient(#fff, #fff), linear-gradient(90deg, #00AEEF, transparent);
+    background-origin: padding-box, border-box;
+    background-clip: padding-box, border-box;
+}
+.reg-panel-header h3 {
+    margin: 0;
+    font-size: 1.1rem;
+    font-weight: 800;
+    color: #0f172a;
+    letter-spacing: -0.02em;
+}
+.reg-panel-filters {
+    display: flex;
+    gap: 0.5rem;
+    padding: 0.9rem 1.3rem;
+    flex-wrap: wrap;
+    align-items: center;
+    background: #f8fafc;
+    border-bottom: 1px solid #f1f5f9;
+}
+.reg-panel-select,
+.reg-panel-date,
+.reg-panel-search {
+    padding: 0.45rem 0.75rem;
+    border: 1.5px solid #e2e8f0;
+    border-radius: 10px;
+    font-size: 0.82rem;
+    font-family: inherit;
+    color: #0f172a;
+    background: #fff;
+    outline: none;
+    transition: all 0.25s cubic-bezier(0.4,0,0.2,1);
+    box-shadow: 0 1px 3px rgba(0,0,0,0.03);
+    height: 36px;
+}
+.reg-panel-search { min-width: 160px; }
+.reg-panel-select:focus,
+.reg-panel-date:focus,
+.reg-panel-search:focus {
+    border-color: #00AEEF;
+    box-shadow: 0 0 0 3px rgba(0,174,239,0.1), 0 2px 6px rgba(0,174,239,0.06);
+}
+.reg-panel .registro-table-wrap {
+    border: none;
+    border-radius: 0;
+    box-shadow: none;
+    margin-bottom: 0;
+}
+.reg-panel-table { font-size: 0.82rem; }
+.reg-panel .registro-pagination {
+    padding: 0.8rem 1.3rem;
+    border-top: 1px solid #f1f5f9;
+}
+
+@media (max-width: 640px) {
+    .reg-panel-filters { flex-direction: column; padding: 0.7rem 1rem; }
+    .reg-panel-select,
+    .reg-panel-date,
+    .reg-panel-search { width: 100%; }
 }
