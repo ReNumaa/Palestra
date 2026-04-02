@@ -679,18 +679,22 @@ canvas {
 
 .admin-slot-card.personal-training {
     border-left-color: var(--personal-training);
+    background: rgba(34, 197, 94, 0.06);
 }
 
 .admin-slot-card.small-group {
     border-left-color: var(--small-group);
+    background: rgba(251, 191, 36, 0.07);
 }
 
 .admin-slot-card.group-class {
     border-left-color: var(--group-class);
+    background: rgba(239, 68, 68, 0.05);
 }
 
 .admin-slot-card.cleaning {
     border-left-color: var(--cleaning);
+    background: rgba(139, 92, 246, 0.05);
 }
 
 .admin-slot-header {
