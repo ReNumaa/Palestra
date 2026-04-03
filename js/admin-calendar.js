@@ -11,6 +11,18 @@ function setupAdminCalendar() {
         adminWeekOffset++;
         renderAdminCalendar();
     });
+
+    // Sticky week bar: offset top sotto la admin-tabs bar
+    _updateWeekBarStickyTop();
+    window.addEventListener('resize', _updateWeekBarStickyTop);
+}
+
+function _updateWeekBarStickyTop() {
+    const tabs = document.querySelector('.admin-tabs');
+    const bar = document.querySelector('.bookings-week-bar');
+    if (tabs && bar) {
+        bar.style.top = tabs.offsetHeight + 'px';
+    }
 }
 
 function getAdminWeekDates(offset = 0) {

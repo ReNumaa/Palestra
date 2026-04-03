@@ -1,4 +1,4 @@
-const CACHE_NAME = 'palestra-v267';
+const CACHE_NAME = 'palestra-v268';
 
 const APP_SHELL = [
     '/',
@@ -27,6 +27,8 @@ const APP_SHELL = [
     '/js/pwa-install.js',
     '/js/sw-update.js',
     '/js/maintenance.js',
+    '/js/admin-calendar.js',
+    '/js/admin-schedule.js',
     '/js/admin-schede.js',
     '/allenamento.html',
     '/css/allenamento.css',
