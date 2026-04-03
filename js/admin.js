@@ -149,16 +149,17 @@ function switchTab(tabName) {
     const fab = document.getElementById('paymentsFab');
     if (fab) fab.style.display = tabName === 'payments' ? 'flex' : 'none';
 
-    // Scroll to top per tutti i tab tranne Prenotazioni (che ha l'auto-scroll allo slot corrente)
-    if (tabName !== 'bookings') {
-        window.scrollTo({ top: 0 });
-    }
+    window.scrollTo({ top: 0 });
+
+    // Mostra/nascondi FAB Slot Corrente (solo tab bookings)
+    const scrollFab = document.getElementById('scrollToSlotFab');
+    if (scrollFab) scrollFab.style.display = tabName === 'bookings' ? 'flex' : 'none';
 
     // Carica i dati del tab in modo asincrono: il browser renderizza prima il tab
     // (mostra il contenuto/spinner) e poi esegue il lavoro pesante senza congelare la UI.
     const loader = {
         analytics: () => requestAnimationFrame(() => requestAnimationFrame(() => loadDashboardData())),
-        bookings:  () => { renderAdminCalendar(); _adminScrollIfFirstOpen(); },
+        bookings:  () => { renderAdminCalendar(); },
         payments:  () => renderPaymentsTab(),
         clients:   () => renderClientsTab(),
         schedule:  () => renderScheduleManager(),
