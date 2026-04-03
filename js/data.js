@@ -325,7 +325,7 @@ class BookingStorage {
             if (ownOnly && user) {
                 qBookings = qBookings.eq('user_id', user.id);
             }
-            const pastD   = new Date(); pastD.setDate(pastD.getDate() - (isAdmin ? 180 : 28));
+            const pastD   = new Date(); pastD.setDate(pastD.getDate() - 15);
             const futureD = new Date(); futureD.setDate(futureD.getDate() + 90);
             qBookings = qBookings
                 .gte('date', _localDateStr(pastD))
