@@ -1286,6 +1286,20 @@ function renderPrenotazioniDetail(panel) {
     const peakTime  = timeSorted.length ? timeSorted.reduce((a, b) => b[1] > a[1] ? b : a)[0] : '—';
     const peakDay   = dayValues.reduce((mi, v, i, a) => v > a[mi] ? i : mi, 0);
 
+    // ── Top 5 slot più comuni (giorno + orario) ──────────────────────────────
+    const slotComboMap = {};
+    periodBookings.forEach(b => {
+        const dow = new Date(b.date + 'T00:00:00').getDay();
+        const t = b.time ? b.time.split(' - ')[0] : '?';
+        const key = `${DAY_NAMES[dow]} ${t}`;
+        slotComboMap[key] = (slotComboMap[key] || 0) + 1;
+    });
+    const topSlots = Object.entries(slotComboMap)
+        .sort((a, b) => b[1] - a[1])
+        .slice(0, 5);
+    const topSlotLabels = topSlots.map(([k]) => k);
+    const topSlotValues = topSlots.map(([, v]) => v);
+
     // ── Render ────────────────────────────────────────────────────────────────
     panel.innerHTML = `
         <div class="stat-detail-header">
@@ -1337,6 +1351,13 @@ function renderPrenotazioniDetail(panel) {
             </div>
         </div>
 
+        <div class="stat-detail-charts">
+            <div class="stat-detail-chart-block">
+                <h4>Top 5 slot più comuni</h4>
+                <canvas id="detailTopSlotsChart" style="width:100%;display:block;"></canvas>
+            </div>
+        </div>
+
         <div class="stat-detail-breakdown" style="margin-bottom:0.25rem">
             <div class="sdb-rows">
                 <div class="sdb-row">
@@ -1377,6 +1398,12 @@ function renderPrenotazioniDetail(panel) {
             new SimpleChart(timeCanvas).drawBarChart(
                 { labels: timeLabels, values: timeValues },
                 { colors: ['#f97316'], prefix: '' }
+            );
+        const topSlotsCanvas = document.getElementById('detailTopSlotsChart');
+        if (topSlotsCanvas && topSlotLabels.length > 0)
+            new SimpleChart(topSlotsCanvas).drawBarChart(
+                { labels: topSlotLabels, values: topSlotValues },
+                { colors: ['#8b5cf6'], prefix: '' }
             );
     });
 }
