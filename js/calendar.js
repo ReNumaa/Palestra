@@ -20,6 +20,13 @@ function _isUserEnrolled(date, time, slotType) {
     return bookings.some(b => b.userId === user.id && b.status === 'confirmed' && (!b.slotType || b.slotType === slotType));
 }
 
+function _isUserEnrolledOnDate(date) {
+    const user = typeof getCurrentUser === 'function' ? getCurrentUser() : null;
+    if (!user) return false;
+    const all = BookingStorage.getAllBookings();
+    return all.some(b => b.date === date && b.userId === user.id && b.status === 'confirmed');
+}
+
 function initCalendar() {
     renderCalendar();
     renderMobileCalendar();
@@ -444,6 +451,10 @@ function renderMobileDaySelector(weekDates) {
 
         if (selectedMobileDay && selectedMobileDay.formatted === dateInfo.formatted) {
             dayCard.classList.add('active');
+        }
+
+        if (_isLoggedIn() && _isUserEnrolledOnDate(dateInfo.formatted)) {
+            dayCard.classList.add('has-enrollment');
         }
 
         dayCard.innerHTML = `

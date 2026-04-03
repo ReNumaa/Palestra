@@ -921,6 +921,11 @@ body.nav-open {
     pointer-events: none;
 }
 
+.mobile-day-card.has-enrollment {
+    background: rgba(239, 68, 68, 0.12);
+    border-color: rgba(239, 68, 68, 0.35);
+}
+
 .mobile-day-card.active {
     background: linear-gradient(135deg, var(--primary-cyan), var(--primary-cyan-dark));
 
