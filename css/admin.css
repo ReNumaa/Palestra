@@ -345,60 +345,101 @@
 /* Stats Grid */
 .stats-grid {
     display: grid;
-    grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
-    gap: 1.5rem;
-    margin-bottom: 3rem;
+    grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+    gap: 1rem;
+    margin-bottom: 2.5rem;
 }
 
 .stat-card {
-    background: linear-gradient(135deg, white 0%, var(--light-gray) 100%);
-    padding: 2rem;
-    border-radius: 12px;
-    box-shadow: 0 4px 12px rgba(0,0,0,0.1);
-    transition: transform 0.3s;
+    background: #fff;
+    padding: 1.4rem 1.35rem 1.2rem;
+    border-radius: 16px;
+    border: 1px solid rgba(0,0,0,0.06);
+    box-shadow: 0 1px 3px rgba(0,0,0,0.03), 0 4px 14px rgba(0,0,0,0.04);
+    transition: transform 0.28s cubic-bezier(0.22, 1, 0.36, 1),
+                box-shadow 0.28s ease;
+    position: relative;
+    overflow: hidden;
 }
+
+/* Colored top accent bar */
+.stat-card::after {
+    content: '';
+    position: absolute;
+    top: 0; left: 0; right: 0;
+    height: 3px;
+    background: #d1d5db;
+    border-radius: 16px 16px 0 0;
+}
+
+#statcard-fatturato::after   { background: linear-gradient(90deg, #f59e0b, #fbbf24); }
+#statcard-prenotazioni::after { background: linear-gradient(90deg, #3b82f6, #60a5fa); }
+#statcard-clienti::after      { background: linear-gradient(90deg, #10b981, #34d399); }
+#statcard-occupancy::after    { background: linear-gradient(90deg, #8b5cf6, #a78bfa); }
 
 .stat-card:hover {
-    transform: translateY(-5px);
-    box-shadow: 0 8px 20px rgba(0,0,0,0.15);
+    transform: translateY(-3px);
 }
+
+/* Per-card colored hover glow */
+#statcard-fatturato:hover    { box-shadow: 0 8px 28px rgba(245,158,11,0.14), 0 2px 6px rgba(0,0,0,0.03); }
+#statcard-prenotazioni:hover { box-shadow: 0 8px 28px rgba(59,130,246,0.14), 0 2px 6px rgba(0,0,0,0.03); }
+#statcard-clienti:hover      { box-shadow: 0 8px 28px rgba(16,185,129,0.14), 0 2px 6px rgba(0,0,0,0.03); }
+#statcard-occupancy:hover    { box-shadow: 0 8px 28px rgba(139,92,246,0.14), 0 2px 6px rgba(0,0,0,0.03); }
 
 .stat-icon {
-    font-size: 2.5rem;
-    margin-bottom: 1rem;
+    font-size: 1.5rem;
+    margin-bottom: 0.85rem;
+    width: 2.85rem;
+    height: 2.85rem;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    border-radius: 12px;
+    background: #f3f4f6;
 }
 
+/* Per-card icon tinted backgrounds */
+#statcard-fatturato .stat-icon    { background: rgba(245,158,11,0.10); }
+#statcard-prenotazioni .stat-icon { background: rgba(59,130,246,0.10); }
+#statcard-clienti .stat-icon      { background: rgba(16,185,129,0.10); }
+#statcard-occupancy .stat-icon    { background: rgba(139,92,246,0.10); }
+
 .stat-card h3 {
-    font-size: 0.95rem;
-    color: #666;
-    margin-bottom: 0.5rem;
+    font-size: 0.7rem;
+    color: #9ca3af;
+    margin-bottom: 0.4rem;
     text-transform: uppercase;
-    letter-spacing: 1px;
+    letter-spacing: 0.08em;
+    font-weight: 600;
 }
 
 .stat-value {
     font-size: 2rem;
-    font-weight: bold;
-    color: var(--dark-bg);
-    margin-bottom: 0.5rem;
+    font-weight: 800;
+    color: #111;
+    margin-bottom: 0.4rem;
+    letter-spacing: -0.02em;
+    font-variant-numeric: tabular-nums;
+    line-height: 1.15;
 }
 
 .stat-change {
-    font-size: 0.9rem;
+    font-size: 0.75rem;
     font-weight: 600;
-    padding: 0.25rem 0.75rem;
-    border-radius: 20px;
+    padding: 0.2rem 0.55rem;
+    border-radius: 6px;
     display: inline-block;
 }
 
 .stat-change.positive {
-    color: var(--success);
-    background-color: rgba(6, 214, 160, 0.1);
+    color: #059669;
+    background-color: rgba(16, 185, 129, 0.1);
 }
 
 .stat-change.negative {
-    color: var(--primary-cyan);
-    background-color: rgba(0, 174, 239, 0.1);
+    color: #dc2626;
+    background-color: rgba(239, 68, 68, 0.08);
 }
 
 /* Dashboard Grid */
@@ -555,7 +596,6 @@ canvas {
     position: sticky;
     top: 0;
     z-index: 12;
-    overflow: hidden;
 }
 .bookings-week-bar::before {
     content: "";
@@ -564,6 +604,7 @@ canvas {
     height: 3px;
     background: linear-gradient(90deg, #00AEEF, #0090cc, #00AEEF);
     background-size: 200% 100%;
+    border-radius: 14px 14px 0 0;
 }
 .bookings-week-nav {
     display: flex;
@@ -5130,24 +5171,47 @@ canvas {
 }
 
 .stat-card--clickable.active {
-    border: 2px solid #00AEEF;
-    box-shadow: 0 0 0 3px rgba(0,174,239,0.12), 0 4px 12px rgba(0,0,0,0.1);
+    border: 1.5px solid #00AEEF;
+    box-shadow: 0 0 0 3px rgba(0,174,239,0.10), 0 4px 16px rgba(0,0,0,0.06);
     transform: none !important;
+}
+
+/* Per-card active border & glow */
+#statcard-fatturato.stat-card--clickable.active {
+    border-color: #f59e0b;
+    box-shadow: 0 0 0 3px rgba(245,158,11,0.12), 0 4px 16px rgba(245,158,11,0.10);
+}
+#statcard-prenotazioni.stat-card--clickable.active {
+    border-color: #3b82f6;
+    box-shadow: 0 0 0 3px rgba(59,130,246,0.12), 0 4px 16px rgba(59,130,246,0.10);
+}
+#statcard-clienti.stat-card--clickable.active {
+    border-color: #10b981;
+    box-shadow: 0 0 0 3px rgba(16,185,129,0.12), 0 4px 16px rgba(16,185,129,0.10);
+}
+#statcard-occupancy.stat-card--clickable.active {
+    border-color: #8b5cf6;
+    box-shadow: 0 0 0 3px rgba(139,92,246,0.12), 0 4px 16px rgba(139,92,246,0.10);
 }
 
 .stat-card-click-hint {
     position: absolute;
-    top: 0.55rem;
+    top: 0.5rem;
     right: 0.7rem;
-    font-size: 0.65rem;
-    color: #bbb;
+    font-size: 0.62rem;
+    color: #d1d5db;
     letter-spacing: 0.03em;
     pointer-events: none;
+    transition: color 0.15s;
 }
 
-.stat-card--clickable.active .stat-card-click-hint {
-    color: #00AEEF;
-}
+.stat-card--clickable.active .stat-card-click-hint { color: #00AEEF; }
+
+/* Per-card active hint color */
+#statcard-fatturato.stat-card--clickable.active .stat-card-click-hint    { color: #f59e0b; }
+#statcard-prenotazioni.stat-card--clickable.active .stat-card-click-hint { color: #3b82f6; }
+#statcard-clienti.stat-card--clickable.active .stat-card-click-hint      { color: #10b981; }
+#statcard-occupancy.stat-card--clickable.active .stat-card-click-hint    { color: #8b5cf6; }
 
 /* ── Skeleton loading for stat cards ─────────────────────────────────────── */
 @keyframes skeleton-pulse {
