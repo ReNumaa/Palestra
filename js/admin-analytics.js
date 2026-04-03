@@ -1400,7 +1400,9 @@ function renderClientiDetail(panel) {
             clientMap[key].cancelled++;
         } else {
             clientMap[key].total++;
-            clientMap[key].revenue += SLOT_PRICES[b.slotType] || 0;
+            if (b.paymentMethod !== 'lezione-gratuita') {
+                clientMap[key].revenue += SLOT_PRICES[b.slotType] || 0;
+            }
             if (bd >= today) clientMap[key].future++;
         }
     });
