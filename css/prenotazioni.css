@@ -54,19 +54,17 @@
 .preno-edit-btn {
     display: inline-flex;
     align-items: center;
-    gap: 0.4rem;
-    background: #f3f4f6;
+    gap: 0.3rem;
+    background: none;
     border: none;
-    color: #555;
-    font-size: 0.78rem;
+    color: var(--primary-cyan);
+    font-size: 0.8rem;
     font-weight: 600;
-    padding: 0.45rem 0.85rem;
-    border-radius: 10px;
+    padding: 0.25rem 0.1rem;
     cursor: pointer;
-    transition: all 0.2s ease;
+    transition: opacity 0.15s;
     white-space: nowrap;
     flex-shrink: 0;
-    min-height: 36px;
 }
 
 .preno-edit-btn svg {
@@ -76,12 +74,11 @@
 }
 
 .preno-edit-btn:hover {
-    background: #e5e7eb;
-    color: #333;
+    opacity: 0.7;
 }
 
 .preno-edit-btn:active {
-    transform: scale(0.97);
+    opacity: 0.5;
 }
 
 .preno-chart-btn {
@@ -91,21 +88,9 @@
 
 @media (max-width: 480px) {
     .preno-edit-label { display: none; }
-    .preno-edit-btn {
-        min-height: 38px;
-        min-width: 38px;
-        justify-content: center;
-        padding: 0.45rem;
-        border-radius: 10px;
-    }
     .preno-edit-btn svg {
-        width: 17px;
-        height: 17px;
-    }
-    .preno-chart-btn {
-        min-height: 38px;
-        min-width: 38px;
-        padding: 0.45rem;
+        width: 18px;
+        height: 18px;
     }
 }
 
