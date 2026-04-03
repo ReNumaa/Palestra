@@ -13,6 +13,13 @@ function _isLoggedIn() {
     return typeof getCurrentUser === 'function' && getCurrentUser() != null;
 }
 
+function _isUserEnrolled(date, time, slotType) {
+    const user = typeof getCurrentUser === 'function' ? getCurrentUser() : null;
+    if (!user) return false;
+    const bookings = BookingStorage.getBookingsForSlot(date, time);
+    return bookings.some(b => b.userId === user.id && b.status === 'confirmed' && (!b.slotType || b.slotType === slotType));
+}
+
 function initCalendar() {
     renderCalendar();
     renderMobileCalendar();
@@ -266,17 +273,20 @@ function createSlot(dateInfo, timeSlot) {
         const loggedIn = _isLoggedIn();
         const remainingSpots = BookingStorage.getRemainingSpots(dateInfo.formatted, timeSlot, mainType);
         const isFull = remainingSpots <= 0;
+        const enrolled = loggedIn && _isUserEnrolled(dateInfo.formatted, timeSlot, mainType);
         slot.classList.add('has-booking', mainType);
         if (loggedIn && isFull) slot.classList.add('slot-full');
+        if (enrolled) slot.classList.add('user-enrolled');
         slot.innerHTML = `
             <div class="slot-type">${SLOT_NAMES[mainType]}</div>
-            ${loggedIn && !_isNonBookable(mainType) ? `<div class="slot-spots ${spotsColorClass(remainingSpots)}">${isFull ? 'Completo' : remainingSpots + (remainingSpots === 1 ? ' disponibile' : ' disponibili')}</div>` : ''}
+            ${enrolled ? '<div class="slot-enrolled-badge">Qui ti alleni 💪🏼</div>' : (loggedIn && !_isNonBookable(mainType) ? `<div class="slot-spots ${spotsColorClass(remainingSpots)}">${isFull ? 'Completo' : remainingSpots + (remainingSpots === 1 ? ' disponibile' : ' disponibili')}</div>` : '')}
         `;
         if (loggedIn) {
             const bookable = !isFull && timeOk && !_isNonBookable(mainType);
-            // Slot pieni restano cliccabili per mostrare "Persone iscritte"
-            slot.style.cursor = (bookable || isFull) ? 'pointer' : 'not-allowed';
-            if (bookable || isFull) slot.addEventListener('click', () => selectSlot(dateInfo, timeSlot, mainType, remainingSpots));
+            // Slot pieni o con iscrizione restano cliccabili per mostrare "Persone iscritte"
+            const clickable = bookable || isFull || enrolled;
+            slot.style.cursor = clickable ? 'pointer' : 'not-allowed';
+            if (clickable) slot.addEventListener('click', () => selectSlot(dateInfo, timeSlot, mainType, remainingSpots));
         } else if (!_isNonBookable(mainType) && timeOk) {
             slot.style.cursor = 'pointer';
             slot.addEventListener('click', () => selectSlot(dateInfo, timeSlot, mainType, remainingSpots));
@@ -291,16 +301,18 @@ function createSlot(dateInfo, timeSlot) {
         const buildHalf = (type) => {
             const rem = BookingStorage.getRemainingSpots(dateInfo.formatted, timeSlot, type);
             const full = rem <= 0;
+            const enrolledHalf = loggedInSplit && _isUserEnrolled(dateInfo.formatted, timeSlot, type);
             const half = document.createElement('div');
-            half.className = `split-slot-half ${type}${loggedInSplit && full ? ' slot-full' : ''}`;
+            half.className = `split-slot-half ${type}${loggedInSplit && full ? ' slot-full' : ''}${enrolledHalf ? ' user-enrolled' : ''}`;
             half.innerHTML = `
                 <div class="slot-type">${SLOT_NAMES[type]}</div>
-                ${loggedInSplit && !_isNonBookable(type) ? `<div class="slot-spots ${spotsColorClass(rem)}">${full ? 'Completo' : rem + ' disp.'}</div>` : ''}
+                ${enrolledHalf ? '<div class="slot-enrolled-badge">Qui ti alleni 💪🏼</div>' : (loggedInSplit && !_isNonBookable(type) ? `<div class="slot-spots ${spotsColorClass(rem)}">${full ? 'Completo' : rem + ' disp.'}</div>` : '')}
             `;
             if (loggedInSplit) {
                 const bookable = !full && timeOk && !_isNonBookable(type);
-                half.style.cursor = (bookable || full) ? 'pointer' : 'not-allowed';
-                if (bookable || full) half.addEventListener('click', e => { e.stopPropagation(); selectSlot(dateInfo, timeSlot, type, rem); });
+                const clickableHalf = bookable || full || enrolledHalf;
+                half.style.cursor = clickableHalf ? 'pointer' : 'not-allowed';
+                if (clickableHalf) half.addEventListener('click', e => { e.stopPropagation(); selectSlot(dateInfo, timeSlot, type, rem); });
             } else if (!_isNonBookable(type) && timeOk) {
                 half.style.cursor = 'pointer';
                 half.addEventListener('click', e => { e.stopPropagation(); selectSlot(dateInfo, timeSlot, type, rem); });
@@ -500,10 +512,12 @@ function createMobileSlotCard(dateInfo, scheduledSlot) {
     const loggedIn = _isLoggedIn();
     const remainingSpots = BookingStorage.getRemainingSpots(dateInfo.formatted, timeSlot, slotType);
     const isFull = remainingSpots <= 0;
+    const enrolled = loggedIn && _isUserEnrolled(dateInfo.formatted, timeSlot, slotType);
 
     if (loggedIn && isFull) {
         slotCard.classList.add('slot-full');
     }
+    if (enrolled) slotCard.classList.add('user-enrolled');
 
     if (slotType === SLOT_TYPES.CLEANING) {
         slotCard.innerHTML = `
@@ -518,7 +532,7 @@ function createMobileSlotCard(dateInfo, scheduledSlot) {
     slotCard.innerHTML = `
         <div class="mobile-slot-header">
             <span class="mobile-slot-time">🕐 ${timeSlot}</span>
-            ${loggedIn && !_isNonBookable(slotType) ? `<span class="mobile-slot-available ${spotsColorClass(remainingSpots)}">${isFull ? 'Completo' : remainingSpots + (remainingSpots === 1 ? ' disponibile' : ' disponibili')}</span>` : ''}
+            ${enrolled ? '<span class="mobile-slot-enrolled">Qui ti alleni 💪🏼</span>' : (loggedIn && !_isNonBookable(slotType) ? `<span class="mobile-slot-available ${spotsColorClass(remainingSpots)}">${isFull ? 'Completo' : remainingSpots + (remainingSpots === 1 ? ' disponibile' : ' disponibili')}</span>` : '')}
         </div>
         <div class="mobile-slot-type">${SLOT_NAMES[slotType]}</div>
     `;
@@ -534,7 +548,8 @@ function createMobileSlotCard(dateInfo, scheduledSlot) {
 
     if (loggedIn) {
         const bookable = !isFull && timeOk;
-        if (bookable || isFull) {
+        const clickable = bookable || isFull || enrolled;
+        if (clickable) {
             slotCard.addEventListener('click', () => {
                 selectMobileSlot(dateInfo, timeSlot, slotType, remainingSpots, slotCard);
             });

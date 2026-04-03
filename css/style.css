@@ -592,6 +592,43 @@ body.nav-open {
     cursor: not-allowed;
 }
 
+/* "Qui ti alleni" — utente iscritto allo slot */
+.user-enrolled.slot-full {
+    opacity: 0.85;
+    filter: none;
+    cursor: pointer;
+}
+.slot-enrolled-badge {
+    font-size: 0.68rem;
+    font-weight: 700;
+    margin-top: 0.15rem;
+    padding: 0.1rem 0.35rem;
+    border-radius: 6px;
+    background: rgba(255, 255, 255, 0.35);
+    backdrop-filter: blur(4px);
+    -webkit-backdrop-filter: blur(4px);
+    color: #111;
+    white-space: nowrap;
+}
+.mobile-slot-enrolled {
+    font-size: 0.8rem;
+    font-weight: 700;
+    padding: 0.15rem 0.55rem;
+    border-radius: 20px;
+    background: rgba(34, 197, 94, 0.15);
+    color: #16a34a;
+    white-space: nowrap;
+}
+.mobile-slot-card.user-enrolled {
+    border-left-width: 5px;
+    box-shadow: 0 2px 12px rgba(34, 197, 94, 0.2);
+}
+.mobile-slot-card.user-enrolled.slot-full {
+    opacity: 0.85;
+    filter: none;
+    cursor: pointer;
+}
+
 /* Split slot: due tipi nella stessa cella del calendario */
 .calendar-slot.split-slot {
     display: flex;
