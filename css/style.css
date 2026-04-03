@@ -934,6 +934,12 @@ body.nav-open {
     transform: scale(1.05);
 }
 
+.mobile-day-card.has-enrollment.active {
+    background: linear-gradient(135deg, #ef4444, #dc2626);
+    border-color: #ef4444;
+    color: white;
+}
+
 .mobile-day-name {
     font-size: 0.7rem;
     font-weight: bold;
