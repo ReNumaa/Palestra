@@ -282,10 +282,16 @@
 @media (max-width: 480px) {
     .edit-profile-modal {
         max-width: 100%;
-        max-height: 95vh;
-        padding: 1.25rem 1.15rem 1rem;
+        max-height: 90dvh;
+        padding: 1.25rem 1.15rem 0.5rem;
         border-radius: 16px 16px 0 0;
         margin-top: auto;
+        overflow-y: auto;
+        -webkit-overflow-scrolling: touch;
+    }
+    /* X sempre visibile nel modal profilo su mobile */
+    .edit-profile-modal .modal-close {
+        display: flex;
     }
     .edit-profile-header {
         margin-bottom: 1rem;
