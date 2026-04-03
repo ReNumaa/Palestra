@@ -617,6 +617,23 @@ canvas {
     transition: all 0.25s cubic-bezier(0.4,0,0.2,1);
     border: none;
     color: #64748b;
+    position: relative;
+}
+
+/* Divider verticale tra day card */
+.admin-day-card + .admin-day-card::after {
+    content: "";
+    position: absolute;
+    left: -3px;
+    top: 18%;
+    bottom: 18%;
+    width: 1px;
+    background: #b8c0cc;
+    pointer-events: none;
+}
+.admin-day-card.active + .admin-day-card::after,
+.admin-day-card + .admin-day-card.active::after {
+    display: none;
 }
 .admin-day-card .admin-day-name {
     font-size: 0.78rem;
@@ -1724,6 +1741,23 @@ canvas {
     border: none;
     color: #64748b;
     font-family: inherit;
+    position: relative;
+}
+
+/* Divider verticale tra schedule day tabs */
+.schedule-day-tab + .schedule-day-tab::after {
+    content: "";
+    position: absolute;
+    left: -3px;
+    top: 18%;
+    bottom: 18%;
+    width: 1px;
+    background: #b8c0cc;
+    pointer-events: none;
+}
+.schedule-day-tab.active + .schedule-day-tab::after,
+.schedule-day-tab + .schedule-day-tab.active::after {
+    display: none;
 }
 .schedule-day-tab .admin-day-name {
     font-size: 0.78rem;
