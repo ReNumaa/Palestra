@@ -1627,8 +1627,9 @@ canvas {
     border: 1px solid #e2e8f0;
     border-radius: 14px;
     box-shadow: 0 2px 8px rgba(0,0,0,0.04), 0 0 0 1px rgba(0,0,0,0.02);
-    position: relative;
-    overflow: hidden;
+    position: sticky;
+    top: var(--bookings-bar-top, 122px);
+    z-index: 12;
 }
 .schedule-week-bar::before {
     content: "";
@@ -1637,6 +1638,7 @@ canvas {
     height: 3px;
     background: linear-gradient(90deg, #00AEEF, #0090cc, #00AEEF);
     background-size: 200% 100%;
+    border-radius: 14px 14px 0 0;
 }
 
 /* Top row: arrows + date range + status */
