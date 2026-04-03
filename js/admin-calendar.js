@@ -19,9 +19,10 @@ function setupAdminCalendar() {
 
 function _updateWeekBarStickyTop() {
     const tabs = document.querySelector('.admin-tabs');
-    const bar = document.querySelector('.bookings-week-bar');
-    if (tabs && bar) {
-        bar.style.top = tabs.offsetHeight + 'px';
+    if (tabs) {
+        document.documentElement.style.setProperty(
+            '--bookings-bar-top', (tabs.offsetHeight + 4) + 'px'
+        );
     }
 }
 
