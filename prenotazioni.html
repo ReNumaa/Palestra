@@ -135,7 +135,7 @@
             <li><a href="chi-sono.html">Chi sono</a></li>
             <li><a href="dove-sono.html">Dove sono</a></li>
         </ul>
-        <p class="nav-sidebar-credit">powered by <a href="https://t.me/Renuma" target="_blank" rel="noopener" class="credit-link" onclick="logCreditClick(event)">Andrea Pompili</a></p>
+        <p class="nav-sidebar-credit">powered by <a id="creditLink" href="https://andreapompili.com/" target="_blank" rel="noopener" class="credit-link" onclick="logCreditClick(event)">Andrea Pompili</a></p>
     </nav>
 
     <!-- Weekly chart modal -->
@@ -459,6 +459,12 @@
                     } catch {}
                 }
                 updateNavAuth();
+                // Nascondi credit link per utente specifico
+                const _cu = getCurrentUser();
+                if (_cu && _cu.id === 'b6461979-3684-4dcb-9fbb-b164862c23fa') {
+                    const _cl = document.getElementById('creditLink');
+                    if (_cl) _cl.parentElement.style.display = 'none';
+                }
             }
             await Promise.all([
                 BookingStorage.syncFromSupabase({ ownOnly: true }),
