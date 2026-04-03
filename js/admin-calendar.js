@@ -445,7 +445,10 @@ function _scrollToCurrentAdminSlot(container) {
         if (!parsed) continue;
         const slotEnd = parsed.endH * 60 + parsed.endM;
         if (slotEnd > nowMinutes) {
-            setTimeout(() => card.scrollIntoView({ behavior: 'smooth', block: 'center' }), 100);
+            setTimeout(() => {
+                const y = card.getBoundingClientRect().top + window.pageYOffset - window.innerHeight * 0.35;
+                window.scrollTo({ top: y, behavior: 'smooth' });
+            }, 100);
             return;
         }
     }
