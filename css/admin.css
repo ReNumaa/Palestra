@@ -594,7 +594,7 @@ canvas {
     border-radius: 14px;
     box-shadow: 0 2px 8px rgba(0,0,0,0.04), 0 0 0 1px rgba(0,0,0,0.02);
     position: sticky;
-    top: var(--bookings-bar-top, 52px);
+    top: var(--bookings-bar-top, 124px);
     z-index: 12;
 }
 .bookings-week-bar::before {

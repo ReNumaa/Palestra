@@ -18,10 +18,13 @@ function setupAdminCalendar() {
 }
 
 function _updateWeekBarStickyTop() {
+    const navbar = document.querySelector('.navbar');
     const tabs = document.querySelector('.admin-tabs');
     if (tabs) {
+        const navH = navbar ? navbar.offsetHeight : 0;
+        const tabsH = tabs.offsetHeight;
         document.documentElement.style.setProperty(
-            '--bookings-bar-top', (tabs.offsetHeight + 4) + 'px'
+            '--bookings-bar-top', (navH + tabsH + 4) + 'px'
         );
     }
 }
