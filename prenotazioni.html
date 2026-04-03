@@ -990,16 +990,19 @@
             const el   = document.getElementById('prenoCertWarning');
             if (!user || !el) return;
 
-            const missing = !user.whatsapp
+            const missingAnagrafica = !user.whatsapp
                 || !user.codice_fiscale
                 || !user.indirizzo_via
                 || !user.indirizzo_paese
-                || !user.indirizzo_cap
-                || (CertEditableStorage.get() && !user.medical_cert_expiry);
+                || !user.indirizzo_cap;
+            const missingCert = CertEditableStorage.get() && !user.medical_cert_expiry;
 
             let html = '';
-            if (missing) {
+            if (missingAnagrafica) {
                 html += `<div class="preno-cert-warning preno-cert-expired preno-cert-clickable" onclick="openEditProfileModal()">📋 Completa anagrafica</div>`;
+            }
+            if (missingCert) {
+                html += `<div class="preno-cert-warning preno-cert-expired preno-cert-clickable" onclick="openEditProfileModal()">📋 Imposta Cert. Medico</div>`;
             }
 
             // Warning certificato medico in scadenza (entro 30 giorni) o scaduto
