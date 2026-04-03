@@ -654,22 +654,37 @@ canvas {
 .admin-day-view {
     display: flex;
     flex-direction: column;
-    gap: 0.75rem;
+    gap: 0;
+    background: #fff;
+    border: 1px solid #e2e8f0;
+    border-radius: 16px;
+    overflow: hidden;
+    box-shadow: 0 1px 4px rgba(0,0,0,0.04), 0 4px 16px rgba(0,0,0,0.03);
 }
 
 .admin-slot-card {
     background: #fff;
-    border-radius: 14px;
+    border-radius: 0;
     padding: 1.2rem 1.3rem;
-    border: 1px solid #e2e8f0;
+    border: none;
     border-left: 4px solid #e2e8f0;
-    transition: box-shadow 0.25s cubic-bezier(0.4,0,0.2,1);
+    border-bottom: 1px solid #eef1f6;
+    transition: background 0.2s ease;
     position: relative;
 }
 
-.admin-slot-card:hover {
-    box-shadow: 0 4px 16px rgba(0,0,0,0.06), 0 0 0 1px rgba(0,174,239,0.04);
+.admin-slot-card:last-child {
+    border-bottom: none;
 }
+
+.admin-slot-card:hover {
+    background: #f8fafc;
+}
+
+.admin-slot-card.personal-training:hover { background: rgba(34, 197, 94, 0.09); }
+.admin-slot-card.small-group:hover       { background: rgba(251, 191, 36, 0.10); }
+.admin-slot-card.group-class:hover       { background: rgba(239, 68, 68, 0.08); }
+.admin-slot-card.cleaning:hover          { background: rgba(139, 92, 246, 0.08); }
 
 .admin-slot-card.personal-training {
     border-left-color: var(--personal-training);
@@ -1777,24 +1792,33 @@ canvas {
 .schedule-slots-list {
     display: flex;
     flex-direction: column;
-    gap: 0.6rem;
+    gap: 0;
     margin-bottom: 1rem;
+    background: #fff;
+    border: 1px solid #e2e8f0;
+    border-radius: 16px;
+    overflow: hidden;
+    box-shadow: 0 1px 4px rgba(0,0,0,0.04), 0 4px 16px rgba(0,0,0,0.03);
 }
 
 .schedule-slot-item {
     background: #fff;
     padding: 1rem 1.2rem;
-    border-radius: 14px;
+    border-radius: 0;
     display: flex;
     justify-content: space-between;
     align-items: center;
     gap: 1rem;
     flex-wrap: wrap;
-    border: 1px solid #e2e8f0;
-    transition: box-shadow 0.25s cubic-bezier(0.4,0,0.2,1);
+    border: none;
+    border-bottom: 1px solid #eef1f6;
+    transition: background 0.2s ease;
+}
+.schedule-slot-item:last-child {
+    border-bottom: none;
 }
 .schedule-slot-item:hover {
-    box-shadow: 0 4px 14px rgba(0,0,0,0.06);
+    background: #f8fafc;
 }
 
 .schedule-slot-info {
@@ -1952,28 +1976,32 @@ canvas {
 .schedule-slot-item-selector {
     background: #fff;
     padding: 1rem 1.2rem;
-    border-radius: 14px;
+    border-radius: 0;
     display: flex;
     justify-content: space-between;
     align-items: center;
     gap: 1rem;
     flex-wrap: wrap;
-    border: 1px solid #e2e8f0;
+    border: none;
+    border-bottom: 1px solid #eef1f6;
     transition: all 0.25s cubic-bezier(0.4,0,0.2,1);
     position: relative;
     overflow: hidden;
+}
+.schedule-slot-item-selector:last-child {
+    border-bottom: none;
 }
 .schedule-slot-item-selector::before {
     content: "";
     position: absolute;
     left: 0; top: 0; bottom: 0;
     width: 3px;
-    background: #e2e8f0;
-    border-radius: 3px 0 0 3px;
+    background: transparent;
+    border-radius: 0;
     transition: background 0.25s;
 }
 .schedule-slot-item-selector:hover {
-    box-shadow: 0 4px 14px rgba(0,0,0,0.06), 0 0 0 1px rgba(0,174,239,0.06);
+    background: #f8fafc;
 }
 .schedule-slot-item-selector:hover::before {
     background: #00AEEF;
@@ -2244,11 +2272,10 @@ canvas {
     .schedule-day-tab .admin-day-date { font-size: 0.95rem; }
     .schedule-day-tab .admin-day-count { font-size: 0.55rem; }
 
-    .schedule-slots-list { gap: 0.5rem; }
+    .schedule-slots-list { gap: 0; }
     .schedule-slot-item-selector {
         padding: 0.85rem 1rem;
         gap: 0.75rem;
-        border-radius: 12px;
     }
     .schedule-slot-time { font-size: 0.88rem; }
     .slot-type-select {
@@ -3692,7 +3719,6 @@ canvas {
     /* Slot cards */
     .admin-slot-card {
         padding: 0.9rem 1rem;
-        border-radius: 12px;
     }
 
     .admin-slot-time {
@@ -4181,7 +4207,7 @@ canvas {
     .schedule-slot-time { font-size: 0.78rem; min-width: 88px; flex-shrink: 0; }
     .schedule-slot-item-selector .current-type-badge { display: none; }
     .schedule-slot-item-selector.has-client-picker .current-type-badge { display: block; }
-    .schedule-slots-list { gap: 0.3rem; margin-bottom: 0.75rem; }
+    .schedule-slots-list { gap: 0; margin-bottom: 0.75rem; }
 
     /* Client table: hide Metodo + Data Pagamento columns (too wide) */
     .client-bookings-table th:nth-child(5),
