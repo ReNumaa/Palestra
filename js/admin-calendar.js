@@ -12,20 +12,19 @@ function setupAdminCalendar() {
         renderAdminCalendar();
     });
 
-    // Sticky week bar: offset top sotto la admin-tabs bar
-    _updateWeekBarStickyTop();
-    window.addEventListener('resize', _updateWeekBarStickyTop);
+    // Sticky: navbar → admin-tabs → week-bar, senza gap
+    _updateStickyOffsets();
+    window.addEventListener('resize', _updateStickyOffsets);
 }
 
-function _updateWeekBarStickyTop() {
+function _updateStickyOffsets() {
     const navbar = document.querySelector('.navbar');
     const tabs = document.querySelector('.admin-tabs');
+    const root = document.documentElement;
+    const navH = navbar ? navbar.offsetHeight : 0;
+    root.style.setProperty('--admin-tabs-top', navH + 'px');
     if (tabs) {
-        const navH = navbar ? navbar.offsetHeight : 0;
-        const tabsH = tabs.offsetHeight;
-        document.documentElement.style.setProperty(
-            '--bookings-bar-top', (navH + tabsH + 4) + 'px'
-        );
+        root.style.setProperty('--bookings-bar-top', (navH + tabs.offsetHeight) + 'px');
     }
 }
 

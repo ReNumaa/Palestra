@@ -177,12 +177,12 @@
     flex-wrap: wrap;
     justify-content: center;
     position: sticky;
-    top: 0;
+    top: var(--admin-tabs-top, 72px);
     z-index: 13;
     background: linear-gradient(135deg, #f1f5f9, #e8ecf1);
     border: 1px solid #e2e8f0;
     border-radius: 14px;
-    box-shadow: 0 1px 4px rgba(0,0,0,0.04);
+    box-shadow: 0 1px 4px rgba(0,0,0,0.04), 0 4px 8px rgba(0,0,0,0.06);
 }
 
 .admin-tab {
@@ -594,7 +594,7 @@ canvas {
     border-radius: 14px;
     box-shadow: 0 2px 8px rgba(0,0,0,0.04), 0 0 0 1px rgba(0,0,0,0.02);
     position: sticky;
-    top: var(--bookings-bar-top, 124px);
+    top: var(--bookings-bar-top, 122px);
     z-index: 12;
 }
 .bookings-week-bar::before {
