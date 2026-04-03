@@ -1430,11 +1430,11 @@ function renderClientiDetail(panel) {
     const topCancellers = clients.filter(c => c.cancelled > 0).sort((a, b) => b.cancelled - a.cancelled).slice(0, 5);
     const mostLoyal    = [...activeClients].filter(c => c.cancelled === 0).sort((a, b) => b.total - a.total).slice(0, 5);
 
-    // ── Utilizzatori bonus nel periodo ───────────────────────────────────────
+    // ── Utilizzatori bonus nel periodo (filtro su data cancellazione) ────────
     const bonusUsers = {};
     allBookings.forEach(b => {
         if (!b.cancelledWithBonus || b.status !== 'cancelled') return;
-        const bd = new Date(b.date + 'T00:00:00');
+        const bd = b.cancelledAt ? new Date(b.cancelledAt) : new Date(b.date + 'T00:00:00');
         if (bd < periodFrom || bd > periodTo) return;
         const key = b.email || b.whatsapp || b.name;
         if (!bonusUsers[key]) bonusUsers[key] = { name: b.name, count: 0, saved: 0 };
