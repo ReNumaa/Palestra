@@ -1588,15 +1588,15 @@ function renderClientiDetail(panel) {
                     ${_clientRows(topCancellers, c => `${c.cancelled} cancellaz.`)}
                 </div>
             </div>
+        </div>
+
+        <div class="stat-detail-charts">
             <div class="stat-detail-breakdown">
                 <h4>⭐ Più fedeli (0 cancellazioni)</h4>
                 <div class="sdb-rows">
                     ${_clientRows(mostLoyal, c => `${c.total} lezioni`)}
                 </div>
             </div>
-        </div>
-
-        <div class="stat-detail-charts">
             <div class="stat-detail-breakdown">
                 <h4>🎁 Utilizzatori bonus (${bonusUsersList.length}) — €${bonusTotalSaved} risparmiati</h4>
                 <div class="sdb-rows">
