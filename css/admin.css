@@ -1323,10 +1323,15 @@ canvas {
 }
 
 .edit-client-popup-actions {
-    display: flex; gap: 0.5rem;
+    display: flex; flex-wrap: wrap; gap: 0.5rem;
     padding: 0.8rem 1.2rem;
     border-top: 1px solid #e5e7eb;
-    justify-content: flex-end;
+}
+.edit-client-popup-actions button {
+    flex: 1 1 calc(50% - 0.25rem);
+    min-width: 0;
+    box-sizing: border-box;
+    text-align: center;
 }
 
 .client-edit-actions { display: flex; gap: 0.45rem; }
@@ -1360,7 +1365,6 @@ canvas {
     padding: 0.45rem 0.7rem;
     font-size: 1rem;
     cursor: pointer;
-    margin-left: auto;
     transition: all 0.15s;
 }
 .btn-reset-bonus:hover {
