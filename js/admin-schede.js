@@ -892,13 +892,13 @@ function _schedeAddDay() {
     if (container) _renderPlanEditor(container);
 }
 
-function _schedeRemoveDay() {
+async function _schedeRemoveDay() {
     if (_editDayLabels.length <= 1) return;
     if (_editingPlan) {
         const toDelete = (_editingPlan.workout_exercises || []).filter(e => e.day_label === _editActiveDay);
-        toDelete.forEach(async ex => {
-            try { await WorkoutPlanStorage.deleteExercise(ex.id); } catch (_) {}
-        });
+        for (const ex of toDelete) {
+            try { await WorkoutPlanStorage.deleteExercise(ex.id); } catch (e) { console.error('[Schede] deleteExercise failed:', ex.id, e); }
+        }
     }
     _editDayLabels = _editDayLabels.filter(d => d !== _editActiveDay);
     _editActiveDay = _editDayLabels[0];
@@ -913,7 +913,7 @@ function _schedeRenameDay(newName) {
         (_editingPlan.workout_exercises || []).forEach(ex => {
             if (ex.day_label === oldName) {
                 ex.day_label = newName;
-                WorkoutPlanStorage.updateExercise(ex.id, { day_label: newName }).catch(() => {});
+                WorkoutPlanStorage.updateExercise(ex.id, { day_label: newName }).catch(e => { console.error('[Schede] renameDay failed:', ex.id, e); });
             }
         });
     }

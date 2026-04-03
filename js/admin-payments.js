@@ -749,7 +749,7 @@ var liveSearchDebtor = _debounce(function() {
                 ? `<span class="dropdown-item-client" style="color:#888;font-size:12px">👤 Cliente</span>`
                 : `<span class="dropdown-item-credit">💳 €${r.data.balance}</span>`;
             return `<div class="dropdown-item" onclick="selectDebtorFromDropdown(${i})">
-                <span class="dropdown-item-name">${name}</span>
+                <span class="dropdown-item-name">${_escHtml(name)}</span>
                 ${badge}
             </div>`;
         }).join('');

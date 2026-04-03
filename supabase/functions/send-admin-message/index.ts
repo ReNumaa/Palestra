@@ -24,6 +24,26 @@ Deno.serve(async (req) => {
         return new Response(null, { status: 204, headers: corsHeaders });
     }
     try {
+        // ── Auth: solo admin ─────────────────────────────────────────────────
+        const authHeader = req.headers.get("Authorization");
+        if (!authHeader?.startsWith("Bearer ")) {
+            return new Response(JSON.stringify({ ok: false, error: "Non autenticato" }), {
+                status: 401, headers: { ...corsHeaders, "Content-Type": "application/json" },
+            });
+        }
+        const { data: { user: authUser }, error: authErr } = await supabase.auth.getUser(authHeader.replace("Bearer ", ""));
+        if (authErr || !authUser) {
+            return new Response(JSON.stringify({ ok: false, error: "Token non valido" }), {
+                status: 401, headers: { ...corsHeaders, "Content-Type": "application/json" },
+            });
+        }
+        if (authUser.app_metadata?.role !== "admin") {
+            return new Response(JSON.stringify({ ok: false, error: "Accesso negato: richiesto ruolo admin" }), {
+                status: 403, headers: { ...corsHeaders, "Content-Type": "application/json" },
+            });
+        }
+        // ─────────────────────────────────────────────────────────────────────
+
         const { title, body, mode, date, time } = await req.json();
 
         if (!title || !body) {

@@ -464,9 +464,10 @@ function _showSlotChangePopup(timeSlot, newType, bookings) {
             if (sendNotify && msgText) {
                 resultDiv.innerHTML = '<div style="color:#6b7280; font-size:0.85rem;">⏳ Invio notifiche in corso...</div>';
 
+                const { data: { session: _schedSession } } = await supabaseClient.auth.getSession();
                 const res = await fetch(`${SUPABASE_URL}/functions/v1/send-admin-message`, {
                     method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
+                    headers: { 'Content-Type': 'application/json', 'Authorization': 'Bearer ' + (_schedSession?.access_token || '') },
                     body: JSON.stringify({
                         title: `📢 Lezione annullata di ${dateDisplay} alle ${timeSlot.split(' - ')[0]}`,
                         body: msgText,

@@ -2530,7 +2530,7 @@ class WorkoutPlanStorage {
         try {
             const { data, error } = await supabaseClient.rpc('get_exercise_suggestions');
             if (!error && data) this._suggestions = data.map(r => r.exercise_name);
-        } catch (_) {}
+        } catch (e) { console.warn('[WorkoutPlanStorage] loadSuggestions failed:', e); }
     }
 
     static getSuggestions() { return this._suggestions; }
@@ -2649,7 +2649,7 @@ class WorkoutLogStorage {
             });
             supabaseClient.auth.getSession().then(({ data }) => {
                 _cachedAccessToken = data?.session?.access_token || '';
-            }).catch(() => {});
+            }).catch(e => { console.warn('[keepalive] getSession failed:', e); });
         } catch (_) { /* supabase not ready */ }
     }, 2000);
 
@@ -2676,7 +2676,7 @@ class WorkoutLogStorage {
                         'Prefer': 'resolution=merge-duplicates',
                     },
                     body: JSON.stringify(creditRows),
-                }).catch(() => {});
+                }).catch(e => { console.error('[keepalive] credit sync failed:', e); });
             }
             // Re-save debts
             const debtRows = Object.values(ManualDebtStorage._cache || {}).map(r => ({
@@ -2694,7 +2694,7 @@ class WorkoutLogStorage {
                         'Prefer': 'resolution=merge-duplicates',
                     },
                     body: JSON.stringify(debtRows),
-                }).catch(() => {});
+                }).catch(e => { console.error('[keepalive] debt sync failed:', e); });
             }
         } catch (_) { /* best effort */ }
     }

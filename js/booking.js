@@ -157,7 +157,7 @@ function openBookingModal(dateInfo, timeSlot, slotType, remainingSpots) {
                     attendeesList.innerHTML = '<li class="slot-attendees-empty">Nessuna persona visibile per questo slot.</li>';
                 } else {
                     attendeesList.innerHTML = data.map(a =>
-                        `<li>👤 ${a.name}</li>`
+                        `<li>👤 ${_escHtml(a.name)}</li>`
                     ).join('');
                 }
             });

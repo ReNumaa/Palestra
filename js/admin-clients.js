@@ -1050,7 +1050,7 @@ async function saveBookingRowEdit(bookingId, clientIndex) {
     // Controllo dati per carta/bonifico (solo se il metodo sta cambiando a carta/iban)
     if ((newMethod === 'carta' || newMethod === 'iban') && newPaid) {
         try { await ensureClientDataForCardPayment(booking.email, booking.whatsapp, booking.name, newMethod); }
-        catch { if (_saveBtn) _saveBtn.disabled = false; return; }
+        catch (e) { console.error('[Clients] ensureClientDataForCardPayment failed:', e); if (_saveBtn) _saveBtn.disabled = false; return; }
     }
 
     const oldPaid   = booking.paid;

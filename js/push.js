@@ -2,6 +2,15 @@
 // Chiave pubblica VAPID — la privata va nelle env vars di Supabase (secret VAPID_PRIVATE_KEY)
 const VAPID_PUBLIC_KEY = 'BOIkkllAmpdW6-MWn85UW36xGPDk9rJDtEIs23w9gmVxGeKx3OSTqTVzcZOcz7gfm8kCHmzc3jp6J2IlEXC0AGA';
 
+// Helper: ottieni JWT utente per autenticazione Edge Functions
+async function _getPushAuthToken() {
+    if (typeof supabaseClient === 'undefined') return null;
+    try {
+        const { data: { session } } = await supabaseClient.auth.getSession();
+        return session?.access_token || null;
+    } catch { return null; }
+}
+
 function urlBase64ToUint8Array(base64String) {
     const padding = '='.repeat((4 - base64String.length % 4) % 4);
     const base64 = (base64String + padding).replace(/-/g, '+').replace(/_/g, '/');
@@ -182,10 +191,12 @@ async function notifySlotAvailable(booking) {
     const date = booking.date || '';
     const time = booking.time || '';
     const spotsAvailable = capacity - confirmedInSlot;
+    const token = await _getPushAuthToken();
+    if (!token) return;
     try {
         await fetch(`${SUPABASE_URL}/functions/v1/notify-slot-available`, {
             method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
+            headers: { 'Content-Type': 'application/json', 'Authorization': 'Bearer ' + token },
             body: JSON.stringify({ date_display: dateDisplay, date, time, exclude_user_id: excludeUserId, spots_available: spotsAvailable, max_capacity: capacity }),
         });
     } catch (e) {
@@ -209,12 +220,15 @@ async function notifyAdminBooking(booking) {
         ? BookingStorage.getEffectiveCapacity(date, time, slotType)
         : 5;
 
+    const token = await _getPushAuthToken();
+    if (!token) return;
+
     try {
         const resp = await fetch(`${SUPABASE_URL}/functions/v1/notify-admin-booking`, {
             method: 'POST',
             headers: {
                 'Content-Type': 'application/json',
-                'Authorization': 'Bearer ' + SUPABASE_ANON_KEY,
+                'Authorization': 'Bearer ' + token,
             },
             body: JSON.stringify({
                 name: booking.name || '',
@@ -248,12 +262,15 @@ async function notifyAdminCancellation(booking, { withBonus = false, withMora = 
         ? BookingStorage.getEffectiveCapacity(date, time, slotType)
         : 5;
 
+    const token = await _getPushAuthToken();
+    if (!token) return;
+
     try {
         const resp = await fetch(`${SUPABASE_URL}/functions/v1/notify-admin-cancellation`, {
             method: 'POST',
             headers: {
                 'Content-Type': 'application/json',
-                'Authorization': 'Bearer ' + SUPABASE_ANON_KEY,
+                'Authorization': 'Bearer ' + token,
             },
             body: JSON.stringify({
                 name: booking.name || '',

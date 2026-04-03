@@ -134,9 +134,10 @@ async function sendAdminMessage() {
     status.style.color = '#6b7280';
 
     try {
+        const { data: { session: _msgSession } } = await supabaseClient.auth.getSession();
         const res = await fetch(`${SUPABASE_URL}/functions/v1/send-admin-message`, {
             method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
+            headers: { 'Content-Type': 'application/json', 'Authorization': 'Bearer ' + (_msgSession?.access_token || '') },
             body: JSON.stringify({ title, body, mode, date, time })
         });
         const data = await res.json();
