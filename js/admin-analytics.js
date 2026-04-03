@@ -1395,11 +1395,12 @@ function renderClientiDetail(panel) {
         const bd = new Date(b.date + 'T00:00:00');
         if (bd < periodFrom || bd > periodTo) return;
         const key = b.email || b.whatsapp || b.name;
-        if (!clientMap[key]) clientMap[key] = { name: b.name, total: 0, cancelled: 0, future: 0 };
+        if (!clientMap[key]) clientMap[key] = { name: b.name, total: 0, cancelled: 0, future: 0, revenue: 0 };
         if (b.status === 'cancelled') {
             clientMap[key].cancelled++;
         } else {
             clientMap[key].total++;
+            clientMap[key].revenue += SLOT_PRICES[b.slotType] || 0;
             if (bd >= today) clientMap[key].future++;
         }
     });
@@ -1426,6 +1427,7 @@ function renderClientiDetail(panel) {
         .sort((a, b) => a.date - b.date);
 
     const topActive    = [...activeClients].sort((a, b) => b.total - a.total).slice(0, 5);
+    const topRevenue   = [...activeClients].filter(c => c.revenue > 0).sort((a, b) => b.revenue - a.revenue).slice(0, 5);
     const leastActive  = [...activeClients].sort((a, b) => a.total - b.total).slice(0, 5);
     const topCancellers = clients.filter(c => c.cancelled > 0).sort((a, b) => b.cancelled - a.cancelled).slice(0, 5);
     const mostLoyal    = [...activeClients].filter(c => c.cancelled === 0).sort((a, b) => b.total - a.total).slice(0, 5);
@@ -1520,20 +1522,26 @@ function renderClientiDetail(panel) {
 
         <div class="stat-detail-charts">
             <div class="stat-detail-breakdown">
+                <h4>💰 Maggior fatturato</h4>
+                <div class="sdb-rows">
+                    ${_clientRows(topRevenue, c => `€${c.revenue} — ${c.total} lez.`)}
+                </div>
+            </div>
+            <div class="stat-detail-breakdown">
                 <h4>🏆 Più attivi nel periodo</h4>
                 <div class="sdb-rows">
                     ${_clientRows(topActive, c => `${c.total} lezioni`)}
                 </div>
             </div>
+        </div>
+
+        <div class="stat-detail-charts">
             <div class="stat-detail-breakdown">
                 <h4>💤 Meno attivi nel periodo</h4>
                 <div class="sdb-rows">
                     ${_clientRows(leastActive, c => `${c.total} lezioni`)}
                 </div>
             </div>
-        </div>
-
-        <div class="stat-detail-charts">
             <div class="stat-detail-breakdown">
                 <h4>❌ Top annullatori</h4>
                 <div class="sdb-rows">
