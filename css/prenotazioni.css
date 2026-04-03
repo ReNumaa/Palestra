@@ -370,6 +370,17 @@
     cursor: pointer;
     transition: all 0.2s ease;
     text-align: center;
+    position: relative;
+}
+
+.preno-tab + .preno-tab::before {
+    content: '';
+    position: absolute;
+    left: 0;
+    top: 20%;
+    height: 60%;
+    width: 1px;
+    background: #ddd;
 }
 
 .preno-tab:hover {
@@ -381,6 +392,11 @@
     color: #fff;
     background: var(--primary-cyan);
     box-shadow: 0 2px 8px rgba(0, 174, 239, 0.3);
+}
+
+.preno-tab.active::before,
+.preno-tab.active + .preno-tab::before {
+    background: transparent;
 }
 
 /* ── Booking list ─────────────────────────────────────────────── */
@@ -428,6 +444,7 @@
     display: flex;
     align-items: center;
     gap: 0.45rem;
+    white-space: nowrap;
 }
 
 .preno-card-date svg,
