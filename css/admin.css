@@ -668,7 +668,7 @@ canvas {
     padding: 1.2rem 1.3rem;
     border: none;
     border-left: 4px solid #e2e8f0;
-    border-bottom: 1px solid #eef1f6;
+    border-bottom: 1px solid #d5dae2;
     transition: background 0.2s ease;
     position: relative;
 }
@@ -1811,7 +1811,7 @@ canvas {
     gap: 1rem;
     flex-wrap: wrap;
     border: none;
-    border-bottom: 1px solid #eef1f6;
+    border-bottom: 1px solid #d5dae2;
     transition: background 0.2s ease;
 }
 .schedule-slot-item:last-child {
@@ -1983,7 +1983,7 @@ canvas {
     gap: 1rem;
     flex-wrap: wrap;
     border: none;
-    border-bottom: 1px solid #eef1f6;
+    border-bottom: 1px solid #d5dae2;
     transition: all 0.25s cubic-bezier(0.4,0,0.2,1);
     position: relative;
     overflow: hidden;
