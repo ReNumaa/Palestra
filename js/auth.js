@@ -205,8 +205,8 @@ async function initAuth() {
             }
             updateNavAuth();
 
-            // Ri-sincronizza dati dopo background prolungato (≥30s)
-            if (bgSeconds >= 30 && typeof BookingStorage !== 'undefined') {
+            // Ri-sincronizza dati dopo background prolungato (≥2min)
+            if (bgSeconds >= 120 && typeof BookingStorage !== 'undefined') {
                 console.log(`[Auth] App in foreground dopo ${Math.round(bgSeconds)}s — re-sync dati`);
                 try {
                     await BookingStorage.syncFromSupabase();

@@ -640,16 +640,19 @@ const _MSG_TYPE_LABELS = {
     broadcast:             '📢 Broadcast',
 };
 
-async function loadMessaggi() {
+let _messaggiLoaded = false;
+async function loadMessaggi(force = false) {
     if (typeof supabaseClient === 'undefined') return;
+    if (_messaggiLoaded && !force) { renderMessaggiTable(); return; }
     try {
         const { data, error } = await supabaseClient
             .from('admin_messages')
-            .select('*')
+            .select('created_at,type,date,title,body,client_name')
             .order('created_at', { ascending: false })
             .limit(500);
         if (error) { console.warn('[Messaggi] load error:', error.message); return; }
         _messaggiCache = data || [];
+        _messaggiLoaded = true;
         renderMessaggiTable();
     } catch (e) {
         console.warn('[Messaggi] load exception:', e);
@@ -737,16 +740,19 @@ const _CN_STATUS_LABELS = {
     no_subscription: '⚠️ No sub',
 };
 
-async function loadClientNotifications() {
+let _cnLoaded = false;
+async function loadClientNotifications(force = false) {
     if (typeof supabaseClient === 'undefined') return;
+    if (_cnLoaded && !force) { renderClientNotifTable(); return; }
     try {
         const { data, error } = await supabaseClient
             .from('client_notifications')
-            .select('*')
+            .select('created_at,type,status,user_name,user_email,title,body,error,booking_date')
             .order('created_at', { ascending: false })
             .limit(1000);
         if (error) { console.warn('[ClientNotif] load error:', error.message); return; }
         _cnCache = data || [];
+        _cnLoaded = true;
         renderClientNotifTable();
     } catch (e) {
         console.warn('[ClientNotif] load exception:', e);

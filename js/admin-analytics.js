@@ -266,7 +266,7 @@ let _statsLastLoad = Date.now();
 document.addEventListener('visibilitychange', () => {
     if (document.visibilityState !== 'visible') return;
     const elapsed = Date.now() - _statsLastLoad;
-    if (elapsed < 120_000) return; // meno di 2 min, skip
+    if (elapsed < 300_000) return; // meno di 5 min, skip
     const analyticsTab = document.getElementById('tab-analytics');
     if (!analyticsTab || !analyticsTab.classList.contains('active')) return;
     _statsLastLoad = Date.now();

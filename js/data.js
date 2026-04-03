@@ -317,7 +317,10 @@ class BookingStorage {
             // Admin: finestra operativa (6 mesi passati + 3 futuri) per contenere localStorage.
             // Utente: ultime 4 settimane + prossimi 3 mesi (storico vecchio non serve).
             // Query complete (senza limite) per stats/export avvengono tramite fetchForAdmin().
-            let qBookings = supabaseClient.from('bookings').select('*').order('created_at', { ascending: false });
+            const bookingSelect = isAdmin
+                ? '*'
+                : 'id,local_id,user_id,date,time,slot_type,date_display,name,email,whatsapp,notes,status,paid,payment_method,paid_at,credit_applied,created_at,cancellation_requested_at,cancelled_at,cancelled_with_bonus,updated_at';
+            let qBookings = supabaseClient.from('bookings').select(bookingSelect).order('created_at', { ascending: false });
             // ownOnly: filtra per user_id server-side (es. prenotazioni.html — anche admin vedono solo i propri)
             if (ownOnly && user) {
                 qBookings = qBookings.eq('user_id', user.id);
@@ -461,7 +464,8 @@ class BookingStorage {
     static async fetchForAdmin(startStr, endStr) {
         if (typeof supabaseClient === 'undefined') return null;
         try {
-            let q = supabaseClient.from('bookings').select('*', { count: 'exact' })
+            const adminCols = 'id,date,time,slot_type,name,email,whatsapp,notes,status,paid,payment_method,paid_at,credit_applied,created_at,cancelled_at,cancelled_with_bonus';
+            let q = supabaseClient.from('bookings').select(adminCols, { count: 'exact' })
                 .order('date', { ascending: false })
                 .range(0, 9999); // bypass default 1000-row limit
             if (startStr) q = q.gte('date', startStr);
@@ -2557,7 +2561,7 @@ class WorkoutLogStorage {
             const exIds = plan.workout_exercises.map(e => e.id);
             const { data, error } = await supabaseClient
                 .from('workout_logs')
-                .select('*')
+                .select('id,exercise_id,user_id,log_date,set_number,reps_done,weight_done,rpe')
                 .in('exercise_id', exIds)
                 .order('log_date', { ascending: false })
                 .order('set_number', { ascending: true });
@@ -2573,7 +2577,7 @@ class WorkoutLogStorage {
         try {
             const { data, error } = await supabaseClient
                 .from('workout_logs')
-                .select('*')
+                .select('id,exercise_id,user_id,log_date,set_number,reps_done,weight_done,rpe')
                 .eq('user_id', userId)
                 .order('log_date', { ascending: false })
                 .order('set_number', { ascending: true });
