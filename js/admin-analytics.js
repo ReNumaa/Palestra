@@ -1395,14 +1395,11 @@ function renderClientiDetail(panel) {
         const bd = new Date(b.date + 'T00:00:00');
         if (bd < periodFrom || bd > periodTo) return;
         const key = b.email || b.whatsapp || b.name;
-        if (!clientMap[key]) clientMap[key] = { name: b.name, total: 0, cancelled: 0, future: 0, revenue: 0 };
+        if (!clientMap[key]) clientMap[key] = { name: b.name, total: 0, cancelled: 0, future: 0 };
         if (b.status === 'cancelled') {
             clientMap[key].cancelled++;
         } else {
             clientMap[key].total++;
-            if (b.paymentMethod !== 'lezione-gratuita') {
-                clientMap[key].revenue += SLOT_PRICES[b.slotType] || 0;
-            }
             if (bd >= today) clientMap[key].future++;
         }
     });
@@ -1429,10 +1426,51 @@ function renderClientiDetail(panel) {
         .sort((a, b) => a.date - b.date);
 
     const topActive    = [...activeClients].sort((a, b) => b.total - a.total).slice(0, 5);
-    const topRevenue   = [...activeClients].filter(c => c.revenue > 0).sort((a, b) => b.revenue - a.revenue).slice(0, 5);
     const leastActive  = [...activeClients].sort((a, b) => a.total - b.total).slice(0, 5);
     const topCancellers = clients.filter(c => c.cancelled > 0).sort((a, b) => b.cancelled - a.cancelled).slice(0, 5);
     const mostLoyal    = [...activeClients].filter(c => c.cancelled === 0).sort((a, b) => b.total - a.total).slice(0, 5);
+
+    // ── Classifica soldi realmente versati per cliente ────────────────────────
+    const CASH_METHODS = new Set(['contanti', 'carta', 'iban']);
+    const clientCashMap = {};
+    const _rpcKeys = new Set();
+
+    // 1. Credit entries: admin_pay_bookings (displayAmount) + admin_add_credit
+    const _allCreditsC = CreditStorage._getAll();
+    for (const cKey in _allCreditsC) {
+        const rec = _allCreditsC[cKey];
+        if (!rec.history) continue;
+        const clientKey = rec.email || rec.whatsapp || rec.name;
+        rec.history.forEach(h => {
+            if (h.freeLesson || h.hiddenRefund || h.method === 'lezione-gratuita') return;
+            if (/^Rimborso/i.test(h.note || '')) return;
+            const d = new Date(h.date);
+            if (d < periodFrom || d > periodTo) return;
+            const hasDA = h.displayAmount != null && h.displayAmount > 0;
+            const cash = hasDA ? h.displayAmount : h.amount;
+            if (cash <= 0) return;
+            if (!clientCashMap[clientKey]) clientCashMap[clientKey] = { name: rec.name, cash: 0 };
+            clientCashMap[clientKey].cash += cash;
+            if (hasDA && rec.email) _rpcKeys.add(rec.email.toLowerCase() + '|' + h.date);
+        });
+    }
+
+    // 2. Booking pagati direttamente (non già contati via credit displayAmount)
+    allBookings.forEach(b => {
+        if (b.status === 'cancelled' || !b.paid || !CASH_METHODS.has(b.paymentMethod)) return;
+        const bd = new Date(b.date + 'T00:00:00');
+        if (bd < periodFrom || bd > periodTo) return;
+        const rpcKey = b.paidAt && b.email ? b.email.toLowerCase() + '|' + b.paidAt : null;
+        if (rpcKey && _rpcKeys.has(rpcKey)) return;
+        const clientKey = b.email || b.whatsapp || b.name;
+        if (!clientCashMap[clientKey]) clientCashMap[clientKey] = { name: b.name, cash: 0 };
+        clientCashMap[clientKey].cash += SLOT_PRICES[b.slotType] || 0;
+    });
+
+    const topCash = Object.values(clientCashMap)
+        .filter(c => c.cash > 0)
+        .sort((a, b) => b.cash - a.cash)
+        .slice(0, 5);
 
     // ── Utilizzatori bonus nel periodo (filtro su data cancellazione) ────────
     const bonusUsers = {};
@@ -1524,9 +1562,9 @@ function renderClientiDetail(panel) {
 
         <div class="stat-detail-charts">
             <div class="stat-detail-breakdown">
-                <h4>💰 Maggior fatturato</h4>
+                <h4>💰 Maggior fatturato (versato)</h4>
                 <div class="sdb-rows">
-                    ${_clientRows(topRevenue, c => `€${c.revenue} — ${c.total} lez.`)}
+                    ${_clientRows(topCash, c => `€${c.cash}`)}
                 </div>
             </div>
             <div class="stat-detail-breakdown">
