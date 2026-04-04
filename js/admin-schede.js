@@ -80,27 +80,40 @@ function _schedeOpenPicker(exId) {
     if (!dropdown) return;
     if (dropdown.style.display === 'block') { dropdown.style.display = 'none'; return; }
 
+    // Category emoji map
+    const catIcons = {
+        'Petto': '🫁', 'Tricipiti': '💪', 'Bicipiti': '💪', 'Spalle': '🏋️',
+        'Schiena': '🔙', 'Quadricipiti': '🦵', 'Glutei': '🍑', 'Femorali': '🦵',
+        'Polpacci': '🦶', 'Addominali': '🎯', 'Avambracci': '✊', 'Cardio': '❤️',
+        'Full Body': '🏃', 'Corpo Libero': '🤸'
+    };
+
     // Build picker content
     let html = `<div class="schede-picker-topbar">
         <span class="schede-picker-title">Seleziona esercizio</span>
         <button type="button" class="schede-picker-close-btn" onclick="_schedeClosePicker('${exId}')">&times;</button>
     </div>
     <div class="schede-picker-header">
-        <input type="text" class="schede-picker-search" placeholder="Cerca esercizio..." oninput="_schedeFilterPicker('${exId}', this.value)" autofocus>
-        <select class="schede-picker-cat" onchange="_schedeFilterPicker('${exId}')">
-            <option value="">Tutte le categorie</option>
-            ${EXERCISE_CATEGORIES.map(c => `<option value="${c}">${c}</option>`).join('')}
-        </select>
+        <input type="text" class="schede-picker-search" placeholder="Cerca esercizio..."
+               oninput="_schedeFilterPicker('${exId}', this.value)" autofocus>
     </div>
-    <div class="schede-picker-list" id="pickerList-${exId}"></div>
+    <div class="schede-picker-body" id="pickerBody-${exId}">
+        <div class="schede-picker-cats" id="pickerCats-${exId}">
+            ${EXERCISE_CATEGORIES.map(c => `
+                <button type="button" class="schede-picker-cat-chip" onclick="_schedePickCat('${exId}','${_escHtml(c)}')" data-cat="${_escHtml(c)}">
+                    <span class="schede-picker-cat-icon">${catIcons[c] || '🏋️'}</span>
+                    <span class="schede-picker-cat-name">${_escHtml(c)}</span>
+                    <span class="schede-picker-cat-count">${(EXERCISES_BY_CAT[c] || []).length}</span>
+                </button>
+            `).join('')}
+        </div>
+        <div class="schede-picker-list" id="pickerList-${exId}" style="display:none;"></div>
+    </div>
     <div class="schede-picker-footer">
-        <button type="button" class="schede-picker-custom-btn" onclick="_schedePickCustom('${exId}')">Personalizzato</button>
+        <button type="button" class="schede-picker-custom-btn" onclick="_schedePickCustom('${exId}')">✏️ Personalizzato</button>
     </div>`;
     dropdown.innerHTML = html;
     dropdown.style.display = 'block';
-
-    // Populate list
-    _schedeFilterPicker(exId, '');
 
     // Focus search
     const searchInput = dropdown.querySelector('.schede-picker-search');
@@ -112,20 +125,54 @@ function _schedeClosePicker(exId) {
     if (dropdown) dropdown.style.display = 'none';
 }
 
+// Select a category → show exercises for that category
+function _schedePickCat(exId, cat) {
+    const dropdown = document.getElementById('picker-' + exId);
+    if (!dropdown) return;
+
+    // Highlight active chip
+    dropdown.querySelectorAll('.schede-picker-cat-chip').forEach(ch => {
+        ch.classList.toggle('active', ch.dataset.cat === cat);
+    });
+
+    _schedeRenderExercises(exId, cat, '');
+}
+
 function _schedeFilterPicker(exId, searchText) {
     const dropdown = document.getElementById('picker-' + exId);
     if (!dropdown) return;
     const search = (searchText ?? dropdown.querySelector('.schede-picker-search')?.value ?? '').toLowerCase();
-    const cat = dropdown.querySelector('.schede-picker-cat')?.value || '';
+
+    // Find active category chip
+    const activeChip = dropdown.querySelector('.schede-picker-cat-chip.active');
+    const cat = activeChip ? activeChip.dataset.cat : '';
+
+    if (!search && !cat) {
+        // No search, no category → show category grid
+        const catsEl = document.getElementById('pickerCats-' + exId);
+        const listEl = document.getElementById('pickerList-' + exId);
+        if (catsEl) catsEl.style.display = '';
+        if (listEl) listEl.style.display = 'none';
+        return;
+    }
+
+    _schedeRenderExercises(exId, cat, search);
+}
+
+function _schedeRenderExercises(exId, cat, search) {
+    const catsEl = document.getElementById('pickerCats-' + exId);
+    const listEl = document.getElementById('pickerList-' + exId);
+    if (!listEl) return;
+
+    // Hide categories, show list
+    if (catsEl) catsEl.style.display = 'none';
+    listEl.style.display = '';
 
     let exercises = EXERCISES_DB;
     if (cat) exercises = exercises.filter(e => e.categoria === cat);
     if (search) exercises = exercises.filter(e =>
         e.nome_it.toLowerCase().includes(search) || e.nome_en.toLowerCase().includes(search) || e.categoria.toLowerCase().includes(search)
     );
-
-    const listEl = document.getElementById('pickerList-' + exId);
-    if (!listEl) return;
 
     if (exercises.length === 0) {
         listEl.innerHTML = '<div class="schede-picker-empty">Nessun esercizio trovato</div>';
@@ -142,7 +189,7 @@ function _schedeFilterPicker(exId, searchText) {
                 <span class="schede-picker-item-cat">${_escHtml(ex.categoria)}</span>
             </div>
         </div>
-    `).join('') + (exercises.length > 50 ? `<div class="schede-picker-more">${exercises.length - 50} altri risultati — affina la ricerca</div>` : '');
+    `).join('') + (exercises.length > 50 ? `<div class="schede-picker-more">${exercises.length - 50} altri — affina la ricerca</div>` : '');
 }
 
 function _schedePickExercise(exId, exerciseName) {

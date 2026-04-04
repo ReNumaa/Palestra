@@ -6110,7 +6110,7 @@ canvas {
     position: absolute; top: calc(100% + 4px); left: 0; right: 0; z-index: 100;
     background: #fff; border: 2px solid #00AEEF; border-radius: 12px;
     box-shadow: 0 12px 40px rgba(0,0,0,0.15), 0 0 0 1px rgba(0,174,239,0.1);
-    max-height: 380px; display: flex; flex-direction: column; overflow: hidden;
+    max-height: 420px; display: flex; flex-direction: column; overflow: hidden;
 }
 .schede-picker-topbar {
     display: none; /* shown only on mobile via media query */
@@ -6124,12 +6124,35 @@ canvas {
     font-size: 0.9rem; background: #fff; transition: border-color 0.2s;
 }
 .schede-picker-search:focus { border-color: #00AEEF; outline: none; box-shadow: 0 0 0 3px rgba(0,174,239,0.1); }
-.schede-picker-cat {
-    padding: 0.5rem 0.5rem; border: 1.5px solid #e2e8f0; border-radius: 8px;
-    font-size: 0.82rem; background: #fff; min-width: 100px; cursor: pointer;
+.schede-picker-body { flex: 1; overflow-y: auto; min-height: 0; }
+.schede-picker-cats {
+    display: grid; grid-template-columns: repeat(auto-fill, minmax(130px, 1fr));
+    gap: 0.4rem; padding: 0.6rem;
 }
-.schede-picker-cat:focus { border-color: #00AEEF; outline: none; }
-.schede-picker-list { overflow-y: auto; flex: 1; padding: 0.3rem; }
+.schede-picker-cat-chip {
+    display: flex; align-items: center; gap: 0.45rem;
+    padding: 0.55rem 0.7rem; border: 1.5px solid #e2e8f0; border-radius: 10px;
+    background: #f8fafc; cursor: pointer; transition: all 0.2s;
+    font-size: 0.82rem; color: #334155; font-weight: 600; text-align: left;
+}
+.schede-picker-cat-chip:hover {
+    border-color: #00AEEF; background: #e0f2fe; transform: translateY(-1px);
+    box-shadow: 0 2px 8px rgba(0,174,239,0.12);
+}
+.schede-picker-cat-chip.active {
+    border-color: #00AEEF; background: linear-gradient(135deg, #00AEEF, #0090cc);
+    color: #fff; box-shadow: 0 2px 8px rgba(0,174,239,0.3);
+}
+.schede-picker-cat-chip.active .schede-picker-cat-count {
+    background: rgba(255,255,255,0.25); color: #fff;
+}
+.schede-picker-cat-icon { font-size: 1.1rem; flex-shrink: 0; }
+.schede-picker-cat-name { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.schede-picker-cat-count {
+    font-size: 0.68rem; font-weight: 700; color: #64748b;
+    background: #e2e8f0; border-radius: 6px; padding: 0.1rem 0.35rem; flex-shrink: 0;
+}
+.schede-picker-list { overflow-y: auto; padding: 0.3rem; }
 .schede-picker-item {
     display: flex; align-items: center; gap: 0.6rem; padding: 0.45rem 0.5rem;
     border-radius: 8px; cursor: pointer; transition: background 0.15s;
@@ -6425,7 +6448,8 @@ canvas {
     .schede-picker-close-btn:hover { background: rgba(255,255,255,0.35); }
     .schede-picker-header { flex-direction: column; gap: 0.3rem; padding: 0.8rem; }
     .schede-picker-search { font-size: 1rem; padding: 0.65rem 0.8rem; }
-    .schede-picker-cat { width: 100%; font-size: 0.9rem; padding: 0.6rem; }
+    .schede-picker-cats { grid-template-columns: repeat(auto-fill, minmax(120px, 1fr)); gap: 0.35rem; padding: 0.5rem 0.8rem; }
+    .schede-picker-cat-chip { padding: 0.5rem 0.6rem; font-size: 0.8rem; }
     .schede-picker-list { padding: 0.5rem; }
     .schede-picker-item { padding: 0.6rem; }
     .schede-picker-item-img { width: 48px; height: 48px; }
