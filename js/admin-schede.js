@@ -191,6 +191,17 @@ function _schedePickCustom(exId) {
     }
 }
 
+// Encode URL preserving structure but fixing parentheses and special chars
+function _safeVideoUrl(url) {
+    if (!url) return '';
+    // Encode only the path segments, not the protocol/host
+    try {
+        const u = new URL(url);
+        u.pathname = u.pathname.split('/').map(seg => encodeURIComponent(decodeURIComponent(seg))).join('/');
+        return u.href;
+    } catch (_) { return encodeURI(url); }
+}
+
 // ── Exercise detail popup (full image + video) ───────────────────────────────
 function _schedeShowExDetail(slug) {
     const ex = EXERCISES_DB.find(e => e.slug === slug);
@@ -205,6 +216,8 @@ function _schedeShowExDetail(slug) {
     overlay.className = 'schede-ex-detail-overlay';
     overlay.onclick = (e) => { if (e.target === overlay) overlay.remove(); };
 
+    const safeUrl = _safeVideoUrl(ex.video_url);
+
     overlay.innerHTML = `
     <div class="schede-ex-detail-panel">
         <div class="schede-ex-detail-header">
@@ -217,18 +230,20 @@ function _schedeShowExDetail(slug) {
         </div>
         <div class="schede-ex-detail-body">
             <div class="schede-ex-detail-media">
-                ${ex.video_url ? `
-                <video class="schede-ex-detail-video" controls autoplay loop muted playsinline>
-                    <source src="${ex.video_url}" type="video/mp4">
-                </video>` : `
+                ${safeUrl ? `
+                <video class="schede-ex-detail-video" controls autoplay loop muted playsinline preload="auto"
+                       src="${safeUrl}"></video>` : `
                 <img src="${ex.immagine_url_small}" alt="${_escHtml(ex.nome_it)}" class="schede-ex-detail-img">`}
             </div>
         </div>
     </div>`;
 
     document.body.appendChild(overlay);
-    // Animate in
     requestAnimationFrame(() => overlay.classList.add('visible'));
+
+    // Force play after DOM insert (some browsers block autoplay on innerHTML video)
+    const video = overlay.querySelector('video');
+    if (video) video.play().catch(() => {});
 }
 
 // Only registered users (with Supabase UUID) can be assigned plans
