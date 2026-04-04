@@ -739,3 +739,66 @@
 | Tempo prompt utente (stimato) | ~5 min |
 | Token input (stimati) | ~80k |
 | Token output (stimati) | ~8k |
+
+## Task: Aggiunta link Allenamento nella sidebar admin
+**Data:** 2026-04-04
+**Durata stimata:** ~10 min Claude + ~3 min prompt utente
+
+### Modifiche effettuate
+- Aggiunto link "Allenamento" nella sidebar mobile di admin.html (mancava solo lì)
+- Gating UUID riutilizza il blocco `SCHEDE_ALLOWED_UID` già esistente
+
+### Decisioni prese
+- Inserito il link nello stesso ordine delle altre pagine (dopo "Calendario")
+- Riutilizzato il blocco if esistente per il gating anziché duplicare la costante
+
+### File toccati
+- `admin.html` — Aggiunto `<li id="navAllenamento">` nella sidebar + gating JS
+- `sw.js` — Cache bump v307 → v308
+
+### Consumo risorse (solo per progetti cliente)
+| Voce | Valore |
+|------|--------|
+| Tempo task Claude | ~10 min |
+| Tempo prompt utente (stimato) | ~3 min |
+| Token input (stimati) | ~40k |
+| Token output (stimati) | ~4k |
+
+## Task: UX allenamento — rimozione plan card, tab style, FAB crea scheda
+**Data:** 2026-04-04
+**Durata stimata:** ~25 min Claude + ~5 min prompt utente
+
+### Modifiche effettuate
+- Rimosso il div blu "plan card" (nome scheda, N esercizi, N giorni) dalla vista Scheda
+- Cambiato stile dei tab Scheda/Progressi da segmented-control scuro (navy) a tab bianche con pill cyan attiva, identiche a quelle di prenotazioni.html
+- Cambiato stile dei filtri (select) nella vista Progressi per essere coerenti con il nuovo stile tab (sfondo bianco, shadow leggero, focus cyan)
+- Aggiunto FAB "+" in basso a destra per creare una nuova scheda (modal con nome + note)
+- Rimosso gating UID specifico da allenamento.html — ora tutti gli utenti loggati possono accedere
+- Aggiornato il link "Allenamento" nella sidebar di tutte le pagine: visibile per qualsiasi utente loggato (non solo UID di test)
+
+### Decisioni prese
+- Il FAB + modal usa `WorkoutPlanStorage.createPlan()` già esistente in data.js
+- Rimosso il gating a singolo UID perché la richiesta è che "anche un utente può crearsi una scheda"
+- Stile tabs e filtri allineato a prenotazioni.html per coerenza visiva cross-pagina
+
+### File toccati
+- `allenamento.html` — rimosso plan-card, rimosso gating UID, aggiunto FAB + modal + JS creazione scheda
+- `css/allenamento.css` — riscritto `.all-nav` / `.all-nav-pill` (stile prenotazioni), riscritto `.all-filters select`, aggiunto `.all-fab` / `.all-modal-*`
+- `index.html` — gating Allenamento da UID → qualsiasi utente loggato
+- `prenotazioni.html` — idem
+- `admin.html` — idem
+- `dove-sono.html` — idem
+- `chi-sono.html` — idem
+- `login.html` — idem
+- `nutrizione.html` — idem
+- `privacy.html` — idem
+- `regolamento.html` — idem
+- `termini.html` — idem
+
+### Consumo risorse (solo per progetti cliente)
+| Voce | Valore |
+|------|--------|
+| Tempo task Claude | ~25 min |
+| Tempo prompt utente (stimato) | ~5 min |
+| Token input (stimati) | ~120k |
+| Token output (stimati) | ~12k |

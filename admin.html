@@ -1084,6 +1084,7 @@
         </div>
         <ul class="nav-sidebar-links">
             <li><a href="/">Calendario</a></li>
+            <li id="navAllenamento" style="display:none"><a href="allenamento.html">Allenamento</a></li>
             <li><a href="nutrizione.html">Nutrizione</a></li>
             <li><a href="regolamento.html">Regolamento</a></li>
             <li><a href="chi-sono.html">Chi sono</a></li>
@@ -1164,11 +1165,12 @@
             if (typeof loadDashboardData === 'function') loadDashboardData();
             if (typeof renderAdminCalendar === 'function') renderAdminCalendar();
             if (typeof renderScheduleManager === 'function') renderScheduleManager();
-            // Gating: mostra tab Schede solo per l'UID di test
-            const SCHEDE_ALLOWED_UID = 'cf5f39f3-1581-40be-80e9-15b56acee337';
-            if (typeof getCurrentUser === 'function' && getCurrentUser()?.id === SCHEDE_ALLOWED_UID) {
+            // Mostra tab Schede e voce Allenamento per tutti gli utenti loggati
+            if (typeof getCurrentUser === 'function' && getCurrentUser()) {
                 const _schedeBtn = document.getElementById('adminTabSchede');
                 if (_schedeBtn) _schedeBtn.style.display = '';
+                const _navAll = document.getElementById('navAllenamento');
+                if (_navAll) _navAll.style.display = '';
             }
             // Re-render il tab attivo dopo il sync (le cache erano vuote al primo render)
             const _activeTab = document.querySelector('.admin-tab.active');

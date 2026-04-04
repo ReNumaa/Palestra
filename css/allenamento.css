@@ -53,56 +53,65 @@
     padding-top: 0.5rem !important;
 }
 
-/* ── Nav pills (segmented control) ─────────────────────────────────────────── */
+/* ── Nav tabs (matching prenotazioni style) ───────────────────────────────── */
 .all-nav {
     display: flex;
     gap: 0;
     margin: 0.6rem 0 1.2rem;
-    padding: 3px;
-    background: var(--all-navy);
+    padding: 0.3rem;
+    background: #fff;
     border-radius: 14px;
-    max-width: 260px;
-    position: relative;
-    box-shadow: inset 0 1px 3px rgba(0, 0, 0, 0.35), var(--all-shadow-md);
+    box-shadow: 0 1px 3px rgba(0,0,0,0.04), 0 2px 8px rgba(0,0,0,0.04);
 }
 
 .all-nav-pill {
     flex: 1;
-    padding: 0.55rem 1rem;
+    padding: 0.6rem 0.5rem;
     border: none;
-    background: transparent;
-    color: rgba(255, 255, 255, 0.45);
-    font-size: 0.82rem;
-    font-weight: 700;
-    letter-spacing: 0.04em;
-    text-transform: uppercase;
+    background: none;
+    color: #888;
+    font-size: 0.88rem;
+    font-weight: 600;
     border-radius: 11px;
     cursor: pointer;
-    transition: all var(--all-transition);
+    transition: all 0.2s ease;
     text-align: center;
     position: relative;
-    z-index: 1;
     -webkit-tap-highlight-color: transparent;
 }
 
+.all-nav-pill + .all-nav-pill::before {
+    content: '';
+    position: absolute;
+    left: 0;
+    top: 20%;
+    height: 60%;
+    width: 1px;
+    background: #ddd;
+}
+
 .all-nav-pill.active {
-    background: linear-gradient(135deg, var(--all-cyan) 0%, var(--all-cyan-dark) 100%);
     color: #fff;
-    box-shadow: 0 2px 10px rgba(0, 174, 239, 0.45), inset 0 1px 0 rgba(255,255,255,0.15);
-    text-shadow: 0 1px 2px rgba(0, 0, 0, 0.15);
+    background: var(--all-cyan);
+    box-shadow: 0 2px 8px rgba(0, 174, 239, 0.3);
+}
+
+.all-nav-pill.active::before,
+.all-nav-pill.active + .all-nav-pill::before {
+    background: transparent;
 }
 
 .all-nav-pill:hover:not(.active) {
-    color: rgba(255, 255, 255, 0.75);
-    background: rgba(255, 255, 255, 0.06);
+    color: #555;
+    background: #f8f9fa;
 }
 
 .all-nav-pill:active:not(.active) {
-    background: rgba(255, 255, 255, 0.1);
+    background: #f0f1f2;
     transform: scale(0.97);
 }
 
-/* ── Filters ───────────────────────────────────────────────────────────────── */
+/* ── Filters (matching site tab style) ─────────────────────────────────────── */
 .all-filters {
     display: flex;
     gap: 0.5rem;
@@ -111,31 +120,33 @@
 
 .all-filters select {
     flex: 1;
-    padding: 0.65rem 2.4rem 0.65rem 0.9rem;
-    background: var(--all-surface);
-    border: 1.5px solid var(--all-border);
-    border-radius: var(--all-radius-sm);
-    color: var(--all-slate);
-    font-size: 0.82rem;
+    padding: 0.6rem 2.2rem 0.6rem 0.85rem;
+    background: #fff;
+    border: none;
+    border-radius: 11px;
+    color: #555;
+    font-size: 0.84rem;
     font-weight: 600;
-    letter-spacing: 0.01em;
     -webkit-appearance: none;
     appearance: none;
     background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 12 12'%3E%3Cpath fill='%2300AEEF' d='M6 8L1 3h10z'/%3E%3C/svg%3E");
     background-repeat: no-repeat;
     background-position: right 0.7rem center;
-    box-shadow: var(--all-shadow);
-    transition: border-color var(--all-transition), box-shadow var(--all-transition);
+    box-shadow: 0 1px 3px rgba(0,0,0,0.04), 0 2px 8px rgba(0,0,0,0.04);
+    transition: all 0.2s ease;
 }
 
 .all-filters select:hover {
-    border-color: var(--all-border-hover);
+    color: #333;
+    background-color: #f8f9fa;
 }
 
 .all-filters select:focus {
-    border-color: var(--all-cyan);
+    color: #fff;
+    background-color: var(--all-cyan);
+    background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 12 12'%3E%3Cpath fill='%23ffffff' d='M6 8L1 3h10z'/%3E%3C/svg%3E");
     outline: none;
-    box-shadow: var(--all-shadow-glow);
+    box-shadow: 0 2px 8px rgba(0, 174, 239, 0.3);
 }
 
 /* ── Day selector tabs (session picker) ────────────────────────────────────── */
@@ -997,6 +1008,153 @@
 
 .all-trend-up strong { color: var(--all-success); }
 .all-trend-down strong { color: var(--all-red); }
+
+/* ── FAB (floating action button) ─────────────────────────────────────────── */
+.all-fab {
+    position: fixed;
+    bottom: 1.5rem;
+    right: 1.5rem;
+    width: 56px;
+    height: 56px;
+    border-radius: 50%;
+    border: none;
+    background: var(--all-cyan);
+    color: #fff;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    box-shadow: 0 4px 16px rgba(0, 174, 239, 0.35), 0 2px 4px rgba(0, 0, 0, 0.1);
+    cursor: pointer;
+    z-index: 100;
+    transition: all 0.2s ease;
+    -webkit-tap-highlight-color: transparent;
+}
+
+.all-fab:hover {
+    transform: scale(1.08);
+    box-shadow: 0 6px 24px rgba(0, 174, 239, 0.45), 0 3px 6px rgba(0, 0, 0, 0.12);
+}
+
+.all-fab:active {
+    transform: scale(0.95);
+}
+
+/* ── Modal crea scheda ────────────────────────────────────────────────────── */
+.all-modal-overlay {
+    position: fixed;
+    inset: 0;
+    background: rgba(0, 0, 0, 0.4);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    z-index: 1000;
+    padding: 1rem;
+    opacity: 0;
+    transition: opacity 0.2s ease;
+}
+
+.all-modal-overlay.visible {
+    opacity: 1;
+}
+
+.all-modal-box {
+    background: #fff;
+    border-radius: 18px;
+    padding: 1.5rem;
+    width: 100%;
+    max-width: 400px;
+    box-shadow: 0 12px 40px rgba(0, 0, 0, 0.15);
+    position: relative;
+    transform: translateY(20px);
+    transition: transform 0.25s ease;
+}
+
+.all-modal-overlay.visible .all-modal-box {
+    transform: translateY(0);
+}
+
+.all-modal-close {
+    position: absolute;
+    top: 0.8rem;
+    right: 1rem;
+    background: none;
+    border: none;
+    font-size: 1.5rem;
+    color: #aaa;
+    cursor: pointer;
+    line-height: 1;
+    padding: 0.2rem;
+}
+
+.all-modal-close:hover {
+    color: #555;
+}
+
+.all-modal-title {
+    font-size: 1.1rem;
+    font-weight: 700;
+    color: #1e293b;
+    margin: 0 0 1.2rem;
+}
+
+.all-modal-field {
+    margin-bottom: 1rem;
+}
+
+.all-modal-field label {
+    display: block;
+    font-size: 0.78rem;
+    font-weight: 600;
+    color: #666;
+    margin-bottom: 0.35rem;
+}
+
+.all-modal-field input,
+.all-modal-field textarea {
+    width: 100%;
+    padding: 0.65rem 0.85rem;
+    border: 1.5px solid #e2e8f0;
+    border-radius: 11px;
+    font-size: 0.9rem;
+    color: #1e293b;
+    background: #f8fafc;
+    transition: border-color 0.2s ease, box-shadow 0.2s ease;
+    box-sizing: border-box;
+}
+
+.all-modal-field input:focus,
+.all-modal-field textarea:focus {
+    outline: none;
+    border-color: var(--all-cyan);
+    box-shadow: 0 0 0 3px rgba(0, 174, 239, 0.1);
+}
+
+.all-modal-field textarea {
+    resize: vertical;
+    min-height: 70px;
+}
+
+.all-modal-save {
+    width: 100%;
+    padding: 0.75rem;
+    border: none;
+    border-radius: 11px;
+    background: var(--all-cyan);
+    color: #fff;
+    font-size: 0.92rem;
+    font-weight: 700;
+    cursor: pointer;
+    transition: all 0.2s ease;
+}
+
+.all-modal-save:hover {
+    background: var(--all-cyan-dark);
+}
+
+.all-modal-save:disabled {
+    opacity: 0.6;
+    cursor: not-allowed;
+}
 
 /* ── Footer ────────────────────────────────────────────────────────────────── */
 .allenamento-body .footer { margin-top: 2rem; }

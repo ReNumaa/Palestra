@@ -13,7 +13,7 @@
     <link rel="icon" type="image/jpeg" href="images/logo-tb---nero.jpg">
     <link rel="stylesheet" href="css/style.css?v=8">
     <link rel="stylesheet" href="css/login.css?v=4">
-    <link rel="stylesheet" href="css/allenamento.css?v=7">
+    <link rel="stylesheet" href="css/allenamento.css?v=8">
 </head>
 <body class="allenamento-body">
     <nav class="navbar">
@@ -59,6 +59,28 @@
             </div>
         </div>
     </main>
+
+    <!-- FAB crea scheda -->
+    <button class="all-fab" id="allFabCreate" onclick="openCreatePlanModal()" title="Crea nuova scheda" style="display:none;">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" width="24" height="24"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
+    </button>
+
+    <!-- Modal crea scheda -->
+    <div id="createPlanModal" class="all-modal-overlay" style="display:none;" onclick="if(event.target===this)closeCreatePlanModal()">
+        <div class="all-modal-box">
+            <button class="all-modal-close" onclick="closeCreatePlanModal()">&times;</button>
+            <h3 class="all-modal-title">Nuova scheda</h3>
+            <div class="all-modal-field">
+                <label for="newPlanName">Nome scheda</label>
+                <input type="text" id="newPlanName" placeholder="Es. Scheda Forza, Upper/Lower..." maxlength="100">
+            </div>
+            <div class="all-modal-field">
+                <label for="newPlanNotes">Note (opzionale)</label>
+                <textarea id="newPlanNotes" rows="3" placeholder="Obiettivi, indicazioni..."></textarea>
+            </div>
+            <button class="all-modal-save" id="createPlanBtn" onclick="submitCreatePlan()">Crea scheda</button>
+        </div>
+    </div>
 
     <footer class="footer">
         <div class="container">
@@ -171,19 +193,20 @@
             else renderProgressi();
         }
 
-        // ── Gating ────────────────────────────────────────────────────────
-        const ALLENAMENTO_ALLOWED_UID = 'cf5f39f3-1581-40be-80e9-15b56acee337';
-
         // ── Init ──────────────────────────────────────────────────────────
         (async function() {
             await initAuth();
             const user = getCurrentUser();
 
-            // Redirect non-allowed users
-            if (!user || user.id !== ALLENAMENTO_ALLOWED_UID) {
+            // Redirect utenti non loggati
+            if (!user) {
                 window.location.replace('/');
                 return;
             }
+
+            // Mostra FAB per creare scheda
+            const fab = document.getElementById('allFabCreate');
+            if (fab) fab.style.display = '';
 
             try {
                 await _loadAllExDB();
@@ -199,7 +222,7 @@
                 if (error) throw error;
                 if (!plans?.length) {
                     document.getElementById('allContent').innerHTML =
-                        '<div class="all-empty">Nessuna scheda assegnata dal trainer.<br>Contattalo per riceverne una!</div>';
+                        '<div class="all-empty">Nessuna scheda ancora.<br>Premi il <strong>+</strong> in basso per crearne una!</div>';
                     return;
                 }
 
@@ -335,16 +358,6 @@
             if (!_activeDay || !days.includes(_activeDay)) _activeDay = _suggestDay(days);
 
             let html = '';
-
-            // Plan info card (compact)
-            html += `<div class="all-plan-card">
-                <div class="all-plan-name">${_escHtml(_allPlan.name)}</div>
-                ${_allPlan.notes ? `<div class="all-plan-notes">${_escHtml(_allPlan.notes)}</div>` : ''}
-                <div class="all-plan-meta">
-                    ${exercises.length} esercizi &middot; ${days.length} ${days.length === 1 ? 'giorno' : 'giorni'}
-                    ${_allPlan.start_date ? ' &middot; dal ' + _fmtDateAll(_allPlan.start_date) : ''}
-                </div>
-            </div>`;
 
             // ── Day selector tabs ────────────────────────────────────────
             html += '<div class="all-day-tabs" role="tablist" aria-label="Giorni di allenamento">';
@@ -964,6 +977,57 @@
             ctx.fillStyle = '#fff';
             ctx.textAlign = 'center';
             ctx.fillText(label, bx, by - 1);
+        }
+
+        // ── Crea scheda (modal) ──────────────────────────────────────────
+        function openCreatePlanModal() {
+            const modal = document.getElementById('createPlanModal');
+            if (!modal) return;
+            document.getElementById('newPlanName').value = '';
+            document.getElementById('newPlanNotes').value = '';
+            modal.style.display = 'flex';
+            requestAnimationFrame(() => modal.classList.add('visible'));
+            document.getElementById('newPlanName').focus();
+        }
+
+        function closeCreatePlanModal() {
+            const modal = document.getElementById('createPlanModal');
+            if (!modal) return;
+            modal.classList.remove('visible');
+            setTimeout(() => { modal.style.display = 'none'; }, 200);
+        }
+
+        async function submitCreatePlan() {
+            const user = getCurrentUser();
+            if (!user) return;
+            const name = document.getElementById('newPlanName').value.trim();
+            if (!name) {
+                if (typeof showToast === 'function') showToast('Inserisci un nome per la scheda', 'error');
+                return;
+            }
+            const notes = document.getElementById('newPlanNotes').value.trim() || null;
+            const btn = document.getElementById('createPlanBtn');
+            btn.disabled = true;
+            btn.textContent = 'Creazione...';
+            try {
+                const newPlan = await WorkoutPlanStorage.createPlan({
+                    user_id: user.id, name, notes
+                });
+                newPlan.workout_exercises = [];
+                _allPlans.unshift(newPlan);
+                _allPlan = newPlan;
+                _activeDay = null;
+                _renderPlanSelector();
+                renderScheda();
+                closeCreatePlanModal();
+                if (typeof showToast === 'function') showToast('Scheda creata!', 'success');
+            } catch (e) {
+                console.error('[Allenamento] create plan error:', e);
+                if (typeof showToast === 'function') showToast('Errore creazione: ' + (e.message || ''), 'error');
+            } finally {
+                btn.disabled = false;
+                btn.textContent = 'Crea scheda';
+            }
         }
     </script>
     <script src="js/sw-update.js"></script>

@@ -231,8 +231,8 @@
 
         (async function () {
             await initAuth();
-            // Gating: mostra voce Allenamento solo per UID di test
-            if (typeof getCurrentUser === 'function' && getCurrentUser()?.id === 'cf5f39f3-1581-40be-80e9-15b56acee337') {
+            // Mostra voce Allenamento per tutti gli utenti loggati
+            if (typeof getCurrentUser === 'function' && getCurrentUser()) {
                 const _navAll = document.getElementById('navAllenamento');
                 if (_navAll) _navAll.style.display = '';
             }

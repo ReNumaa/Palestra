@@ -1523,11 +1523,10 @@
     </script>
     <script>
         // ── Gating: mostra voce Allenamento nella sidebar ────────────────
-        const SCHEDE_ALLOWED_UID = 'cf5f39f3-1581-40be-80e9-15b56acee337';
         document.addEventListener('DOMContentLoaded', () => {
             setTimeout(() => {
                 const user = typeof getCurrentUser === 'function' ? getCurrentUser() : null;
-                if (user && user.id === SCHEDE_ALLOWED_UID) {
+                if (user) {
                     const nav = document.getElementById('navAllenamento');
                     if (nav) nav.style.display = '';
                 }

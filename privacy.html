@@ -187,7 +187,7 @@
         document.addEventListener('DOMContentLoaded', () => {
             setTimeout(() => {
                 const user = typeof getCurrentUser === 'function' ? getCurrentUser() : null;
-                if (user && user.id === 'cf5f39f3-1581-40be-80e9-15b56acee337') {
+                if (user) {
                     const nav = document.getElementById('navAllenamento');
                     if (nav) nav.style.display = '';
                 }
