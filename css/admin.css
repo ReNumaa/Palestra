@@ -5763,21 +5763,23 @@ canvas {
 
 /* Assign bar in Schede page — improved layout */
 .schede-assign-bar--schede { padding: 1rem 1.2rem; margin-bottom: 1rem; }
-.schede-assign-row--schede { flex-wrap: nowrap; gap: 0.8rem; align-items: flex-end; }
-.schede-assign-field { display: flex; flex-direction: column; gap: 0.3rem; min-width: 140px; flex-shrink: 0; }
-.schede-assign-field--client { flex: 1; min-width: 0; flex-shrink: 1; }
+.schede-assign-row--schede {
+    display: grid; grid-template-columns: minmax(160px, 1fr) minmax(160px, 2fr) auto;
+    gap: 0.8rem; align-items: end;
+}
+.schede-assign-field { display: flex; flex-direction: column; gap: 0.3rem; min-width: 0; }
 .schede-assign-field select,
 .schede-assign-field input { width: 100%; box-sizing: border-box; }
 .schede-assign-label {
     font-size: 0.7rem; color: #64748b; font-weight: 700;
     text-transform: uppercase; letter-spacing: 0.06em;
 }
-.schede-assign-btn { align-self: flex-end; white-space: nowrap; min-height: 2.4rem; flex-shrink: 0; }
+.schede-assign-btn { white-space: nowrap; min-height: 2.4rem; }
 
 @media (max-width: 600px) {
-    .schede-assign-row--schede { flex-wrap: wrap; }
-    .schede-assign-field { width: 100%; flex: unset !important; min-width: 0; }
-    .schede-assign-field--client { width: 100%; }
+    .schede-assign-row--schede {
+        grid-template-columns: 1fr; gap: 0.6rem;
+    }
     .schede-assign-btn { width: 100%; }
 }
 
