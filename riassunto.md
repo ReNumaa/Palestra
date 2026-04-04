@@ -711,3 +711,31 @@
 | Tempo prompt utente (stimato) | ~10 min |
 | Token input (stimati) | ~120k |
 | Token output (stimati) | ~15k |
+
+## Task: UX schede admin — rimozione uppercase, riorganizzazione assegnazione template
+**Data:** 2026-04-04
+**Durata stimata:** ~15 min Claude + ~5 min prompt utente
+
+### Modifiche effettuate
+- Rimosso `text-transform: uppercase` dai sub-nav pills Schede/Clienti e dai titoli sezione, allineandoli allo stile del Registro
+- Rimossa la sezione "Schede assegnate" dalla pagina Schede (duplicava info già visibile nella sezione Clienti)
+- Spostata la barra "Assegna template a cliente" nella pagina Schede, sotto la lista template
+- Migliorato layout assegnazione: label sopra ogni campo, select con dettagli (esercizi/giorni), layout responsivo (stacked su mobile < 600px)
+- Bump cache v303
+
+### Decisioni prese
+- L'assign bar nel dettaglio singolo cliente (sezione Clienti) è stata mantenuta perché contestualmente diversa (cliente già selezionato)
+- Stile natural case scelto per coerenza con i subtab del Registro e i tab principali admin
+
+### File toccati
+- `css/admin.css` — rimosso uppercase da `.schede-subnav-pill` e `.schede-section-title`, aggiunto CSS per `.schede-assign-bar--schede`, `.schede-assign-field`, `.schede-assign-label`, responsive mobile
+- `js/admin-schede.js` — rimossa sezione "Schede assegnate" da `_renderSchedeList()`, rimossa assign bar da `_renderClientsList()`, aggiunta assign bar migliorata in `_renderSchedeList()`
+- `sw.js` — cache v303
+
+### Consumo risorse (solo per progetti cliente)
+| Voce | Valore |
+|------|--------|
+| Tempo task Claude | ~15 min |
+| Tempo prompt utente (stimato) | ~5 min |
+| Token input (stimati) | ~80k |
+| Token output (stimati) | ~8k |

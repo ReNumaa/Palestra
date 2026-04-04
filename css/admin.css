@@ -5725,7 +5725,7 @@ canvas {
     flex: 1; padding: 0.6rem 1.2rem; border: none; background: transparent;
     color: #64748b; font-size: 0.9rem; font-weight: 700; border-radius: 11px;
     cursor: pointer; transition: all 0.25s cubic-bezier(0.4,0,0.2,1);
-    text-align: center; letter-spacing: 0.03em; text-transform: uppercase;
+    text-align: center; letter-spacing: 0.02em;
 }
 .schede-subnav-pill.active {
     background: linear-gradient(135deg, #00AEEF, #0090cc);
@@ -5759,6 +5759,26 @@ canvas {
 .schede-assign-row .btn-primary {
     background: linear-gradient(135deg, #22c55e, #16a34a);
     border-color: transparent; box-shadow: 0 2px 8px rgba(34,197,94,0.3);
+}
+
+/* Assign bar in Schede page — improved layout */
+.schede-assign-bar--schede { padding: 1rem 1.2rem; }
+.schede-assign-row--schede { flex-wrap: nowrap; gap: 0.8rem; align-items: flex-end; }
+.schede-assign-field { display: flex; flex-direction: column; gap: 0.3rem; min-width: 0; }
+.schede-assign-field select,
+.schede-assign-field input { width: 100%; }
+.schede-assign-label {
+    font-size: 0.7rem; color: #64748b; font-weight: 700;
+    text-transform: uppercase; letter-spacing: 0.06em;
+}
+.schede-assign-btn { align-self: flex-end; white-space: nowrap; min-height: 2.4rem; }
+
+@media (max-width: 600px) {
+    .schede-assign-row--schede {
+        flex-wrap: wrap;
+    }
+    .schede-assign-field { width: 100%; flex: unset !important; }
+    .schede-assign-btn { width: 100%; }
 }
 
 .schede-client-card { cursor: pointer; border-left-color: #475569; position: relative; overflow: hidden; }
@@ -6251,7 +6271,7 @@ canvas {
 
 .schede-section-title {
     margin: 0.8rem 0 0.5rem; font-size: 0.85rem; color: #475569;
-    font-weight: 700; text-transform: uppercase; letter-spacing: 0.06em;
+    font-weight: 700; letter-spacing: 0.02em;
     display: flex; align-items: center; gap: 0.5rem;
 }
 .schede-section-title::after {

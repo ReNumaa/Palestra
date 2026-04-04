@@ -347,7 +347,6 @@ function _renderClientsList(container) {
     const allUsers = _schedeGetRegisteredUsers();
     const nameMap = {};
     for (const u of allUsers) nameMap[u.userId] = u.name || u.email || u.userId;
-    const templates = plans.filter(p => !p.user_id);
 
     // Group plans by user (only assigned plans)
     const byUser = {};
@@ -364,24 +363,6 @@ function _renderClientsList(container) {
     let html = `<div class="schede-header">
         <h3>Clienti</h3>
     </div>`;
-
-    // Quick assign: template + client search
-    if (templates.length > 0) {
-        html += `<div class="schede-assign-bar">
-            <div class="schede-assign-row">
-                <select id="schedeQuickTemplate">
-                    <option value="">— Template —</option>
-                    ${templates.map(t => `<option value="${t.id}">${_escHtml(t.name)}</option>`).join('')}
-                </select>
-                <div class="schede-client-selector" style="flex:1;">
-                    <input type="text" id="schedeQuickClientSearch" placeholder="Cerca cliente..."
-                           oninput="_schedeQuickSearchClient()" autocomplete="off">
-                    <div id="schedeQuickClientDropdown" class="debtor-search-dropdown" style="display:none;"></div>
-                </div>
-                <button class="btn-primary" style="white-space:nowrap;" onclick="_schedeQuickAssign()">Assegna</button>
-            </div>
-        </div>`;
-    }
 
     html += `<div class="schede-search-bar">
         <input type="text" id="schedeClientFilterInput" placeholder="Filtra clienti con schede..."
@@ -776,9 +757,8 @@ function _renderSchedeList(container) {
     const nameMap = {};
     for (const u of allUsers) nameMap[u.userId] = u.name || u.email || u.userId;
 
-    // Separate templates (no user_id) from assigned plans
+    // Templates (no user_id)
     const templates = plans.filter(p => !p.user_id);
-    const assigned = plans.filter(p => p.user_id);
 
     let html = `
         <div class="schede-header">
@@ -817,40 +797,33 @@ function _renderSchedeList(container) {
         html += '</div>';
     }
 
-    // Assigned plans section
-    if (assigned.length > 0) {
-        html += '<h4 class="schede-section-title" style="margin-top:1rem;">Schede assegnate</h4>';
-        html += '<div class="schede-plan-list">';
-        const sorted = [...assigned].sort((a, b) => {
-            const na = (nameMap[a.user_id] || '').toLowerCase();
-            const nb = (nameMap[b.user_id] || '').toLowerCase();
-            if (na !== nb) return na.localeCompare(nb);
-            return (b.updated_at || '').localeCompare(a.updated_at || '');
-        });
-        for (const plan of sorted) {
-            const clientName = _escHtml(nameMap[plan.user_id] || 'Cliente sconosciuto');
-            const exCount = (plan.workout_exercises || []).length;
-            const days = [...new Set((plan.workout_exercises || []).map(e => e.day_label))];
-            const badge = plan.active
-                ? '<span class="schede-badge-active">Attiva</span>'
-                : '<span class="schede-badge-inactive">Inattiva</span>';
-            const dateRange = _schedeDateRange(plan);
-            html += `
-            <div class="schede-plan-card" data-client="${clientName.toLowerCase()} ${_escHtml(plan.name).toLowerCase()}">
-                <div class="schede-plan-card-header">
-                    <div class="schede-plan-card-info">
-                        <div class="schede-plan-client">${clientName}</div>
-                        <div class="schede-plan-name">${_escHtml(plan.name)} ${badge}</div>
-                        <div class="schede-plan-meta">${exCount} esercizi &middot; ${days.length} giorni${dateRange ? ' &middot; ' + dateRange : ''}</div>
-                    </div>
-                    <div class="schede-plan-actions">
-                        <button onclick="_schedeEditPlan('${plan.id}')" title="Modifica">✏️</button>
-                        <button onclick="_schedeDeletePlan('${plan.id}')" title="Elimina">🗑️</button>
+    // Assign template to client bar
+    if (templates.length > 0) {
+        html += '<h4 class="schede-section-title" style="margin-top:1.2rem;">Assegna template</h4>';
+        html += `<div class="schede-assign-bar schede-assign-bar--schede">
+            <div class="schede-assign-row schede-assign-row--schede">
+                <div class="schede-assign-field">
+                    <label class="schede-assign-label">Template</label>
+                    <select id="schedeQuickTemplate">
+                        <option value="">— Seleziona template —</option>
+                        ${templates.map(t => {
+                            const exC = (t.workout_exercises || []).length;
+                            const dayC = [...new Set((t.workout_exercises || []).map(e => e.day_label))].length;
+                            return `<option value="${t.id}">${_escHtml(t.name)} (${exC} es. · ${dayC} gg)</option>`;
+                        }).join('')}
+                    </select>
+                </div>
+                <div class="schede-assign-field" style="flex:1;">
+                    <label class="schede-assign-label">Cliente</label>
+                    <div class="schede-client-selector" style="position:relative;">
+                        <input type="text" id="schedeQuickClientSearch" placeholder="Cerca cliente..."
+                               oninput="_schedeQuickSearchClient()" autocomplete="off">
+                        <div id="schedeQuickClientDropdown" class="debtor-search-dropdown" style="display:none;"></div>
                     </div>
                 </div>
-            </div>`;
-        }
-        html += '</div>';
+                <button class="btn-primary schede-assign-btn" onclick="_schedeQuickAssign()">Assegna</button>
+            </div>
+        </div>`;
     }
 
     container.innerHTML = html;
