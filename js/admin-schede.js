@@ -80,12 +80,12 @@ function _schedeOpenPicker(exId) {
     if (!dropdown) return;
     if (dropdown.style.display === 'block') { dropdown.style.display = 'none'; return; }
 
-    // Category emoji map
-    const catIcons = {
-        'Petto': '🫁', 'Tricipiti': '💪', 'Bicipiti': '💪', 'Spalle': '🏋️',
-        'Schiena': '🔙', 'Quadricipiti': '🦵', 'Glutei': '🍑', 'Femorali': '🦵',
-        'Polpacci': '🦶', 'Addominali': '🎯', 'Avambracci': '✊', 'Cardio': '❤️',
-        'Full Body': '🏃', 'Corpo Libero': '🤸'
+    // Category → SVG icon map
+    const catSvg = {
+        'Petto': 'chest', 'Tricipiti': 'triceps', 'Bicipiti': 'biceps', 'Braccia': 'biceps',
+        'Spalle': 'shoulders', 'Schiena': 'back', 'Quadricipiti': 'quadriceps',
+        'Glutei e Femorali': 'hips', 'Femorali': 'hamstrings', 'Polpacci': 'calves',
+        'Addominali': 'waist_abs', 'Avambracci': 'forearms', 'Cardio': 'cardio'
     };
 
     // Build picker content
@@ -99,13 +99,15 @@ function _schedeOpenPicker(exId) {
     </div>
     <div class="schede-picker-body" id="pickerBody-${exId}">
         <div class="schede-picker-cats" id="pickerCats-${exId}">
-            ${EXERCISE_CATEGORIES.map(c => `
+            ${EXERCISE_CATEGORIES.map(c => {
+                const svg = catSvg[c] || 'chest';
+                return `
                 <button type="button" class="schede-picker-cat-chip" onclick="_schedePickCat('${exId}','${_escHtml(c)}')" data-cat="${_escHtml(c)}">
-                    <span class="schede-picker-cat-icon">${catIcons[c] || '🏋️'}</span>
+                    <img src="icone muscoli/${svg}.svg" class="schede-picker-cat-icon" alt="">
                     <span class="schede-picker-cat-name">${_escHtml(c)}</span>
                     <span class="schede-picker-cat-count">${(EXERCISES_BY_CAT[c] || []).length}</span>
-                </button>
-            `).join('')}
+                </button>`;
+            }).join('')}
         </div>
         <div class="schede-picker-list" id="pickerList-${exId}" style="display:none;"></div>
     </div>

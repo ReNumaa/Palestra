@@ -6146,7 +6146,8 @@ canvas {
 .schede-picker-cat-chip.active .schede-picker-cat-count {
     background: rgba(255,255,255,0.25); color: #fff;
 }
-.schede-picker-cat-icon { font-size: 1.1rem; flex-shrink: 0; }
+.schede-picker-cat-icon { width: 22px; height: 22px; flex-shrink: 0; opacity: 0.7; }
+.schede-picker-cat-chip.active .schede-picker-cat-icon { filter: brightness(0) invert(1); opacity: 1; }
 .schede-picker-cat-name { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .schede-picker-cat-count {
     font-size: 0.68rem; font-weight: 700; color: #64748b;
