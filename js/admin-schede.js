@@ -764,8 +764,37 @@ function _renderSchedeList(container) {
         <div class="schede-header">
             <h3>Schede</h3>
             <button class="btn-primary" onclick="_schedeNewPlan()">+ Nuova Scheda</button>
-        </div>
-        <div class="schede-search-bar">
+        </div>`;
+
+    // Assign template to client bar (top)
+    if (templates.length > 0) {
+        html += `<div class="schede-assign-bar schede-assign-bar--schede">
+            <div class="schede-assign-row schede-assign-row--schede">
+                <div class="schede-assign-field">
+                    <label class="schede-assign-label">Template</label>
+                    <select id="schedeQuickTemplate">
+                        <option value="">— Seleziona template —</option>
+                        ${templates.map(t => {
+                            const exC = (t.workout_exercises || []).length;
+                            const dayC = [...new Set((t.workout_exercises || []).map(e => e.day_label))].length;
+                            return `<option value="${t.id}">${_escHtml(t.name)} (${exC} es. · ${dayC} gg)</option>`;
+                        }).join('')}
+                    </select>
+                </div>
+                <div class="schede-assign-field schede-assign-field--client">
+                    <label class="schede-assign-label">Cliente</label>
+                    <div class="schede-client-selector" style="position:relative;">
+                        <input type="text" id="schedeQuickClientSearch" placeholder="Cerca cliente..."
+                               oninput="_schedeQuickSearchClient()" autocomplete="off">
+                        <div id="schedeQuickClientDropdown" class="debtor-search-dropdown" style="display:none;"></div>
+                    </div>
+                </div>
+                <button class="btn-primary schede-assign-btn" onclick="_schedeQuickAssign()">Assegna</button>
+            </div>
+        </div>`;
+    }
+
+    html += `<div class="schede-search-bar">
             <input type="text" id="schedeSearchInput" placeholder="Cerca scheda..."
                    oninput="_schedeFilterList()">
         </div>`;
@@ -795,35 +824,6 @@ function _renderSchedeList(container) {
             </div>`;
         }
         html += '</div>';
-    }
-
-    // Assign template to client bar
-    if (templates.length > 0) {
-        html += '<h4 class="schede-section-title" style="margin-top:1.2rem;">Assegna template</h4>';
-        html += `<div class="schede-assign-bar schede-assign-bar--schede">
-            <div class="schede-assign-row schede-assign-row--schede">
-                <div class="schede-assign-field">
-                    <label class="schede-assign-label">Template</label>
-                    <select id="schedeQuickTemplate">
-                        <option value="">— Seleziona template —</option>
-                        ${templates.map(t => {
-                            const exC = (t.workout_exercises || []).length;
-                            const dayC = [...new Set((t.workout_exercises || []).map(e => e.day_label))].length;
-                            return `<option value="${t.id}">${_escHtml(t.name)} (${exC} es. · ${dayC} gg)</option>`;
-                        }).join('')}
-                    </select>
-                </div>
-                <div class="schede-assign-field" style="flex:1;">
-                    <label class="schede-assign-label">Cliente</label>
-                    <div class="schede-client-selector" style="position:relative;">
-                        <input type="text" id="schedeQuickClientSearch" placeholder="Cerca cliente..."
-                               oninput="_schedeQuickSearchClient()" autocomplete="off">
-                        <div id="schedeQuickClientDropdown" class="debtor-search-dropdown" style="display:none;"></div>
-                    </div>
-                </div>
-                <button class="btn-primary schede-assign-btn" onclick="_schedeQuickAssign()">Assegna</button>
-            </div>
-        </div>`;
     }
 
     container.innerHTML = html;
