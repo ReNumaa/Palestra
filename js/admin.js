@@ -139,6 +139,10 @@ function switchTab(tabName) {
         }
     });
 
+    // Toggle wide container for importa tab
+    const adminContainer = document.querySelector('.dashboard-section .container');
+    if (adminContainer) adminContainer.classList.toggle('container--wide', tabName === 'importa');
+
     // Update tab content
     document.querySelectorAll('.tab-content').forEach(content => {
         content.classList.remove('active');
@@ -167,6 +171,7 @@ function switchTab(tabName) {
         registro:  () => renderRegistroTab(),
         messaggi:  () => renderMessaggiTab(),
         schede:    () => renderSchedeTab(),
+        importa:   () => { if (typeof renderImportaTab === 'function') renderImportaTab(); },
     }[tabName];
     if (loader) setTimeout(loader, 0);
 }

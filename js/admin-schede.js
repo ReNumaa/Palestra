@@ -2,7 +2,7 @@
 // TAB SCHEDE — Gestione schede palestra (workout plans)
 // ═══════════════════════════════════════════════════════════════════════════════
 
-// ── Exercise catalog from esercizi_metadata.json ─────────────────────────────
+// ── Exercise catalog from imported_exercises (Supabase) ─────────────────────
 let EXERCISES_DB = [];          // populated by _loadExercisesDB()
 let EXERCISES_BY_CAT = {};      // { 'Petto': [...], ... }
 let EXERCISE_CATEGORIES = [];   // unique sorted categories
@@ -11,8 +11,23 @@ let _exercisesDBLoaded = false;
 async function _loadExercisesDB() {
     if (_exercisesDBLoaded) return;
     try {
-        const resp = await fetch('Top 200 Esercizi/esercizi_metadata.json');
-        EXERCISES_DB = await resp.json();
+        const { data, error } = await supabaseClient
+            .from('imported_exercises')
+            .select('*')
+            .order('categoria')
+            .order('nome_it');
+        if (error) throw error;
+        // Normalize field names for backward compat with picker
+        EXERCISES_DB = (data || []).map(e => ({
+            nome_it: e.nome_it,
+            nome_en: e.nome_en || '',
+            categoria: e.categoria,
+            slug: e.slug,
+            immagine_url: e.immagine || '',
+            immagine_url_small: e.immagine_thumbnail || e.immagine || '',
+            video_url: e.video || '',
+            popolarita: e.popolarita || 0
+        }));
         EXERCISES_BY_CAT = {};
         for (const ex of EXERCISES_DB) {
             if (!EXERCISES_BY_CAT[ex.categoria]) EXERCISES_BY_CAT[ex.categoria] = [];
@@ -21,6 +36,12 @@ async function _loadExercisesDB() {
         EXERCISE_CATEGORIES = Object.keys(EXERCISES_BY_CAT).sort();
         _exercisesDBLoaded = true;
     } catch (e) { console.error('[Schede] Failed to load exercises DB:', e); }
+}
+
+// Refresh after import/remove in Importa tab
+function _refreshSchedeFromImported() {
+    _exercisesDBLoaded = false;
+    _loadExercisesDB();
 }
 
 function _findExercise(name) {

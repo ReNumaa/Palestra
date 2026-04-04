@@ -802,3 +802,45 @@
 | Tempo prompt utente (stimato) | ~5 min |
 | Token input (stimati) | ~120k |
 | Token output (stimati) | ~12k |
+
+## Task: Tab Importa Esercizi — catalogo 7200+ con import selettivo
+**Data:** 2026-04-04
+**Durata stimata:** ~45 min Claude + ~15 min prompt utente
+
+### Modifiche effettuate
+- Creata nuova tab admin "💪🏻 Importa" per gestire un catalogo di 7215 esercizi
+- Due viste: "Catalogo completo" (tutti gli esercizi dal JSON) e "Importati" (quelli selezionati salvati in Supabase)
+- Griglia card con thumbnail, nome, categoria con icona SVG muscoli
+- Import/rimozione esercizi con un click (salvataggio su Supabase `imported_exercises`)
+- Rinomina nome italiano degli esercizi (il nome rinominato appare ovunque: schede, allenamento utente)
+- Modale dettaglio con video/immagine e azioni import/rinomina/rimozione
+- Filtro per categoria muscolare con chip, ricerca testuale con debounce
+- Paginazione lazy (60 per pagina + "Mostra altri")
+- Contatori totali/importati globali e per categoria
+- Picker schede ora carica SOLO da `imported_exercises` (non più dal JSON completo)
+- Anche `allenamento.html` carica esercizi da Supabase per coerenza nomi
+
+### Decisioni prese
+- Supabase per persistenza: la tabella `imported_exercises` è leggera e sincronizza tra dispositivi
+- Normalizzazione campi: il loader mappa i campi Supabase ai nomi attesi dal picker (`nome_it`, `immagine_url_small`, `video_url`) per retrocompatibilità
+- Container admin espandibile fino a 1280px quando tab Importa è attiva (via classe JS `container--wide`)
+- Tab visibile solo per admin (`sessionStorage.adminAuth === 'true'`)
+- Catalogo completo servito da `esercizi_completo.json` (file statico), importati da Supabase
+
+### File toccati
+- `admin.html` — nuovo tab button, div content, script include, init visibility, realtime sync
+- `js/admin-importa.js` — **NUOVO** — logica completa tab Importa (catalogo, import, rinomina, rimozione, detail modal)
+- `js/admin-schede.js` — `_loadExercisesDB()` ora carica da Supabase `imported_exercises` + funzione `_refreshSchedeFromImported()`
+- `js/admin.js` — aggiunto loader importa in `switchTab()`, classe `container--wide`
+- `allenamento.html` — `_loadAllExDB()` ora carica da Supabase `imported_exercises`
+- `css/admin.css` — stili completi tab Importa (header, toggle, search, chips, grid, card, detail modal, responsive)
+- `supabase/migrations/20260404000000_imported_exercises.sql` — **NUOVO** — tabella + indici + RLS + trigger
+- `sw.js` — cache bump v310 → v311
+
+### Consumo risorse (solo per progetti cliente)
+| Voce | Valore |
+|------|--------|
+| Tempo task Claude | ~45 min |
+| Tempo prompt utente (stimato) | ~15 min |
+| Token input (stimati) | ~200k |
+| Token output (stimati) | ~25k |

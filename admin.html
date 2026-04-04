@@ -13,7 +13,7 @@
     <link rel="icon" type="image/jpeg" href="images/logo-tb---nero.jpg">
     <link rel="stylesheet" href="css/style.css?v=8">
     <link rel="stylesheet" href="css/login.css?v=5">
-    <link rel="stylesheet" href="css/admin.css?v=39">
+    <link rel="stylesheet" href="css/admin.css?v=40">
 </head>
 <body>
     <nav class="navbar">
@@ -73,6 +73,7 @@
                 <button class="admin-tab" data-tab="registro">📋 Registro</button>
                 <button class="admin-tab" data-tab="messaggi">📩 Messaggi</button>
                 <button class="admin-tab" data-tab="schede" id="adminTabSchede" style="display:none">🏋🏻 Schede</button>
+                <button class="admin-tab" data-tab="importa" id="adminTabImporta" style="display:none">💪🏻 Importa</button>
                 <button class="admin-tab admin-tab--privacy" id="btnToggleSensitive" onclick="toggleSensitiveData()" title="Nascondi/mostra dati sensibili">👁</button>
             </div>
 
@@ -885,6 +886,14 @@
             </div>
             <!-- End Tab: Schede -->
 
+            <!-- Tab: Importa Esercizi -->
+            <div id="tab-importa" class="tab-content">
+                <div class="dashboard-card" id="importaContainer">
+                    <div class="importa-loading">Caricamento catalogo esercizi...</div>
+                </div>
+            </div>
+            <!-- End Tab: Importa -->
+
         </div>
     </div>
 
@@ -1133,7 +1142,8 @@
     <script src="js/admin-clients.js?v=1"></script>
     <script src="js/admin-registro.js?v=3"></script>
     <script src="js/admin-messaggi.js?v=1"></script>
-    <script src="js/admin-schede.js?v=7"></script>
+    <script src="js/admin-schede.js?v=8"></script>
+    <script src="js/admin-importa.js?v=1"></script>
     <script src="js/maintenance.js?v=1"></script>
     <script>
         // Avvia auth, sincronizza i booking da Supabase, poi aggiorna la dashboard
@@ -1172,6 +1182,11 @@
                 const _navAll = document.getElementById('navAllenamento');
                 if (_navAll) _navAll.style.display = '';
             }
+            // Mostra tab Importa solo per admin
+            if (sessionStorage.getItem('adminAuth') === 'true') {
+                const _importaBtn = document.getElementById('adminTabImporta');
+                if (_importaBtn) _importaBtn.style.display = '';
+            }
             // Re-render il tab attivo dopo il sync (le cache erano vuote al primo render)
             const _activeTab = document.querySelector('.admin-tab.active');
             if (_activeTab) switchTab(_activeTab.dataset.tab);
@@ -1201,6 +1216,7 @@
                             if (activeTab.dataset.tab === 'clients' && typeof renderClientsTab === 'function') renderClientsTab();
                             if (activeTab.dataset.tab === 'settings' && typeof renderSettingsTab === 'function') renderSettingsTab();
                             if (activeTab.dataset.tab === 'schede' && typeof renderSchedeTab === 'function') renderSchedeTab();
+                            if (activeTab.dataset.tab === 'importa' && typeof renderImportaTab === 'function') renderImportaTab();
                         }
                     }, 600);
                 }
@@ -1217,6 +1233,7 @@
                     .on('postgres_changes', { event: '*', schema: 'public', table: 'workout_plans' }, _adminDebouncedSync)
                     .on('postgres_changes', { event: '*', schema: 'public', table: 'workout_exercises' }, _adminDebouncedSync)
                     .on('postgres_changes', { event: '*', schema: 'public', table: 'workout_logs' }, _adminDebouncedSync)
+                    .on('postgres_changes', { event: '*', schema: 'public', table: 'imported_exercises' }, _adminDebouncedSync)
                     .subscribe();
             }
         })();

@@ -124,14 +124,26 @@
         let _filterPeriod = 'all';
         let _filterMuscle = 'all';
 
-        // ── Exercise catalog (shared with admin-schede) ──────────────────
+        // ── Exercise catalog from imported_exercises (Supabase) ────────────
         let _allExDB = [];
         let _allExDBLoaded = false;
         async function _loadAllExDB() {
             if (_allExDBLoaded) return;
             try {
-                const r = await fetch('Top 200 Esercizi/esercizi_metadata.json');
-                _allExDB = await r.json();
+                const { data, error } = await supabaseClient
+                    .from('imported_exercises')
+                    .select('*');
+                if (error) throw error;
+                _allExDB = (data || []).map(e => ({
+                    nome_it: e.nome_it,
+                    nome_en: e.nome_en || '',
+                    categoria: e.categoria,
+                    slug: e.slug,
+                    immagine_url: e.immagine || '',
+                    immagine_url_small: e.immagine_thumbnail || e.immagine || '',
+                    video_url: e.video || '',
+                    popolarita: e.popolarita || 0
+                }));
                 _allExDBLoaded = true;
             } catch (e) { console.warn('[Allenamento] exercise DB load failed:', e); }
         }
