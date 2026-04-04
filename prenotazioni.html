@@ -82,6 +82,22 @@
                 </div>
             </div>
 
+            <!-- Banner promo ricarica bonus -->
+            <div class="promo-recharge-banner" id="promoBonusBanner" style="display:none">
+                <div class="promo-recharge-glow"></div>
+                <div class="promo-recharge-content">
+                    <div class="promo-recharge-icon-wrap">
+                        <svg class="promo-recharge-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M20 12v6a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2v-6"/><path d="M2 8h20v4H2z"/><path d="M12 20V8"/><path d="M12 8H7.5a2.5 2.5 0 0 1 0-5C11 3 12 8 12 8z"/><path d="M12 8h4.5a2.5 2.5 0 0 0 0-5C13 3 12 8 12 8z"/></svg>
+                    </div>
+                    <div class="promo-recharge-text">
+                        <span class="promo-recharge-headline" id="promoBonusHeadline">Ogni 100€ di ricarica, 5€ in omaggio!</span>
+                        <span class="promo-recharge-sub">Ricarica con contanti, carta o bonifico</span>
+                    </div>
+                </div>
+                <div class="promo-recharge-sparkle promo-recharge-sparkle--1"></div>
+                <div class="promo-recharge-sparkle promo-recharge-sparkle--2"></div>
+            </div>
+
             <!-- Warning anagrafica incompleta -->
             <div id="prenoCertWarning"></div>
 
@@ -365,6 +381,7 @@
             renderPrenoList();
             renderCreditBalance();
             renderBonusBalance();
+            renderPromoBonusBanner();
             renderCertWarning();
             _checkDebtAlert(user);
             _startPolling();
@@ -566,7 +583,19 @@
             el.className = `preno-saldo-value preno-saldo-bonus ${bonus > 0 ? 'preno-saldo-bonus-available' : 'preno-saldo-bonus-used'}`;
         }
 
-        // ── Credit / debit balance ────────────────────────────────────────
+        // ── Promo bonus banner ───────────────────────────────────────────
+        function renderPromoBonusBanner() {
+            const banner = document.getElementById('promoBonusBanner');
+            if (!banner) return;
+            if (!RechargeBonusStorage.isEnabled()) { banner.style.display = 'none'; return; }
+            const threshold = RechargeBonusStorage.getThreshold();
+            const amount = RechargeBonusStorage.getAmount();
+            const headline = document.getElementById('promoBonusHeadline');
+            if (headline) headline.textContent = `Ogni ${threshold}\u20AC di ricarica, ${amount}\u20AC in omaggio!`;
+            banner.style.display = '';
+        }
+
+        // ── Credit / debit balance ──────────��─────────────────────────────
         function _bookingHasStarted(b) {
             const startTime = new Date(`${b.date}T${b.time.split(' - ')[0].trim()}:00`);
             return startTime <= new Date();
