@@ -6046,6 +6046,136 @@ canvas {
     box-shadow: 0 2px 8px rgba(220,38,38,0.3); transform: scale(1.1);
 }
 
+/* ── Exercise Picker (new catalog-based selector) ──────────────────────── */
+.schede-ex-muscle-badge {
+    display: inline-flex; align-items: center;
+    font-size: 0.68rem; font-weight: 700; text-transform: uppercase; letter-spacing: 0.04em;
+    padding: 0.2rem 0.55rem; border-radius: 6px; white-space: nowrap; flex-shrink: 0;
+    background: linear-gradient(135deg, #e0f2fe, #bae6fd); color: #0369a1;
+    border: 1px solid rgba(3,105,161,0.15);
+}
+.schede-ex-picker-wrap { flex: 1; min-width: 0; position: relative; }
+.schede-ex-selected {
+    display: flex; align-items: center; gap: 0.5rem;
+    padding: 0.3rem 0.4rem; border: 2px solid #e2e8f0; border-radius: 10px;
+    background: #fff; cursor: pointer; transition: border-color 0.2s; min-height: 44px;
+}
+.schede-ex-selected:hover { border-color: #00AEEF; }
+.schede-ex-thumb {
+    width: 40px; height: 40px; border-radius: 8px; object-fit: cover;
+    flex-shrink: 0; background: #f1f5f9; cursor: pointer;
+}
+.schede-ex-thumb--empty {
+    display: flex; align-items: center; justify-content: center;
+    border: 2px dashed #cbd5e1;
+}
+.schede-ex-thumb--empty::after { content: "+"; color: #94a3b8; font-size: 1.2rem; font-weight: 700; }
+.schede-ex-chosen-name {
+    flex: 1; min-width: 0; font-size: 0.92rem; font-weight: 600; color: #0f172a;
+    overflow: hidden; text-overflow: ellipsis; white-space: nowrap; cursor: pointer;
+}
+.schede-ex-chosen-name em { color: #94a3b8; font-weight: 400; }
+.schede-ex-info-btn, .schede-ex-change-btn {
+    background: none; border: none; cursor: pointer; font-size: 1.1rem;
+    color: #64748b; padding: 0.2rem 0.35rem; border-radius: 6px; transition: all 0.15s;
+    flex-shrink: 0; line-height: 1;
+}
+.schede-ex-info-btn:hover { color: #00AEEF; background: #e0f2fe; }
+.schede-ex-change-btn:hover { color: #00AEEF; background: #e0f2fe; }
+
+/* Picker dropdown */
+.schede-ex-picker-dropdown {
+    position: absolute; top: calc(100% + 4px); left: 0; right: 0; z-index: 100;
+    background: #fff; border: 2px solid #00AEEF; border-radius: 12px;
+    box-shadow: 0 12px 40px rgba(0,0,0,0.15), 0 0 0 1px rgba(0,174,239,0.1);
+    max-height: 380px; display: flex; flex-direction: column; overflow: hidden;
+}
+.schede-picker-header {
+    display: flex; gap: 0.4rem; padding: 0.6rem; border-bottom: 1px solid #e2e8f0;
+    background: #f8fafc; flex-shrink: 0;
+}
+.schede-picker-search {
+    flex: 1; padding: 0.5rem 0.7rem; border: 1.5px solid #e2e8f0; border-radius: 8px;
+    font-size: 0.9rem; background: #fff; transition: border-color 0.2s;
+}
+.schede-picker-search:focus { border-color: #00AEEF; outline: none; box-shadow: 0 0 0 3px rgba(0,174,239,0.1); }
+.schede-picker-cat {
+    padding: 0.5rem 0.5rem; border: 1.5px solid #e2e8f0; border-radius: 8px;
+    font-size: 0.82rem; background: #fff; min-width: 100px; cursor: pointer;
+}
+.schede-picker-cat:focus { border-color: #00AEEF; outline: none; }
+.schede-picker-list { overflow-y: auto; flex: 1; padding: 0.3rem; }
+.schede-picker-item {
+    display: flex; align-items: center; gap: 0.6rem; padding: 0.45rem 0.5rem;
+    border-radius: 8px; cursor: pointer; transition: background 0.15s;
+}
+.schede-picker-item:hover { background: #e0f2fe; }
+.schede-picker-item-img {
+    width: 44px; height: 44px; border-radius: 6px; object-fit: cover;
+    background: #f1f5f9; flex-shrink: 0;
+}
+.schede-picker-item-info { flex: 1; min-width: 0; display: flex; flex-direction: column; }
+.schede-picker-item-name { font-size: 0.88rem; font-weight: 600; color: #0f172a; line-height: 1.3; }
+.schede-picker-item-cat { font-size: 0.72rem; color: #64748b; text-transform: uppercase; letter-spacing: 0.03em; }
+.schede-picker-empty { text-align: center; padding: 1.5rem; color: #94a3b8; font-size: 0.88rem; }
+.schede-picker-more { text-align: center; padding: 0.5rem; color: #64748b; font-size: 0.78rem; font-style: italic; }
+.schede-picker-footer {
+    padding: 0.4rem 0.6rem; border-top: 1px solid #e2e8f0;
+    background: #f8fafc; flex-shrink: 0; text-align: right;
+}
+.schede-picker-custom-btn {
+    background: none; border: 1px solid #cbd5e1; border-radius: 6px;
+    padding: 0.3rem 0.7rem; font-size: 0.78rem; color: #475569;
+    cursor: pointer; transition: all 0.15s;
+}
+.schede-picker-custom-btn:hover { border-color: #00AEEF; color: #00AEEF; }
+
+/* Exercise detail overlay (full image + video) */
+.schede-ex-detail-overlay {
+    position: fixed; inset: 0; z-index: 9999;
+    background: rgba(0,0,0,0.6); backdrop-filter: blur(4px);
+    display: flex; align-items: center; justify-content: center;
+    padding: 1rem; opacity: 0; transition: opacity 0.25s;
+}
+.schede-ex-detail-overlay.visible { opacity: 1; }
+.schede-ex-detail-panel {
+    background: #fff; border-radius: 16px; max-width: 600px; width: 100%;
+    max-height: 90vh; overflow-y: auto; box-shadow: 0 20px 60px rgba(0,0,0,0.3);
+    transform: translateY(20px); transition: transform 0.3s cubic-bezier(0.4,0,0.2,1);
+}
+.schede-ex-detail-overlay.visible .schede-ex-detail-panel { transform: translateY(0); }
+.schede-ex-detail-header {
+    display: flex; justify-content: space-between; align-items: flex-start;
+    padding: 1.2rem 1.2rem 0.8rem; gap: 0.8rem;
+}
+.schede-ex-detail-header h3 { margin: 0; font-size: 1.25rem; font-weight: 800; color: #0f172a; line-height: 1.3; }
+.schede-ex-detail-cat {
+    display: inline-block; font-size: 0.72rem; font-weight: 700;
+    text-transform: uppercase; letter-spacing: 0.04em;
+    padding: 0.15rem 0.5rem; border-radius: 6px; margin-top: 0.3rem;
+    background: linear-gradient(135deg, #e0f2fe, #bae6fd); color: #0369a1;
+}
+.schede-ex-detail-en {
+    display: block; font-size: 0.82rem; color: #64748b; margin-top: 0.2rem; font-style: italic;
+}
+.schede-ex-detail-close {
+    background: #f1f5f9; border: none; cursor: pointer;
+    font-size: 1.5rem; color: #64748b; width: 36px; height: 36px;
+    border-radius: 10px; display: flex; align-items: center; justify-content: center;
+    transition: all 0.15s; flex-shrink: 0; line-height: 1;
+}
+.schede-ex-detail-close:hover { background: #ef4444; color: #fff; }
+.schede-ex-detail-body { padding: 0 1.2rem 1.2rem; }
+.schede-ex-detail-media { display: flex; flex-direction: column; gap: 1rem; }
+.schede-ex-detail-img {
+    width: 100%; border-radius: 12px; background: #f1f5f9;
+    max-height: 300px; object-fit: contain;
+}
+.schede-ex-detail-video {
+    width: 100%; border-radius: 12px; background: #000;
+    max-height: 300px;
+}
+
 .schede-add-exercise-btn {
     background: linear-gradient(135deg, #f8fafc, #f1f5f9);
     color: #00AEEF; border: 2px dashed #93c5fd;
@@ -6242,10 +6372,24 @@ canvas {
         display: flex; align-items: center; justify-content: center;
     }
     .schede-ex-fields { gap: 0.4rem; }
-    .schede-ex-top-row { flex-direction: column; gap: 0.35rem; }
-    .schede-ex-muscle { font-size: 0.88rem; width: 100%; padding: 0.45rem 0.5rem; }
-    .schede-ex-name { font-size: 0.88rem; padding: 0.45rem 0.5rem; }
+    .schede-ex-top-row { flex-direction: column; gap: 0.35rem; align-items: stretch; }
+    .schede-ex-muscle-badge { align-self: flex-start; }
+    .schede-ex-picker-wrap { width: 100%; }
+    .schede-ex-selected { min-height: 48px; }
+    .schede-ex-thumb { width: 44px; height: 44px; }
+    .schede-ex-chosen-name { font-size: 0.88rem; }
     .schede-ex-custom-name { font-size: 0.88rem; padding: 0.45rem 0.5rem; }
+    .schede-ex-picker-dropdown { max-height: 320px; left: -0.7rem; right: -0.7rem; }
+    .schede-picker-header { flex-direction: column; gap: 0.3rem; }
+    .schede-picker-cat { width: 100%; }
+    .schede-picker-item-img { width: 40px; height: 40px; }
+
+    .schede-ex-detail-panel { max-width: 100%; border-radius: 14px; }
+    .schede-ex-detail-header { padding: 1rem 1rem 0.6rem; }
+    .schede-ex-detail-header h3 { font-size: 1.1rem; }
+    .schede-ex-detail-body { padding: 0 1rem 1rem; }
+    .schede-ex-detail-img { max-height: 220px; }
+    .schede-ex-detail-video { max-height: 220px; }
     .schede-ex-params {
         display: grid; grid-template-columns: 1fr 1fr 1fr 1fr; gap: 0.3rem;
         padding: 0.4rem; margin: 0;

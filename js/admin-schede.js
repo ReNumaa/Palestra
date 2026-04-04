@@ -2,102 +2,233 @@
 // TAB SCHEDE — Gestione schede palestra (workout plans)
 // ═══════════════════════════════════════════════════════════════════════════════
 
-const MUSCLE_GROUPS = ['Petto','Dorso','Spalle','Bicipiti','Tricipiti','Gambe','Glutei','Addominali','Polpacci','Cardio','Stretching','Altro'];
+// ── Exercise catalog from esercizi_metadata.json ─────────────────────────────
+let EXERCISES_DB = [];          // populated by _loadExercisesDB()
+let EXERCISES_BY_CAT = {};      // { 'Petto': [...], ... }
+let EXERCISE_CATEGORIES = [];   // unique sorted categories
+let _exercisesDBLoaded = false;
 
-// Catalogo esercizi raggruppato per muscolo
-const EXERCISE_CATALOG = {
-    'Petto':       ['Panca piana bilanciere','Panca piana manubri','Panca inclinata bilanciere','Panca inclinata manubri','Panca declinata','Croci manubri','Croci ai cavi','Chest press','Push-up','Dip alle parallele'],
-    'Dorso':       ['Lat machine avanti','Lat machine dietro','Pulley basso','Rematore bilanciere','Rematore manubrio','Stacco da terra','Trazioni alla sbarra','Pull-down corda','T-bar row','Hyperextension'],
-    'Spalle':      ['Military press bilanciere','Shoulder press manubri','Alzate laterali','Alzate frontali','Face pull','Arnold press','Tirate al mento','Shoulder press macchina','Alzate laterali ai cavi','Shrug'],
-    'Bicipiti':    ['Curl bilanciere','Curl manubri','Curl martello','Curl concentrato','Curl panca Scott','Curl ai cavi','Curl con bilanciere EZ'],
-    'Tricipiti':   ['Push-down ai cavi','French press','Estensioni manubrio sopra la testa','Dip a presa stretta','Kickback','Skull crusher','Push-down corda'],
-    'Gambe':       ['Squat bilanciere','Squat frontale','Leg press','Affondi','Leg extension','Leg curl','Stacco rumeno','Bulgarian split squat','Hack squat','Pressa orizzontale'],
-    'Glutei':      ['Hip thrust','Ponte glutei','Abductor machine','Slanci posteriori','Sumo squat','Step-up','Kickback ai cavi'],
-    'Addominali':  ['Crunch','Crunch inverso','Plank','Side plank','Russian twist','Leg raise','Ab wheel','Sit-up','Mountain climber','Hollow body hold'],
-    'Polpacci':    ['Calf raise in piedi','Calf raise seduto','Calf raise alla leg press','Donkey calf raise'],
-    'Cardio':      ['Corsa','Cyclette','Vogatore','Ellittica','Corda','HIIT','Camminata inclinata','Nuoto','Assault bike'],
-    'Stretching':  ['Stretching statico','Stretching dinamico','Foam rolling','Yoga','Mobilità articolare'],
-};
-
-function _buildExerciseSelect(currentValue, exId, muscleGroup) {
-    const isCustom = currentValue && !Object.values(EXERCISE_CATALOG).flat().includes(currentValue) && currentValue !== 'Nuovo esercizio';
-    let html = `<select class="schede-ex-name" onchange="_schedeExNameChanged('${exId}', this)">`;
-    html += `<option value="">— Seleziona esercizio —</option>`;
-
-    if (muscleGroup && EXERCISE_CATALOG[muscleGroup]) {
-        // Show only exercises for the selected muscle group
-        for (const name of EXERCISE_CATALOG[muscleGroup]) {
-            html += `<option value="${_escHtml(name)}" ${currentValue === name ? 'selected' : ''}>${_escHtml(name)}</option>`;
+async function _loadExercisesDB() {
+    if (_exercisesDBLoaded) return;
+    try {
+        const resp = await fetch('Top 200 Esercizi/esercizi_metadata.json');
+        EXERCISES_DB = await resp.json();
+        EXERCISES_BY_CAT = {};
+        for (const ex of EXERCISES_DB) {
+            if (!EXERCISES_BY_CAT[ex.categoria]) EXERCISES_BY_CAT[ex.categoria] = [];
+            EXERCISES_BY_CAT[ex.categoria].push(ex);
         }
-    } else {
-        // No muscle selected: show all grouped by muscle
-        for (const [group, exercises] of Object.entries(EXERCISE_CATALOG)) {
-            html += `<optgroup label="${group}">`;
-            for (const name of exercises) {
-                html += `<option value="${_escHtml(name)}" ${currentValue === name ? 'selected' : ''}>${_escHtml(name)}</option>`;
-            }
-            html += '</optgroup>';
-        }
+        EXERCISE_CATEGORIES = Object.keys(EXERCISES_BY_CAT).sort();
+        _exercisesDBLoaded = true;
+    } catch (e) { console.error('[Schede] Failed to load exercises DB:', e); }
+}
+
+function _findExercise(name) {
+    if (!name) return null;
+    return EXERCISES_DB.find(e => e.nome_it === name) || null;
+}
+
+// Close open pickers on outside click
+document.addEventListener('click', (e) => {
+    if (!e.target.closest('.schede-ex-picker-wrap')) {
+        document.querySelectorAll('.schede-ex-picker-dropdown').forEach(d => d.style.display = 'none');
     }
-    html += `<option value="__custom__" ${isCustom ? 'selected' : ''}>✏️ Personalizzato</option>`;
-    html += '</select>';
+});
+
+// ── Exercise picker (replaces old select dropdowns) ──────────────────────────
+// Opens a search-panel inline within the exercise row
+
+function _buildExercisePicker(currentValue, exId, muscleGroup) {
+    const ex = _findExercise(currentValue);
+    const isCustom = currentValue && currentValue !== 'Nuovo esercizio' && !ex;
+    const thumbUrl = ex ? ex.immagine_url_small : '';
+    const displayName = isCustom ? currentValue : (ex ? ex.nome_it : '');
+
+    let html = '<div class="schede-ex-picker-wrap">';
+
+    // Thumbnail + selected name + buttons
+    html += `<div class="schede-ex-selected" data-ex-id="${exId}">`;
+    if (thumbUrl) {
+        html += `<img src="${thumbUrl}" class="schede-ex-thumb" alt="" loading="lazy" onclick="_schedeShowExDetail('${_escHtml(ex.slug)}')">`;
+    } else if (!isCustom) {
+        html += `<div class="schede-ex-thumb schede-ex-thumb--empty" onclick="_schedeOpenPicker('${exId}')"></div>`;
+    }
+    html += `<span class="schede-ex-chosen-name" onclick="_schedeOpenPicker('${exId}')">${displayName ? _escHtml(displayName) : '<em>Seleziona esercizio...</em>'}</span>`;
+    if (ex) {
+        html += `<button type="button" class="schede-ex-info-btn" onclick="_schedeShowExDetail('${_escHtml(ex.slug)}')" title="Dettaglio esercizio">&#9432;</button>`;
+    }
+    html += `<button type="button" class="schede-ex-change-btn" onclick="_schedeOpenPicker('${exId}')" title="Cambia esercizio">&#9998;</button>`;
+    html += '</div>';
+
+    // Custom input (hidden unless custom)
     if (isCustom) {
         html += `<input type="text" class="schede-ex-custom-name" value="${_escHtml(currentValue)}" placeholder="Nome personalizzato"
                         onchange="_schedeUpdateExField('${exId}','exercise_name',this.value)">`;
     }
+
+    // Picker dropdown (hidden by default)
+    html += `<div class="schede-ex-picker-dropdown" id="picker-${exId}" style="display:none;"></div>`;
+    html += '</div>';
     return html;
 }
 
-function _schedeExNameChanged(exId, selectEl) {
-    const value = selectEl.value;
-    const container = selectEl.closest('.schede-ex-top-row');
-    if (value === '__custom__') {
-        let customInput = container.querySelector('.schede-ex-custom-name');
-        if (!customInput) {
-            customInput = document.createElement('input');
-            customInput.type = 'text';
-            customInput.className = 'schede-ex-custom-name';
-            customInput.placeholder = 'Nome personalizzato';
-            customInput.onchange = function() { _schedeUpdateExField(exId, 'exercise_name', this.value); };
-            selectEl.after(customInput);
+function _schedeOpenPicker(exId) {
+    // Close any other open picker
+    document.querySelectorAll('.schede-ex-picker-dropdown').forEach(d => { if (d.id !== 'picker-' + exId) d.style.display = 'none'; });
+
+    const dropdown = document.getElementById('picker-' + exId);
+    if (!dropdown) return;
+    if (dropdown.style.display === 'block') { dropdown.style.display = 'none'; return; }
+
+    // Build picker content
+    let html = `<div class="schede-picker-header">
+        <input type="text" class="schede-picker-search" placeholder="Cerca esercizio..." oninput="_schedeFilterPicker('${exId}', this.value)" autofocus>
+        <select class="schede-picker-cat" onchange="_schedeFilterPicker('${exId}')">
+            <option value="">Tutte</option>
+            ${EXERCISE_CATEGORIES.map(c => `<option value="${c}">${c}</option>`).join('')}
+        </select>
+    </div>
+    <div class="schede-picker-list" id="pickerList-${exId}"></div>
+    <div class="schede-picker-footer">
+        <button type="button" class="schede-picker-custom-btn" onclick="_schedePickCustom('${exId}')">Personalizzato</button>
+    </div>`;
+    dropdown.innerHTML = html;
+    dropdown.style.display = 'block';
+
+    // Populate list
+    _schedeFilterPicker(exId, '');
+
+    // Focus search
+    const searchInput = dropdown.querySelector('.schede-picker-search');
+    if (searchInput) setTimeout(() => searchInput.focus(), 50);
+}
+
+function _schedeFilterPicker(exId, searchText) {
+    const dropdown = document.getElementById('picker-' + exId);
+    if (!dropdown) return;
+    const search = (searchText ?? dropdown.querySelector('.schede-picker-search')?.value ?? '').toLowerCase();
+    const cat = dropdown.querySelector('.schede-picker-cat')?.value || '';
+
+    let exercises = EXERCISES_DB;
+    if (cat) exercises = exercises.filter(e => e.categoria === cat);
+    if (search) exercises = exercises.filter(e =>
+        e.nome_it.toLowerCase().includes(search) || e.nome_en.toLowerCase().includes(search) || e.categoria.toLowerCase().includes(search)
+    );
+
+    const listEl = document.getElementById('pickerList-' + exId);
+    if (!listEl) return;
+
+    if (exercises.length === 0) {
+        listEl.innerHTML = '<div class="schede-picker-empty">Nessun esercizio trovato</div>';
+        return;
+    }
+
+    // Limit to 50 for performance
+    const shown = exercises.slice(0, 50);
+    listEl.innerHTML = shown.map(ex => `
+        <div class="schede-picker-item" onclick="_schedePickExercise('${exId}', '${_escHtml(ex.nome_it).replace(/'/g, "\\'")}')">
+            <img src="${ex.immagine_url_small}" class="schede-picker-item-img" alt="" loading="lazy">
+            <div class="schede-picker-item-info">
+                <span class="schede-picker-item-name">${_escHtml(ex.nome_it)}</span>
+                <span class="schede-picker-item-cat">${_escHtml(ex.categoria)}</span>
+            </div>
+        </div>
+    `).join('') + (exercises.length > 50 ? `<div class="schede-picker-more">${exercises.length - 50} altri risultati — affina la ricerca</div>` : '');
+}
+
+function _schedePickExercise(exId, exerciseName) {
+    const ex = _findExercise(exerciseName);
+    // Update DB fields
+    _schedeUpdateExField(exId, 'exercise_name', exerciseName);
+    if (ex) _schedeUpdateExField(exId, 'muscle_group', ex.categoria);
+
+    // Close picker and re-render row
+    const dropdown = document.getElementById('picker-' + exId);
+    if (dropdown) dropdown.style.display = 'none';
+
+    // Update the selected display inline (avoid full re-render)
+    const row = document.querySelector(`.schede-exercise-row[data-ex-id="${exId}"]`);
+    if (row) {
+        const pickerWrap = row.querySelector('.schede-ex-picker-wrap');
+        if (pickerWrap) {
+            const tempDiv = document.createElement('div');
+            tempDiv.innerHTML = _buildExercisePicker(exerciseName, exId, ex?.categoria || '');
+            pickerWrap.replaceWith(tempDiv.firstElementChild);
         }
-        customInput.focus();
-    } else if (value) {
-        const customInput = container.querySelector('.schede-ex-custom-name');
-        if (customInput) customInput.remove();
-        _schedeUpdateExField(exId, 'exercise_name', value);
+        // Update muscle badge
+        const muscleBadge = row.querySelector('.schede-ex-muscle-badge');
+        if (muscleBadge && ex) muscleBadge.textContent = ex.categoria;
     }
 }
 
-// When muscle group changes: update exercise select with filtered options
-function _schedeMuscleChanged(exId, muscleSelect) {
-    const muscle = muscleSelect.value;
-    _schedeUpdateExField(exId, 'muscle_group', muscle);
+function _schedePickCustom(exId) {
+    const dropdown = document.getElementById('picker-' + exId);
+    if (dropdown) dropdown.style.display = 'none';
 
-    // Rebuild exercise select filtered by this muscle
-    const row = muscleSelect.closest('.schede-exercise-row');
-    const exSelect = row?.querySelector('.schede-ex-name');
-    if (!exSelect) return;
+    _schedeUpdateExField(exId, 'exercise_name', '');
 
-    const currentValue = exSelect.value;
-    // Check if current exercise belongs to new muscle group
-    const muscleExercises = EXERCISE_CATALOG[muscle] || [];
-    const keepValue = muscleExercises.includes(currentValue) ? currentValue : '';
-
-    // Replace the exercise select in-place
-    const topRow = row.querySelector('.schede-ex-top-row');
-    const oldCustom = topRow.querySelector('.schede-ex-custom-name');
-    if (oldCustom) oldCustom.remove();
-
-    const tempDiv = document.createElement('div');
-    tempDiv.innerHTML = _buildExerciseSelect(keepValue, exId, muscle);
-    const newSelect = tempDiv.querySelector('.schede-ex-name');
-    exSelect.replaceWith(newSelect);
-
-    // If exercise was cleared, update DB
-    if (!keepValue && currentValue) {
-        _schedeUpdateExField(exId, 'exercise_name', '');
+    const row = document.querySelector(`.schede-exercise-row[data-ex-id="${exId}"]`);
+    if (row) {
+        const pickerWrap = row.querySelector('.schede-ex-picker-wrap');
+        if (pickerWrap) {
+            // Show custom input
+            let html = '<div class="schede-ex-picker-wrap">';
+            html += `<div class="schede-ex-selected" data-ex-id="${exId}">`;
+            html += `<div class="schede-ex-thumb schede-ex-thumb--empty" onclick="_schedeOpenPicker('${exId}')"></div>`;
+            html += `<span class="schede-ex-chosen-name" onclick="_schedeOpenPicker('${exId}')"><em>Personalizzato</em></span>`;
+            html += `<button type="button" class="schede-ex-change-btn" onclick="_schedeOpenPicker('${exId}')" title="Cambia esercizio">&#9998;</button>`;
+            html += '</div>';
+            html += `<input type="text" class="schede-ex-custom-name" value="" placeholder="Nome personalizzato"
+                            onchange="_schedeUpdateExField('${exId}','exercise_name',this.value)" autofocus>`;
+            html += `<div class="schede-ex-picker-dropdown" id="picker-${exId}" style="display:none;"></div>`;
+            html += '</div>';
+            const tempDiv = document.createElement('div');
+            tempDiv.innerHTML = html;
+            pickerWrap.replaceWith(tempDiv.firstElementChild);
+            const customInput = row.querySelector('.schede-ex-custom-name');
+            if (customInput) setTimeout(() => customInput.focus(), 50);
+        }
     }
+}
+
+// ── Exercise detail popup (full image + video) ───────────────────────────────
+function _schedeShowExDetail(slug) {
+    const ex = EXERCISES_DB.find(e => e.slug === slug);
+    if (!ex) return;
+
+    // Remove existing popup if any
+    const existing = document.getElementById('schedeExDetailOverlay');
+    if (existing) existing.remove();
+
+    const overlay = document.createElement('div');
+    overlay.id = 'schedeExDetailOverlay';
+    overlay.className = 'schede-ex-detail-overlay';
+    overlay.onclick = (e) => { if (e.target === overlay) overlay.remove(); };
+
+    overlay.innerHTML = `
+    <div class="schede-ex-detail-panel">
+        <div class="schede-ex-detail-header">
+            <div>
+                <h3>${_escHtml(ex.nome_it)}</h3>
+                <span class="schede-ex-detail-cat">${_escHtml(ex.categoria)}</span>
+                <span class="schede-ex-detail-en">${_escHtml(ex.nome_en)}</span>
+            </div>
+            <button class="schede-ex-detail-close" onclick="document.getElementById('schedeExDetailOverlay').remove()">&times;</button>
+        </div>
+        <div class="schede-ex-detail-body">
+            <div class="schede-ex-detail-media">
+                <img src="${ex.immagine_url}" alt="${_escHtml(ex.nome_it)}" class="schede-ex-detail-img" loading="lazy">
+                ${ex.video_url ? `
+                <video class="schede-ex-detail-video" controls preload="metadata" playsinline poster="${ex.immagine_url_small}">
+                    <source src="${ex.video_url}" type="video/mp4">
+                </video>` : ''}
+            </div>
+        </div>
+    </div>`;
+
+    document.body.appendChild(overlay);
+    // Animate in
+    requestAnimationFrame(() => overlay.classList.add('visible'));
 }
 
 // Only registered users (with Supabase UUID) can be assigned plans
@@ -131,6 +262,7 @@ async function renderSchedeTab() {
     if (!container) { _schedeRendering = false; return; }
     container.innerHTML = '<div class="schede-loading">Caricamento schede...</div>';
     try {
+        await _loadExercisesDB();
         await WorkoutPlanStorage.syncFromSupabase({ adminMode: true });
         await WorkoutPlanStorage.loadSuggestions();
 
@@ -816,6 +948,8 @@ function _renderExercisesForDay() {
 
     let html = '';
     exercises.forEach((ex, i) => {
+        const dbEx = _findExercise(ex.exercise_name);
+        const catLabel = dbEx ? dbEx.categoria : (ex.muscle_group || '');
         html += `
         <div class="schede-exercise-row" data-ex-id="${ex.id}">
             <div class="schede-ex-drag">
@@ -824,11 +958,8 @@ function _renderExercisesForDay() {
             </div>
             <div class="schede-ex-fields">
                 <div class="schede-ex-top-row">
-                    <select class="schede-ex-muscle" onchange="_schedeMuscleChanged('${ex.id}', this)">
-                        <option value="">— Muscolo —</option>
-                        ${MUSCLE_GROUPS.map(mg => `<option value="${mg}" ${ex.muscle_group === mg ? 'selected' : ''}>${mg}</option>`).join('')}
-                    </select>
-                    ${_buildExerciseSelect(ex.exercise_name, ex.id, ex.muscle_group)}
+                    ${catLabel ? `<span class="schede-ex-muscle-badge">${_escHtml(catLabel)}</span>` : ''}
+                    ${_buildExercisePicker(ex.exercise_name, ex.id, ex.muscle_group)}
                 </div>
                 <div class="schede-ex-params">
                     <label>Serie<input type="number" min="1" max="20" value="${ex.sets}" onchange="_schedeUpdateExField('${ex.id}','sets',+this.value)"></label>

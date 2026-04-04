@@ -677,3 +677,37 @@
 | Tempo prompt utente (stimato) | ~5 min |
 | Token input (stimati) | ~80k |
 | Token output (stimati) | ~10k |
+
+## Task: Catalogo 200 esercizi nella sezione Schede admin
+**Data:** 2026-04-04
+**Durata stimata:** ~25 min Claude + ~10 min prompt utente
+
+### Modifiche effettuate
+- Sostituito catalogo esercizi hardcoded (EXERCISE_CATALOG, ~100 esercizi in 12 categorie) con 200 esercizi da `esercizi_metadata.json` (13 categorie reali)
+- Nuovo exercise picker con ricerca full-text, filtro per categoria, thumbnail inline e selezione visuale
+- Thumbnail dell'esercizio visibile direttamente nella riga esercizio della scheda
+- Popup dettaglio esercizio con immagine full-size e video player MP4 (URL esterni diretti)
+- Badge categoria automatico dal catalogo (es. "Petto", "Quadricipiti")
+- Opzione "Personalizzato" per esercizi non presenti nel catalogo
+- Layout ottimizzato desktop e mobile per il workflow trainer
+
+### Decisioni prese
+- Fetch del JSON al primo rendering del tab Schede (lazy load, cacheable dal SW)
+- Picker inline nel DOM (non modale) per velocizzare il flusso di lavoro del trainer
+- Limite 50 risultati nel picker per performance, con suggerimento di affinare la ricerca
+- Chiusura automatica picker su click esterno
+- Mantenuta retrocompatibilita: esercizi custom esistenti continuano a funzionare
+
+### File toccati
+- `js/admin-schede.js` — rimosso EXERCISE_CATALOG/MUSCLE_GROUPS, aggiunto _loadExercisesDB(), _buildExercisePicker(), _schedeOpenPicker(), _schedeFilterPicker(), _schedePickExercise(), _schedeShowExDetail()
+- `css/admin.css` — nuove classi schede-ex-picker-*, schede-ex-detail-*, schede-ex-muscle-badge + responsive mobile
+- `admin.html` — bump query string admin-schede.js v2, admin.css v37
+- `sw.js` — cache v296, aggiunto esercizi_metadata.json all'APP_SHELL
+
+### Consumo risorse (solo per progetti cliente)
+| Voce | Valore |
+|------|--------|
+| Tempo task Claude | ~25 min |
+| Tempo prompt utente (stimato) | ~10 min |
+| Token input (stimati) | ~120k |
+| Token output (stimati) | ~15k |
