@@ -275,6 +275,8 @@ let _schedeClientUserId = null;  // for client-detail view
 // ── Entry point ──────────────────────────────────────────────────────────────
 let _schedeRendering = false;   // guard against concurrent calls
 let _schedeRenderQueued = false; // re-render after current finishes
+let _schedeLastSync = 0;        // timestamp of last successful sync
+const _SCHEDE_SYNC_INTERVAL = 10000; // skip re-sync if < 10s ago
 
 async function renderSchedeTab() {
     // If already rendering, queue one re-render and bail
@@ -287,11 +289,23 @@ async function renderSchedeTab() {
 
     const container = document.getElementById('schedeContainer');
     if (!container) { _schedeRendering = false; return; }
-    container.innerHTML = '<div class="schede-loading">Caricamento schede...</div>';
+
+    // Only show loading spinner on first render (no cached data yet)
+    const hasData = WorkoutPlanStorage.getAllPlans().length > 0 || _schedeLastSync > 0;
+    if (!hasData) {
+        container.innerHTML = '<div class="schede-loading">Caricamento schede...</div>';
+    }
+
     try {
         await _loadExercisesDB();
-        await WorkoutPlanStorage.syncFromSupabase({ adminMode: true });
-        await WorkoutPlanStorage.loadSuggestions();
+
+        // Skip sync if we synced recently (avoids double-load on tab switch + realtime)
+        const now = Date.now();
+        if (now - _schedeLastSync > _SCHEDE_SYNC_INTERVAL) {
+            await WorkoutPlanStorage.syncFromSupabase({ adminMode: true });
+            await WorkoutPlanStorage.loadSuggestions();
+            _schedeLastSync = now;
+        }
 
         // Sub-navigation pills
         let html = `<div class="schede-subnav">
