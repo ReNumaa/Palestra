@@ -3,12 +3,21 @@
 const VAPID_PUBLIC_KEY = 'BOIkkllAmpdW6-MWn85UW36xGPDk9rJDtEIs23w9gmVxGeKx3OSTqTVzcZOcz7gfm8kCHmzc3jp6J2IlEXC0AGA';
 
 // Helper: ottieni JWT utente per autenticazione Edge Functions
+// Prova getSession → refreshSession → fallback ANON_KEY
 async function _getPushAuthToken() {
-    if (typeof supabaseClient === 'undefined') return null;
-    try {
-        const { data: { session } } = await supabaseClient.auth.getSession();
-        return session?.access_token || null;
-    } catch { return null; }
+    if (typeof supabaseClient !== 'undefined') {
+        try {
+            const { data: { session } } = await supabaseClient.auth.getSession();
+            if (session?.access_token) return session.access_token;
+            // Token assente o scaduto — prova refresh
+            const { data: { session: refreshed } } = await supabaseClient.auth.refreshSession();
+            if (refreshed?.access_token) return refreshed.access_token;
+        } catch (e) {
+            console.warn('[Push] _getPushAuthToken error:', e);
+        }
+    }
+    // Fallback: ANON_KEY (accettata da Supabase come JWT valido)
+    return typeof SUPABASE_ANON_KEY !== 'undefined' ? SUPABASE_ANON_KEY : null;
 }
 
 function urlBase64ToUint8Array(base64String) {
@@ -192,7 +201,7 @@ async function notifySlotAvailable(booking) {
     const time = booking.time || '';
     const spotsAvailable = capacity - confirmedInSlot;
     const token = await _getPushAuthToken();
-    if (!token) return;
+    if (!token) { console.warn('[Push] notifySlotAvailable: nessun token disponibile'); return; }
     try {
         await fetch(`${SUPABASE_URL}/functions/v1/notify-slot-available`, {
             method: 'POST',
@@ -221,7 +230,7 @@ async function notifyAdminBooking(booking) {
         : 5;
 
     const token = await _getPushAuthToken();
-    if (!token) return;
+    if (!token) { console.warn('[Push] notifyAdminBooking: nessun token disponibile'); return; }
 
     try {
         const resp = await fetch(`${SUPABASE_URL}/functions/v1/notify-admin-booking`, {
@@ -263,7 +272,7 @@ async function notifyAdminCancellation(booking, { withBonus = false, withMora = 
         : 5;
 
     const token = await _getPushAuthToken();
-    if (!token) return;
+    if (!token) { console.warn('[Push] notifyAdminCancellation: nessun token disponibile'); return; }
 
     try {
         const resp = await fetch(`${SUPABASE_URL}/functions/v1/notify-admin-cancellation`, {
