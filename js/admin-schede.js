@@ -81,10 +81,14 @@ function _schedeOpenPicker(exId) {
     if (dropdown.style.display === 'block') { dropdown.style.display = 'none'; return; }
 
     // Build picker content
-    let html = `<div class="schede-picker-header">
+    let html = `<div class="schede-picker-topbar">
+        <span class="schede-picker-title">Seleziona esercizio</span>
+        <button type="button" class="schede-picker-close-btn" onclick="_schedeClosePicker('${exId}')">&times;</button>
+    </div>
+    <div class="schede-picker-header">
         <input type="text" class="schede-picker-search" placeholder="Cerca esercizio..." oninput="_schedeFilterPicker('${exId}', this.value)" autofocus>
         <select class="schede-picker-cat" onchange="_schedeFilterPicker('${exId}')">
-            <option value="">Tutte</option>
+            <option value="">Tutte le categorie</option>
             ${EXERCISE_CATEGORIES.map(c => `<option value="${c}">${c}</option>`).join('')}
         </select>
     </div>
@@ -101,6 +105,11 @@ function _schedeOpenPicker(exId) {
     // Focus search
     const searchInput = dropdown.querySelector('.schede-picker-search');
     if (searchInput) setTimeout(() => searchInput.focus(), 50);
+}
+
+function _schedeClosePicker(exId) {
+    const dropdown = document.getElementById('picker-' + exId);
+    if (dropdown) dropdown.style.display = 'none';
 }
 
 function _schedeFilterPicker(exId, searchText) {
