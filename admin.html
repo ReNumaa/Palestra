@@ -191,8 +191,12 @@
                             <button class="clients-filter-chip" id="privacyFilterBtn" onclick="togglePrivacyFilter()">
                                 🔒 Anonimi
                             </button>
+                            <button class="clients-filter-chip" id="pushFilterBtn" onclick="togglePushFilter()">
+                                🔕 Notifiche Disattivate
+                            </button>
                         </div>
                     </div>
+                    <div class="clients-filter-result" id="clientsFilterResult" style="display:none;"></div>
                     <div class="payments-stats clients-stats-grid" id="clientsStatsGrid">
                         <div class="payment-stat-card payment-stat-card--clickable payment-stat-card--clients" onclick="toggleClientsTotalList()" title="Clicca per vedere la lista">
                             <div class="payment-stat-icon">👥</div>

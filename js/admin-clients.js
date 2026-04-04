@@ -6,6 +6,7 @@ let clientAssicFilter = false;
 let clientAnagFilter  = false;
 let clientBonusFilter = false;
 let clientPrivacyFilter = false;
+let clientPushFilter    = false;
 
 function clientHasCertIssue(client) {
     const userRecord = _getUserRecord(client.email, client.whatsapp);
@@ -27,9 +28,10 @@ function _syncFilterButtons() {
     document.getElementById('anagFilterBtn')?.classList.toggle('active', clientAnagFilter);
     document.getElementById('bonusFilterBtn')?.classList.toggle('active', clientBonusFilter);
     document.getElementById('privacyFilterBtn')?.classList.toggle('active', clientPrivacyFilter);
+    document.getElementById('pushFilterBtn')?.classList.toggle('active', clientPushFilter);
     // Evidenzia toggle se un filtro è attivo
     const toggle = document.getElementById('clientsFilterToggle');
-    if (toggle) toggle.classList.toggle('active', clientCertFilter || clientAssicFilter || clientAnagFilter || clientBonusFilter || clientPrivacyFilter);
+    if (toggle) toggle.classList.toggle('active', clientCertFilter || clientAssicFilter || clientAnagFilter || clientBonusFilter || clientPrivacyFilter || clientPushFilter);
 }
 
 function toggleClientsFiltersMenu() {
@@ -45,6 +47,7 @@ function _clearOtherFilters(keep) {
     if (keep !== 'anag')    clientAnagFilter = false;
     if (keep !== 'bonus')   clientBonusFilter = false;
     if (keep !== 'privacy') clientPrivacyFilter = false;
+    if (keep !== 'push')    clientPushFilter = false;
 }
 
 function toggleCertFilter() {
@@ -97,6 +100,18 @@ function clientHasPrivacy(client) {
 function togglePrivacyFilter() {
     clientPrivacyFilter = !clientPrivacyFilter;
     if (clientPrivacyFilter) _clearOtherFilters('privacy');
+    _syncFilterButtons();
+    renderClientsTab();
+}
+
+function clientHasPushDisabled(client) {
+    const userRecord = _getUserRecord(client.email, client.whatsapp);
+    return !userRecord?.pushEnabled;
+}
+
+function togglePushFilter() {
+    clientPushFilter = !clientPushFilter;
+    if (clientPushFilter) _clearOtherFilters('push');
     _syncFilterButtons();
     renderClientsTab();
 }
@@ -340,19 +355,34 @@ function _refreshOpenClientCard(whatsapp, email) {
     openClientIndex = cardIndex;
 }
 
+function _activeFilterLabel() {
+    if (clientCertFilter)    return '🏥 Senza certificato';
+    if (clientAssicFilter)   return '📋 Senza assicurazione';
+    if (clientAnagFilter)    return '📝 Senza anagrafica';
+    if (clientBonusFilter)   return '🎁 Senza bonus';
+    if (clientPrivacyFilter) return '🔒 Anonimi';
+    if (clientPushFilter)    return '🔕 Notifiche Disattivate';
+    return '';
+}
+
 function renderClientsTab() {
     renderClientsSummary();
     // Ripristina stat cards e filtri (nascosti durante ricerca)
     const statsGrid = document.getElementById('clientsStatsGrid');
     const filterToggle = document.getElementById('clientsFilterToggle');
-    if (statsGrid) statsGrid.style.display = '';
+    const filterResult = document.getElementById('clientsFilterResult');
     if (filterToggle) filterToggle.style.display = '';
     // Pulisci campo ricerca
     const searchInput = document.getElementById('clientSearchInput');
     if (searchInput) searchInput.value = '';
     closeClientsSearchDropdown();
     const listEl = document.getElementById('clientsList');
-    const hasFilter = clientCertFilter || clientAssicFilter || clientAnagFilter || clientBonusFilter || clientPrivacyFilter;
+    const hasFilter = clientCertFilter || clientAssicFilter || clientAnagFilter || clientBonusFilter || clientPrivacyFilter || clientPushFilter;
+
+    // Nasconde stat cards e mostra conteggio filtrato quando un filtro è attivo
+    if (statsGrid) statsGrid.style.display = hasFilter ? 'none' : '';
+    if (filterResult) filterResult.style.display = hasFilter ? '' : 'none';
+
     if (!clientsListMode && !hasFilter) {
         if (listEl) listEl.style.display = 'none';
         return;
@@ -366,6 +396,12 @@ function renderClientsTab() {
     if (clientAnagFilter)  filtered = filtered.filter(clientHasAnagIssue);
     if (clientBonusFilter) filtered = filtered.filter(clientHasBonusIssue);
     if (clientPrivacyFilter) filtered = filtered.filter(clientHasPrivacy);
+    if (clientPushFilter)    filtered = filtered.filter(clientHasPushDisabled);
+
+    // Aggiorna conteggio filtrato
+    if (hasFilter && filterResult) {
+        filterResult.innerHTML = `<span class="filter-result-label">${_activeFilterLabel()}</span><span class="filter-result-count">${filtered.length}</span>`;
+    }
 
     const container = document.getElementById('clientsList');
     container.innerHTML = '';

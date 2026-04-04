@@ -844,3 +844,29 @@
 | Tempo prompt utente (stimato) | ~15 min |
 | Token input (stimati) | ~200k |
 | Token output (stimati) | ~25k |
+
+## Task: Aggiunta filtro "Notifiche Disattivate" nella tab Clienti admin
+**Data:** 2026-04-04
+**Durata stimata:** ~5 min Claude + ~2 min prompt utente
+
+### Modifiche effettuate
+- Aggiunto filtro "🔕 Notifiche Disattivate" alla sezione filtri clienti in admin
+- Il filtro mostra clienti senza push notifications attivate (campo `pushEnabled` falsy)
+- Filtro mutuamente esclusivo con gli altri (come da pattern esistente)
+
+### Decisioni prese
+- Utilizzato il campo `pushEnabled` già presente nel profilo utente (da `UserStorage`)
+- Stessa architettura degli altri 5 filtri esistenti per coerenza
+
+### File toccati
+- `admin.html` — Aggiunto bottone filtro nel div `clientsFilterChips`
+- `js/admin-clients.js` — Stato, detection function, toggle, sync e applicazione filtro
+- `sw.js` — Cache bump v315 → v316
+
+### Consumo risorse (solo per progetti cliente)
+| Voce | Valore |
+|------|--------|
+| Tempo task Claude | ~5 min |
+| Tempo prompt utente (stimato) | ~2 min |
+| Token input (stimati) | ~50k |
+| Token output (stimati) | ~5k |
