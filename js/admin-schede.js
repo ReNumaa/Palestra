@@ -217,11 +217,11 @@ function _schedeShowExDetail(slug) {
         </div>
         <div class="schede-ex-detail-body">
             <div class="schede-ex-detail-media">
-                <img src="${ex.immagine_url}" alt="${_escHtml(ex.nome_it)}" class="schede-ex-detail-img" loading="lazy">
                 ${ex.video_url ? `
-                <video class="schede-ex-detail-video" controls preload="metadata" playsinline poster="${ex.immagine_url_small}">
+                <video class="schede-ex-detail-video" controls autoplay loop muted playsinline>
                     <source src="${ex.video_url}" type="video/mp4">
-                </video>` : ''}
+                </video>` : `
+                <img src="${ex.immagine_url_small}" alt="${_escHtml(ex.nome_it)}" class="schede-ex-detail-img">`}
             </div>
         </div>
     </div>`;
