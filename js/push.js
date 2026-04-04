@@ -3,20 +3,21 @@
 const VAPID_PUBLIC_KEY = 'BOIkkllAmpdW6-MWn85UW36xGPDk9rJDtEIs23w9gmVxGeKx3OSTqTVzcZOcz7gfm8kCHmzc3jp6J2IlEXC0AGA';
 
 // Helper: ottieni JWT utente per autenticazione Edge Functions
-// Prova getSession → refreshSession → fallback ANON_KEY
+// refreshSession() forza un token fresco — getSession() può ritornare token scaduti
 async function _getPushAuthToken() {
     if (typeof supabaseClient !== 'undefined') {
         try {
+            const { data: { session } } = await supabaseClient.auth.refreshSession();
+            if (session?.access_token) return session.access_token;
+        } catch (e) {
+            console.warn('[Push] refreshSession fallito:', e);
+        }
+        // Fallback: sessione corrente (meglio di niente)
+        try {
             const { data: { session } } = await supabaseClient.auth.getSession();
             if (session?.access_token) return session.access_token;
-            // Token assente o scaduto — prova refresh
-            const { data: { session: refreshed } } = await supabaseClient.auth.refreshSession();
-            if (refreshed?.access_token) return refreshed.access_token;
-        } catch (e) {
-            console.warn('[Push] _getPushAuthToken error:', e);
-        }
+        } catch {}
     }
-    // Fallback: ANON_KEY (accettata da Supabase come JWT valido)
     return typeof SUPABASE_ANON_KEY !== 'undefined' ? SUPABASE_ANON_KEY : null;
 }
 
