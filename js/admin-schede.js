@@ -191,18 +191,7 @@ function _schedePickCustom(exId) {
     }
 }
 
-// Encode URL preserving structure but fixing parentheses and special chars
-function _safeVideoUrl(url) {
-    if (!url) return '';
-    // Encode only the path segments, not the protocol/host
-    try {
-        const u = new URL(url);
-        u.pathname = u.pathname.split('/').map(seg => encodeURIComponent(decodeURIComponent(seg))).join('/');
-        return u.href;
-    } catch (_) { return encodeURI(url); }
-}
-
-// ── Exercise detail popup (full image + video) ───────────────────────────────
+// ── Exercise detail popup (video + image) ────────────────────────────────────
 function _schedeShowExDetail(slug) {
     const ex = EXERCISES_DB.find(e => e.slug === slug);
     if (!ex) return;
@@ -216,8 +205,7 @@ function _schedeShowExDetail(slug) {
     overlay.className = 'schede-ex-detail-overlay';
     overlay.onclick = (e) => { if (e.target === overlay) overlay.remove(); };
 
-    const safeUrl = _safeVideoUrl(ex.video_url);
-
+    // Build header + media container via innerHTML
     overlay.innerHTML = `
     <div class="schede-ex-detail-panel">
         <div class="schede-ex-detail-header">
@@ -229,21 +217,36 @@ function _schedeShowExDetail(slug) {
             <button class="schede-ex-detail-close" onclick="document.getElementById('schedeExDetailOverlay').remove()">&times;</button>
         </div>
         <div class="schede-ex-detail-body">
-            <div class="schede-ex-detail-media">
-                ${safeUrl ? `
-                <video class="schede-ex-detail-video" controls autoplay loop muted playsinline preload="auto"
-                       src="${safeUrl}"></video>` : `
-                <img src="${ex.immagine_url_small}" alt="${_escHtml(ex.nome_it)}" class="schede-ex-detail-img">`}
-            </div>
+            <div class="schede-ex-detail-media" id="schedeExDetailMedia"></div>
         </div>
     </div>`;
 
     document.body.appendChild(overlay);
-    requestAnimationFrame(() => overlay.classList.add('visible'));
 
-    // Force play after DOM insert (some browsers block autoplay on innerHTML video)
-    const video = overlay.querySelector('video');
-    if (video) video.play().catch(() => {});
+    // Create video programmatically (more reliable than innerHTML for media)
+    const mediaContainer = document.getElementById('schedeExDetailMedia');
+    if (ex.video_url && mediaContainer) {
+        const video = document.createElement('video');
+        video.className = 'schede-ex-detail-video';
+        video.controls = true;
+        video.autoplay = true;
+        video.loop = true;
+        video.muted = true;
+        video.playsInline = true;
+        video.preload = 'auto';
+        video.src = ex.video_url;
+        mediaContainer.appendChild(video);
+        video.load();
+        video.play().catch(() => {});
+    } else if (mediaContainer) {
+        const img = document.createElement('img');
+        img.className = 'schede-ex-detail-img';
+        img.src = ex.immagine_url_small;
+        img.alt = ex.nome_it;
+        mediaContainer.appendChild(img);
+    }
+
+    requestAnimationFrame(() => overlay.classList.add('visible'));
 }
 
 // Only registered users (with Supabase UUID) can be assigned plans
