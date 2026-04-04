@@ -640,10 +640,8 @@ const _MSG_TYPE_LABELS = {
     broadcast:             '📢 Broadcast',
 };
 
-let _messaggiLoaded = false;
-async function loadMessaggi(force = false) {
+async function loadMessaggi() {
     if (typeof supabaseClient === 'undefined') return;
-    if (_messaggiLoaded && !force) { renderMessaggiTable(); return; }
     try {
         const { data, error } = await supabaseClient
             .from('admin_messages')
@@ -652,7 +650,6 @@ async function loadMessaggi(force = false) {
             .limit(500);
         if (error) { console.warn('[Messaggi] load error:', error.message); return; }
         _messaggiCache = data || [];
-        _messaggiLoaded = true;
         renderMessaggiTable();
     } catch (e) {
         console.warn('[Messaggi] load exception:', e);
@@ -740,10 +737,8 @@ const _CN_STATUS_LABELS = {
     no_subscription: '⚠️ No sub',
 };
 
-let _cnLoaded = false;
-async function loadClientNotifications(force = false) {
+async function loadClientNotifications() {
     if (typeof supabaseClient === 'undefined') return;
-    if (_cnLoaded && !force) { renderClientNotifTable(); return; }
     try {
         const { data, error } = await supabaseClient
             .from('client_notifications')
@@ -752,7 +747,6 @@ async function loadClientNotifications(force = false) {
             .limit(1000);
         if (error) { console.warn('[ClientNotif] load error:', error.message); return; }
         _cnCache = data || [];
-        _cnLoaded = true;
         renderClientNotifTable();
     } catch (e) {
         console.warn('[ClientNotif] load exception:', e);
