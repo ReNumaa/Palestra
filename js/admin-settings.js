@@ -11,6 +11,7 @@ function renderSettingsTab() {
     renderAssicBlockUI();
     renderWeekTemplatesUI();
     renderMaintenanceUI();
+    renderRechargeBonusUI();
 }
 
 // ── Maintenance Mode ─────────────────────────────────────────────────────────
@@ -157,6 +158,39 @@ function saveDebtThreshold() {
         msg.style.display = 'block';
         setTimeout(() => { msg.style.display = 'none'; }, 2000);
     }
+}
+
+// ── Recharge Bonus ──────────────────────────────────────────────────────────
+
+function renderRechargeBonusUI() {
+    const toggle = document.getElementById('rechargeBonusToggle');
+    const text   = document.getElementById('rechargeBonusText');
+    const controls = document.getElementById('rechargeBonusControls');
+    const thresholdInput = document.getElementById('rechargeBonusThresholdInput');
+    const amountInput    = document.getElementById('rechargeBonusAmountInput');
+    const enabled = RechargeBonusStorage.isEnabled();
+    if (toggle) toggle.checked = enabled;
+    if (text)   text.textContent = enabled ? 'Attivo' : 'Non attivo';
+    if (controls) controls.style.display = enabled ? '' : 'none';
+    if (thresholdInput) thresholdInput.value = RechargeBonusStorage.getThreshold();
+    if (amountInput)    amountInput.value = RechargeBonusStorage.getAmount();
+}
+
+function saveRechargeBonusEnabled(val) {
+    RechargeBonusStorage.setEnabled(val);
+    const text = document.getElementById('rechargeBonusText');
+    if (text) text.textContent = val ? 'Attivo' : 'Non attivo';
+    const controls = document.getElementById('rechargeBonusControls');
+    if (controls) controls.style.display = val ? '' : 'none';
+}
+
+function saveRechargeBonusValues() {
+    const threshold = parseFloat(document.getElementById('rechargeBonusThresholdInput').value) || 100;
+    const amount    = parseFloat(document.getElementById('rechargeBonusAmountInput').value) || 5;
+    RechargeBonusStorage.setThreshold(threshold);
+    RechargeBonusStorage.setAmount(amount);
+    const msg = document.getElementById('rechargeBonusSavedMsg');
+    if (msg) { msg.style.display = 'block'; setTimeout(() => { msg.style.display = 'none'; }, 2000); }
 }
 
 // ── Week Templates ──────────────────────────────────────────────────────────

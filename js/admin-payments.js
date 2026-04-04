@@ -1010,6 +1010,30 @@ async function saveManualEntry() {
 
             console.log('[admin_add_credit]', data);
 
+            // Bonus ricarica: se abilitato e metodo idoneo, aggiungi lezione gratuita
+            const bonusMethods = ['contanti', 'carta', 'iban'];
+            const rechargeBonus = bonusMethods.includes(method) ? RechargeBonusStorage.calcBonus(amount) : 0;
+            if (rechargeBonus > 0) {
+                const multiplier = Math.floor(amount / RechargeBonusStorage.getThreshold());
+                const bonusNote = `Bonus ricarica ${amount}€ (x${multiplier})`;
+                const { error: bonusErr } = await _rpcWithTimeout(supabaseClient.rpc('admin_add_credit', {
+                    p_email:       email.toLowerCase(),
+                    p_whatsapp:    whatsapp || null,
+                    p_name:        name,
+                    p_amount:      rechargeBonus,
+                    p_note:        bonusNote,
+                    p_method:      'lezione-gratuita',
+                    p_free_lesson: true,
+                    p_slot_prices: slotPrices,
+                }));
+                if (bonusErr) {
+                    console.error('[Supabase] recharge bonus error:', bonusErr.message);
+                    showToast('Credito aggiunto ma errore nel bonus: ' + bonusErr.message, 'error');
+                } else {
+                    console.log(`[recharge_bonus] +${rechargeBonus}€ lezione gratuita per ${name}`);
+                }
+            }
+
             // Risincronizza tutto da Supabase
             await Promise.all([
                 BookingStorage.syncFromSupabase(),
@@ -1018,7 +1042,8 @@ async function saveManualEntry() {
             ]);
 
             closeManualEntryPopup();
-            showToast('Credito aggiunto con successo', 'success');
+            const bonusMsg = rechargeBonus > 0 ? ` + ${rechargeBonus}€ bonus gratuito` : '';
+            showToast('Credito aggiunto con successo' + bonusMsg, 'success');
             await renderPaymentsTab();
             _reopenContactCard(name, whatsapp, email);
         }

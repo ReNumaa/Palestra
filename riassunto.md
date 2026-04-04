@@ -645,3 +645,35 @@
 | Tempo prompt utente (stimato) | ~5 min |
 | Token input (stimati) | ~120k |
 | Token output (stimati) | ~15k |
+
+## Task: Bonus ricarica credito — lezione gratuita automatica
+**Data:** 2026-04-04
+**Durata stimata:** ~20 min Claude + ~5 min prompt utente
+
+### Modifiche effettuate
+- Aggiunta classe `RechargeBonusStorage` in data.js con 3 impostazioni: abilitato, soglia (default 100€), importo bonus (default 5€)
+- Logica `calcBonus()`: floor(importo/soglia) × bonusAmount — si moltiplica per ogni multiplo della soglia
+- Integrato in `saveManualEntry()` (admin-payments.js): dopo aggiunta credito con metodo contanti/carta/iban, se bonus > 0 viene aggiunta automaticamente una seconda voce di tipo "lezione-gratuita" (freeBalance)
+- Aggiunta card UI nelle Impostazioni admin con toggle attiva/disattiva + input soglia e importo bonus
+- Funzioni render/save in admin-settings.js
+- Sync delle 3 chiavi in `syncAppSettingsFromSupabase()`
+
+### Decisioni prese
+- Il bonus viene aggiunto come seconda chiamata RPC `admin_add_credit` con `p_free_lesson: true`, così va nel `freeBalance` separato e non nel credito principale (coerente con il sistema esistente "lezione-gratuita")
+- Solo metodi contanti, carta, iban sono idonei (non credito, non stripe, non lezione-gratuita)
+- Sotto soglia (es. 80€ con soglia 100€) nessun bonus; 150€ = 1x bonus; 200€ = 2x bonus
+
+### File toccati
+- `js/data.js` — aggiunta classe RechargeBonusStorage + sync in syncAppSettingsFromSupabase
+- `js/admin-payments.js` — logica bonus dopo admin_add_credit in saveManualEntry()
+- `js/admin-settings.js` — renderRechargeBonusUI, saveRechargeBonusEnabled, saveRechargeBonusValues
+- `admin.html` — card impostazioni con toggle + input soglia/importo
+- `sw.js` — cache v292
+
+### Consumo risorse (solo per progetti cliente)
+| Voce | Valore |
+|------|--------|
+| Tempo task Claude | ~20 min |
+| Tempo prompt utente (stimato) | ~5 min |
+| Token input (stimati) | ~80k |
+| Token output (stimati) | ~10k |

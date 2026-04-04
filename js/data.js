@@ -1391,6 +1391,9 @@ class BookingStorage {
                 _s(AssicBookingStorage.KEY_NOT_SET,'assic_block_not_set');
                 _s(WeekTemplateStorage.KEY,        'week_templates');
                 _s(WeekTemplateStorage.ACTIVE_KEY, 'active_week_template');
+                _s(RechargeBonusStorage.KEY_ENABLED,   'recharge_bonus_enabled');
+                _s(RechargeBonusStorage.KEY_THRESHOLD, 'recharge_bonus_threshold');
+                _s(RechargeBonusStorage.KEY_AMOUNT,    'recharge_bonus_amount');
                 // Refresh global template after sync
                 WEEKLY_SCHEDULE_TEMPLATE = getWeeklySchedule();
             }
@@ -2200,6 +2203,27 @@ class WeekTemplateStorage {
             WEEKLY_SCHEDULE_TEMPLATE = tpl.schedule;
             _lsSet('weeklyScheduleTemplate', JSON.stringify(tpl.schedule));
         }
+    }
+}
+
+// Recharge bonus — when a client loads credit >= threshold, auto-add free lesson credit
+class RechargeBonusStorage {
+    static KEY_ENABLED   = 'gym_recharge_bonus_enabled';
+    static KEY_THRESHOLD = 'gym_recharge_bonus_threshold';
+    static KEY_AMOUNT    = 'gym_recharge_bonus_amount';
+    static isEnabled()  { return localStorage.getItem(this.KEY_ENABLED) === 'true'; }
+    static getThreshold() { return parseFloat(localStorage.getItem(this.KEY_THRESHOLD) || '100') || 100; }
+    static getAmount()    { return parseFloat(localStorage.getItem(this.KEY_AMOUNT) || '5') || 5; }
+    static setEnabled(val)   { _lsSet(this.KEY_ENABLED, val ? 'true' : 'false'); _upsertSetting(this.KEY_ENABLED, val ? 'true' : 'false'); }
+    static setThreshold(val) { const v = parseFloat(val) || 100; _lsSet(this.KEY_THRESHOLD, String(v)); _upsertSetting(this.KEY_THRESHOLD, v); }
+    static setAmount(val)    { const v = parseFloat(val) || 5;   _lsSet(this.KEY_AMOUNT, String(v));    _upsertSetting(this.KEY_AMOUNT, v); }
+    /** Calcola il bonus gratuito per un dato importo di ricarica. Ritorna 0 se disabilitato o sotto soglia. */
+    static calcBonus(rechargeAmount) {
+        if (!this.isEnabled()) return 0;
+        const threshold = this.getThreshold();
+        if (rechargeAmount < threshold) return 0;
+        const multiplier = Math.floor(rechargeAmount / threshold);
+        return Math.round(multiplier * this.getAmount() * 100) / 100;
     }
 }
 

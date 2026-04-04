@@ -396,6 +396,36 @@
                         </div>
                     </div>
 
+                    <!-- Bonus ricarica credito -->
+                    <div class="sett-card">
+                        <div class="sett-card-header">
+                            <span class="sett-card-icon sett-card-icon--green">🎁</span>
+                            <div>
+                                <h4 class="sett-card-title">Bonus ricarica credito</h4>
+                                <p class="sett-card-desc">Quando un cliente ricarica credito (contanti, bonifico o carta) pari o superiore alla soglia, viene aggiunta automaticamente una lezione gratuita. Il bonus si moltiplica per ogni multiplo della soglia (es. 200€ con soglia 100€ = bonus x2).</p>
+                            </div>
+                            <label class="settings-toggle-wrap">
+                                <input type="checkbox" id="rechargeBonusToggle" onchange="saveRechargeBonusEnabled(this.checked)">
+                                <span class="settings-toggle-track"><span class="settings-toggle-thumb"></span></span>
+                                <span class="settings-toggle-text" id="rechargeBonusText"></span>
+                            </label>
+                        </div>
+                        <div class="sett-card-controls" id="rechargeBonusControls" style="display:none">
+                            <div class="sett-euro-wrap">
+                                <label class="sett-euro-label">Soglia minima</label>
+                                <span class="sett-euro-sign">€</span>
+                                <input type="number" id="rechargeBonusThresholdInput" class="sett-euro-input" min="1" step="1" placeholder="100">
+                            </div>
+                            <div class="sett-euro-wrap">
+                                <label class="sett-euro-label">Importo bonus</label>
+                                <span class="sett-euro-sign">€</span>
+                                <input type="number" id="rechargeBonusAmountInput" class="sett-euro-input" min="0.5" step="0.5" placeholder="5">
+                            </div>
+                            <button class="sett-save-btn" onclick="saveRechargeBonusValues()">Salva</button>
+                            <span id="rechargeBonusSavedMsg" class="sett-saved-msg">Salvato</span>
+                        </div>
+                    </div>
+
                     <div class="sett-group-label">
                         <span class="sett-group-label-icon">📅</span>
                         Pianificazione
