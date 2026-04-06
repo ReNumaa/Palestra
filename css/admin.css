@@ -6483,35 +6483,45 @@ canvas {
     .schede-subnav { max-width: 100%; padding: 3px; }
     .schede-subnav-pill { padding: 0.7rem 1rem; font-size: 0.88rem; }
 
-    .schede-header { flex-direction: column; gap: 0.6rem; align-items: stretch; padding-bottom: 0.8rem; }
-    .schede-header h3 { font-size: 1.25rem; }
-    .schede-header .btn-primary { text-align: center; padding: 0.7rem; font-size: 0.88rem; border-radius: 12px; }
+    .schede-header { flex-direction: row; gap: 0.5rem; align-items: center; padding-bottom: 0.6rem; margin-bottom: 0.8rem; }
+    .schede-header h3 { font-size: 1.1rem; margin: 0; }
+    .schede-header .btn-primary { padding: 0.4rem 0.8rem; font-size: 0.8rem; border-radius: 10px; }
 
-    .schede-search-bar input { padding: 0.75rem 1rem; font-size: 1rem; }
+    .schede-search-bar { margin-bottom: 0.6rem; }
+    .schede-search-bar input { padding: 0.5rem 0.8rem; font-size: 0.9rem; border-radius: 10px; }
 
-    .schede-plan-card { padding: 0.85rem; border-radius: 12px; }
-    .schede-plan-card-header { flex-direction: row; align-items: center; gap: 0.6rem; }
+    .schede-section-title { font-size: 0.82rem; margin: 0.6rem 0 0.3rem; }
+
+    .schede-plan-list { gap: 0.4rem; }
+    .schede-plan-card { padding: 0.6rem 0.7rem; border-radius: 10px; border-left-width: 4px; }
+    .schede-plan-card::before { display: none; }
+    .schede-plan-card:hover { transform: none; box-shadow: none; }
+    .schede-plan-card-header { gap: 0.4rem; }
     .schede-plan-card-info { min-width: 0; }
-    .schede-plan-client { font-size: 0.95rem; }
-    .schede-plan-name { font-size: 0.88rem; }
-    .schede-plan-meta { font-size: 0.78rem; margin-top: 0.15rem; }
+    .schede-plan-client { font-size: 0.85rem; }
+    .schede-plan-name { font-size: 0.82rem; margin-top: 0.1rem; }
+    .schede-plan-meta { font-size: 0.72rem; margin-top: 0.1rem; }
     .schede-plan-actions {
-        flex-direction: column; gap: 0.2rem; flex-shrink: 0;
+        flex-direction: row; gap: 0.15rem; flex-shrink: 0;
         background: transparent; padding: 0; margin-left: auto;
     }
     .schede-plan-actions button {
-        font-size: 1.2rem; padding: 0.45rem 0.55rem;
-        background: #f1f5f9; border-radius: 10px;
-        min-width: 40px; min-height: 40px;
+        font-size: 0.95rem; padding: 0.3rem 0.4rem;
+        background: #f1f5f9; border-radius: 8px;
+        min-width: 36px; min-height: 36px;
         display: flex; align-items: center; justify-content: center;
     }
-    .schede-client-card { min-height: 56px; }
+    .schede-client-card { min-height: 48px; padding: 0.5rem 0.7rem; }
 
-    .schede-assign-bar { padding: 0.7rem; }
-    .schede-assign-row { flex-direction: column; gap: 0.5rem; }
+    .schede-assign-bar { padding: 0.5rem 0.6rem; border-radius: 10px; margin-bottom: 0.6rem; }
+    .schede-assign-bar--schede { padding: 0.5rem 0.6rem; }
+    .schede-assign-row--schede { grid-template-columns: 1fr; gap: 0.4rem; }
+    .schede-assign-row { flex-direction: column; gap: 0.35rem; }
+    .schede-assign-label { font-size: 0.72rem; }
     .schede-assign-row select,
-    .schede-assign-row input { width: 100%; min-width: 0; font-size: 1rem; padding: 0.65rem 0.7rem; }
-    .schede-assign-row .btn-primary { width: 100%; padding: 0.7rem; font-size: 0.95rem; text-align: center; }
+    .schede-assign-row input { width: 100%; min-width: 0; font-size: 0.9rem; padding: 0.45rem 0.6rem; }
+    .schede-assign-row .btn-primary,
+    .schede-assign-btn { width: 100%; padding: 0.5rem; font-size: 0.85rem; text-align: center; }
 
     .schede-editor-topbar { flex-direction: row; align-items: center; gap: 0.6rem; padding-bottom: 0.7rem; }
     .schede-back-btn { padding: 0.45rem 0.7rem; font-size: 0.85rem; flex-shrink: 0; }
