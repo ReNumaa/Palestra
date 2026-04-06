@@ -31,7 +31,4 @@ CREATE POLICY workout_exercises_delete_own ON workout_exercises
     USING (plan_id IN (SELECT id FROM workout_plans WHERE user_id = auth.uid()));
 
 -- ── workout_logs: DELETE own ─────────────────────────────────────────────────
--- (INSERT/UPDATE/SELECT già presenti nella migration originale)
-CREATE POLICY workout_logs_own_delete ON workout_logs
-    FOR DELETE TO authenticated
-    USING (user_id = auth.uid());
+-- Policy workout_logs_own_delete già presente su Supabase (creata manualmente)
