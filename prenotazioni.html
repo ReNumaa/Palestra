@@ -1522,16 +1522,7 @@
         })();
     </script>
     <script>
-        // ── Gating: mostra voce Allenamento nella sidebar ────────────────
-        document.addEventListener('DOMContentLoaded', () => {
-            setTimeout(() => {
-                const user = typeof getCurrentUser === 'function' ? getCurrentUser() : null;
-                if (user) {
-                    const nav = document.getElementById('navAllenamento');
-                    if (nav) nav.style.display = '';
-                }
-            }, 500);
-        });
+        // navAllenamento gestito centralmente da updateNavAuth() in auth.js
 
     </script>
     </script>

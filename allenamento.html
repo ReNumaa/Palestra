@@ -210,8 +210,8 @@
             await initAuth();
             const user = getCurrentUser();
 
-            // Redirect utenti non loggati
-            if (!user) {
+            // Redirect utenti non admin
+            if (!user || sessionStorage.getItem('adminAuth') !== 'true') {
                 window.location.replace('/');
                 return;
             }

@@ -154,16 +154,7 @@
     <script src="js/auth.js?v=22"></script>
     <script src="js/maintenance.js?v=1"></script>
     <script>
-        // Gating: voce Allenamento sidebar
-        document.addEventListener('DOMContentLoaded', () => {
-            setTimeout(() => {
-                const user = typeof getCurrentUser === 'function' ? getCurrentUser() : null;
-                if (user) {
-                    const nav = document.getElementById('navAllenamento');
-                    if (nav) nav.style.display = '';
-                }
-            }, 500);
-        });
+        // navAllenamento gestito centralmente da updateNavAuth() in auth.js
     </script>
     <script src="js/sw-update.js"></script>
     <script src="js/pwa-install.js"></script>

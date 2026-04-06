@@ -476,7 +476,12 @@ function updateNavAuth() {
         if (userMenu)  userMenu.style.display  = 'flex';
         if (userName)  userName.textContent    = user ? (user.name || user.email).split(' ')[0] : 'Thomas';
         if (user) _injectNavLinkFirst('prenotazioni.html', 'Le mie prenotazioni', 'nav-prenotazioni-link');
-        if (isAdmin) _injectNavLinkLast('admin.html', 'Amministrazione', 'nav-admin-link');
+        if (isAdmin) {
+            _injectNavLinkLast('admin.html', 'Amministrazione', 'nav-admin-link');
+            // Mostra voce Allenamento nella sidebar per tutti gli admin
+            const _navAll = document.getElementById('navAllenamento');
+            if (_navAll) _navAll.style.display = '';
+        }
         _injectSidebarLogout();
     } else {
         if (loginLink) loginLink.style.display = 'flex';

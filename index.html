@@ -231,11 +231,7 @@
 
         (async function () {
             await initAuth();
-            // Mostra voce Allenamento per tutti gli utenti loggati
-            if (typeof getCurrentUser === 'function' && getCurrentUser()) {
-                const _navAll = document.getElementById('navAllenamento');
-                if (_navAll) _navAll.style.display = '';
-            }
+            // navAllenamento gestito centralmente da updateNavAuth() in auth.js
             await Promise.all([
                 BookingStorage.syncFromSupabase(),
                 BookingStorage.syncAppSettingsFromSupabase(),

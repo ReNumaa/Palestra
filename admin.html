@@ -1179,17 +1179,13 @@
             if (typeof loadDashboardData === 'function') loadDashboardData();
             if (typeof renderAdminCalendar === 'function') renderAdminCalendar();
             if (typeof renderScheduleManager === 'function') renderScheduleManager();
-            // Mostra tab Schede e voce Allenamento per tutti gli utenti loggati
-            if (typeof getCurrentUser === 'function' && getCurrentUser()) {
+            // Mostra tab Schede, Importa e voce Allenamento per tutti gli admin
+            if (sessionStorage.getItem('adminAuth') === 'true') {
                 const _schedeBtn = document.getElementById('adminTabSchede');
                 if (_schedeBtn) _schedeBtn.style.display = '';
-                const _navAll = document.getElementById('navAllenamento');
-                if (_navAll) _navAll.style.display = '';
-            }
-            // Mostra tab Importa solo per admin
-            if (sessionStorage.getItem('adminAuth') === 'true') {
                 const _importaBtn = document.getElementById('adminTabImporta');
                 if (_importaBtn) _importaBtn.style.display = '';
+                // navAllenamento gestito centralmente da updateNavAuth() in auth.js
             }
             // Re-render il tab attivo dopo il sync (le cache erano vuote al primo render)
             const _activeTab = document.querySelector('.admin-tab.active');
