@@ -13,7 +13,7 @@
     <link rel="icon" type="image/jpeg" href="images/logo-tb---nero.jpg">
     <link rel="stylesheet" href="css/style.css?v=8">
     <link rel="stylesheet" href="css/login.css?v=4">
-    <link rel="stylesheet" href="css/allenamento.css?v=8">
+    <link rel="stylesheet" href="css/allenamento.css?v=9">
 </head>
 <body class="allenamento-body">
     <nav class="navbar">
@@ -60,8 +60,8 @@
         </div>
     </main>
 
-    <!-- FAB crea scheda -->
-    <button class="all-fab" id="allFabCreate" onclick="openCreatePlanModal()" title="Crea nuova scheda" style="display:none;">
+    <!-- FAB: crea scheda se non esiste, altrimenti aggiungi esercizio -->
+    <button class="all-fab" id="allFabCreate" onclick="fabAction()" title="Aggiungi" style="display:none;">
         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" width="24" height="24"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
     </button>
 
@@ -985,6 +985,167 @@
             ctx.fillStyle = '#fff';
             ctx.textAlign = 'center';
             ctx.fillText(label, bx, by - 1);
+        }
+
+        // ── FAB action: crea scheda se non esiste, altrimenti apri picker esercizi ──
+        function fabAction() {
+            if (!_allPlan) {
+                openCreatePlanModal();
+            } else {
+                openExercisePicker();
+            }
+        }
+
+        // ── Exercise picker (add exercise to current plan/day) ──────────
+        let _pickerActiveCat = '';
+        let _pickerExByCat = {};
+        let _pickerCategories = [];
+
+        function _buildPickerData() {
+            if (_pickerCategories.length) return;
+            _pickerExByCat = {};
+            for (const ex of _allExDB) {
+                if (!_pickerExByCat[ex.categoria]) _pickerExByCat[ex.categoria] = [];
+                _pickerExByCat[ex.categoria].push(ex);
+            }
+            _pickerCategories = Object.keys(_pickerExByCat).sort();
+        }
+
+        function openExercisePicker() {
+            _buildPickerData();
+            _pickerActiveCat = '';
+
+            const catSvg = {
+                'Petto': 'chest', 'Tricipiti': 'triceps', 'Bicipiti': 'biceps', 'Braccia': 'biceps',
+                'Spalle': 'shoulders', 'Schiena': 'back', 'Quadricipiti': 'quadriceps',
+                'Glutei e Femorali': 'hips', 'Femorali': 'hamstrings', 'Polpacci': 'calves',
+                'Addominali': 'waist_abs', 'Avambracci': 'forearms', 'Cardio': 'cardio'
+            };
+
+            // Remove existing overlay
+            const old = document.getElementById('allExPickerOverlay');
+            if (old) old.remove();
+
+            const overlay = document.createElement('div');
+            overlay.id = 'allExPickerOverlay';
+            overlay.className = 'schede-ex-picker-dropdown';
+            overlay.style.display = 'flex';
+            overlay.innerHTML = `
+                <div class="schede-picker-topbar">
+                    <span class="schede-picker-title">Aggiungi esercizio — ${_escHtml(_activeDay || 'Giorno A')}</span>
+                    <button type="button" class="schede-picker-close-btn" onclick="closeExercisePicker()">&times;</button>
+                </div>
+                <div class="schede-picker-header">
+                    <input type="text" class="schede-picker-search" id="allPickerSearch" placeholder="Cerca esercizio..."
+                           oninput="filterExercisePicker(this.value)" autofocus>
+                </div>
+                <div class="schede-picker-body">
+                    <div class="schede-picker-cats" id="allPickerCats">
+                        ${_pickerCategories.map(c => {
+                            const svg = catSvg[c] || 'chest';
+                            return `
+                            <button type="button" class="schede-picker-cat-chip" data-cat="${_escHtml(c)}" onclick="pickExCategory('${_escHtml(c)}')">
+                                <img src="icone_muscoli/${svg}.svg" class="schede-picker-cat-icon" alt="" loading="lazy">
+                                <span class="schede-picker-cat-name">${_escHtml(c)}</span>
+                                <span class="schede-picker-cat-count">${(_pickerExByCat[c] || []).length}</span>
+                            </button>`;
+                        }).join('')}
+                    </div>
+                    <div class="schede-picker-list" id="allPickerList" style="display:none;"></div>
+                </div>
+                <div class="schede-picker-footer">
+                    <button type="button" class="schede-picker-custom-btn" onclick="pickCustomExercise()">✏️ Personalizzato</button>
+                </div>`;
+            document.body.appendChild(overlay);
+            document.body.style.overflow = 'hidden';
+            setTimeout(() => document.getElementById('allPickerSearch')?.focus(), 50);
+        }
+
+        function closeExercisePicker() {
+            const overlay = document.getElementById('allExPickerOverlay');
+            if (overlay) overlay.remove();
+            document.body.style.overflow = '';
+        }
+
+        function pickExCategory(cat) {
+            _pickerActiveCat = cat;
+            const overlay = document.getElementById('allExPickerOverlay');
+            if (!overlay) return;
+            overlay.querySelectorAll('.schede-picker-cat-chip').forEach(ch => {
+                ch.classList.toggle('active', ch.dataset.cat === cat);
+            });
+            renderPickerExercises(cat, '');
+        }
+
+        function filterExercisePicker(searchText) {
+            const search = (searchText || '').toLowerCase();
+            if (!search && !_pickerActiveCat) {
+                const catsEl = document.getElementById('allPickerCats');
+                const listEl = document.getElementById('allPickerList');
+                if (catsEl) catsEl.style.display = '';
+                if (listEl) listEl.style.display = 'none';
+                return;
+            }
+            renderPickerExercises(_pickerActiveCat, search);
+        }
+
+        function renderPickerExercises(cat, search) {
+            const catsEl = document.getElementById('allPickerCats');
+            const listEl = document.getElementById('allPickerList');
+            if (!listEl) return;
+            if (catsEl) catsEl.style.display = 'none';
+            listEl.style.display = '';
+
+            let exercises = _allExDB;
+            if (cat) exercises = exercises.filter(e => e.categoria === cat);
+            if (search) exercises = exercises.filter(e =>
+                e.nome_it.toLowerCase().includes(search) || e.nome_en.toLowerCase().includes(search) || e.categoria.toLowerCase().includes(search)
+            );
+
+            if (!exercises.length) {
+                listEl.innerHTML = '<div class="schede-picker-empty">Nessun esercizio trovato</div>';
+                return;
+            }
+
+            const shown = exercises.slice(0, 50);
+            listEl.innerHTML = shown.map(ex => `
+                <div class="schede-picker-item" onclick="pickExerciseFromPicker('${_escHtml(ex.nome_it).replace(/'/g, "\\'")}')">
+                    <img src="${ex.immagine_url_small}" class="schede-picker-item-img" alt="" loading="lazy">
+                    <div class="schede-picker-item-info">
+                        <span class="schede-picker-item-name">${_escHtml(ex.nome_it)}</span>
+                        <span class="schede-picker-item-cat">${_escHtml(ex.categoria)}</span>
+                    </div>
+                </div>
+            `).join('') + (exercises.length > 50 ? `<div class="schede-picker-more">${exercises.length - 50} altri — affina la ricerca</div>` : '');
+        }
+
+        async function pickExerciseFromPicker(exerciseName) {
+            const ex = _findEx(exerciseName);
+            const dayLabel = _activeDay || 'Giorno A';
+            closeExercisePicker();
+            try {
+                const newEx = await WorkoutPlanStorage.addExercise(_allPlan.id, {
+                    day_label: dayLabel,
+                    exercise_name: exerciseName,
+                    muscle_group: ex ? ex.categoria : null,
+                    sets: 3,
+                    reps: '10',
+                    rest_seconds: 90,
+                });
+                // Update local plan data
+                _allPlan.workout_exercises.push(newEx);
+                renderScheda();
+                if (typeof showToast === 'function') showToast('Esercizio aggiunto!', 'success');
+            } catch (e) {
+                console.error('[Allenamento] add exercise error:', e);
+                if (typeof showToast === 'function') showToast('Errore aggiunta esercizio', 'error');
+            }
+        }
+
+        async function pickCustomExercise() {
+            const name = prompt('Nome esercizio personalizzato:');
+            if (!name || !name.trim()) return;
+            await pickExerciseFromPicker(name.trim());
         }
 
         // ── Crea scheda (modal) ──────────────────────────────────────────

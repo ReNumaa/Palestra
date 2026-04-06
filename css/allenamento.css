@@ -1371,6 +1371,110 @@
     max-height: 280px;
 }
 
+/* ── Exercise picker overlay ───────────────────────────────────────────────── */
+.schede-picker-backdrop {
+    position: fixed; inset: 0; z-index: 9997;
+    background: rgba(0,0,0,0.4);
+}
+.schede-ex-picker-dropdown {
+    position: fixed; top: 0; left: 0; right: 0; bottom: 0; z-index: 9998;
+    background: #fff; border: none; border-radius: 0;
+    box-shadow: none;
+    display: flex; flex-direction: column; overflow: hidden;
+}
+.schede-picker-topbar {
+    display: flex; align-items: center; justify-content: space-between;
+    padding: 0.7rem 1rem; background: linear-gradient(135deg, #00AEEF, #0090cc);
+    flex-shrink: 0;
+}
+.schede-picker-title { font-size: 1rem; font-weight: 700; color: #fff; }
+.schede-picker-close-btn {
+    background: rgba(255,255,255,0.2); border: none; color: #fff;
+    font-size: 1.4rem; width: 36px; height: 36px; border-radius: 8px;
+    cursor: pointer; display: flex; align-items: center; justify-content: center;
+    line-height: 1; transition: background 0.15s;
+}
+.schede-picker-close-btn:hover { background: rgba(255,255,255,0.35); }
+@media (min-width: 768px) {
+    .schede-ex-picker-dropdown {
+        top: 5vh; left: 50%; right: auto; bottom: 5vh;
+        width: 600px; max-width: 90vw;
+        transform: translateX(-50%);
+        border-radius: 16px; border: 2px solid #00AEEF;
+        box-shadow: 0 20px 60px rgba(0,0,0,0.2), 0 0 0 1px rgba(0,174,239,0.1);
+    }
+    .schede-picker-topbar { border-radius: 14px 14px 0 0; }
+}
+.schede-picker-header {
+    display: flex; gap: 0.4rem; padding: 0.6rem; border-bottom: 1px solid #e2e8f0;
+    background: #f8fafc; flex-shrink: 0;
+}
+.schede-picker-search {
+    flex: 1; padding: 0.5rem 0.7rem; border: 1.5px solid #e2e8f0; border-radius: 8px;
+    font-size: 0.9rem; background: #fff; transition: border-color 0.2s;
+}
+.schede-picker-search:focus { border-color: #00AEEF; outline: none; box-shadow: 0 0 0 3px rgba(0,174,239,0.1); }
+.schede-picker-body { flex: 1; overflow-y: auto; min-height: 0; -webkit-overflow-scrolling: touch; }
+.schede-picker-cats {
+    display: grid; grid-template-columns: repeat(auto-fill, minmax(130px, 1fr));
+    gap: 0.4rem; padding: 0.6rem;
+}
+.schede-picker-cat-chip {
+    display: flex; align-items: center; gap: 0.45rem;
+    padding: 0.55rem 0.7rem; border: 1.5px solid #e2e8f0; border-radius: 10px;
+    background: #f8fafc; cursor: pointer; transition: all 0.2s;
+    font-size: 0.82rem; color: #334155; font-weight: 600; text-align: left;
+}
+.schede-picker-cat-chip:hover {
+    border-color: #00AEEF; background: #e0f2fe; transform: translateY(-1px);
+    box-shadow: 0 2px 8px rgba(0,174,239,0.12);
+}
+.schede-picker-cat-chip.active {
+    border-color: #00AEEF; background: linear-gradient(135deg, #00AEEF, #0090cc);
+    color: #fff; box-shadow: 0 2px 8px rgba(0,174,239,0.3);
+}
+.schede-picker-cat-chip.active .schede-picker-cat-count {
+    background: rgba(255,255,255,0.25); color: #fff;
+}
+.schede-picker-cat-icon { width: 22px; height: 22px; flex-shrink: 0; opacity: 0.7; }
+.schede-picker-cat-chip.active .schede-picker-cat-icon { filter: brightness(0) invert(1); opacity: 1; }
+.schede-picker-cat-name { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.schede-picker-cat-count {
+    font-size: 0.68rem; font-weight: 700; color: #64748b;
+    background: #e2e8f0; border-radius: 6px; padding: 0.1rem 0.35rem; flex-shrink: 0;
+}
+.schede-picker-list { padding: 0.3rem; }
+.schede-picker-item {
+    display: flex; align-items: center; gap: 0.6rem; padding: 0.45rem 0.5rem;
+    border-radius: 8px; cursor: pointer; transition: background 0.15s;
+}
+.schede-picker-item:hover { background: #e0f2fe; }
+.schede-picker-item-img {
+    width: 44px; height: 44px; border-radius: 6px; object-fit: cover;
+    background: #f1f5f9; flex-shrink: 0;
+}
+.schede-picker-item-info { flex: 1; min-width: 0; display: flex; flex-direction: column; }
+.schede-picker-item-name { font-size: 0.88rem; font-weight: 600; color: #0f172a; line-height: 1.3; }
+.schede-picker-item-cat { font-size: 0.72rem; color: #64748b; text-transform: uppercase; letter-spacing: 0.03em; }
+.schede-picker-empty { text-align: center; padding: 1.5rem; color: #94a3b8; font-size: 0.88rem; }
+.schede-picker-more { text-align: center; padding: 0.5rem; color: #64748b; font-size: 0.78rem; font-style: italic; }
+.schede-picker-footer {
+    padding: 0.4rem 0.6rem; border-top: 1px solid #e2e8f0;
+    background: #f8fafc; flex-shrink: 0; text-align: right;
+}
+.schede-picker-custom-btn {
+    background: none; border: 1px solid #cbd5e1; border-radius: 6px;
+    padding: 0.3rem 0.7rem; font-size: 0.78rem; color: #475569;
+    cursor: pointer; transition: all 0.15s;
+}
+.schede-picker-custom-btn:hover { border-color: #00AEEF; color: #00AEEF; }
+@media (max-width: 767px) {
+    .schede-picker-cats { grid-template-columns: repeat(auto-fill, minmax(120px, 1fr)); }
+    .schede-picker-cat-chip { padding: 0.5rem 0.6rem; font-size: 0.8rem; }
+    .schede-picker-item { padding: 0.6rem; }
+    .schede-picker-item-img { width: 48px; height: 48px; }
+}
+
 /* ── Reduced motion ────────────────────────────────────────────────────────── */
 @media (prefers-reduced-motion: reduce) {
     *, *::before, *::after {
