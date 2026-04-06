@@ -11,11 +11,11 @@ let _exercisesDBLoaded = false;
 async function _loadExercisesDB() {
     if (_exercisesDBLoaded) return;
     try {
-        const { data, error } = await supabaseClient
+        const { data, error } = await _queryWithTimeout(supabaseClient
             .from('imported_exercises')
             .select('*')
             .order('categoria')
-            .order('nome_it');
+            .order('nome_it'));
         if (error) throw error;
         // Normalize field names for backward compat with picker
         EXERCISES_DB = (data || []).map(e => ({
@@ -416,7 +416,8 @@ async function renderSchedeTab() {
         }
     } catch (e) {
         console.error('[Schede] renderSchedeTab error:', e);
-        container.innerHTML = '<div class="empty-slot">Errore caricamento schede</div>';
+        const errTarget = document.getElementById('schedeInner') || container;
+        errTarget.innerHTML = '<div class="empty-slot">Errore caricamento schede. Cambia tab e riprova.</div>';
     } finally {
         _schedeRendering = false;
         if (_schedeRenderQueued) renderSchedeTab();
@@ -615,11 +616,20 @@ async function _renderClientDetail(container) {
 
     container.innerHTML = html + '<div class="schede-loading">Caricamento log...</div>';
 
-    const { data: logs } = await supabaseClient
-        .from('workout_logs')
-        .select('*')
-        .in('exercise_id', allExIds)
-        .order('log_date', { ascending: true });
+    let logs;
+    try {
+        const { data, error } = await _queryWithTimeout(supabaseClient
+            .from('workout_logs')
+            .select('*')
+            .in('exercise_id', allExIds)
+            .order('log_date', { ascending: true }));
+        if (error) throw error;
+        logs = data;
+    } catch (e) {
+        console.error('[Schede] _renderClientDetail log fetch error:', e);
+        container.innerHTML = html + '<div class="empty-slot">Errore caricamento log. Riprova.</div>';
+        return;
+    }
 
     if (!logs?.length) {
         container.innerHTML = html + '<div class="empty-slot">Nessun log registrato da questo cliente.</div>';

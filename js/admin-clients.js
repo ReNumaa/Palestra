@@ -307,9 +307,15 @@ function _updateClientsHints() {
 async function refreshClients() {
     const btn = document.getElementById('refreshClientsBtn');
     if (btn) { btn.textContent = '↻ Caricamento...'; btn.disabled = true; }
-    await UserStorage.syncUsersFromSupabase();
-    renderClientsTab();
-    if (btn) { btn.textContent = '↻ Ricarica'; btn.disabled = false; }
+    try {
+        await UserStorage.syncUsersFromSupabase();
+        renderClientsTab();
+    } catch (e) {
+        console.error('[refreshClients] error:', e);
+        if (typeof showToast === 'function') showToast('⚠️ Errore ricarica clienti. Riprova.', 'error', 4000);
+    } finally {
+        if (btn) { btn.textContent = '↻ Ricarica'; btn.disabled = false; }
+    }
 }
 
 /**
@@ -927,7 +933,6 @@ async function saveClientEdit(index, oldWhatsapp, oldEmail) {
             if (error) {
                 console.error('[Supabase] admin_rename_client error:', error.message);
                 alert('⚠️ Errore durante l\'aggiornamento: ' + error.message);
-                if (saveBtn) { saveBtn.disabled = false; saveBtn.textContent = 'Salva'; }
                 return;
             }
             console.log('[admin_rename_client]', data);
@@ -937,16 +942,15 @@ async function saveClientEdit(index, oldWhatsapp, oldEmail) {
                 CreditStorage.syncFromSupabase(),
                 ManualDebtStorage.syncFromSupabase(),
             ]);
+            // Continua con profilo locale + cert/assic (awaited per feedback errori)
+            await _saveClientEditLocalProfile(index, oldWhatsapp, oldEmail, newName, newWhatsapp, newEmail, newCert, newAssic, normOld, normNewPhone, { cf: newCf, via: newVia, paese: newPaese, cap: newCap, documentoFirmato: newDocFirmato });
+            closeEditClientPopup();
         } catch (e) {
             console.error('[saveClientEdit] exception:', e);
             alert('⚠️ Errore di rete. Riprova.');
+        } finally {
             if (saveBtn) { saveBtn.disabled = false; saveBtn.textContent = 'Salva'; }
-            return;
         }
-
-        // Continua con profilo locale + cert/assic (awaited per feedback errori)
-        await _saveClientEditLocalProfile(index, oldWhatsapp, oldEmail, newName, newWhatsapp, newEmail, newCert, newAssic, normOld, normNewPhone, { cf: newCf, via: newVia, paese: newPaese, cap: newCap, documentoFirmato: newDocFirmato });
-        closeEditClientPopup();
         return;
     }
 
@@ -1202,7 +1206,7 @@ async function saveBookingRowEdit(bookingId, clientIndex) {
     } else if (!oldPaid && newPaid && newMethod === 'credito') {
         // Unpaid → paid with credit: deduct
         const bal = CreditStorage.getBalance(booking.whatsapp, booking.email);
-        if (bal < price) { alert(`Credito insufficiente (€${bal} < €${price})`); return; }
+        if (bal < price) { alert(`Credito insufficiente (€${bal} < €${price})`); if (_saveBtn) _saveBtn.disabled = false; return; }
         CreditStorage.addCredit(booking.whatsapp, booking.email, booking.name, -price,
             `Pagamento lezione ${booking.date} ${booking.time} con credito`);
     } else if (oldPaid && oldMethod === 'credito' && newPaid && newMethod !== 'credito') {
@@ -1225,7 +1229,7 @@ async function saveBookingRowEdit(bookingId, clientIndex) {
     } else if (oldPaid && oldMethod === 'lezione-gratuita' && newPaid && newMethod === 'credito') {
         // Free lesson → credit: deduct credit (no old entry to hide)
         const bal = CreditStorage.getBalance(booking.whatsapp, booking.email);
-        if (bal < price) { alert(`Credito insufficiente (€${bal} < €${price})`); return; }
+        if (bal < price) { alert(`Credito insufficiente (€${bal} < €${price})`); if (_saveBtn) _saveBtn.disabled = false; return; }
         CreditStorage.addCredit(booking.whatsapp, booking.email, booking.name, -price,
             `Cambio metodo a credito — lezione ${booking.date} ${booking.time}`);
     } else if (!oldPaid && newPaid && newMethod !== 'credito' && newMethod !== 'lezione-gratuita') {
@@ -1306,6 +1310,7 @@ async function deleteTxEntry(type, idOrDate, whatsappOrName, index, email) {
     // Resolve client identity for card refresh
     let clientWhatsapp = '', clientEmail = '';
 
+    try {
     if (type === 'booking') {
         // Rimuove solo il PAGAMENTO, NON la prenotazione stessa.
         // Il booking torna "non pagato" — stessa logica di admin_change_payment_method.
@@ -1409,6 +1414,10 @@ async function deleteTxEntry(type, idOrDate, whatsappOrName, index, email) {
     }
 
     _refreshOpenClientCard(clientWhatsapp, clientEmail);
+    } catch (e) {
+        console.error('[deleteTxEntry] error:', e);
+        showToast('⚠️ Errore di rete. Riprova.', 'error', 4000);
+    }
 }
 
 function clearClientCredit(whatsapp, email, index) {

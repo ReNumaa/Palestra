@@ -73,6 +73,9 @@ function _rpcWithTimeout(promise, ms = 12000) {
         )
     ]);
 }
+function _queryWithTimeout(promise, ms = 12000) {
+    return _rpcWithTimeout(promise, ms);
+}
 
 // Mock data storage - In production, this would be a database
 const SLOT_TYPES = {
@@ -1531,10 +1534,10 @@ class CreditStorage {
     static async syncFromSupabase() {
         if (typeof supabaseClient === 'undefined') return;
         try {
-            const [{ data: creditsData, error: e1 }, { data: histData }] = await Promise.all([
+            const [{ data: creditsData, error: e1 }, { data: histData }] = await _queryWithTimeout(Promise.all([
                 supabaseClient.from('credits').select('id, name, whatsapp, email, balance, free_balance'),
                 supabaseClient.from('credit_history').select('credit_id, amount, note, created_at, display_amount, booking_ref, hidden, method').eq('hidden', false).order('created_at', { ascending: true }),
-            ]);
+            ]));
             if (e1) { console.error('[Supabase] CreditStorage.sync error:', e1.message); return; }
             if (!creditsData?.length) return;
 
@@ -1857,8 +1860,8 @@ class ManualDebtStorage {
     static async syncFromSupabase() {
         if (typeof supabaseClient === 'undefined') return;
         try {
-            const { data, error } = await supabaseClient
-                .from('manual_debts').select('name, whatsapp, email, balance, history');
+            const { data, error } = await _queryWithTimeout(supabaseClient
+                .from('manual_debts').select('name, whatsapp, email, balance, history'));
             if (error) { console.error('[Supabase] ManualDebtStorage.sync error:', error.message); return; }
             if (!data?.length) return;
             const result = {};
@@ -2045,9 +2048,9 @@ class BonusStorage {
     static async syncFromSupabase() {
         if (typeof supabaseClient === 'undefined') return;
         try {
-            const { data, error } = await supabaseClient
+            const { data, error } = await _queryWithTimeout(supabaseClient
                 .from('bonuses')
-                .select('name, whatsapp, email, bonus, last_reset_month');
+                .select('name, whatsapp, email, bonus, last_reset_month'));
             if (error) { console.error('[Supabase] BonusStorage.syncFromSupabase error:', error.message); return; }
             const all = {};
             (data || []).forEach(r => {
@@ -2288,7 +2291,7 @@ class UserStorage {
     static async syncUsersFromSupabase() {
         if (typeof supabaseClient === 'undefined') return;
         try {
-            const { data, error } = await supabaseClient.rpc('get_all_profiles');
+            const { data, error } = await _rpcWithTimeout(supabaseClient.rpc('get_all_profiles'));
             if (error) {
                 console.error('[Supabase] syncUsersFromSupabase error:', error.message);
                 return;
@@ -2422,7 +2425,7 @@ class WorkoutPlanStorage {
             }
             query = query.order('updated_at', { ascending: false });
 
-            const { data, error } = await query;
+            const { data, error } = await _queryWithTimeout(query);
             if (error) { console.error('[Supabase] WorkoutPlanStorage.sync error:', error.message); return; }
 
             // Sort exercises within each plan by sort_order
@@ -2583,12 +2586,12 @@ class WorkoutLogStorage {
             const plan = WorkoutPlanStorage.getPlanById(planId);
             if (!plan || !plan.workout_exercises?.length) { this._cache = []; return; }
             const exIds = plan.workout_exercises.map(e => e.id);
-            const { data, error } = await supabaseClient
+            const { data, error } = await _queryWithTimeout(supabaseClient
                 .from('workout_logs')
                 .select('id,exercise_id,user_id,log_date,set_number,reps_done,weight_done,rpe')
                 .in('exercise_id', exIds)
                 .order('log_date', { ascending: false })
-                .order('set_number', { ascending: true });
+                .order('set_number', { ascending: true }));
             if (error) { console.error('[Supabase] WorkoutLogStorage.sync error:', error.message); return; }
             this._cache = data || [];
             console.log(`[Supabase] WorkoutLogStorage.sync: ${this._cache.length} log caricati`);
@@ -2599,12 +2602,12 @@ class WorkoutLogStorage {
     static async syncForUser(userId) {
         if (typeof supabaseClient === 'undefined') return;
         try {
-            const { data, error } = await supabaseClient
+            const { data, error } = await _queryWithTimeout(supabaseClient
                 .from('workout_logs')
                 .select('id,exercise_id,user_id,log_date,set_number,reps_done,weight_done,rpe')
                 .eq('user_id', userId)
                 .order('log_date', { ascending: false })
-                .order('set_number', { ascending: true });
+                .order('set_number', { ascending: true }));
             if (error) { console.error('[Supabase] WorkoutLogStorage.syncUser error:', error.message); return; }
             this._cache = data || [];
         } catch (e) { console.error('[Supabase] WorkoutLogStorage.syncUser exception:', e); }
