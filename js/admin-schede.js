@@ -943,6 +943,7 @@ function _schedeEditPlan(planId) {
     const days = [...new Set((plan.workout_exercises || []).map(e => e.day_label))];
     _editDayLabels = days.length ? days : ['Giorno A'];
     _editActiveDay = _editDayLabels[0];
+    _schedeSection = 'schede';
     _schedeView = 'edit';
     renderSchedeTab();
 }
