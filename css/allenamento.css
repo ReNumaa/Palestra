@@ -246,6 +246,27 @@
     background: linear-gradient(90deg, var(--all-success), var(--all-success-dark));
 }
 
+.all-day-tab-add {
+    flex-grow: 0;
+    flex-basis: auto;
+    min-width: 44px;
+    max-width: 44px;
+    padding: 0.5rem;
+    border-style: dashed;
+    border-color: var(--all-border-hover);
+    background: transparent;
+    color: var(--all-muted);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+.all-day-tab-add:hover {
+    border-color: var(--all-cyan);
+    color: var(--all-cyan);
+    background: var(--all-cyan-glow);
+}
+.all-day-tab-add::before { display: none; }
+
 .all-day-tab:hover:not(.active) {
     border-color: var(--all-border-hover);
     box-shadow: var(--all-shadow-md);
@@ -1173,9 +1194,6 @@
     .all-day-tabs {
         gap: 0.4rem;
         margin-bottom: 1rem;
-        /* Better scroll hint */
-        -webkit-mask-image: linear-gradient(90deg, #000 90%, transparent 100%);
-        mask-image: linear-gradient(90deg, #000 90%, transparent 100%);
     }
 
     .all-day-tab {
