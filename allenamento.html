@@ -424,7 +424,7 @@
                         <span class="all-prev-label">Sessione precedente — ${_fmtDateAll(prevDate)}</span>
                         <div class="all-prev-sets">`;
                     for (const pl of prevLogs) {
-                        html += `<span class="all-prev-set">${pl.set_number}. ${pl.reps_done || '—'}×${pl.weight_done != null ? pl.weight_done + 'kg' : '—'}${pl.rpe ? ' RPE ' + pl.rpe : ''}</span>`;
+                        html += `<span class="all-prev-set">${pl.set_number}. ${pl.reps_done || '—'}×${pl.weight_done != null ? pl.weight_done + 'kg' : '—'}</span>`;
                     }
                     html += `</div></div>`;
                 }
@@ -433,7 +433,7 @@
                             <div class="all-log-header">Registra per oggi — ${_fmtDateAll(today)}</div>
                             <div class="all-log-grid">
                                 <div class="all-log-grid-header">
-                                    <span>Serie</span><span>Reps</span><span>Kg</span><span>RPE</span>
+                                    <span>Serie</span><span>Reps</span><span>Kg</span>
                                 </div>`;
 
                 // Calcola il numero totale di righe: max tra serie previste, log di oggi e log precedenti
@@ -448,12 +448,10 @@
                     // Priorità: log di oggi → valori sessione precedente → default scheda (solo per serie base)
                     const rVal = existing?.reps_done ?? prev?.reps_done ?? (isExtra ? '' : (parseInt(ex.reps) || ''));
                     const wVal = existing?.weight_done ?? prev?.weight_done ?? (isExtra ? '' : (ex.weight_kg ?? ''));
-                    const rpeVal = existing?.rpe ?? '';
                     html += `<div class="all-log-row">
                         <span class="all-log-set">${s}</span>
                         <input type="number" inputmode="numeric" min="0" value="${rVal}" class="all-log-input" data-field="reps" data-set="${s}" aria-label="Ripetizioni serie ${s}">
                         <input type="number" inputmode="decimal" min="0" step="0.5" value="${wVal}" class="all-log-input" data-field="weight" data-set="${s}" aria-label="Peso serie ${s}">
-                        <input type="number" inputmode="numeric" min="1" max="10" value="${rpeVal}" class="all-log-input all-log-input--sm" data-field="rpe" data-set="${s}" placeholder="—" aria-label="RPE serie ${s}">
                     </div>`;
                 }
 
@@ -490,7 +488,6 @@
                     const s = parseInt(row.querySelector('.all-log-set').textContent);
                     const reps = row.querySelector('input[data-field="reps"]');
                     const weight = row.querySelector('input[data-field="weight"]');
-                    const rpe = row.querySelector('input[data-field="rpe"]');
                     await WorkoutLogStorage.logSet({
                         exercise_id: exerciseId,
                         user_id: user.id,
@@ -498,7 +495,7 @@
                         set_number: s,
                         reps_done: reps.value ? parseInt(reps.value) : null,
                         weight_done: weight.value ? parseFloat(weight.value) : null,
-                        rpe: rpe.value ? parseInt(rpe.value) : null,
+                        rpe: null,
                     });
                 }
                 // Update local logs
@@ -571,7 +568,6 @@
                 <span class="all-log-set">${nextSet}</span>
                 <input type="number" inputmode="numeric" min="0" value="" class="all-log-input" data-field="reps" data-set="${nextSet}" aria-label="Ripetizioni serie ${nextSet}">
                 <input type="number" inputmode="decimal" min="0" step="0.5" value="" class="all-log-input" data-field="weight" data-set="${nextSet}" aria-label="Peso serie ${nextSet}">
-                <input type="number" inputmode="numeric" min="1" max="10" value="" class="all-log-input all-log-input--sm" data-field="rpe" data-set="${nextSet}" placeholder="—" aria-label="RPE serie ${nextSet}">
             `;
             grid.appendChild(row);
             row.querySelector('input[data-field="reps"]').focus();

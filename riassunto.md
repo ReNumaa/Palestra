@@ -899,3 +899,29 @@
 | Tempo prompt utente (stimato) | ~3 min |
 | Token input (stimati) | ~120k |
 | Token output (stimati) | ~8k |
+
+## Task: Rimozione RPE dalla pagina Allenamento
+**Data:** 2026-04-06
+**Durata stimata:** ~5 min Claude + ~2 min prompt utente
+
+### Modifiche effettuate
+- Rimossa colonna RPE dalla griglia di log esercizi (header, righe esistenti, serie extra)
+- Rimosso RPE dalla visualizzazione storico sessione precedente
+- Il salvataggio passa `rpe: null` per mantenere compatibilità DB
+- Aggiornate griglie CSS da 4 a 3 colonne in tutte le media query
+
+### Decisioni prese
+- Colonna `rpe` nel DB resta intatta per futuro riutilizzo
+- `rpe: null` nel payload di salvataggio anziché rimuovere il campo, per evitare errori lato DB
+
+### File toccati
+- `allenamento.html` — Rimossi input RPE, header colonna, variabile rpeVal, riferimento nel salvataggio e nello storico
+- `css/allenamento.css` — Grid template da `36px 1fr 1fr 54px` a `36px 1fr 1fr` (+ media query mobile e desktop)
+
+### Consumo risorse (solo per progetti cliente)
+| Voce | Valore |
+|------|--------|
+| Tempo task Claude | ~5 min |
+| Tempo prompt utente (stimato) | ~2 min |
+| Token input (stimati) | ~40k |
+| Token output (stimati) | ~4k |

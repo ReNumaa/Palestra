@@ -661,7 +661,7 @@
 
 .all-log-grid-header {
     display: grid;
-    grid-template-columns: 36px 1fr 1fr 54px;
+    grid-template-columns: 36px 1fr 1fr;
     gap: 0.4rem;
     font-size: 0.62rem;
     font-weight: 800;
@@ -675,7 +675,7 @@
 
 .all-log-row {
     display: grid;
-    grid-template-columns: 36px 1fr 1fr 54px;
+    grid-template-columns: 36px 1fr 1fr;
     gap: 0.4rem;
     align-items: center;
     padding: 0.2rem 0;
@@ -1210,12 +1210,12 @@
     }
 
     .all-log-grid-header {
-        grid-template-columns: 30px 1fr 1fr 46px;
+        grid-template-columns: 30px 1fr 1fr;
         font-size: 0.58rem;
     }
 
     .all-log-row {
-        grid-template-columns: 30px 1fr 1fr 46px;
+        grid-template-columns: 30px 1fr 1fr;
     }
 
     .all-log-input {
@@ -1277,11 +1277,11 @@
     }
 
     .all-log-grid-header {
-        grid-template-columns: 44px 1fr 1fr 64px;
+        grid-template-columns: 44px 1fr 1fr;
     }
 
     .all-log-row {
-        grid-template-columns: 44px 1fr 1fr 64px;
+        grid-template-columns: 44px 1fr 1fr;
     }
 
     .all-log-input {
