@@ -572,6 +572,10 @@ async function _renderClientDetail(container) {
                     <div class="schede-plan-name">${_escHtml(plan.name)} ${badge}</div>
                     <div class="schede-plan-meta">${exCount} esercizi${_schedeDateRange(plan) ? ' &middot; ' + _schedeDateRange(plan) : ''}</div>
                 </div>
+                <div class="schede-plan-actions">
+                    <button onclick="_schedeEditPlan('${plan.id}')" title="Modifica">✏️</button>
+                    <button onclick="_schedeDeletePlanFromDetail('${plan.id}')" title="Elimina">🗑️</button>
+                </div>
             </div>
         </div>`;
     }
@@ -1268,6 +1272,19 @@ async function _schedeDeletePlan(planId) {
     try {
         await WorkoutPlanStorage.deletePlan(planId);
         if (typeof showToast === 'function') showToast('Scheda eliminata', 'success');
+        renderSchedeTab();
+    } catch (e) {
+        if (typeof showToast === 'function') showToast('Errore eliminazione', 'error');
+    }
+}
+
+async function _schedeDeletePlanFromDetail(planId) {
+    if (!confirm('Eliminare questa scheda e tutti gli esercizi associati?')) return;
+    try {
+        await WorkoutPlanStorage.deletePlan(planId);
+        if (typeof showToast === 'function') showToast('Scheda eliminata', 'success');
+        // Stay on client detail view
+        _schedeView = 'client-detail';
         renderSchedeTab();
     } catch (e) {
         if (typeof showToast === 'function') showToast('Errore eliminazione', 'error');
