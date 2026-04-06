@@ -362,7 +362,13 @@
             if (!_allPlan) return;
 
             const exercises = _allPlan.workout_exercises;
-            const days = [...new Set(exercises.map(e => e.day_label))];
+            // Ordina giorni per sort_order minimo degli esercizi in ciascuno
+            const dayMinOrder = {};
+            for (const e of exercises) {
+                if (!(e.day_label in dayMinOrder) || e.sort_order < dayMinOrder[e.day_label])
+                    dayMinOrder[e.day_label] = e.sort_order;
+            }
+            const days = [...new Set(exercises.map(e => e.day_label))].sort((a, b) => dayMinOrder[a] - dayMinOrder[b]);
             const today = _localDateStr();
             const todayLogs = _allLogs.filter(l => l.log_date === today);
 
@@ -379,7 +385,7 @@
                 const lastDone = _dayLastDone(day);
                 const lastStr = doneToday ? 'oggi' : lastDone ? _fmtDateAll(lastDone) : 'mai';
 
-                html += `<button class="all-day-tab ${isActive ? 'active' : ''} ${doneToday ? 'done' : ''}" role="tab" aria-selected="${isActive}" aria-label="${_escHtml(day)}${doneToday ? ', completato' : ''}" onclick="switchDay('${_escHtml(day)}')">
+                html += `<button class="all-day-tab ${isActive ? 'active' : ''} ${doneToday ? 'done' : ''}" role="tab" aria-selected="${isActive}" aria-label="${_escHtml(day)}${doneToday ? ', completato' : ''}" data-day="${_escHtml(day)}" onclick="switchDay('${_escHtml(day)}')">
                     <span class="all-day-tab-name">${_escHtml(day)}${doneToday ? ' &#10003;' : ''}</span>
                     <span class="all-day-tab-last">ultimo: ${lastStr}</span>
                 </button>`;
@@ -479,6 +485,7 @@
 
             container.innerHTML = html;
             _initSwipeAndDrag();
+            _initDayTabLongPress();
         }
 
         function toggleExCard(exId) {
@@ -1224,6 +1231,49 @@
         }
 
         // ── Aggiungi giorno alla scheda ─────────────────────────────
+        // ── Long press su day tab per eliminare ─────────────────────
+        function _initDayTabLongPress() {
+            document.querySelectorAll('.all-day-tab[data-day]').forEach(tab => {
+                let timer = null;
+                let moved = false;
+                tab.addEventListener('touchstart', (e) => {
+                    moved = false;
+                    timer = setTimeout(() => {
+                        if (!moved) {
+                            e.preventDefault();
+                            if (navigator.vibrate) navigator.vibrate(30);
+                            deleteDayFromScheda(tab.dataset.day);
+                        }
+                    }, 600);
+                }, { passive: false });
+                tab.addEventListener('touchmove', () => { moved = true; clearTimeout(timer); });
+                tab.addEventListener('touchend', () => clearTimeout(timer));
+                // Desktop: context menu (right click)
+                tab.addEventListener('contextmenu', (e) => {
+                    e.preventDefault();
+                    deleteDayFromScheda(tab.dataset.day);
+                });
+            });
+        }
+
+        async function deleteDayFromScheda(dayLabel) {
+            if (!_allPlan) return;
+            const dayExercises = (_allPlan.workout_exercises || []).filter(e => e.day_label === dayLabel);
+            if (!confirm(`Eliminare "${dayLabel}" e i suoi ${dayExercises.length} esercizi?`)) return;
+            try {
+                for (const ex of dayExercises) {
+                    await WorkoutPlanStorage.deleteExercise(ex.id);
+                }
+                _allPlan.workout_exercises = (_allPlan.workout_exercises || []).filter(e => e.day_label !== dayLabel);
+                if (_activeDay === dayLabel) _activeDay = null;
+                renderScheda();
+                if (typeof showToast === 'function') showToast(`"${dayLabel}" eliminato`, 'success');
+            } catch (e) {
+                console.error('[Allenamento] delete day error:', e);
+                if (typeof showToast === 'function') showToast('Errore eliminazione giorno', 'error');
+            }
+        }
+
         let _pendingDayLabel = null; // giorno in attesa di primo esercizio
 
         function addDayToScheda() {
