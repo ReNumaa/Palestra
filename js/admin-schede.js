@@ -559,26 +559,10 @@ async function _renderClientDetail(container) {
     const clientName = allUsers.find(u => u.userId === userId)?.name || 'Cliente';
     const plans = WorkoutPlanStorage.getAllPlans().filter(p => p.user_id === userId);
 
-    // Templates available for assignment
-    const templates = WorkoutPlanStorage.getAllPlans().filter(p => !p.user_id);
-
     let html = `<div class="schede-editor-topbar">
         <button class="schede-back-btn" onclick="_schedeView='clients';renderSchedeTab()">← Clienti</button>
         <h3>${_escHtml(clientName)}</h3>
     </div>`;
-
-    // Assign template button
-    if (templates.length > 0) {
-        html += `<div class="schede-assign-bar" style="margin-bottom:0.8rem;">
-            <div class="schede-assign-row">
-                <select id="schedeAssignTemplate">
-                    <option value="">— Scegli template —</option>
-                    ${templates.map(t => `<option value="${t.id}">${_escHtml(t.name)} (${(t.workout_exercises||[]).length} esercizi)</option>`).join('')}
-                </select>
-                <button class="btn-primary" onclick="_schedeAssignTemplate('${userId}')">Assegna</button>
-            </div>
-        </div>`;
-    }
 
     // Show plans for this client
     html += '<h4 class="schede-section-title">Schede assegnate</h4>';
@@ -592,6 +576,7 @@ async function _renderClientDetail(container) {
                     <div class="schede-plan-meta">${exCount} esercizi${_schedeDateRange(plan) ? ' &middot; ' + _schedeDateRange(plan) : ''}</div>
                 </div>
                 <div class="schede-plan-actions">
+                    <button onclick="_schedeSaveAsTemplate('${plan.id}', '${_escHtml(plan.name).replace(/'/g, "\\'")}')" title="Salva come template">📋</button>
                     <button onclick="_schedeEditPlan('${plan.id}')" title="Modifica">✏️</button>
                     <button onclick="_schedeDeletePlanFromDetail('${plan.id}')" title="Elimina">🗑️</button>
                 </div>
@@ -1305,6 +1290,18 @@ async function _schedeDeletePlan(planId) {
         renderSchedeTab();
     } catch (e) {
         if (typeof showToast === 'function') showToast('Errore eliminazione', 'error');
+    }
+}
+
+async function _schedeSaveAsTemplate(planId, planName) {
+    const tplName = prompt('Nome del template:', planName);
+    if (!tplName) return;
+    try {
+        await WorkoutPlanStorage.duplicatePlan(planId, null, tplName);
+        if (typeof showToast === 'function') showToast('Template creato!', 'success');
+    } catch (e) {
+        console.error('_schedeSaveAsTemplate error:', e);
+        if (typeof showToast === 'function') showToast('Errore creazione template', 'error');
     }
 }
 
