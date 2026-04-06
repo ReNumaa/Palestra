@@ -1442,6 +1442,32 @@
     border-color: var(--all-cyan);
 }
 
+/* ── Day tab menu (double tap) ─────────────────────────────────────────────── */
+.all-day-menu-overlay {
+    position: fixed; inset: 0; z-index: 9999;
+    background: rgba(0,0,0,0.4);
+    display: flex; align-items: center; justify-content: center;
+}
+.all-day-menu {
+    background: #fff; border-radius: 16px; padding: 1.2rem;
+    min-width: 220px; box-shadow: 0 20px 60px rgba(0,0,0,0.2);
+    display: flex; flex-direction: column; gap: 0.5rem;
+}
+.all-day-menu-title {
+    font-size: 1rem; font-weight: 700; color: #0f172a;
+    text-align: center; padding-bottom: 0.5rem;
+    border-bottom: 1px solid #e2e8f0;
+}
+.all-day-menu-btn {
+    display: flex; align-items: center; gap: 0.5rem;
+    padding: 0.7rem 1rem; border: none; border-radius: 10px;
+    background: #f1f5f9; font-size: 0.9rem; font-weight: 600;
+    color: #334155; cursor: pointer; transition: background 0.15s;
+}
+.all-day-menu-btn:active { background: #e2e8f0; }
+.all-day-menu-btn--danger { color: #ef4444; }
+.all-day-menu-btn--danger:active { background: #fef2f2; }
+
 /* ── Exercise picker overlay ───────────────────────────────────────────────── */
 .schede-picker-backdrop {
     position: fixed; inset: 0; z-index: 9997;

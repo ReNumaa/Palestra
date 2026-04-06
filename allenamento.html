@@ -13,7 +13,7 @@
     <link rel="icon" type="image/jpeg" href="images/logo-tb---nero.jpg">
     <link rel="stylesheet" href="css/style.css?v=8">
     <link rel="stylesheet" href="css/login.css?v=4">
-    <link rel="stylesheet" href="css/allenamento.css?v=13">
+    <link rel="stylesheet" href="css/allenamento.css?v=14">
 </head>
 <body class="allenamento-body">
     <nav class="navbar">
@@ -1282,30 +1282,48 @@
                     }
                 });
 
-                // Double tap to rename
+                // Double tap → menu rinomina/elimina
                 tab.addEventListener('click', (e) => {
                     if (_dayDragState) return;
                     const now = Date.now();
                     if (now - _dayLastTap < 350) {
                         e.preventDefault();
                         e.stopPropagation();
-                        _renameDayTab(tab.dataset.day);
+                        _showDayMenu(tab.dataset.day);
                         _dayLastTap = 0;
                     } else {
                         _dayLastTap = now;
                     }
                 });
 
-                // Desktop: double click to rename, context menu to delete
+                // Desktop: double click → menu
                 tab.addEventListener('dblclick', (e) => {
                     e.preventDefault();
-                    _renameDayTab(tab.dataset.day);
+                    _showDayMenu(tab.dataset.day);
                 });
-                tab.addEventListener('contextmenu', (e) => {
-                    e.preventDefault();
-                    _deleteDayFromScheda(tab.dataset.day);
-                });
+                // Blocca context menu nativo su mobile (evita "elimina" indesiderato)
+                tab.addEventListener('contextmenu', (e) => e.preventDefault());
             });
+        }
+
+        function _showDayMenu(dayLabel) {
+            const old = document.getElementById('dayMenuOverlay');
+            if (old) old.remove();
+            const overlay = document.createElement('div');
+            overlay.id = 'dayMenuOverlay';
+            overlay.className = 'all-day-menu-overlay';
+            overlay.onclick = (e) => { if (e.target === overlay) overlay.remove(); };
+            overlay.innerHTML = `
+                <div class="all-day-menu">
+                    <div class="all-day-menu-title">${_escHtml(dayLabel)}</div>
+                    <button class="all-day-menu-btn" onclick="document.getElementById('dayMenuOverlay').remove();_renameDayTab('${_escHtml(dayLabel).replace(/'/g, "\\'")}')">
+                        ✏️ Rinomina
+                    </button>
+                    <button class="all-day-menu-btn all-day-menu-btn--danger" onclick="document.getElementById('dayMenuOverlay').remove();_deleteDayFromScheda('${_escHtml(dayLabel).replace(/'/g, "\\'")}')">
+                        🗑️ Elimina
+                    </button>
+                </div>`;
+            document.body.appendChild(overlay);
         }
 
         function _startDayDrag(tab, touch) {
