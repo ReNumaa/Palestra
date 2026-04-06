@@ -1037,7 +1037,7 @@
                 </div>
                 <div class="schede-picker-header">
                     <input type="text" class="schede-picker-search" id="allPickerSearch" placeholder="Cerca esercizio..."
-                           oninput="filterExercisePicker(this.value)" autofocus>
+                           oninput="filterExercisePicker(this.value)">
                 </div>
                 <div class="schede-picker-body">
                     <div class="schede-picker-cats" id="allPickerCats">
@@ -1058,7 +1058,7 @@
                 </div>`;
             document.body.appendChild(overlay);
             document.body.style.overflow = 'hidden';
-            setTimeout(() => document.getElementById('allPickerSearch')?.focus(), 50);
+            // No auto-focus: evita apertura tastiera su mobile
         }
 
         function closeExercisePicker() {
