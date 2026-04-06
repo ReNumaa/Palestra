@@ -6214,6 +6214,12 @@ canvas {
 .schede-ex-info-btn:hover { color: #00AEEF; background: #e0f2fe; }
 .schede-ex-change-btn:hover { color: #00AEEF; background: #e0f2fe; }
 
+/* Picker backdrop (desktop) */
+.schede-picker-backdrop {
+    position: fixed; inset: 0; z-index: 9997;
+    background: rgba(0,0,0,0.4);
+}
+
 /* Picker dropdown — always fullscreen overlay */
 .schede-ex-picker-dropdown {
     position: fixed; top: 0; left: 0; right: 0; bottom: 0; z-index: 9998;
@@ -6514,12 +6520,14 @@ canvas {
     .schede-editor-form { padding: 0.7rem; gap: 0.5rem; }
     .schede-editor-form--compact { padding: 0.6rem; }
     .schede-form-grid {
+        display: grid;
         grid-template-columns: 1fr 1fr;
         gap: 0.4rem 0.5rem;
     }
     .schede-form-cell--name { grid-column: 1 / -1; }
     .schede-form-cell--client { grid-column: 1 / -1; }
-    .schede-form-cell--date { grid-column: auto; }
+    .schede-form-cell--date { grid-column: span 1; min-width: 0; }
+    .schede-form-cell--date input[type="date"] { width: 100%; min-width: 0; box-sizing: border-box; }
     .schede-form-row label { font-size: 0.75rem; }
     .schede-form-row input[type="text"],
     .schede-form-row input[type="date"],
