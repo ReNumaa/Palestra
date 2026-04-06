@@ -13,7 +13,7 @@
     <link rel="icon" type="image/jpeg" href="images/logo-tb---nero.jpg">
     <link rel="stylesheet" href="css/style.css?v=8">
     <link rel="stylesheet" href="css/login.css?v=4">
-    <link rel="stylesheet" href="css/allenamento.css?v=11">
+    <link rel="stylesheet" href="css/allenamento.css?v=12">
 </head>
 <body class="allenamento-body">
     <nav class="navbar">
@@ -362,18 +362,33 @@
             if (!_allPlan) return;
 
             const exercises = _allPlan.workout_exercises;
-            // Ordina giorni per sort_order minimo degli esercizi in ciascuno
+            const today = _localDateStr();
+            const todayLogs = _allLogs.filter(l => l.log_date === today);
+
+            // Ordina giorni: ultimo fatto per primo, prossimo suggerito per secondo
             const dayMinOrder = {};
             for (const e of exercises) {
                 if (!(e.day_label in dayMinOrder) || e.sort_order < dayMinOrder[e.day_label])
                     dayMinOrder[e.day_label] = e.sort_order;
             }
-            const days = [...new Set(exercises.map(e => e.day_label))].sort((a, b) => dayMinOrder[a] - dayMinOrder[b]);
-            const today = _localDateStr();
-            const todayLogs = _allLogs.filter(l => l.log_date === today);
+            const allDays = [...new Set(exercises.map(e => e.day_label))].sort((a, b) => dayMinOrder[a] - dayMinOrder[b]);
+
+            // Calcola ultimo fatto e prossimo suggerito
+            const dayLastDoneMap = {};
+            for (const d of allDays) dayLastDoneMap[d] = _dayLastDone(d);
+            const suggested = _suggestDay(allDays);
+
+            // Ordine smart: ultimo fatto, poi suggerito, poi gli altri per sort_order
+            const lastDoneDay = [...allDays].filter(d => dayLastDoneMap[d]).sort((a, b) => dayLastDoneMap[b].localeCompare(dayLastDoneMap[a]))[0] || null;
+            const days = [];
+            if (lastDoneDay) days.push(lastDoneDay);
+            if (suggested && suggested !== lastDoneDay) days.push(suggested);
+            for (const d of allDays) {
+                if (!days.includes(d)) days.push(d);
+            }
 
             // Auto-select day
-            if (!_activeDay || !days.includes(_activeDay)) _activeDay = _suggestDay(days);
+            if (!_activeDay || !days.includes(_activeDay)) _activeDay = suggested || days[0];
 
             let html = '';
 
@@ -486,6 +501,9 @@
             container.innerHTML = html;
             _initSwipeAndDrag();
             _initDayTabLongPress();
+            // Scroll al tab attivo se fuori vista
+            const activeTab = container.querySelector('.all-day-tab.active');
+            if (activeTab) activeTab.scrollIntoView({ behavior: 'smooth', inline: 'center', block: 'nearest' });
         }
 
         function toggleExCard(exId) {
