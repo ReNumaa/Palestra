@@ -1221,11 +1221,12 @@
         }
 
         // ── Aggiungi giorno alla scheda ─────────────────────────────
+        let _pendingDayLabel = null; // giorno in attesa di primo esercizio
+
         function addDayToScheda() {
             if (!_allPlan) return;
             const exercises = _allPlan.workout_exercises || [];
             const existingDays = [...new Set(exercises.map(e => e.day_label))];
-            // Suggerisci prossima lettera: Giorno A, B, C...
             const letters = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ';
             let nextLetter = 'A';
             for (const l of letters) {
@@ -1238,10 +1239,9 @@
                 if (typeof showToast === 'function') showToast('Questo giorno esiste già', 'error');
                 return;
             }
-            // Crea il giorno aggiungendo un esercizio placeholder, poi apri il picker
-            _activeDay = dayLabel;
-            renderScheda();
-            // Apri subito il picker per aggiungere il primo esercizio
+            // Salva il giorno pendente e apri il picker — il giorno verrà creato
+            // quando l'utente sceglie il primo esercizio
+            _pendingDayLabel = dayLabel;
             openExercisePicker();
         }
 
@@ -1290,7 +1290,7 @@
             overlay.style.display = 'flex';
             overlay.innerHTML = `
                 <div class="schede-picker-topbar">
-                    <span class="schede-picker-title">Aggiungi esercizio — ${_escHtml(_activeDay || 'Giorno A')}</span>
+                    <span class="schede-picker-title">Aggiungi esercizio — ${_escHtml(_pendingDayLabel || _activeDay || 'Giorno A')}</span>
                     <button type="button" class="schede-picker-close-btn" onclick="closeExercisePicker()">&times;</button>
                 </div>
                 <div class="schede-picker-header">
@@ -1323,6 +1323,7 @@
             const overlay = document.getElementById('allExPickerOverlay');
             if (overlay) overlay.remove();
             document.body.style.overflow = '';
+            _pendingDayLabel = null;
         }
 
         function pickExCategory(cat) {
@@ -1379,7 +1380,9 @@
 
         async function pickExerciseFromPicker(exerciseName) {
             const ex = _findEx(exerciseName);
-            const dayLabel = _activeDay || 'Giorno A';
+            const dayLabel = _pendingDayLabel || _activeDay || 'Giorno A';
+            const wasPending = !!_pendingDayLabel;
+            _pendingDayLabel = null;
             closeExercisePicker();
             try {
                 const newEx = await WorkoutPlanStorage.addExercise(_allPlan.id, {
@@ -1392,6 +1395,7 @@
                 });
                 // Update local plan data
                 _allPlan.workout_exercises.push(newEx);
+                _activeDay = dayLabel;
                 renderScheda();
                 if (typeof showToast === 'function') showToast('Esercizio aggiunto!', 'success');
             } catch (e) {
