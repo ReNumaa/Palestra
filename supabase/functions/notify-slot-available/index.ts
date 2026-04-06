@@ -25,21 +25,6 @@ Deno.serve(async (req) => {
         return new Response(null, { status: 204, headers: corsHeaders });
     }
     try {
-        // ── Auth: utente autenticato ─────────────────────────────────────────
-        const authHeader = req.headers.get("Authorization");
-        if (!authHeader?.startsWith("Bearer ")) {
-            return new Response(JSON.stringify({ ok: false, error: "Non autenticato" }), {
-                status: 401, headers: { ...corsHeaders, "Content-Type": "application/json" },
-            });
-        }
-        const { data: { user: authUser }, error: authErr } = await supabase.auth.getUser(authHeader.replace("Bearer ", ""));
-        if (authErr || !authUser) {
-            return new Response(JSON.stringify({ ok: false, error: "Token non valido" }), {
-                status: 401, headers: { ...corsHeaders, "Content-Type": "application/json" },
-            });
-        }
-        // ─────────────────────────────────────────────────────────────────────
-
         const { date_display, time, exclude_user_id, date, spots_available, max_capacity } = await req.json();
 
         if (!date_display || !time) {
