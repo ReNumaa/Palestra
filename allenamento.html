@@ -210,15 +210,29 @@
             await initAuth();
             const user = getCurrentUser();
 
-            // Redirect utenti non admin
-            if (!user || sessionStorage.getItem('adminAuth') !== 'true') {
+            // Redirect utenti non loggati
+            if (!user) {
                 window.location.replace('/');
                 return;
             }
 
-            // Mostra FAB per creare scheda
+            window._allIsAdmin = sessionStorage.getItem('adminAuth') === 'true';
+            const _isAdmin = window._allIsAdmin;
+
+            // Utenti non admin: verifica che abbiano almeno una scheda attiva
+            if (!_isAdmin) {
+                const { count } = await supabaseClient.from('workout_plans')
+                    .select('id', { count: 'exact', head: true })
+                    .eq('user_id', user.id).eq('active', true);
+                if (!count) {
+                    window.location.replace('/');
+                    return;
+                }
+            }
+
+            // Mostra FAB per creare scheda (solo admin)
             const fab = document.getElementById('allFabCreate');
-            if (fab) fab.style.display = '';
+            if (fab && _isAdmin) fab.style.display = '';
 
             try {
                 await _loadAllExDB();
@@ -391,10 +405,12 @@
                     <span class="all-day-tab-last">ultimo: ${lastStr}</span>
                 </button>`;
             }
-            // Tasto + per aggiungere giorno
-            html += `<button class="all-day-tab all-day-tab-add" role="tab" aria-label="Aggiungi giorno" onclick="addDayToScheda()">
-                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" width="20" height="20"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
-            </button>`;
+            // Tasto + per aggiungere giorno (solo admin)
+            if (window._allIsAdmin) {
+                html += `<button class="all-day-tab all-day-tab-add" role="tab" aria-label="Aggiungi giorno" onclick="addDayToScheda()">
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" width="20" height="20"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
+                </button>`;
+            }
             html += '</div>';
 
             // ── Exercises for selected day only ──────────────────────────
@@ -420,10 +436,10 @@
                 const exSlug = dbEx ? dbEx.slug : '';
 
                 html += `<div class="all-ex-card ${hasLogs ? 'all-ex-done' : ''}" id="ex-${ex.id}" data-ex-id="${ex.id}" data-sort="${ex.sort_order}">
-                    <div class="all-ex-delete-action" onclick="deleteExerciseFromPlan('${ex.id}')">
+                    ${window._allIsAdmin ? `<div class="all-ex-delete-action" onclick="deleteExerciseFromPlan('${ex.id}')">
                         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="22" height="22"><polyline points="3 6 5 6 21 6"/><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/></svg>
                         <span>Elimina</span>
-                    </div>
+                    </div>` : ''}
                     <div class="all-ex-swipe-content">
                     <div class="all-ex-header" onclick="toggleExCard('${ex.id}')">
                         ${thumbSrc ? `<img src="${thumbSrc}" class="all-ex-thumb" alt="" loading="lazy" onclick="event.stopPropagation();showExDetail('${_escHtml(exSlug)}')">` : ''}
@@ -1322,6 +1338,7 @@
         }
 
         function _showDayMenu(dayLabel) {
+            if (!window._allIsAdmin) return;
             const old = document.getElementById('dayMenuOverlay');
             if (old) old.remove();
             const overlay = document.createElement('div');

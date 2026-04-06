@@ -481,6 +481,16 @@ function updateNavAuth() {
             // Mostra voce Allenamento nella sidebar per tutti gli admin
             const _navAll = document.getElementById('navAllenamento');
             if (_navAll) _navAll.style.display = '';
+        } else if (user && typeof supabaseClient !== 'undefined') {
+            // Utente non admin: mostra Allenamento solo se ha almeno una scheda attiva
+            supabaseClient.from('workout_plans').select('id', { count: 'exact', head: true })
+                .eq('user_id', user.id).eq('active', true)
+                .then(({ count }) => {
+                    if (count > 0) {
+                        const _navAll = document.getElementById('navAllenamento');
+                        if (_navAll) _navAll.style.display = '';
+                    }
+                });
         }
         _injectSidebarLogout();
     } else {
