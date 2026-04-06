@@ -13,7 +13,7 @@
     <link rel="icon" type="image/jpeg" href="images/logo-tb---nero.jpg">
     <link rel="stylesheet" href="css/style.css?v=8">
     <link rel="stylesheet" href="css/login.css?v=4">
-    <link rel="stylesheet" href="css/allenamento.css?v=9">
+    <link rel="stylesheet" href="css/allenamento.css?v=10">
 </head>
 <body class="allenamento-body">
     <nav class="navbar">
@@ -405,7 +405,12 @@
                 const thumbSrc = dbEx ? dbEx.immagine_url_small : '';
                 const exSlug = dbEx ? dbEx.slug : '';
 
-                html += `<div class="all-ex-card ${hasLogs ? 'all-ex-done' : ''}" id="ex-${ex.id}">
+                html += `<div class="all-ex-card ${hasLogs ? 'all-ex-done' : ''}" id="ex-${ex.id}" data-ex-id="${ex.id}" data-sort="${ex.sort_order}">
+                    <div class="all-ex-delete-action" onclick="deleteExerciseFromPlan('${ex.id}')">
+                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="22" height="22"><polyline points="3 6 5 6 21 6"/><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/></svg>
+                        <span>Elimina</span>
+                    </div>
+                    <div class="all-ex-swipe-content">
                     <div class="all-ex-header" onclick="toggleExCard('${ex.id}')">
                         ${thumbSrc ? `<img src="${thumbSrc}" class="all-ex-thumb" alt="" loading="lazy" onclick="event.stopPropagation();showExDetail('${_escHtml(exSlug)}')">` : ''}
                         <div class="all-ex-info">
@@ -463,11 +468,13 @@
                             </div>
                         </div>
                     </div>
+                    </div>
                 </div>`;
             }
             html += '</div>';
 
             container.innerHTML = html;
+            _initSwipeAndDrag();
         }
 
         function toggleExCard(exId) {
@@ -985,6 +992,228 @@
             ctx.fillStyle = '#fff';
             ctx.textAlign = 'center';
             ctx.fillText(label, bx, by - 1);
+        }
+
+        // ── Swipe-to-delete + long-press drag-to-reorder ─────────────
+        let _dragState = null;
+        let _swipeState = null;
+
+        function _initSwipeAndDrag() {
+            const cards = document.querySelectorAll('.all-ex-card[data-ex-id]');
+            cards.forEach(card => {
+                const header = card.querySelector('.all-ex-header');
+                if (!header) return;
+                header.addEventListener('touchstart', _onTouchStart, { passive: true });
+                header.addEventListener('touchmove', _onTouchMove, { passive: false });
+                header.addEventListener('touchend', _onTouchEnd, { passive: true });
+            });
+        }
+
+        function _onTouchStart(e) {
+            const touch = e.touches[0];
+            const card = e.currentTarget.closest('.all-ex-card');
+            if (!card) return;
+
+            // Reset any other open swipe
+            _resetAllSwipes(card);
+
+            _swipeState = {
+                card,
+                startX: touch.clientX,
+                startY: touch.clientY,
+                currentX: 0,
+                swiping: false,
+                locked: false, // direction locked
+            };
+
+            // Long press for drag
+            _swipeState.longPressTimer = setTimeout(() => {
+                if (_swipeState && _swipeState.card === card && !_swipeState.swiping) {
+                    _startDrag(card, touch);
+                }
+            }, 500);
+        }
+
+        function _onTouchMove(e) {
+            if (!_swipeState) return;
+            const touch = e.touches[0];
+            const dx = touch.clientX - _swipeState.startX;
+            const dy = touch.clientY - _swipeState.startY;
+
+            // If dragging (reorder mode)
+            if (_dragState) {
+                e.preventDefault();
+                _handleDragMove(touch);
+                return;
+            }
+
+            // Direction lock: decide if horizontal swipe or vertical scroll
+            if (!_swipeState.locked) {
+                if (Math.abs(dx) > 8 || Math.abs(dy) > 8) {
+                    _swipeState.locked = true;
+                    _swipeState.swiping = Math.abs(dx) > Math.abs(dy);
+                    clearTimeout(_swipeState.longPressTimer);
+                    if (!_swipeState.swiping) { _swipeState = null; return; }
+                } else {
+                    return;
+                }
+            }
+
+            if (!_swipeState.swiping) return;
+            e.preventDefault();
+
+            // Only allow swipe left (negative dx)
+            const clampedX = Math.min(0, Math.max(dx, -100));
+            _swipeState.currentX = clampedX;
+            const content = _swipeState.card.querySelector('.all-ex-swipe-content');
+            if (content) content.style.transform = `translateX(${clampedX}px)`;
+        }
+
+        function _onTouchEnd(e) {
+            clearTimeout(_swipeState?.longPressTimer);
+
+            // Handle drag end
+            if (_dragState) {
+                _endDrag();
+                _swipeState = null;
+                return;
+            }
+
+            if (!_swipeState || !_swipeState.swiping) { _swipeState = null; return; }
+
+            const content = _swipeState.card.querySelector('.all-ex-swipe-content');
+            // Snap: if swiped more than 60px, hold open; else snap back
+            if (_swipeState.currentX < -60) {
+                if (content) { content.style.transition = 'transform 0.2s ease'; content.style.transform = 'translateX(-85px)'; }
+                _swipeState.card.classList.add('all-ex-swiped');
+            } else {
+                if (content) { content.style.transition = 'transform 0.2s ease'; content.style.transform = ''; }
+                _swipeState.card.classList.remove('all-ex-swiped');
+            }
+            // Reset transition after animation
+            setTimeout(() => { if (content) content.style.transition = ''; }, 200);
+            _swipeState = null;
+        }
+
+        function _resetAllSwipes(exceptCard) {
+            document.querySelectorAll('.all-ex-card.all-ex-swiped').forEach(card => {
+                if (card === exceptCard) return;
+                const content = card.querySelector('.all-ex-swipe-content');
+                if (content) { content.style.transition = 'transform 0.2s ease'; content.style.transform = ''; }
+                card.classList.remove('all-ex-swiped');
+                setTimeout(() => { if (content) content.style.transition = ''; }, 200);
+            });
+        }
+
+        // ── Long-press drag to reorder ──────────────────────────────────
+        function _startDrag(card, touch) {
+            // Vibrate for haptic feedback
+            if (navigator.vibrate) navigator.vibrate(30);
+
+            const container = card.parentElement;
+            const cards = [...container.querySelectorAll('.all-ex-card[data-ex-id]')];
+            const idx = cards.indexOf(card);
+
+            _dragState = {
+                card,
+                container,
+                cards,
+                startIdx: idx,
+                currentIdx: idx,
+                startY: touch.clientY,
+                cardHeight: card.offsetHeight + parseInt(getComputedStyle(card).marginBottom),
+            };
+
+            card.classList.add('all-ex-dragging');
+            // Prevent card from opening on release
+            card.querySelector('.all-ex-header')?.removeAttribute('onclick');
+        }
+
+        function _handleDragMove(touch) {
+            if (!_dragState) return;
+            const dy = touch.clientY - _dragState.startY;
+            _dragState.card.style.transform = `translateY(${dy}px) scale(1.02)`;
+
+            // Determine new index based on movement
+            const offsetSteps = Math.round(dy / _dragState.cardHeight);
+            const newIdx = Math.max(0, Math.min(_dragState.cards.length - 1, _dragState.startIdx + offsetSteps));
+
+            if (newIdx !== _dragState.currentIdx) {
+                // Move other cards to make room
+                _dragState.cards.forEach((c, i) => {
+                    if (c === _dragState.card) return;
+                    if (_dragState.startIdx < newIdx) {
+                        // Dragging down: cards between old and new move up
+                        c.style.transform = (i > _dragState.startIdx && i <= newIdx) ? `translateY(-${_dragState.cardHeight}px)` : '';
+                    } else {
+                        // Dragging up: cards between new and old move down
+                        c.style.transform = (i >= newIdx && i < _dragState.startIdx) ? `translateY(${_dragState.cardHeight}px)` : '';
+                    }
+                    c.style.transition = 'transform 0.2s ease';
+                });
+                _dragState.currentIdx = newIdx;
+            }
+        }
+
+        async function _endDrag() {
+            if (!_dragState) return;
+            const { card, cards, startIdx, currentIdx } = _dragState;
+
+            // Reset visual state
+            card.classList.remove('all-ex-dragging');
+            card.style.transform = '';
+            card.style.transition = '';
+            cards.forEach(c => { c.style.transform = ''; c.style.transition = ''; });
+
+            // Restore onclick
+            const exId = card.dataset.exId;
+            const header = card.querySelector('.all-ex-header');
+            if (header) header.setAttribute('onclick', `toggleExCard('${exId}')`);
+
+            _dragState = null;
+
+            if (startIdx === currentIdx) return;
+
+            // Reorder in local data and save
+            const dayExercises = (_allPlan?.workout_exercises || [])
+                .filter(e => e.day_label === _activeDay)
+                .sort((a, b) => a.sort_order - b.sort_order);
+
+            // Move exercise from startIdx to currentIdx
+            const [moved] = dayExercises.splice(startIdx, 1);
+            dayExercises.splice(currentIdx, 0, moved);
+
+            // Update sort_order
+            try {
+                for (let i = 0; i < dayExercises.length; i++) {
+                    if (dayExercises[i].sort_order !== i) {
+                        dayExercises[i].sort_order = i;
+                        await WorkoutPlanStorage.updateExercise(dayExercises[i].id, { sort_order: i });
+                    }
+                }
+                renderScheda();
+            } catch (e) {
+                console.error('[Allenamento] reorder error:', e);
+                if (typeof showToast === 'function') showToast('Errore riordino', 'error');
+                renderScheda();
+            }
+        }
+
+        // ── Delete exercise from plan ───────────────────────────────────
+        async function deleteExerciseFromPlan(exId) {
+            if (!confirm('Eliminare questo esercizio dalla scheda?')) return;
+            try {
+                await WorkoutPlanStorage.deleteExercise(exId);
+                // Remove from local plan data
+                if (_allPlan) {
+                    _allPlan.workout_exercises = (_allPlan.workout_exercises || []).filter(e => e.id !== exId);
+                }
+                renderScheda();
+                if (typeof showToast === 'function') showToast('Esercizio eliminato', 'success');
+            } catch (e) {
+                console.error('[Allenamento] delete exercise error:', e);
+                if (typeof showToast === 'function') showToast('Errore eliminazione', 'error');
+            }
         }
 
         // ── FAB action: crea scheda se non esiste, altrimenti apri picker esercizi ──

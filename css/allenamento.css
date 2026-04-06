@@ -1371,6 +1371,46 @@
     max-height: 280px;
 }
 
+/* ── Swipe-to-delete & drag-to-reorder ─────────────────────────────────────── */
+.all-ex-card {
+    overflow: hidden; /* clip the swipe content and delete action */
+}
+.all-ex-swipe-content {
+    position: relative;
+    z-index: 2;
+    background: var(--all-surface);
+    will-change: transform;
+}
+.all-ex-card.all-ex-done .all-ex-swipe-content {
+    background: linear-gradient(145deg, #f0fdf4 0%, var(--all-surface) 60%);
+}
+.all-ex-delete-action {
+    position: absolute;
+    top: 0; right: 0; bottom: 0;
+    width: 85px;
+    display: flex; flex-direction: column;
+    align-items: center; justify-content: center; gap: 0.3rem;
+    background: var(--all-red, #ef4444);
+    color: #fff;
+    font-size: 0.75rem; font-weight: 700;
+    cursor: pointer;
+    z-index: 1;
+    user-select: none;
+    -webkit-tap-highlight-color: transparent;
+}
+.all-ex-delete-action:active {
+    background: #dc2626;
+}
+
+/* Drag state */
+.all-ex-card.all-ex-dragging {
+    z-index: 100;
+    box-shadow: 0 12px 40px rgba(0,0,0,0.18), 0 0 0 2px var(--all-cyan);
+    opacity: 0.95;
+    border-color: var(--all-cyan);
+    transition: box-shadow 0.2s, opacity 0.2s;
+}
+
 /* ── Exercise picker overlay ───────────────────────────────────────────────── */
 .schede-picker-backdrop {
     position: fixed; inset: 0; z-index: 9997;
