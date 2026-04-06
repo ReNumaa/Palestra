@@ -895,11 +895,6 @@ function _renderSchedeList(container) {
         </div>`;
     }
 
-    html += `<div class="schede-search-bar">
-            <input type="text" id="schedeSearchInput" placeholder="Cerca scheda..."
-                   oninput="_schedeFilterList()">
-        </div>`;
-
     // Templates section
     html += '<h4 class="schede-section-title">Template standard</h4>';
     if (templates.length === 0) {
@@ -934,13 +929,6 @@ function _fmtDate(iso) {
     if (!iso) return '';
     const d = new Date(iso + 'T00:00:00');
     return d.toLocaleDateString('it-IT', { day: '2-digit', month: 'short' });
-}
-
-function _schedeFilterList() {
-    const q = (document.getElementById('schedeSearchInput')?.value || '').toLowerCase();
-    document.querySelectorAll('.schede-plan-card').forEach(card => {
-        card.style.display = card.dataset.client.includes(q) ? '' : 'none';
-    });
 }
 
 // ═══════════════════════════════════════════════════════════════════════════════
