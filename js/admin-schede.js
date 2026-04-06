@@ -994,7 +994,7 @@ function _renderPlanEditor(container) {
                     <label>Nome</label>
                     <input type="text" id="schedePlanName" value="${_escHtml(plan?.name || '')}" placeholder="es. Scheda Forza">
                 </div>
-                <div class="schede-form-row schede-form-cell--client">
+                <div class="schede-form-row schede-form-cell--client" ${!isNew && !selectedUserId ? 'style="display:none"' : ''}>
                     <label>Cliente</label>
                     <div class="schede-client-selector">
                         <input type="text" id="schedeClientSearch" placeholder="Template..."
