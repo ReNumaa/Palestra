@@ -521,7 +521,8 @@
             btn.textContent = 'Salvataggio...';
             try {
                 for (const row of rows) {
-                    const s = parseInt(row.querySelector('.all-log-set').textContent);
+                    const setEl = row.querySelector('.all-log-set');
+                    const s = setEl ? parseInt(setEl.textContent) : 1;
                     const reps = row.querySelector('input[data-field="reps"]');
                     const weight = row.querySelector('input[data-field="weight"]');
                     await WorkoutLogStorage.logSet({
@@ -529,8 +530,8 @@
                         user_id: user.id,
                         log_date: today,
                         set_number: s,
-                        reps_done: reps.value ? parseInt(reps.value) : null,
-                        weight_done: weight.value ? parseFloat(weight.value) : null,
+                        reps_done: reps?.value ? parseInt(reps.value) : null,
+                        weight_done: weight?.value ? parseFloat(weight.value) : null,
                         rpe: null,
                     });
                 }
