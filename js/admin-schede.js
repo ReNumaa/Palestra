@@ -106,7 +106,7 @@ function _schedeOpenPicker(exId) {
 
     const dropdown = document.getElementById('picker-' + exId);
     if (!dropdown) return;
-    if (dropdown.style.display === 'block') { dropdown.style.display = 'none'; _schedeCleanupPickerScroll(); return; }
+    if (dropdown.style.display === 'flex') { dropdown.style.display = 'none'; _schedeCleanupPickerScroll(); return; }
 
     // Category → SVG icon map
     const catSvg = {
@@ -143,7 +143,7 @@ function _schedeOpenPicker(exId) {
         <button type="button" class="schede-picker-custom-btn" onclick="_schedePickCustom('${exId}')">✏️ Personalizzato</button>
     </div>`;
     dropdown.innerHTML = html;
-    dropdown.style.display = 'block';
+    dropdown.style.display = 'flex';
     document.body.style.overflow = 'hidden';
 
     // Add backdrop overlay on desktop
