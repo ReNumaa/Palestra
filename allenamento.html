@@ -387,7 +387,7 @@
             html += '</div>';
 
             // ── Exercises for selected day only ──────────────────────────
-            const dayExercises = exercises.filter(e => e.day_label === _activeDay);
+            const dayExercises = exercises.filter(e => e.day_label === _activeDay).sort((a, b) => a.sort_order - b.sort_order);
             const dayDoneCount = dayExercises.filter(ex => todayLogs.some(l => l.exercise_id === ex.id)).length;
 
             html += `<div class="all-day">
