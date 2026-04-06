@@ -13,7 +13,7 @@
     <link rel="icon" type="image/jpeg" href="images/logo-tb---nero.jpg">
     <link rel="stylesheet" href="css/style.css?v=8">
     <link rel="stylesheet" href="css/login.css?v=4">
-    <link rel="stylesheet" href="css/allenamento.css?v=12">
+    <link rel="stylesheet" href="css/allenamento.css?v=13">
 </head>
 <body class="allenamento-body">
     <nav class="navbar">
@@ -365,30 +365,16 @@
             const today = _localDateStr();
             const todayLogs = _allLogs.filter(l => l.log_date === today);
 
-            // Ordina giorni: ultimo fatto per primo, prossimo suggerito per secondo
+            // Ordina giorni per sort_order minimo degli esercizi
             const dayMinOrder = {};
             for (const e of exercises) {
                 if (!(e.day_label in dayMinOrder) || e.sort_order < dayMinOrder[e.day_label])
                     dayMinOrder[e.day_label] = e.sort_order;
             }
-            const allDays = [...new Set(exercises.map(e => e.day_label))].sort((a, b) => dayMinOrder[a] - dayMinOrder[b]);
-
-            // Calcola ultimo fatto e prossimo suggerito
-            const dayLastDoneMap = {};
-            for (const d of allDays) dayLastDoneMap[d] = _dayLastDone(d);
-            const suggested = _suggestDay(allDays);
-
-            // Ordine smart: ultimo fatto, poi suggerito, poi gli altri per sort_order
-            const lastDoneDay = [...allDays].filter(d => dayLastDoneMap[d]).sort((a, b) => dayLastDoneMap[b].localeCompare(dayLastDoneMap[a]))[0] || null;
-            const days = [];
-            if (lastDoneDay) days.push(lastDoneDay);
-            if (suggested && suggested !== lastDoneDay) days.push(suggested);
-            for (const d of allDays) {
-                if (!days.includes(d)) days.push(d);
-            }
+            const days = [...new Set(exercises.map(e => e.day_label))].sort((a, b) => dayMinOrder[a] - dayMinOrder[b]);
 
             // Auto-select day
-            if (!_activeDay || !days.includes(_activeDay)) _activeDay = suggested || days[0];
+            if (!_activeDay || !days.includes(_activeDay)) _activeDay = _suggestDay(days);
 
             let html = '';
 
@@ -1249,32 +1235,186 @@
         }
 
         // ── Aggiungi giorno alla scheda ─────────────────────────────
-        // ── Long press su day tab per eliminare ─────────────────────
+        // ── Day tab interactions: long press = drag reorder, double tap = rename ──
+        let _dayDragState = null;
+        let _dayLastTap = 0;
+
         function _initDayTabLongPress() {
-            document.querySelectorAll('.all-day-tab[data-day]').forEach(tab => {
-                let timer = null;
+            const tabs = document.querySelectorAll('.all-day-tab[data-day]');
+            tabs.forEach(tab => {
+                let longTimer = null;
                 let moved = false;
+                let startX = 0, startY = 0;
+
                 tab.addEventListener('touchstart', (e) => {
                     moved = false;
-                    timer = setTimeout(() => {
+                    const touch = e.touches[0];
+                    startX = touch.clientX;
+                    startY = touch.clientY;
+                    longTimer = setTimeout(() => {
                         if (!moved) {
                             e.preventDefault();
                             if (navigator.vibrate) navigator.vibrate(30);
-                            deleteDayFromScheda(tab.dataset.day);
+                            _startDayDrag(tab, touch);
                         }
-                    }, 600);
+                    }, 500);
                 }, { passive: false });
-                tab.addEventListener('touchmove', () => { moved = true; clearTimeout(timer); });
-                tab.addEventListener('touchend', () => clearTimeout(timer));
-                // Desktop: context menu (right click)
+
+                tab.addEventListener('touchmove', (e) => {
+                    const touch = e.touches[0];
+                    if (_dayDragState) {
+                        e.preventDefault();
+                        _handleDayDragMove(touch);
+                        return;
+                    }
+                    if (Math.abs(touch.clientX - startX) > 8 || Math.abs(touch.clientY - startY) > 8) {
+                        moved = true;
+                        clearTimeout(longTimer);
+                    }
+                }, { passive: false });
+
+                tab.addEventListener('touchend', (e) => {
+                    clearTimeout(longTimer);
+                    if (_dayDragState) {
+                        _endDayDrag();
+                        e.preventDefault();
+                        return;
+                    }
+                });
+
+                // Double tap to rename
+                tab.addEventListener('click', (e) => {
+                    if (_dayDragState) return;
+                    const now = Date.now();
+                    if (now - _dayLastTap < 350) {
+                        e.preventDefault();
+                        e.stopPropagation();
+                        _renameDayTab(tab.dataset.day);
+                        _dayLastTap = 0;
+                    } else {
+                        _dayLastTap = now;
+                    }
+                });
+
+                // Desktop: double click to rename, context menu to delete
+                tab.addEventListener('dblclick', (e) => {
+                    e.preventDefault();
+                    _renameDayTab(tab.dataset.day);
+                });
                 tab.addEventListener('contextmenu', (e) => {
                     e.preventDefault();
-                    deleteDayFromScheda(tab.dataset.day);
+                    _deleteDayFromScheda(tab.dataset.day);
                 });
             });
         }
 
-        async function deleteDayFromScheda(dayLabel) {
+        function _startDayDrag(tab, touch) {
+            const tabsContainer = tab.closest('.all-day-tabs');
+            const allTabs = [...tabsContainer.querySelectorAll('.all-day-tab[data-day]')];
+            const idx = allTabs.indexOf(tab);
+
+            _dayDragState = {
+                tab,
+                container: tabsContainer,
+                tabs: allTabs,
+                startIdx: idx,
+                currentIdx: idx,
+                startX: touch.clientX,
+                tabWidth: tab.offsetWidth + parseFloat(getComputedStyle(tabsContainer).gap || 0),
+            };
+
+            tab.classList.add('all-day-tab-dragging');
+            tabsContainer.classList.add('reordering');
+        }
+
+        function _handleDayDragMove(touch) {
+            if (!_dayDragState) return;
+            const dx = touch.clientX - _dayDragState.startX;
+            _dayDragState.tab.style.transform = `translateX(${dx}px) scale(1.05)`;
+
+            const offsetSteps = Math.round(dx / _dayDragState.tabWidth);
+            const newIdx = Math.max(0, Math.min(_dayDragState.tabs.length - 1, _dayDragState.startIdx + offsetSteps));
+
+            if (newIdx !== _dayDragState.currentIdx) {
+                _dayDragState.tabs.forEach((t, i) => {
+                    if (t === _dayDragState.tab) return;
+                    if (_dayDragState.startIdx < newIdx) {
+                        t.style.transform = (i > _dayDragState.startIdx && i <= newIdx) ? `translateX(-${_dayDragState.tabWidth}px)` : '';
+                    } else {
+                        t.style.transform = (i >= newIdx && i < _dayDragState.startIdx) ? `translateX(${_dayDragState.tabWidth}px)` : '';
+                    }
+                    t.style.transition = 'transform 0.2s ease';
+                });
+                _dayDragState.currentIdx = newIdx;
+            }
+        }
+
+        async function _endDayDrag() {
+            if (!_dayDragState) return;
+            const { tab, tabs, container, startIdx, currentIdx } = _dayDragState;
+
+            tab.classList.remove('all-day-tab-dragging');
+            container.classList.remove('reordering');
+            tab.style.transform = '';
+            tab.style.transition = '';
+            tabs.forEach(t => { t.style.transform = ''; t.style.transition = ''; });
+            window.getSelection()?.removeAllRanges();
+
+            _dayDragState = null;
+            if (startIdx === currentIdx) return;
+
+            // Riordina i giorni e riassegna sort_order a tutti gli esercizi
+            const dayOrder = tabs.map(t => t.dataset.day);
+            const [movedDay] = dayOrder.splice(startIdx, 1);
+            dayOrder.splice(currentIdx, 0, movedDay);
+
+            try {
+                let sortCounter = 0;
+                for (const dayLabel of dayOrder) {
+                    const dayExercises = (_allPlan.workout_exercises || [])
+                        .filter(e => e.day_label === dayLabel)
+                        .sort((a, b) => a.sort_order - b.sort_order);
+                    for (const ex of dayExercises) {
+                        if (ex.sort_order !== sortCounter) {
+                            ex.sort_order = sortCounter;
+                            await WorkoutPlanStorage.updateExercise(ex.id, { sort_order: sortCounter });
+                        }
+                        sortCounter++;
+                    }
+                }
+                renderScheda();
+            } catch (e) {
+                console.error('[Allenamento] day reorder error:', e);
+                if (typeof showToast === 'function') showToast('Errore riordino giorni', 'error');
+                renderScheda();
+            }
+        }
+
+        async function _renameDayTab(dayLabel) {
+            const newName = prompt('Rinomina giorno:', dayLabel);
+            if (!newName || !newName.trim() || newName.trim() === dayLabel) return;
+            const trimmed = newName.trim();
+            const existingDays = [...new Set((_allPlan.workout_exercises || []).map(e => e.day_label))];
+            if (existingDays.includes(trimmed)) {
+                if (typeof showToast === 'function') showToast('Questo nome esiste già', 'error');
+                return;
+            }
+            try {
+                const dayExercises = (_allPlan.workout_exercises || []).filter(e => e.day_label === dayLabel);
+                for (const ex of dayExercises) {
+                    ex.day_label = trimmed;
+                    await WorkoutPlanStorage.updateExercise(ex.id, { day_label: trimmed });
+                }
+                if (_activeDay === dayLabel) _activeDay = trimmed;
+                renderScheda();
+                if (typeof showToast === 'function') showToast('Giorno rinominato', 'success');
+            } catch (e) {
+                console.error('[Allenamento] rename day error:', e);
+                if (typeof showToast === 'function') showToast('Errore rinomina', 'error');
+            }
+        }
+
+        async function _deleteDayFromScheda(dayLabel) {
             if (!_allPlan) return;
             const dayExercises = (_allPlan.workout_exercises || []).filter(e => e.day_label === dayLabel);
             if (!confirm(`Eliminare "${dayLabel}" e i suoi ${dayExercises.length} esercizi?`)) return;

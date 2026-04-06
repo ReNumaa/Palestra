@@ -1430,9 +1430,16 @@
     user-select: none !important;
     -webkit-user-select: none !important;
 }
-.all-day.reordering, .all-day.reordering * {
+.all-day.reordering, .all-day.reordering *,
+.all-day-tabs.reordering, .all-day-tabs.reordering * {
     user-select: none !important;
     -webkit-user-select: none !important;
+}
+.all-day-tab-dragging {
+    z-index: 100;
+    box-shadow: 0 8px 30px rgba(0,0,0,0.18), 0 0 0 2px var(--all-cyan);
+    opacity: 0.95;
+    border-color: var(--all-cyan);
 }
 
 /* ── Exercise picker overlay ───────────────────────────────────────────────── */
