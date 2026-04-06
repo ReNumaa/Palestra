@@ -429,7 +429,7 @@
                         ${thumbSrc ? `<img src="${thumbSrc}" class="all-ex-thumb" alt="" loading="lazy" onclick="event.stopPropagation();showExDetail('${_escHtml(exSlug)}')">` : ''}
                         <div class="all-ex-info">
                             <div class="all-ex-name">${_escHtml(ex.exercise_name)}${exSlug ? `<button class="all-ex-info-btn" onclick="event.stopPropagation();showExDetail('${_escHtml(exSlug)}')" title="Info esercizio">&#9432;</button>` : ''}</div>
-                            <div class="all-ex-target">${target}${ex.rest_seconds ? ' &middot; rec. ' + ex.rest_seconds + 's' : ''}</div>
+                            <div class="all-ex-target">${target}${!_cardio && ex.rest_seconds ? ' &middot; rec. ' + ex.rest_seconds + 's' : ''}</div>
                         </div>
                         <div class="all-ex-status">${hasLogs ? '<span class="all-ex-check">&#10003;</span>' : '<span class="all-ex-chevron">&#9662;</span>'}</div>
                     </div>
