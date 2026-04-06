@@ -1115,11 +1115,16 @@ function _schedeSelectClient(userId, name) {
     document.getElementById('schedeClientDropdown').style.display = 'none';
 }
 
+// ── Editor refresh helper ────────────────────────────────────────────────────
+function _schedeRefreshEditor() {
+    const inner = document.getElementById('schedeInner') || document.getElementById('schedeContainer');
+    if (inner) _renderPlanEditor(inner);
+}
+
 // ── Day management ───────────────────────────────────────────────────────────
 function _schedeSelectDay(day) {
     _editActiveDay = day;
-    const container = document.getElementById('schedeContainer');
-    if (container) _renderPlanEditor(container);
+    _schedeRefreshEditor();
 }
 
 function _schedeAddDay() {
@@ -1127,8 +1132,7 @@ function _schedeAddDay() {
     const newLabel = 'Giorno ' + nextLetter;
     _editDayLabels.push(newLabel);
     _editActiveDay = newLabel;
-    const container = document.getElementById('schedeContainer');
-    if (container) _renderPlanEditor(container);
+    _schedeRefreshEditor();
 }
 
 async function _schedeRemoveDay() {
@@ -1141,8 +1145,7 @@ async function _schedeRemoveDay() {
     }
     _editDayLabels = _editDayLabels.filter(d => d !== _editActiveDay);
     _editActiveDay = _editDayLabels[0];
-    const container = document.getElementById('schedeContainer');
-    if (container) _renderPlanEditor(container);
+    _schedeRefreshEditor();
 }
 
 function _schedeRenameDay(newName) {
@@ -1159,8 +1162,7 @@ function _schedeRenameDay(newName) {
     const idx = _editDayLabels.indexOf(oldName);
     if (idx >= 0) _editDayLabels[idx] = newName;
     _editActiveDay = newName;
-    const container = document.getElementById('schedeContainer');
-    if (container) _renderPlanEditor(container);
+    _schedeRefreshEditor();
 }
 
 // ── Exercise CRUD ────────────────────────────────────────────────────────────
@@ -1176,8 +1178,7 @@ async function _schedeAddExerciseRow() {
             sets: 3,
             reps: '10',
         });
-        const container = document.getElementById('schedeContainer');
-        if (container) _renderPlanEditor(container);
+        _schedeRefreshEditor();
     } catch (e) {
         console.error('[Schede] addExercise error:', e);
         if (typeof showToast === 'function') showToast('Errore aggiunta esercizio', 'error');
@@ -1195,8 +1196,7 @@ async function _schedeUpdateExField(exId, field, value) {
 async function _schedeDeleteExercise(exId) {
     try {
         await WorkoutPlanStorage.deleteExercise(exId);
-        const container = document.getElementById('schedeContainer');
-        if (container) _renderPlanEditor(container);
+        _schedeRefreshEditor();
     } catch (e) {
         if (typeof showToast === 'function') showToast('Errore eliminazione', 'error');
     }
@@ -1213,8 +1213,7 @@ async function _schedeMoveExercise(exId, direction) {
     const orderedIds = dayExercises.map(e => e.id);
     try {
         await WorkoutPlanStorage.reorderExercises(_editingPlan.id, orderedIds);
-        const container = document.getElementById('schedeContainer');
-        if (container) _renderPlanEditor(container);
+        _schedeRefreshEditor();
     } catch (_) {}
 }
 
@@ -1255,8 +1254,7 @@ async function _schedeSavePlan() {
             _currentPlanId = newPlan.id;
             if (typeof showToast === 'function') showToast('Scheda creata! Aggiungi esercizi.', 'success');
         }
-        const container = document.getElementById('schedeContainer');
-        if (container) _renderPlanEditor(container);
+        _schedeRefreshEditor();
     } catch (e) {
         console.error('[Schede] save error:', e);
         if (typeof showToast === 'function') showToast('Errore salvataggio scheda: ' + (e.message || ''), 'error');
