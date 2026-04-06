@@ -957,49 +957,47 @@ function _renderPlanEditor(container) {
     const selectedUserId = plan?.user_id || '';
     const selectedUserName = selectedUserId ? (allUsers.find(u => u.userId === selectedUserId)?.name || '') : '';
 
+    const hasNotes = !!(plan?.notes);
     let html = `
     <div class="schede-editor">
         <div class="schede-editor-topbar">
-            <button class="schede-back-btn" onclick="_schedeBackToList()">← Lista</button>
-            <h3>${isNew ? 'Nuova Scheda' : 'Modifica Scheda'}</h3>
+            <button class="schede-back-btn" onclick="_schedeBackToList()">←</button>
+            <h3>${isNew ? 'Nuova Scheda' : _escHtml(plan?.name || 'Modifica Scheda')}</h3>
+            <label class="schede-toggle schede-toggle--topbar" title="${!plan || plan.active ? 'Attiva' : 'Inattiva'}">
+                <input type="checkbox" id="schedePlanActive" ${!plan || plan.active ? 'checked' : ''}>
+                <span class="schede-toggle-slider"></span>
+            </label>
         </div>
-        <div class="schede-editor-form">
-            <div class="schede-form-row">
-                <label>Cliente <span style="color:#9ca3af;font-weight:400;font-size:0.78rem;">(vuoto = template standard)</span></label>
-                <div class="schede-client-selector">
-                    <input type="text" id="schedeClientSearch" placeholder="Lascia vuoto per template..."
-                           value="${_escHtml(selectedUserName)}"
-                           oninput="_schedeSearchClient()" autocomplete="off"
-                           onfocus="_schedeSearchClient()"
-                           ${selectedUserId ? 'data-user-id="' + selectedUserId + '"' : ''}>
-                    <div id="schedeClientDropdown" class="debtor-search-dropdown" style="display:none;"></div>
+        <div class="schede-editor-form schede-editor-form--compact">
+            <div class="schede-form-grid">
+                <div class="schede-form-row schede-form-cell--name">
+                    <label>Nome</label>
+                    <input type="text" id="schedePlanName" value="${_escHtml(plan?.name || '')}" placeholder="es. Scheda Forza">
                 </div>
-            </div>
-            <div class="schede-form-row">
-                <label>Nome scheda</label>
-                <input type="text" id="schedePlanName" value="${_escHtml(plan?.name || '')}" placeholder="es. Scheda Forza - Settimana 1">
-            </div>
-            <div class="schede-form-row schede-form-row--inline">
-                <div>
-                    <label>Data inizio</label>
+                <div class="schede-form-row schede-form-cell--client">
+                    <label>Cliente</label>
+                    <div class="schede-client-selector">
+                        <input type="text" id="schedeClientSearch" placeholder="Template..."
+                               value="${_escHtml(selectedUserName)}"
+                               oninput="_schedeSearchClient()" autocomplete="off"
+                               onfocus="_schedeSearchClient()"
+                               ${selectedUserId ? 'data-user-id="' + selectedUserId + '"' : ''}>
+                        <div id="schedeClientDropdown" class="debtor-search-dropdown" style="display:none;"></div>
+                    </div>
+                </div>
+                <div class="schede-form-row schede-form-cell--date">
+                    <label>Inizio</label>
                     <input type="date" id="schedePlanStart" value="${plan?.start_date || _localDateStr()}">
                 </div>
-                <div>
-                    <label>Data fine</label>
+                <div class="schede-form-row schede-form-cell--date">
+                    <label>Fine</label>
                     <input type="date" id="schedePlanEnd" value="${plan?.end_date || ''}">
                 </div>
-                <div>
-                    <label>Attiva</label>
-                    <label class="schede-toggle">
-                        <input type="checkbox" id="schedePlanActive" ${!plan || plan.active ? 'checked' : ''}>
-                        <span class="schede-toggle-slider"></span>
-                    </label>
-                </div>
             </div>
-            <div class="schede-form-row">
-                <label>Note</label>
-                <textarea id="schedePlanNotes" rows="2" placeholder="Note generali sulla scheda...">${_escHtml(plan?.notes || '')}</textarea>
-            </div>
+            <details class="schede-notes-details"${hasNotes ? ' open' : ''}>
+                <summary>Note</summary>
+                <textarea id="schedePlanNotes" rows="2" placeholder="Note generali...">${_escHtml(plan?.notes || '')}</textarea>
+            </details>
         </div>
 
         <div class="schede-day-section">
