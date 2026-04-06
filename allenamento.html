@@ -1630,14 +1630,27 @@
             closeExercisePicker();
             try {
                 const isCardio = ex && (ex.categoria || '').toLowerCase() === 'cardio';
-                const newEx = await WorkoutPlanStorage.addExercise(_allPlan.id, {
+                // Calcola sort_order: dopo l'ultimo esercizio dell'intero piano
+                const allExercises = _allPlan.workout_exercises || [];
+                const maxOrder = allExercises.reduce((m, e) => Math.max(m, e.sort_order), -1);
+                const exerciseData = {
+                    plan_id: _allPlan.id,
                     day_label: dayLabel,
                     exercise_name: exerciseName,
                     muscle_group: ex ? ex.categoria : null,
+                    sort_order: maxOrder + 1,
                     sets: isCardio ? 1 : 3,
                     reps: isCardio ? '20' : '10',
+                    weight_kg: null,
                     rest_seconds: isCardio ? 0 : 90,
-                });
+                    notes: null,
+                };
+                const { data: newEx, error } = await supabaseClient
+                    .from('workout_exercises')
+                    .insert(exerciseData)
+                    .select()
+                    .single();
+                if (error) throw error;
                 // Update local plan data
                 _allPlan.workout_exercises.push(newEx);
                 _activeDay = dayLabel;
