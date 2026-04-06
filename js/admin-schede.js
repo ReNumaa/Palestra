@@ -564,16 +564,56 @@ async function _renderClientDetail(container) {
         <h3>${_escHtml(clientName)}</h3>
     </div>`;
 
+    // Fetch ALL logs for this client's exercises (before rendering cards, to compute date ranges)
+    const allExercises = plans.flatMap(p => p.workout_exercises || []);
+    const allExIds = allExercises.map(e => e.id);
+
+    container.innerHTML = html + '<div class="schede-loading">Caricamento...</div>';
+
+    let logs = [];
+    if (allExIds.length) {
+        try {
+            const { data, error } = await _queryWithTimeout(supabaseClient
+                .from('workout_logs')
+                .select('*')
+                .in('exercise_id', allExIds)
+                .order('log_date', { ascending: true }));
+            if (error) throw error;
+            logs = data || [];
+        } catch (e) {
+            console.error('[Schede] _renderClientDetail log fetch error:', e);
+            container.innerHTML = html + '<div class="empty-slot">Errore caricamento log. Riprova.</div>';
+            return;
+        }
+    }
+
+    // Build exercise_id → log_date map per plan for date range
+    const _exIdToPlan = {};
+    for (const plan of plans) {
+        for (const ex of (plan.workout_exercises || [])) _exIdToPlan[ex.id] = plan.id;
+    }
+    const _planLogDates = {};
+    for (const l of logs) {
+        const pid = _exIdToPlan[l.exercise_id];
+        if (!pid) continue;
+        if (!_planLogDates[pid]) _planLogDates[pid] = [];
+        _planLogDates[pid].push(l.log_date);
+    }
+
     // Show plans for this client
     html += '<h4 class="schede-section-title">Schede assegnate</h4>';
     for (const plan of plans) {
         const badge = plan.active ? '<span class="schede-badge-active">Attiva</span>' : '<span class="schede-badge-inactive">Inattiva</span>';
         const exCount = (plan.workout_exercises || []).length;
+        const planDates = _planLogDates[plan.id];
+        const dateRange = planDates?.length
+            ? _fmtDate(planDates[0]) + ' → ' + _fmtDate(planDates[planDates.length - 1])
+            : '';
         html += `<div class="schede-plan-card" style="margin-bottom:0.4rem;">
             <div class="schede-plan-card-header">
                 <div class="schede-plan-card-info">
                     <div class="schede-plan-name">${_escHtml(plan.name)} ${badge}</div>
-                    <div class="schede-plan-meta">${exCount} esercizi${_schedeDateRange(plan) ? ' &middot; ' + _schedeDateRange(plan) : ''}</div>
+                    <div class="schede-plan-meta">${exCount} esercizi${dateRange ? ' &middot; ' + dateRange : ''}</div>
                 </div>
                 <div class="schede-plan-actions">
                     <button onclick="_schedeSaveAsTemplate('${plan.id}', '${_escHtml(plan.name).replace(/'/g, "\\'")}')" title="Salva come template">📋</button>
@@ -584,39 +624,13 @@ async function _renderClientDetail(container) {
         </div>`;
     }
 
-    // Fetch ALL logs for this client's exercises
-    const allExercises = plans.flatMap(p => p.workout_exercises || []);
-    const allExIds = allExercises.map(e => e.id);
-
-    if (!allExIds.length) {
-        html += '<div class="empty-slot">Nessun esercizio nelle schede di questo cliente.</div>';
+    if (!allExIds.length || !logs.length) {
+        html += '<div class="empty-slot">Nessun log registrato da questo cliente.</div>';
         container.innerHTML = html;
         return;
     }
 
     html += '<h4 class="schede-section-title" style="margin-top:1.2rem;">Progressi</h4>';
-
-    container.innerHTML = html + '<div class="schede-loading">Caricamento log...</div>';
-
-    let logs;
-    try {
-        const { data, error } = await _queryWithTimeout(supabaseClient
-            .from('workout_logs')
-            .select('*')
-            .in('exercise_id', allExIds)
-            .order('log_date', { ascending: true }));
-        if (error) throw error;
-        logs = data;
-    } catch (e) {
-        console.error('[Schede] _renderClientDetail log fetch error:', e);
-        container.innerHTML = html + '<div class="empty-slot">Errore caricamento log. Riprova.</div>';
-        return;
-    }
-
-    if (!logs?.length) {
-        container.innerHTML = html + '<div class="empty-slot">Nessun log registrato da questo cliente.</div>';
-        return;
-    }
 
     // Map exercise_id → { name, muscle_group }
     const idToName = {};
@@ -916,13 +930,6 @@ function _renderSchedeList(container) {
     container.innerHTML = html;
 }
 
-function _schedeDateRange(plan) {
-    const parts = [];
-    if (plan.start_date) parts.push(_fmtDate(plan.start_date));
-    if (plan.end_date) parts.push(_fmtDate(plan.end_date));
-    return parts.join(' → ');
-}
-
 function _fmtDate(iso) {
     if (!iso) return '';
     const d = new Date(iso + 'T00:00:00');
@@ -997,14 +1004,6 @@ function _renderPlanEditor(container) {
                                ${selectedUserId ? 'data-user-id="' + selectedUserId + '"' : ''}>
                         <div id="schedeClientDropdown" class="debtor-search-dropdown" style="display:none;"></div>
                     </div>
-                </div>
-                <div class="schede-form-row schede-form-cell--date">
-                    <label>Inizio</label>
-                    <input type="date" id="schedePlanStart" value="${plan?.start_date || _localDateStr()}">
-                </div>
-                <div class="schede-form-row schede-form-cell--date">
-                    <label>Fine</label>
-                    <input type="date" id="schedePlanEnd" value="${plan?.end_date || ''}">
                 </div>
             </div>
             <details class="schede-notes-details"${hasNotes ? ' open' : ''}>
@@ -1229,8 +1228,6 @@ async function _schedeSavePlan() {
         return;
     }
 
-    const startDate = document.getElementById('schedePlanStart')?.value || null;
-    const endDate = document.getElementById('schedePlanEnd')?.value || null;
     const active = document.getElementById('schedePlanActive')?.checked ?? true;
     const notes = document.getElementById('schedePlanNotes')?.value?.trim() || null;
 
@@ -1238,14 +1235,12 @@ async function _schedeSavePlan() {
         if (_editingPlan) {
             await WorkoutPlanStorage.updatePlan(_editingPlan.id, {
                 user_id: userId, name: planName,
-                start_date: startDate, end_date: endDate,
                 active, notes,
             });
             if (typeof showToast === 'function') showToast('Scheda aggiornata', 'success');
         } else {
             const newPlan = await WorkoutPlanStorage.createPlan({
-                user_id: userId, name: planName,
-                start_date: startDate, end_date: endDate, notes,
+                user_id: userId, name: planName, notes,
             });
             _editingPlan = newPlan;
             _currentPlanId = newPlan.id;
