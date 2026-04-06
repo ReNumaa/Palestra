@@ -1129,6 +1129,7 @@
             };
 
             card.classList.add('all-ex-dragging');
+            container.classList.add('reordering');
             // Prevent card from opening on release
             card.querySelector('.all-ex-header')?.removeAttribute('onclick');
         }
@@ -1165,9 +1166,11 @@
 
             // Reset visual state
             card.classList.remove('all-ex-dragging');
+            _dragState.container.classList.remove('reordering');
             card.style.transform = '';
             card.style.transition = '';
             cards.forEach(c => { c.style.transform = ''; c.style.transition = ''; });
+            window.getSelection()?.removeAllRanges();
 
             // Restore onclick
             const exId = card.dataset.exId;

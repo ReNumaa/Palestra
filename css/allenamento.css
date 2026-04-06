@@ -1421,12 +1421,20 @@
 }
 
 /* Drag state */
-.all-ex-card.all-ex-dragging {
+.all-ex-dragging {
     z-index: 100;
     box-shadow: 0 12px 40px rgba(0,0,0,0.18), 0 0 0 2px var(--all-cyan);
     opacity: 0.95;
     border-color: var(--all-cyan);
     transition: box-shadow 0.2s, opacity 0.2s;
+}
+.all-ex-dragging, .all-ex-dragging * {
+    user-select: none !important;
+    -webkit-user-select: none !important;
+}
+.all-day.reordering, .all-day.reordering * {
+    user-select: none !important;
+    -webkit-user-select: none !important;
 }
 
 /* ── Exercise picker overlay ───────────────────────────────────────────────── */
