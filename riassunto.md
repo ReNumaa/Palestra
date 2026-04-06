@@ -870,3 +870,32 @@
 | Tempo prompt utente (stimato) | ~2 min |
 | Token input (stimati) | ~50k |
 | Token output (stimati) | ~5k |
+
+## Task: Schede assegnate visibili/modificabili da tab Clienti
+**Data:** 2026-04-06
+**Durata stimata:** ~15 min Claude + ~3 min prompt utente
+
+### Modifiche effettuate
+- Aggiunta sezione "📋 Schede assegnate" nella card cliente (tab Clienti admin)
+- Mostra nome scheda, badge Attiva/Inattiva, numero esercizi e giorni
+- Pulsante ✏️ Modifica → switcha al tab Schede e apre l'editor
+- Pulsante 🗑️ Rimuovi → conferma e cancella scheda con tutti gli esercizi
+- CSS coerente con le altre sezioni della card (sfondo azzurro, hover actions)
+
+### Decisioni prese
+- La sezione appare solo per clienti registrati con almeno una scheda assegnata
+- Modifica naviga al tab Schede esistente (riuso dell'editor completo già funzionante)
+- Eliminazione usa `WorkoutPlanStorage.deletePlan()` con cascade automatico degli esercizi
+
+### File toccati
+- `js/admin-clients.js` — Sezione schede in `createClientCard()` + funzioni `clientGoToEditScheda()` e `clientDeleteScheda()`
+- `css/admin.css` — Stili per `.client-schede-section`, `.client-scheda-row`, `.client-scheda-actions`
+- `sw.js` — Cache bump v318 → v319
+
+### Consumo risorse (solo per progetti cliente)
+| Voce | Valore |
+|------|--------|
+| Tempo task Claude | ~15 min |
+| Tempo prompt utente (stimato) | ~3 min |
+| Token input (stimati) | ~120k |
+| Token output (stimati) | ~8k |

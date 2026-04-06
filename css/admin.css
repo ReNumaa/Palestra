@@ -1623,6 +1623,65 @@ canvas {
 .credit-history-row:hover .btn-tx-delete { opacity: 0.6; }
 .btn-tx-delete:hover { opacity: 1 !important; border-color: #ef4444; }
 
+/* ── Schede section in client card ─────────────────────────────────── */
+.client-schede-section {
+    border-top: 1px solid #f3f4f6;
+    padding-top: 0.75rem;
+    margin-bottom: 0.5rem;
+}
+.client-schede-section h4 {
+    font-size: 0.97rem;
+    color: #0369a1;
+    margin: 0 0 0.5rem 0;
+    font-weight: 700;
+}
+.client-scheda-row {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 0.5rem 0.6rem;
+    border-radius: 8px;
+    background: #f0f9ff;
+    margin-bottom: 0.35rem;
+    gap: 0.5rem;
+}
+.client-scheda-info {
+    display: flex;
+    flex-direction: column;
+    gap: 0.15rem;
+    min-width: 0;
+    flex: 1;
+}
+.client-scheda-name {
+    font-weight: 600;
+    font-size: 0.9rem;
+    color: #1e293b;
+    display: flex;
+    align-items: center;
+    flex-wrap: wrap;
+}
+.client-scheda-meta {
+    font-size: 0.78rem;
+    color: #94a3b8;
+}
+.client-scheda-actions {
+    display: flex;
+    gap: 0.3rem;
+    flex-shrink: 0;
+}
+.client-scheda-actions button {
+    background: none;
+    border: 1px solid transparent;
+    border-radius: 6px;
+    cursor: pointer;
+    font-size: 0.85rem;
+    padding: 3px 6px;
+    opacity: 0.5;
+    transition: opacity 0.15s, border-color 0.15s;
+}
+.client-scheda-row:hover .client-scheda-actions button { opacity: 0.8; }
+.client-scheda-actions button:hover { opacity: 1; border-color: #cbd5e1; }
+
 @media (max-width: 768px) {
     .client-card-header  { flex-wrap: wrap; }
     .client-stats-block  { justify-content: flex-start; }

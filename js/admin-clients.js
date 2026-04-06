@@ -582,6 +582,34 @@ function createClientCard(client, index) {
     const fmtDTx = d => `${String(d.getDate()).padStart(2,'0')}/${String(d.getMonth()+1).padStart(2,'0')}/${d.getFullYear()} ${String(d.getHours()).padStart(2,'0')}:${String(d.getMinutes()).padStart(2,'0')}`;
 
 
+    // ── Schede assegnate ──────────────────────────────────────────────────
+    const clientUserId = userRecord?.id || null;
+    const clientPlans = clientUserId ? WorkoutPlanStorage.getPlansByUser(clientUserId) : [];
+    let schedeHTML = '';
+    if (clientPlans.length > 0) {
+        const planRows = clientPlans.map(plan => {
+            const badge = plan.active
+                ? '<span class="schede-badge-active" style="font-size:0.7rem;padding:1px 6px;margin-left:6px;">Attiva</span>'
+                : '<span class="schede-badge-inactive" style="font-size:0.7rem;padding:1px 6px;margin-left:6px;">Inattiva</span>';
+            const exCount = (plan.workout_exercises || []).length;
+            const days = [...new Set((plan.workout_exercises || []).map(e => e.day_label))];
+            return `<div class="client-scheda-row">
+                <div class="client-scheda-info">
+                    <span class="client-scheda-name">${_escHtml(plan.name)}${badge}</span>
+                    <span class="client-scheda-meta">${exCount} esercizi · ${days.length} giorn${days.length === 1 ? 'o' : 'i'}</span>
+                </div>
+                <div class="client-scheda-actions">
+                    <button class="btn-row-edit" onclick="event.stopPropagation(); clientGoToEditScheda('${plan.id}')" title="Modifica scheda">✏️</button>
+                    <button class="btn-row-delete" onclick="event.stopPropagation(); clientDeleteScheda('${plan.id}', '${_escHtml(plan.name)}')" title="Rimuovi scheda">🗑️</button>
+                </div>
+            </div>`;
+        }).join('');
+        schedeHTML = `<div class="client-schede-section">
+            <h4>📋 Schede assegnate</h4>
+            ${planRows}
+        </div>`;
+    }
+
     const wEsc  = client.whatsapp.replace(/'/g, "\\'");
     const emEsc = (client.email || '').replace(/'/g, "\\'");
     const nEsc  = client.name.replace(/'/g, "\\'");
@@ -646,11 +674,32 @@ function createClientCard(client, index) {
                 </table>
                 ${showMoreBooksBtn}
             </div>
+            ${schedeHTML}
             ${creditHTML}
         </div>
     `;
 
     return card;
+}
+
+// ── Schede helpers from Clienti tab ──────────────────────────────────────────
+function clientGoToEditScheda(planId) {
+    if (typeof _schedeEditPlan === 'function' && typeof switchTab === 'function') {
+        switchTab('schede');
+        _schedeEditPlan(planId);
+    }
+}
+
+async function clientDeleteScheda(planId, planName) {
+    if (!confirm(`Eliminare la scheda "${planName}" e tutti gli esercizi associati?`)) return;
+    try {
+        await WorkoutPlanStorage.deletePlan(planId);
+        if (typeof showToast === 'function') showToast('Scheda eliminata', 'success');
+        renderClientsTab();
+    } catch (e) {
+        console.error('clientDeleteScheda error:', e);
+        if (typeof showToast === 'function') showToast('Errore eliminazione scheda', 'error');
+    }
 }
 
 function openEditClientPopup(index, whatsapp, email, name) {
