@@ -49,10 +49,17 @@ function _findExercise(name) {
     return EXERCISES_DB.find(e => e.nome_it === name) || null;
 }
 
+function _schedeCleanupPickerScroll() {
+    document.body.style.overflow = '';
+    const backdrop = document.getElementById('schedePickerBackdrop');
+    if (backdrop) backdrop.remove();
+}
+
 // Close open pickers on outside click
 document.addEventListener('click', (e) => {
-    if (!e.target.closest('.schede-ex-picker-wrap')) {
+    if (!e.target.closest('.schede-ex-picker-wrap') && !e.target.closest('.schede-picker-backdrop')) {
         document.querySelectorAll('.schede-ex-picker-dropdown').forEach(d => d.style.display = 'none');
+        _schedeCleanupPickerScroll();
     }
 });
 
@@ -99,7 +106,7 @@ function _schedeOpenPicker(exId) {
 
     const dropdown = document.getElementById('picker-' + exId);
     if (!dropdown) return;
-    if (dropdown.style.display === 'block') { dropdown.style.display = 'none'; return; }
+    if (dropdown.style.display === 'block') { dropdown.style.display = 'none'; _schedeCleanupPickerScroll(); return; }
 
     // Category → SVG icon map
     const catSvg = {
@@ -137,6 +144,17 @@ function _schedeOpenPicker(exId) {
     </div>`;
     dropdown.innerHTML = html;
     dropdown.style.display = 'block';
+    document.body.style.overflow = 'hidden';
+
+    // Add backdrop overlay on desktop
+    let backdrop = document.getElementById('schedePickerBackdrop');
+    if (!backdrop) {
+        backdrop = document.createElement('div');
+        backdrop.id = 'schedePickerBackdrop';
+        backdrop.className = 'schede-picker-backdrop';
+        backdrop.onclick = () => _schedeClosePicker(exId);
+        document.body.appendChild(backdrop);
+    }
 
     // Focus search
     const searchInput = dropdown.querySelector('.schede-picker-search');
@@ -146,6 +164,7 @@ function _schedeOpenPicker(exId) {
 function _schedeClosePicker(exId) {
     const dropdown = document.getElementById('picker-' + exId);
     if (dropdown) dropdown.style.display = 'none';
+    _schedeCleanupPickerScroll();
 }
 
 // Select a category → show exercises for that category
@@ -224,6 +243,7 @@ function _schedePickExercise(exId, exerciseName) {
     // Close picker and re-render row
     const dropdown = document.getElementById('picker-' + exId);
     if (dropdown) dropdown.style.display = 'none';
+    _schedeCleanupPickerScroll();
 
     // Update the selected display inline (avoid full re-render)
     const row = document.querySelector(`.schede-exercise-row[data-ex-id="${exId}"]`);
@@ -243,6 +263,7 @@ function _schedePickExercise(exId, exerciseName) {
 function _schedePickCustom(exId) {
     const dropdown = document.getElementById('picker-' + exId);
     if (dropdown) dropdown.style.display = 'none';
+    _schedeCleanupPickerScroll();
 
     _schedeUpdateExField(exId, 'exercise_name', '');
 
