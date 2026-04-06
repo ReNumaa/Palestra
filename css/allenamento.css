@@ -706,6 +706,22 @@
     background: rgba(0, 174, 239, 0.02);
 }
 
+/* Cardio: single column for minutes */
+.all-log-grid-cardio .all-log-grid-header {
+    grid-template-columns: 1fr;
+    text-align: center;
+}
+.all-log-row-cardio {
+    display: flex;
+    justify-content: center;
+    padding: 0.3rem 0;
+}
+.all-log-row-cardio .all-log-input {
+    max-width: 120px;
+    text-align: center;
+    font-size: 1.1rem;
+}
+
 .all-log-set {
     font-size: 0.82rem;
     font-weight: 800;

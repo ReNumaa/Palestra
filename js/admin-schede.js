@@ -238,26 +238,23 @@ function _schedePickExercise(exId, exerciseName) {
     const ex = _findExercise(exerciseName);
     // Update DB fields
     _schedeUpdateExField(exId, 'exercise_name', exerciseName);
-    if (ex) _schedeUpdateExField(exId, 'muscle_group', ex.categoria);
+    if (ex) {
+        _schedeUpdateExField(exId, 'muscle_group', ex.categoria);
+        // Cardio: set time-based defaults
+        if ((ex.categoria || '').toLowerCase() === 'cardio') {
+            _schedeUpdateExField(exId, 'sets', 1);
+            _schedeUpdateExField(exId, 'reps', '20');
+            _schedeUpdateExField(exId, 'rest_seconds', 0);
+        }
+    }
 
     // Close picker and re-render row
     const dropdown = document.getElementById('picker-' + exId);
     if (dropdown) dropdown.style.display = 'none';
     _schedeCleanupPickerScroll();
 
-    // Update the selected display inline (avoid full re-render)
-    const row = document.querySelector(`.schede-exercise-row[data-ex-id="${exId}"]`);
-    if (row) {
-        const pickerWrap = row.querySelector('.schede-ex-picker-wrap');
-        if (pickerWrap) {
-            const tempDiv = document.createElement('div');
-            tempDiv.innerHTML = _buildExercisePicker(exerciseName, exId, ex?.categoria || '');
-            pickerWrap.replaceWith(tempDiv.firstElementChild);
-        }
-        // Update muscle badge
-        const muscleBadge = row.querySelector('.schede-ex-muscle-badge');
-        if (muscleBadge && ex) muscleBadge.textContent = ex.categoria;
-    }
+    // Full re-render to update params layout (cardio vs strength)
+    _schedeRefreshEditor();
 }
 
 function _schedePickCustom(exId) {
@@ -1068,6 +1065,7 @@ function _renderExercisesForDay() {
     exercises.forEach((ex, i) => {
         const dbEx = _findExercise(ex.exercise_name);
         const catLabel = dbEx ? dbEx.categoria : (ex.muscle_group || '');
+        const _isCardio = (ex.muscle_group || '').toLowerCase() === 'cardio';
         html += `
         <div class="schede-exercise-row" data-ex-id="${ex.id}">
             <div class="schede-ex-drag">
@@ -1080,10 +1078,14 @@ function _renderExercisesForDay() {
                     ${_buildExercisePicker(ex.exercise_name, ex.id, ex.muscle_group)}
                 </div>
                 <div class="schede-ex-params">
+                    ${_isCardio ? `
+                    <label>Min<input type="text" value="${_escHtml(ex.reps)}" placeholder="20" onchange="_schedeUpdateExField('${ex.id}','reps',this.value)"></label>
+                    ` : `
                     <label>Serie<input type="number" min="1" max="20" value="${ex.sets}" onchange="_schedeUpdateExField('${ex.id}','sets',+this.value)"></label>
                     <label>Reps<input type="text" value="${_escHtml(ex.reps)}" placeholder="10" onchange="_schedeUpdateExField('${ex.id}','reps',this.value)"></label>
                     <label>Kg<input type="number" step="0.5" min="0" value="${ex.weight_kg ?? ''}" placeholder="—" onchange="_schedeUpdateExField('${ex.id}','weight_kg',this.value?+this.value:null)"></label>
                     <label>Rec.<input type="number" min="0" step="15" value="${ex.rest_seconds ?? 90}" onchange="_schedeUpdateExField('${ex.id}','rest_seconds',+this.value)"></label>
+                    `}
                 </div>
                 <input type="text" class="schede-ex-notes" value="${_escHtml(ex.notes || '')}" placeholder="Note esercizio..."
                        onchange="_schedeUpdateExField('${ex.id}','notes',this.value)">
@@ -1397,23 +1399,32 @@ async function _renderProgressView(container) {
                 <div class="schede-progress-exercise">
                     <div class="schede-progress-ex-header">
                         <strong>${_escHtml(ex.exercise_name)}</strong>
-                        <span class="schede-progress-target">Target: ${ex.sets}×${ex.reps} @ ${ex.weight_kg != null ? ex.weight_kg + 'kg' : '—'}</span>
+                        <span class="schede-progress-target">Target: ${(ex.muscle_group || '').toLowerCase() === 'cardio' ? ex.reps + ' min' : ex.sets + '×' + ex.reps + ' @ ' + (ex.weight_kg != null ? ex.weight_kg + 'kg' : '—')}</span>
                     </div>
                     <table class="schede-progress-table">
-                        <thead><tr><th>Data</th><th>Serie</th><th>Reps</th><th>Peso</th><th>RPE</th></tr></thead>
+                        <thead><tr><th>Data</th>${(ex.muscle_group || '').toLowerCase() === 'cardio' ? '<th>Min</th>' : '<th>Serie</th><th>Reps</th><th>Peso</th>'}<th>RPE</th></tr></thead>
                         <tbody>`;
+                const _exIsCardio = (ex.muscle_group || '').toLowerCase() === 'cardio';
                 for (const date of dates.slice(0, 10)) {
                     const setsForDate = byDate[date].sort((a, b) => a.set_number - b.set_number);
                     for (const s of setsForDate) {
                         const repsClass = _progressClass(s.reps_done, _parseRepsTarget(ex.reps));
                         const weightClass = _progressClass(s.weight_done, ex.weight_kg);
-                        html += `<tr>
-                            <td>${_fmtDate(date)}</td>
-                            <td>${s.set_number}</td>
-                            <td class="${repsClass}">${s.reps_done ?? '—'}</td>
-                            <td class="${weightClass}">${s.weight_done != null ? s.weight_done + 'kg' : '—'}</td>
-                            <td>${s.rpe ?? '—'}</td>
-                        </tr>`;
+                        if (_exIsCardio) {
+                            html += `<tr>
+                                <td>${_fmtDate(date)}</td>
+                                <td class="${repsClass}">${s.reps_done != null ? s.reps_done + ' min' : '—'}</td>
+                                <td>${s.rpe ?? '—'}</td>
+                            </tr>`;
+                        } else {
+                            html += `<tr>
+                                <td>${_fmtDate(date)}</td>
+                                <td>${s.set_number}</td>
+                                <td class="${repsClass}">${s.reps_done ?? '—'}</td>
+                                <td class="${weightClass}">${s.weight_done != null ? s.weight_done + 'kg' : '—'}</td>
+                                <td>${s.rpe ?? '—'}</td>
+                            </tr>`;
+                        }
                     }
                 }
                 html += '</tbody></table></div>';

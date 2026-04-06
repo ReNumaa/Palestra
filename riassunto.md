@@ -925,3 +925,123 @@
 | Tempo prompt utente (stimato) | ~2 min |
 | Token input (stimati) | ~40k |
 | Token output (stimati) | ~4k |
+
+## Task: Fix freeze su tab Schede e Clienti
+**Data:** 2026-04-06
+**Durata stimata:** ~15 min Claude + ~2 min prompt utente
+
+### Modifiche effettuate
+- Aggiunto `_queryWithTimeout` (12s) a tutte le query Supabase che non avevano timeout (8 query in data.js + admin-schede.js)
+- `refreshClients()`: wrappato in try/finally — bottone "Ricarica" non resta più disabilitato su errore
+- `saveClientEdit()`: spostato `_saveClientEditLocalProfile` + `closeEditClientPopup` dentro il try, bottone ri-abilitato in `finally`
+- `saveBookingRowEdit()`: ri-abilita bottone su early return per credito insufficiente (path fallback offline)
+- `deleteTxEntry()`: wrappato intera funzione in try-catch globale
+- `_renderClientDetail()`: aggiunto try-catch con timeout sulla query log — mostra errore invece di spinner infinito
+- `renderSchedeTab()`: errore mostrato in `schedeInner` (preserva nav pills per poter cambiare tab)
+- Cache bump v327 → v328
+
+### Decisioni prese
+- Timeout 12s (coerente con `_rpcWithTimeout` esistente): abbastanza lungo per connessioni lente, abbastanza corto per non sembrare un freeze
+- Errori mostrati con toast/alert anziché blocco silenzioso: l'utente sa che deve riprovare
+- `_queryWithTimeout` è alias di `_rpcWithTimeout` per chiarezza semantica (query vs RPC)
+
+### File toccati
+- `js/data.js` — Aggiunta `_queryWithTimeout`, timeout su syncFromSupabase di CreditStorage, ManualDebtStorage, BonusStorage, WorkoutPlanStorage, WorkoutLogStorage, UserStorage
+- `js/admin-clients.js` — try/catch/finally su refreshClients, saveClientEdit, saveBookingRowEdit, deleteTxEntry
+- `js/admin-schede.js` — timeout + try-catch su _loadExercisesDB e _renderClientDetail, migliorato errore in renderSchedeTab
+- `sw.js` — Cache bump v327 → v328
+
+### Consumo risorse (solo per progetti cliente)
+| Voce | Valore |
+|------|--------|
+| Tempo task Claude | ~15 min |
+| Tempo prompt utente (stimato) | ~2 min |
+| Token input (stimati) | ~200k |
+| Token output (stimati) | ~12k |
+
+## Task: FAB allenamento — da "crea scheda" a "aggiungi esercizio"
+**Data:** 2026-04-06
+**Durata stimata:** ~15 min Claude + ~3 min prompt utente
+
+### Modifiche effettuate
+- Il tasto FAB (+) in allenamento.html ora ha comportamento condizionale:
+  - Se non esiste nessuna scheda → apre il modal "Crea nuova scheda" (comportamento precedente)
+  - Se esiste già una scheda → apre il picker esercizi (stessa UI di admin → schede → aggiungi esercizio)
+- Il picker mostra categorie muscolari con icone, ricerca testuale, e opzione personalizzato
+- L'esercizio scelto viene aggiunto al giorno attivo della scheda corrente via `WorkoutPlanStorage.addExercise()`
+- CSS del picker copiato da admin.css in allenamento.css (fullscreen mobile, centrato desktop)
+
+### Decisioni prese
+- Riutilizzata la stessa UI/UX del picker admin per consistenza visiva
+- L'esercizio viene aggiunto con valori default (3×10, 90s rest) — modificabili dall'admin nelle schede
+- Il picker personalizzato usa `prompt()` nativo per semplicità
+
+### File toccati
+- `allenamento.html` — FAB onclick → `fabAction()`, aggiunta logica picker esercizi (~120 righe JS)
+- `css/allenamento.css` — aggiunti stili picker esercizi (~95 righe CSS), version bump v8→v9
+
+### Consumo risorse (solo per progetti cliente)
+| Voce | Valore |
+|------|--------|
+| Tempo task Claude | ~15 min |
+| Tempo prompt utente (stimato) | ~3 min |
+| Token input (stimati) | ~150k |
+| Token output (stimati) | ~15k |
+
+## Task: Swipe-to-delete e drag-to-reorder esercizi in allenamento
+**Data:** 2026-04-06
+**Durata stimata:** ~20 min Claude + ~3 min prompt utente
+
+### Modifiche effettuate
+- **Swipe left** su una card esercizio rivela il tasto "Elimina" rosso (85px)
+- **Long press** (500ms) su una card attiva la modalità drag-to-reorder con feedback aptico
+- Il drag sposta visualmente le card adiacenti e salva il nuovo ordine su Supabase
+- L'eliminazione rimuove l'esercizio dal piano e aggiorna la UI
+- Card HTML ristrutturata: `.all-ex-swipe-content` wrappa il contenuto, `.all-ex-delete-action` posizionato dietro
+
+### Decisioni prese
+- Swipe threshold 60px per evitare aperture accidentali
+- Direction lock: il primo movimento decide se è swipe orizzontale o scroll verticale
+- Confirm dialog prima dell'eliminazione per sicurezza
+- `navigator.vibrate(30)` come feedback aptico all'inizio del drag
+
+### File toccati
+- `allenamento.html` — logica touch swipe/drag (~180 righe JS), ristrutturazione HTML card, `deleteExerciseFromPlan()`
+- `css/allenamento.css` — stili swipe-content, delete-action, dragging state; version bump v9→v10
+
+### Consumo risorse (solo per progetti cliente)
+| Voce | Valore |
+|------|--------|
+| Tempo task Claude | ~20 min |
+| Tempo prompt utente (stimato) | ~3 min |
+| Token input (stimati) | ~200k |
+| Token output (stimati) | ~20k |
+
+## Task: Esercizi cardio a tempo (minuti) invece che ripetizioni
+**Data:** 2026-04-06
+**Durata stimata:** ~15 min Claude + ~3 min prompt utente
+
+### Modifiche effettuate
+- Esercizi con `muscle_group === 'Cardio'` ora mostrano minuti invece di ripetizioni in allenamento e schede
+- **allenamento.html**: target mostra "20 min" invece di "3 × 10", log con singolo input "Min" (senza serie/kg), sessione precedente mostra "X min"
+- **admin-schede.js**: form editing mostra solo campo "Min" per cardio (nasconde Serie/Reps/Kg/Rec), tabella progressi con colonna "Min" invece di Serie/Reps/Peso
+- Default quando si aggiunge un esercizio cardio dal picker: sets=1, reps='20', rest=0
+- CSS dedicato per layout cardio centrato nel log
+
+### Decisioni prese
+- Cardio identificato tramite `muscle_group` (campo già presente in `workout_exercises`) con valore "Cardio" (case-insensitive)
+- Il valore viene salvato nel campo `reps` del DB (compatibilità retroattiva, nessuna migrazione necessaria)
+- Nascosti Serie, Kg e Recupero per cardio nella form admin — non hanno senso per attività a tempo
+
+### File toccati
+- `allenamento.html` — rendering scheda cardio a tempo, default picker cardio
+- `js/admin-schede.js` — form editing cardio, progressi cardio, default su pick esercizio
+- `css/allenamento.css` — stili `.all-log-grid-cardio` e `.all-log-row-cardio`
+
+### Consumo risorse (solo per progetti cliente)
+| Voce | Valore |
+|------|--------|
+| Tempo task Claude | ~15 min |
+| Tempo prompt utente (stimato) | ~3 min |
+| Token input (stimati) | ~150k |
+| Token output (stimati) | ~15k |
