@@ -300,12 +300,15 @@
             _plan = plansRes.data[0];
             _exercises = (_plan.workout_exercises || []).sort((a, b) => a.sort_order - b.sort_order);
 
-            // Step 2: exercise catalog (only needed names) + logs in parallel
+            // Step 2: exercise catalog (only needed names) + logs (last 30 days) in parallel
             const exIds = _exercises.map(e => e.id);
             const exNames = [...new Set(_exercises.map(e => e.exercise_name))];
+            const cutoff = _localDate(new Date(Date.now() - 30 * 86400000));
             const logsPromise = exIds.length
-                ? supabaseClient.from('workout_logs').select('*')
+                ? supabaseClient.from('workout_logs')
+                    .select('id,exercise_id,user_id,log_date,set_number,reps_done,weight_done,rpe')
                     .in('exercise_id', exIds).eq('user_id', userId)
+                    .gte('log_date', cutoff)
                     .order('log_date', { ascending: false })
                     .order('set_number', { ascending: true })
                 : Promise.resolve({ data: [] });
@@ -691,7 +694,8 @@
         c.innerHTML = '<div class="tab-loading">Caricamento progressi...</div>';
 
         try {
-            // Fetch all plans for this user (for progress across plans)
+            // Fetch all plans + logs (last 90 days, only needed columns) in parallel
+            const progCutoff = _localDate(new Date(Date.now() - 90 * 86400000));
             const { data: allPlans } = await supabaseClient
                 .from('workout_plans')
                 .select('id, workout_exercises(id, exercise_name, muscle_group, sets, reps, weight_kg)')
@@ -706,9 +710,10 @@
 
             const { data: logs } = await supabaseClient
                 .from('workout_logs')
-                .select('*')
+                .select('exercise_id,log_date,set_number,reps_done,weight_done')
                 .in('exercise_id', allExIds)
                 .eq('user_id', _userId)
+                .gte('log_date', progCutoff)
                 .order('log_date', { ascending: true });
 
             if (!logs?.length) {
