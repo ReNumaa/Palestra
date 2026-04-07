@@ -1297,7 +1297,7 @@
     }
 
     .all-nav {
-        max-width: 240px;
+        max-width: 340px;
     }
 
     .all-plan-card {
@@ -1586,6 +1586,121 @@
     .schede-picker-cat-chip { padding: 0.5rem 0.6rem; font-size: 0.8rem; }
     .schede-picker-item { padding: 0.6rem; }
     .schede-picker-item-img { width: 48px; height: 48px; }
+}
+
+/* ── Tablet QR view (in allenamento.html) ─────────────────────────────────── */
+.all-tablet-qr-view {
+    display: flex;
+    justify-content: center;
+    padding: 1rem 0;
+}
+
+.all-tablet-qr-card {
+    background: var(--all-surface);
+    border-radius: var(--all-radius);
+    border: 1.5px solid var(--all-border);
+    box-shadow: var(--all-shadow-md);
+    padding: 2rem 1.5rem;
+    text-align: center;
+    max-width: 380px;
+    width: 100%;
+    animation: allFadeUp 0.4s ease-out;
+}
+
+.all-tablet-qr-icon {
+    color: var(--all-cyan);
+    margin-bottom: 0.8rem;
+}
+
+.all-tablet-qr-title {
+    font-size: 1.15rem;
+    font-weight: 800;
+    color: var(--all-navy);
+    margin: 0 0 0.4rem;
+}
+
+.all-tablet-qr-desc {
+    font-size: 0.82rem;
+    color: var(--all-muted);
+    line-height: 1.6;
+    margin: 0 0 1.2rem;
+}
+
+.all-tablet-qr-canvas-wrap {
+    display: inline-flex;
+    padding: 12px;
+    background: #fff;
+    border-radius: var(--all-radius-sm);
+    border: 2px solid var(--all-border);
+    margin-bottom: 0.8rem;
+    box-shadow: var(--all-shadow);
+}
+
+.all-tablet-qr-canvas-wrap canvas {
+    display: block;
+    width: 220px;
+    height: 220px;
+    image-rendering: pixelated;
+}
+
+.all-tablet-qr-name {
+    font-size: 0.88rem;
+    font-weight: 700;
+    color: var(--all-navy);
+    margin: 0 0 1rem;
+}
+
+.all-tablet-qr-actions {
+    display: flex;
+    gap: 0.5rem;
+    justify-content: center;
+    margin-bottom: 1rem;
+}
+
+.all-tablet-qr-btn {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.4rem;
+    padding: 0.6rem 1rem;
+    border: none;
+    border-radius: var(--all-radius-sm);
+    background: linear-gradient(135deg, var(--all-cyan) 0%, var(--all-cyan-dark) 100%);
+    color: #fff;
+    font-size: 0.82rem;
+    font-weight: 700;
+    cursor: pointer;
+    transition: all var(--all-transition);
+    box-shadow: 0 2px 8px rgba(0, 174, 239, 0.3);
+}
+
+.all-tablet-qr-btn:hover {
+    transform: translateY(-1px);
+    box-shadow: 0 4px 14px rgba(0, 174, 239, 0.4);
+}
+
+.all-tablet-qr-btn:active {
+    transform: scale(0.97);
+}
+
+.all-tablet-qr-btn--secondary {
+    background: var(--all-bg);
+    color: var(--all-navy);
+    border: 1.5px solid var(--all-border);
+    box-shadow: var(--all-shadow);
+}
+
+.all-tablet-qr-btn--secondary:hover {
+    border-color: var(--all-cyan);
+    color: var(--all-cyan);
+    box-shadow: var(--all-shadow-md);
+}
+
+.all-tablet-qr-hint {
+    font-size: 0.72rem;
+    color: var(--all-subtle);
+    margin: 0;
+    line-height: 1.5;
+    font-style: italic;
 }
 
 /* ── Reduced motion ────────────────────────────────────────────────────────── */
