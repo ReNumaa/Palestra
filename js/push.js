@@ -3,9 +3,14 @@
 const VAPID_PUBLIC_KEY = 'BOIkkllAmpdW6-MWn85UW36xGPDk9rJDtEIs23w9gmVxGeKx3OSTqTVzcZOcz7gfm8kCHmzc3jp6J2IlEXC0AGA';
 
 // Helper: token per autenticazione Edge Functions
-// Usa ANON_KEY (accettata dalla gateway Supabase) — l'auth JWT utente
-// va configurata lato edge function deploy, non lato client
-function _getPushAuthToken() {
+// Usa il JWT utente dalla sessione Supabase; fallback ad ANON_KEY se non disponibile
+async function _getPushAuthToken() {
+    if (typeof supabaseClient !== 'undefined') {
+        try {
+            const { data: { session } } = await supabaseClient.auth.getSession();
+            if (session?.access_token) return session.access_token;
+        } catch {}
+    }
     return typeof SUPABASE_ANON_KEY !== 'undefined' ? SUPABASE_ANON_KEY : null;
 }
 
