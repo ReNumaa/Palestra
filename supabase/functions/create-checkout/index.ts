@@ -5,13 +5,15 @@
 import Stripe from "npm:stripe@17";
 import { createClient } from "npm:@supabase/supabase-js@2";
 
-const STRIPE_SECRET_KEY = Deno.env.get("STRIPE_SECRET_KEY") || "";
+const STRIPE_SECRET_KEY = Deno.env.get("STRIPE_SECRET_KEY") || "sk_test_PLACEHOLDER";
 const SUPABASE_URL      = Deno.env.get("SUPABASE_URL")!;
 const SUPABASE_KEY      = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
 const SITE_URL          = Deno.env.get("SITE_URL") || "https://thomasbresciani.com";
 
+const stripe = new Stripe(STRIPE_SECRET_KEY, { apiVersion: "2024-12-18.acacia" });
+
 const corsHeaders = {
-    "Access-Control-Allow-Origin": "https://thomasbresciani.com",
+    "Access-Control-Allow-Origin": "*",
     "Access-Control-Allow-Headers": "Content-Type, Authorization",
     "Access-Control-Allow-Methods": "POST, OPTIONS",
 };
@@ -22,12 +24,6 @@ Deno.serve(async (req) => {
     }
 
     try {
-        if (!STRIPE_SECRET_KEY) {
-            return new Response(JSON.stringify({ error: "Stripe non configurato" }), {
-                status: 503, headers: { ...corsHeaders, "Content-Type": "application/json" },
-            });
-        }
-
         // Verify JWT — only authenticated users can create checkout sessions
         const authHeader = req.headers.get("Authorization");
         if (!authHeader) {
@@ -50,17 +46,16 @@ Deno.serve(async (req) => {
 
         const { amount, user_email, user_name } = await req.json();
 
-        // Validate amount (minimum €50, maximum €500)
+        // Validate amount (minimum €50, integer)
         const amountCents = Math.round(Number(amount) * 100);
-        if (!amount || amountCents < 5000 || amountCents > 50000) {
-            return new Response(JSON.stringify({ error: "Importo tra €50 e €500" }), {
+        if (!amount || amountCents < 5000) {
+            return new Response(JSON.stringify({ error: "Importo minimo: €50" }), {
                 status: 400,
                 headers: { ...corsHeaders, "Content-Type": "application/json" },
             });
         }
 
         // Create Stripe Checkout session
-        const stripe = new Stripe(STRIPE_SECRET_KEY, { apiVersion: "2024-12-18.acacia" });
         const session = await stripe.checkout.sessions.create({
             payment_method_types: ["card"],
             mode: "payment",
@@ -75,7 +70,7 @@ Deno.serve(async (req) => {
                 },
                 quantity: 1,
             }],
-            customer_email: user.email,
+            customer_email: user_email || user.email,
             metadata: {
                 supabase_user_id: user.id,
                 amount_eur: String(amount),

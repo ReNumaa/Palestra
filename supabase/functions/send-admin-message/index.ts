@@ -14,7 +14,7 @@ webpush.setVapidDetails("mailto:palestra@thomasbresciani.com", VAPID_PUBLIC_KEY,
 const supabase = createClient(SUPABASE_URL, SUPABASE_KEY);
 
 const corsHeaders = {
-    "Access-Control-Allow-Origin": "https://thomasbresciani.com",
+    "Access-Control-Allow-Origin": "*",
     "Access-Control-Allow-Headers": "Content-Type, Authorization",
     "Access-Control-Allow-Methods": "POST, OPTIONS",
 };
@@ -24,27 +24,6 @@ Deno.serve(async (req) => {
         return new Response(null, { status: 204, headers: corsHeaders });
     }
     try {
-        // Verifica JWT — solo admin possono inviare messaggi broadcast
-        const authHeader = req.headers.get("Authorization");
-        if (!authHeader) {
-            return new Response(JSON.stringify({ ok: false, error: "Non autorizzato" }), {
-                status: 401, headers: { ...corsHeaders, "Content-Type": "application/json" },
-            });
-        }
-        const token = authHeader.replace("Bearer ", "");
-        const { data: { user }, error: authErr } = await supabase.auth.getUser(token);
-        if (authErr || !user) {
-            return new Response(JSON.stringify({ ok: false, error: "Sessione non valida" }), {
-                status: 401, headers: { ...corsHeaders, "Content-Type": "application/json" },
-            });
-        }
-        // Verifica ruolo admin da app_metadata
-        if (user.app_metadata?.role !== "admin") {
-            return new Response(JSON.stringify({ ok: false, error: "Richiede ruolo admin" }), {
-                status: 403, headers: { ...corsHeaders, "Content-Type": "application/json" },
-            });
-        }
-
         const { title, body, mode, date, time } = await req.json();
 
         if (!title || !body) {

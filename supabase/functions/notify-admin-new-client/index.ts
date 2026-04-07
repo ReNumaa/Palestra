@@ -20,36 +20,16 @@ const ADMIN_IDS = [
 ];
 
 const corsHeaders = {
-    "Access-Control-Allow-Origin": "https://thomasbresciani.com",
+    "Access-Control-Allow-Origin": "*",
     "Access-Control-Allow-Headers": "Content-Type, Authorization",
     "Access-Control-Allow-Methods": "POST, OPTIONS",
 };
-
-const SUPABASE_ANON_KEY = Deno.env.get("SUPABASE_ANON_KEY") || "";
 
 Deno.serve(async (req) => {
     if (req.method === "OPTIONS") {
         return new Response(null, { status: 204, headers: corsHeaders });
     }
     try {
-        // Verifica JWT oppure anon key (la registrazione potrebbe non avere ancora una sessione)
-        const authHeader = req.headers.get("Authorization");
-        if (!authHeader) {
-            return new Response(JSON.stringify({ ok: false, error: "Non autorizzato" }), {
-                status: 401, headers: { ...corsHeaders, "Content-Type": "application/json" },
-            });
-        }
-        const token = authHeader.replace("Bearer ", "");
-        // Accetta anon key (per registrazione senza sessione) oppure JWT valido
-        if (token !== SUPABASE_ANON_KEY) {
-            const { data: { user }, error: authErr } = await supabase.auth.getUser(token);
-            if (authErr || !user) {
-                return new Response(JSON.stringify({ ok: false, error: "Sessione non valida" }), {
-                    status: 401, headers: { ...corsHeaders, "Content-Type": "application/json" },
-                });
-            }
-        }
-
         const { name } = await req.json();
 
         if (!name) {

@@ -6,11 +6,12 @@
 import Stripe from "npm:stripe@17";
 import { createClient } from "npm:@supabase/supabase-js@2";
 
-const STRIPE_SECRET_KEY     = Deno.env.get("STRIPE_SECRET_KEY") || "";
-const STRIPE_WEBHOOK_SECRET = Deno.env.get("STRIPE_WEBHOOK_SECRET") || "";
+const STRIPE_SECRET_KEY     = Deno.env.get("STRIPE_SECRET_KEY") || "sk_test_PLACEHOLDER";
+const STRIPE_WEBHOOK_SECRET = Deno.env.get("STRIPE_WEBHOOK_SECRET") || "whsec_PLACEHOLDER";
 const SUPABASE_URL          = Deno.env.get("SUPABASE_URL")!;
 const SUPABASE_KEY          = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
 
+const stripe = new Stripe(STRIPE_SECRET_KEY, { apiVersion: "2024-12-18.acacia" });
 const supabase = createClient(SUPABASE_URL, SUPABASE_KEY);
 
 Deno.serve(async (req) => {
@@ -19,10 +20,6 @@ Deno.serve(async (req) => {
     }
 
     try {
-        if (!STRIPE_SECRET_KEY || !STRIPE_WEBHOOK_SECRET) {
-            return new Response("Stripe non configurato", { status: 503 });
-        }
-
         const body = await req.text();
         const sig = req.headers.get("stripe-signature");
 
@@ -31,7 +28,6 @@ Deno.serve(async (req) => {
         }
 
         // Verify Stripe webhook signature
-        const stripe = new Stripe(STRIPE_SECRET_KEY, { apiVersion: "2024-12-18.acacia" });
         let event: Stripe.Event;
         try {
             event = await stripe.webhooks.constructEventAsync(body, sig, STRIPE_WEBHOOK_SECRET);
