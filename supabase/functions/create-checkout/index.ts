@@ -50,10 +50,10 @@ Deno.serve(async (req) => {
 
         const { amount, user_email, user_name } = await req.json();
 
-        // Validate amount (minimum €50, integer)
+        // Validate amount (minimum €50, maximum €500)
         const amountCents = Math.round(Number(amount) * 100);
-        if (!amount || amountCents < 5000) {
-            return new Response(JSON.stringify({ error: "Importo minimo: €50" }), {
+        if (!amount || amountCents < 5000 || amountCents > 50000) {
+            return new Response(JSON.stringify({ error: "Importo tra €50 e €500" }), {
                 status: 400,
                 headers: { ...corsHeaders, "Content-Type": "application/json" },
             });
@@ -75,7 +75,7 @@ Deno.serve(async (req) => {
                 },
                 quantity: 1,
             }],
-            customer_email: user_email || user.email,
+            customer_email: user.email,
             metadata: {
                 supabase_user_id: user.id,
                 amount_eur: String(amount),
