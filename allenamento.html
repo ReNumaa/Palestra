@@ -122,6 +122,7 @@
         let _allPlans = [];  // tutte le schede (attive e vecchie)
         let _allLogs = [];
         let _activeDay = null;  // giorno selezionato (session picker)
+        let _nextBooking = null; // prossima prenotazione confermata
         let _filterPeriod = 'all';
         let _filterMuscle = 'all';
 
@@ -244,14 +245,28 @@
             try {
                 await _loadAllExDB();
 
-                // Fetch ALL plans (active + old)
-                const { data: plans, error } = await supabaseClient
-                    .from('workout_plans')
-                    .select('*, workout_exercises(*)')
-                    .eq('user_id', user.id)
-                    .order('active', { ascending: false })
-                    .order('updated_at', { ascending: false });
+                // Fetch plans + next booking in parallel
+                const today = _localDateStr();
+                const [plansRes, bookingRes] = await Promise.all([
+                    supabaseClient
+                        .from('workout_plans')
+                        .select('*, workout_exercises(*)')
+                        .eq('user_id', user.id)
+                        .order('active', { ascending: false })
+                        .order('updated_at', { ascending: false }),
+                    supabaseClient
+                        .from('bookings')
+                        .select('date, time, slot_type')
+                        .eq('user_id', user.id)
+                        .eq('status', 'confirmed')
+                        .gte('date', today)
+                        .order('date', { ascending: true })
+                        .order('time', { ascending: true })
+                        .limit(1)
+                ]);
 
+                const { data: plans, error } = plansRes;
+                _nextBooking = bookingRes.data?.[0] || null;
                 if (error) throw error;
                 if (!plans?.length) {
                     document.getElementById('allContent').innerHTML =
@@ -398,6 +413,20 @@
             if (!_activeDay || !days.includes(_activeDay)) _activeDay = _suggestDay(days);
 
             let html = '';
+
+            // ── Next booking banner ─────────────────────────────────────
+            if (_nextBooking) {
+                const nbDate = _nextBooking.date;
+                const nbTime = (_nextBooking.time || '').split(' - ')[0]; // prendi solo orario inizio
+                const isToday = nbDate === today;
+                const tomorrow = new Date(); tomorrow.setDate(tomorrow.getDate() + 1);
+                const isTomorrow = nbDate === tomorrow.toISOString().slice(0, 10);
+                const dayLabel = isToday ? 'Oggi' : isTomorrow ? 'Domani' : _fmtDateFull(nbDate);
+                html += `<div class="all-next-booking">
+                    <span class="all-next-booking-label">Prossimo allenamento</span>
+                    <span class="all-next-booking-date">${dayLabel}${nbTime ? ' alle ' + nbTime : ''}</span>
+                </div>`;
+            }
 
             // ── Day selector tabs ────────────────────────────────────────
             html += '<div class="all-day-tabs" role="tablist" aria-label="Giorni di allenamento">';
@@ -910,6 +939,13 @@
             if (!iso) return '';
             const d = new Date(iso + 'T00:00:00');
             return d.toLocaleDateString('it-IT', { day: '2-digit', month: 'short' });
+        }
+
+        function _fmtDateFull(iso) {
+            if (!iso) return '';
+            const d = new Date(iso + 'T00:00:00');
+            const s = d.toLocaleDateString('it-IT', { weekday: 'long', day: 'numeric', month: 'long' });
+            return s.charAt(0).toUpperCase() + s.slice(1);
         }
 
         // ── Refined line chart (canvas) ──────────────────────────────────
