@@ -13,7 +13,7 @@
     <link rel="icon" type="image/jpeg" href="images/logo-tb---nero.jpg">
     <link rel="stylesheet" href="css/style.css?v=8">
     <link rel="stylesheet" href="css/login.css?v=4">
-    <link rel="stylesheet" href="css/allenamento.css?v=22">
+    <link rel="stylesheet" href="css/allenamento.css?v=23">
 </head>
 <body class="allenamento-body">
     <nav class="navbar">
@@ -541,7 +541,9 @@
                             <span class="all-log-set">${s}</span>
                             <input type="number" inputmode="numeric" min="0" value="${rVal}" class="all-log-input" data-field="reps" data-set="${s}" aria-label="Ripetizioni serie ${s}">
                             <input type="number" inputmode="decimal" min="0" step="0.5" value="${wVal}" class="all-log-input" data-field="weight" data-set="${s}" aria-label="Peso serie ${s}">
-                            <span class="all-log-rest">${restVal}${restVal ? restUnit : ''}</span>
+                            ${s === 1
+                                ? `<input type="number" inputmode="numeric" min="0" value="${restVal}" class="all-log-input all-log-rest-input" data-field="rest" data-exid="${ex.id}" onchange="saveRestSeconds(this)" aria-label="Riposo secondi">`
+                                : `<span class="all-log-rest">${restVal}${restVal ? restUnit : ''}</span>`}
                         </div>`;
                     }
                 }
@@ -565,6 +567,18 @@
             // Scroll al tab attivo se fuori vista
             const activeTab = container.querySelector('.all-day-tab.active');
             if (activeTab) activeTab.scrollIntoView({ behavior: 'smooth', inline: 'center', block: 'nearest' });
+        }
+
+        async function saveRestSeconds(input) {
+            const exId = input.dataset.exid;
+            const val = input.value !== '' ? parseInt(input.value) : null;
+            try {
+                await WorkoutPlanStorage.updateExercise(exId, { rest_seconds: val });
+                const ex = _allPlan?.workout_exercises?.find(e => e.id === exId);
+                if (ex) ex.rest_seconds = val;
+            } catch (e) {
+                console.error('[Allenamento] saveRestSeconds error:', e);
+            }
         }
 
         function toggleExCard(exId) {

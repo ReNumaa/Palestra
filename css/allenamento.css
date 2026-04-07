@@ -680,8 +680,8 @@
 
 .all-log-grid-header {
     display: grid;
-    grid-template-columns: 36px 1fr 1fr auto;
-    gap: 0.4rem;
+    grid-template-columns: 30px 1fr 1fr 1fr;
+    gap: 0.3rem;
     font-size: 0.62rem;
     font-weight: 800;
     color: var(--all-subtle);
@@ -694,8 +694,8 @@
 
 .all-log-row {
     display: grid;
-    grid-template-columns: 36px 1fr 1fr auto;
-    gap: 0.4rem;
+    grid-template-columns: 30px 1fr 1fr 1fr;
+    gap: 0.3rem;
     align-items: center;
     padding: 0.2rem 0;
     transition: background 0.15s;
@@ -1237,12 +1237,12 @@
     }
 
     .all-log-grid-header {
-        grid-template-columns: 30px 1fr 1fr auto;
+        grid-template-columns: 26px 1fr 1fr 1fr;
         font-size: 0.58rem;
     }
 
     .all-log-row {
-        grid-template-columns: 30px 1fr 1fr auto;
+        grid-template-columns: 26px 1fr 1fr 1fr;
     }
 
     .all-log-input {
@@ -1304,11 +1304,11 @@
     }
 
     .all-log-grid-header {
-        grid-template-columns: 44px 1fr 1fr auto;
+        grid-template-columns: 36px 1fr 1fr 1fr;
     }
 
     .all-log-row {
-        grid-template-columns: 44px 1fr 1fr auto;
+        grid-template-columns: 36px 1fr 1fr 1fr;
     }
 
     .all-log-input {
@@ -1693,6 +1693,10 @@
     font-weight: 600;
     text-align: center;
     white-space: nowrap;
+}
+
+.all-log-rest-input {
+    text-align: center;
 }
 
 /* ── Next booking inside day tab ──────────────────────────────────────────── */
