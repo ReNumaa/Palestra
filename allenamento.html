@@ -537,11 +537,12 @@
                         const isExtra = s > ex.sets;
                         const rVal = existing?.reps_done ?? prev?.reps_done ?? (isExtra ? '' : (parseInt(ex.reps) || ''));
                         const wVal = existing?.weight_done ?? prev?.weight_done ?? (isExtra ? '' : (ex.weight_kg ?? ''));
+                        const rstVal = existing?.rest_done ?? prev?.rest_done ?? (isExtra ? '' : restVal);
                         html += `<div class="all-log-row">
                             <span class="all-log-set">${s}</span>
                             <input type="number" inputmode="numeric" min="0" value="${rVal}" class="all-log-input" data-field="reps" data-set="${s}" aria-label="Ripetizioni serie ${s}">
                             <input type="number" inputmode="decimal" min="0" step="0.5" value="${wVal}" class="all-log-input" data-field="weight" data-set="${s}" aria-label="Peso serie ${s}">
-                            <span class="all-log-rest">${restVal}${restVal ? restUnit : ''}</span>
+                            <input type="number" inputmode="numeric" min="0" value="${rstVal}" class="all-log-input" data-field="rest" data-set="${s}" aria-label="Riposo serie ${s}">
                         </div>`;
                     }
                 }
@@ -586,13 +587,15 @@
                     const s = setEl ? parseInt(setEl.textContent) : 1;
                     const reps = row.querySelector('input[data-field="reps"]');
                     const weight = row.querySelector('input[data-field="weight"]');
+                    const rest = row.querySelector('input[data-field="rest"]');
                     await WorkoutLogStorage.logSet({
                         exercise_id: exerciseId,
                         user_id: user.id,
                         log_date: today,
                         set_number: s,
                         reps_done: reps?.value ? parseInt(reps.value) : null,
-                        weight_done: weight?.value ? parseFloat(weight.value) : null,
+                        weight_done: weight?.value !== '' ? parseFloat(weight.value) : null,
+                        rest_done: rest?.value ? parseInt(rest.value) : null,
                         rpe: null,
                     });
                 }
@@ -666,6 +669,7 @@
                 <span class="all-log-set">${nextSet}</span>
                 <input type="number" inputmode="numeric" min="0" value="" class="all-log-input" data-field="reps" data-set="${nextSet}" aria-label="Ripetizioni serie ${nextSet}">
                 <input type="number" inputmode="decimal" min="0" step="0.5" value="" class="all-log-input" data-field="weight" data-set="${nextSet}" aria-label="Peso serie ${nextSet}">
+                <input type="number" inputmode="numeric" min="0" value="" class="all-log-input" data-field="rest" data-set="${nextSet}" aria-label="Riposo serie ${nextSet}">
             `;
             grid.appendChild(row);
             row.querySelector('input[data-field="reps"]').focus();

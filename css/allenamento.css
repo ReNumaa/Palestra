@@ -1686,15 +1686,6 @@
     font-style: italic;
 }
 
-/* ── Rest column in log grid ──────────────────────────────────────────────── */
-.all-log-rest {
-    font-size: 0.78rem;
-    color: var(--all-muted);
-    font-weight: 600;
-    text-align: center;
-    white-space: nowrap;
-}
-
 /* ── Next booking inside day tab ──────────────────────────────────────────── */
 .all-day-tab-next {
     font-size: 0.68rem;

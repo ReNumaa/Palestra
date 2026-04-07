@@ -2614,7 +2614,7 @@ class WorkoutLogStorage {
     }
 
     // Insert or update (upsert on unique constraint)
-    static async logSet({ exercise_id, user_id, log_date, set_number, reps_done, weight_done, rpe, notes }) {
+    static async logSet({ exercise_id, user_id, log_date, set_number, reps_done, weight_done, rpe, rest_done, notes }) {
         const row = {
             exercise_id, user_id,
             log_date: log_date || _localDateStr(),
@@ -2622,6 +2622,7 @@ class WorkoutLogStorage {
             reps_done: reps_done ?? null,
             weight_done: weight_done ?? null,
             rpe: rpe ?? null,
+            rest_done: rest_done ?? null,
             notes: notes || null,
         };
         const { data, error } = await supabaseClient
