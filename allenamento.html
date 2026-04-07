@@ -13,7 +13,7 @@
     <link rel="icon" type="image/jpeg" href="images/logo-tb---nero.jpg">
     <link rel="stylesheet" href="css/style.css?v=8">
     <link rel="stylesheet" href="css/login.css?v=4">
-    <link rel="stylesheet" href="css/allenamento.css?v=20">
+    <link rel="stylesheet" href="css/allenamento.css?v=21">
 </head>
 <body class="allenamento-body">
     <nav class="navbar">
@@ -466,15 +466,16 @@
 
             for (const ex of dayExercises) {
                 const _cardio = (ex.muscle_group || '').toLowerCase() === 'cardio';
-                const target = _cardio
-                    ? `${ex.reps} min`
-                    : `${ex.sets} × ${ex.reps}${ex.weight_kg != null ? ' @ ' + ex.weight_kg + ' kg' : ''}`;
                 const hasLogs = todayLogs.some(l => l.exercise_id === ex.id);
                 const prevLogs = _prevSessionLogs(ex.id);
 
                 const dbEx = _findEx(ex.exercise_name);
                 const thumbSrc = dbEx ? dbEx.immagine_url_small : '';
                 const exSlug = dbEx ? dbEx.slug : '';
+
+                const targetHtml = _cardio
+                    ? `<input type="number" inputmode="numeric" min="0" value="${parseInt(ex.reps) || ''}" class="all-target-input" data-tf="reps" data-exid="${ex.id}" onchange="saveTargetField(this)" onclick="event.stopPropagation()"> min`
+                    : `<input type="number" inputmode="numeric" min="1" value="${ex.sets || ''}" class="all-target-input all-target-input-sm" data-tf="sets" data-exid="${ex.id}" onchange="saveTargetField(this)" onclick="event.stopPropagation()"> × <input type="number" inputmode="numeric" min="0" value="${parseInt(ex.reps) || ''}" class="all-target-input all-target-input-sm" data-tf="reps" data-exid="${ex.id}" onchange="saveTargetField(this)" onclick="event.stopPropagation()"> @ <input type="number" inputmode="decimal" min="0" step="0.5" value="${ex.weight_kg ?? ''}" class="all-target-input all-target-input-sm" data-tf="weight_kg" data-exid="${ex.id}" onchange="saveTargetField(this)" onclick="event.stopPropagation()"> kg &middot; <input type="number" inputmode="numeric" min="0" step="5" value="${ex.rest_seconds ?? ''}" class="all-target-input all-target-input-sm" data-tf="rest_seconds" data-exid="${ex.id}" onchange="saveTargetField(this)" onclick="event.stopPropagation()">s`;
 
                 html += `<div class="all-ex-card ${hasLogs ? 'all-ex-done' : ''}" id="ex-${ex.id}" data-ex-id="${ex.id}" data-sort="${ex.sort_order}">
                     <div class="all-ex-delete-action" onclick="deleteExerciseFromPlan('${ex.id}')">
@@ -486,7 +487,7 @@
                         ${thumbSrc ? `<img src="${thumbSrc}" class="all-ex-thumb" alt="" loading="lazy" onclick="event.stopPropagation();showExDetail('${_escHtml(exSlug)}')">` : ''}
                         <div class="all-ex-info">
                             <div class="all-ex-name">${_escHtml(ex.exercise_name)}${exSlug ? `<button class="all-ex-info-btn" onclick="event.stopPropagation();showExDetail('${_escHtml(exSlug)}')" title="Info esercizio">&#9432;</button>` : ''}</div>
-                            <div class="all-ex-target" onclick="event.stopPropagation();openTargetEdit('${ex.id}')" title="Modifica target">${target}${!_cardio && ex.rest_seconds ? ' &middot; pausa ' + ex.rest_seconds + 's' : ''} &#9998;</div>
+                            <div class="all-ex-target">${targetHtml}</div>
                         </div>
                         <div class="all-ex-status">${hasLogs ? '<span class="all-ex-check">&#10003;</span>' : '<span class="all-ex-chevron">&#9662;</span>'}</div>
                     </div>
@@ -568,69 +569,21 @@
             if (card) card.classList.toggle('open');
         }
 
-        function openTargetEdit(exId) {
-            const ex = _allPlan?.workout_exercises?.find(e => e.id === exId);
-            if (!ex) return;
-            const card = document.getElementById('ex-' + exId);
-            if (!card) return;
-            // Evita doppio editor
-            if (card.querySelector('.all-target-edit')) return;
-
-            const isCardio = (ex.muscle_group || '').toLowerCase() === 'cardio';
-            const targetDiv = card.querySelector('.all-ex-target');
-            const oldHtml = targetDiv.innerHTML;
-
-            targetDiv.innerHTML = isCardio
-                ? `<div class="all-target-edit">
-                    <label>Minuti<input type="number" inputmode="numeric" min="0" value="${parseInt(ex.reps) || ''}" data-tf="reps"></label>
-                    <div class="all-target-edit-actions">
-                        <button class="all-target-edit-save" onclick="saveTargetEdit('${exId}')">Salva</button>
-                        <button class="all-target-edit-cancel" onclick="cancelTargetEdit('${exId}')">Annulla</button>
-                    </div>
-                </div>`
-                : `<div class="all-target-edit">
-                    <label>Serie<input type="number" inputmode="numeric" min="1" value="${ex.sets || ''}" data-tf="sets"></label>
-                    <label>Ripetizioni<input type="number" inputmode="numeric" min="0" value="${parseInt(ex.reps) || ''}" data-tf="reps"></label>
-                    <label>Kg<input type="number" inputmode="decimal" min="0" step="0.5" value="${ex.weight_kg ?? ''}" data-tf="weight_kg"></label>
-                    <label>Pausa (s)<input type="number" inputmode="numeric" min="0" step="5" value="${ex.rest_seconds ?? ''}" data-tf="rest_seconds"></label>
-                    <div class="all-target-edit-actions">
-                        <button class="all-target-edit-save" onclick="saveTargetEdit('${exId}')">Salva</button>
-                        <button class="all-target-edit-cancel" onclick="cancelTargetEdit('${exId}')">Annulla</button>
-                    </div>
-                </div>`;
-            targetDiv.removeAttribute('onclick');
-            targetDiv._oldHtml = oldHtml;
-        }
-
-        function cancelTargetEdit(exId) {
-            renderScheda();
-        }
-
-        async function saveTargetEdit(exId) {
-            const card = document.getElementById('ex-' + exId);
-            if (!card) return;
-            const editBox = card.querySelector('.all-target-edit');
-            if (!editBox) return;
-            const btn = editBox.querySelector('.all-target-edit-save');
-            btn.disabled = true; btn.textContent = '...';
+        async function saveTargetField(input) {
+            const exId = input.dataset.exid;
+            const field = input.dataset.tf;
+            if (!exId || !field) return;
+            const updates = {};
+            if (field === 'sets') updates.sets = parseInt(input.value) || 1;
+            else if (field === 'reps') updates.reps = input.value || '0';
+            else if (field === 'weight_kg') updates.weight_kg = input.value !== '' ? parseFloat(input.value) : null;
+            else if (field === 'rest_seconds') updates.rest_seconds = input.value !== '' ? parseInt(input.value) : null;
             try {
-                const updates = {};
-                const setsEl = editBox.querySelector('[data-tf="sets"]');
-                const repsEl = editBox.querySelector('[data-tf="reps"]');
-                const weightEl = editBox.querySelector('[data-tf="weight_kg"]');
-                const restEl = editBox.querySelector('[data-tf="rest_seconds"]');
-                if (setsEl) updates.sets = parseInt(setsEl.value) || 1;
-                if (repsEl) updates.reps = repsEl.value || '0';
-                if (weightEl) updates.weight_kg = weightEl.value !== '' ? parseFloat(weightEl.value) : null;
-                if (restEl) updates.rest_seconds = restEl.value !== '' ? parseInt(restEl.value) : null;
                 await WorkoutPlanStorage.updateExercise(exId, updates);
-                // Aggiorna anche in _allPlan locale
                 const ex = _allPlan?.workout_exercises?.find(e => e.id === exId);
                 if (ex) Object.assign(ex, updates);
-                renderScheda();
             } catch (e) {
-                console.error('[Allenamento] saveTargetEdit error:', e);
-                btn.disabled = false; btn.textContent = 'Salva';
+                console.error('[Allenamento] saveTargetField error:', e);
             }
         }
 
