@@ -1686,6 +1686,93 @@
     font-style: italic;
 }
 
+/* ── Inline target edit ──────────────────────────────────────────────────── */
+.all-ex-target {
+    cursor: pointer;
+}
+
+.all-target-edit {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.5rem;
+    align-items: flex-end;
+    padding: 0.25rem 0;
+}
+
+.all-target-edit label {
+    display: flex;
+    flex-direction: column;
+    font-size: 0.7rem;
+    font-weight: 600;
+    color: var(--all-muted);
+    gap: 0.15rem;
+    flex: 1;
+    min-width: 60px;
+}
+
+.all-target-edit input {
+    width: 100%;
+    padding: 0.35rem 0.4rem;
+    border: 1.5px solid var(--all-border);
+    border-radius: var(--all-radius-xs);
+    font-size: 0.85rem;
+    font-weight: 600;
+    color: var(--all-slate);
+    background: var(--all-surface);
+    transition: border-color var(--all-transition);
+    -moz-appearance: textfield;
+}
+
+.all-target-edit input::-webkit-inner-spin-button,
+.all-target-edit input::-webkit-outer-spin-button {
+    -webkit-appearance: none;
+    margin: 0;
+}
+
+.all-target-edit input:focus {
+    outline: none;
+    border-color: var(--all-cyan);
+    box-shadow: 0 0 0 2px var(--all-cyan-glow);
+}
+
+.all-target-edit-actions {
+    display: flex;
+    gap: 0.4rem;
+    width: 100%;
+    margin-top: 0.2rem;
+}
+
+.all-target-edit-save,
+.all-target-edit-cancel {
+    flex: 1;
+    padding: 0.4rem 0;
+    border: none;
+    border-radius: var(--all-radius-xs);
+    font-size: 0.78rem;
+    font-weight: 700;
+    cursor: pointer;
+    transition: background var(--all-transition);
+}
+
+.all-target-edit-save {
+    background: var(--all-cyan);
+    color: #fff;
+}
+
+.all-target-edit-save:hover {
+    background: var(--all-cyan-dark);
+}
+
+.all-target-edit-cancel {
+    background: var(--all-bg);
+    color: var(--all-muted);
+    border: 1px solid var(--all-border);
+}
+
+.all-target-edit-cancel:hover {
+    background: var(--all-border);
+}
+
 /* ── Next booking inside day tab ──────────────────────────────────────────── */
 .all-day-tab-next {
     font-size: 0.68rem;
