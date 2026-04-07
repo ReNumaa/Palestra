@@ -414,18 +414,12 @@
 
             let html = '';
 
-            // ── Next booking banner ─────────────────────────────────────
+            // ── Next booking label ──────────────────────────────────────
+            let _nextStr = '';
             if (_nextBooking) {
-                const nbDate = _nextBooking.date;
-                const nbTime = (_nextBooking.time || '').split(' - ')[0]; // prendi solo orario inizio
-                const isToday = nbDate === today;
-                const tomorrow = new Date(); tomorrow.setDate(tomorrow.getDate() + 1);
-                const isTomorrow = nbDate === tomorrow.toISOString().slice(0, 10);
-                const dayLabel = isToday ? 'Oggi' : isTomorrow ? 'Domani' : _fmtDateFull(nbDate);
-                html += `<div class="all-next-booking">
-                    <span class="all-next-booking-label">Prossimo allenamento</span>
-                    <span class="all-next-booking-date">${dayLabel}${nbTime ? ' alle ' + nbTime : ''}</span>
-                </div>`;
+                const nb = _nextBooking.date;
+                const tom = new Date(); tom.setDate(tom.getDate() + 1);
+                _nextStr = nb === today ? 'oggi' : nb === tom.toISOString().slice(0, 10) ? 'domani' : _fmtDateAll(nb);
             }
 
             // ── Day selector tabs ────────────────────────────────────────
@@ -439,6 +433,7 @@
                 html += `<button class="all-day-tab ${isActive ? 'active' : ''} ${doneToday ? 'done' : ''}" role="tab" aria-selected="${isActive}" aria-label="${_escHtml(day)}${doneToday ? ', completato' : ''}" data-day="${_escHtml(day)}" onclick="switchDay('${_escHtml(day)}')">
                     <span class="all-day-tab-name">${_escHtml(day)}${doneToday ? ' &#10003;' : ''}</span>
                     <span class="all-day-tab-last">ultimo: ${lastStr}</span>
+                    ${_nextStr ? `<span class="all-day-tab-next">prossimo: ${_nextStr}</span>` : ''}
                 </button>`;
             }
             // Tasto + per aggiungere giorno
@@ -941,12 +936,6 @@
             return d.toLocaleDateString('it-IT', { day: '2-digit', month: 'short' });
         }
 
-        function _fmtDateFull(iso) {
-            if (!iso) return '';
-            const d = new Date(iso + 'T00:00:00');
-            const s = d.toLocaleDateString('it-IT', { weekday: 'long', day: 'numeric', month: 'long' });
-            return s.charAt(0).toUpperCase() + s.slice(1);
-        }
 
         // ── Refined line chart (canvas) ──────────────────────────────────
         function drawDarkLineChart(canvas, labels, values, color) {

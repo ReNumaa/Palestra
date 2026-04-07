@@ -1686,30 +1686,11 @@
     font-style: italic;
 }
 
-/* ── Next booking banner ──────────────────────────────────────────────────── */
-.all-next-booking {
-    display: flex;
-    align-items: center;
-    justify-content: space-between;
-    background: var(--all-cyan-glow);
-    border: 1px solid rgba(0, 174, 239, 0.25);
-    border-radius: var(--all-radius-sm);
-    padding: 0.6rem 1rem;
-    margin-bottom: 0.75rem;
-}
-
-.all-next-booking-label {
-    font-size: 0.78rem;
-    font-weight: 600;
-    color: var(--all-muted);
-    text-transform: uppercase;
-    letter-spacing: 0.03em;
-}
-
-.all-next-booking-date {
-    font-size: 0.88rem;
-    font-weight: 700;
+/* ── Next booking inside day tab ──────────────────────────────────────────── */
+.all-day-tab-next {
+    font-size: 0.68rem;
     color: var(--all-cyan-dark);
+    font-weight: 600;
 }
 
 /* ── Reduced motion ────────────────────────────────────────────────────────── */
