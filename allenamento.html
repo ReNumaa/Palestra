@@ -13,7 +13,7 @@
     <link rel="icon" type="image/jpeg" href="images/logo-tb---nero.jpg">
     <link rel="stylesheet" href="css/style.css?v=8">
     <link rel="stylesheet" href="css/login.css?v=4">
-    <link rel="stylesheet" href="css/allenamento.css?v=15">
+    <link rel="stylesheet" href="css/allenamento.css?v=16">
 </head>
 <body class="allenamento-body">
     <nav class="navbar">
@@ -1751,15 +1751,6 @@
             container.innerHTML = `
                 <div class="all-tablet-qr-view">
                     <div class="all-tablet-qr-card">
-                        <div class="all-tablet-qr-icon">
-                            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" width="48" height="48">
-                                <rect x="3" y="3" width="7" height="7" rx="1"/><rect x="14" y="3" width="7" height="7" rx="1"/>
-                                <rect x="3" y="14" width="7" height="7" rx="1"/><rect x="14" y="14" width="3" height="3"/>
-                                <line x1="21" y1="14" x2="21" y2="21"/><line x1="14" y1="21" x2="21" y2="21"/>
-                            </svg>
-                        </div>
-                        <h3 class="all-tablet-qr-title">Il tuo QR per il Tablet</h3>
-                        <p class="all-tablet-qr-desc">Scansiona questo codice dal tablet in palestra per aprire la tua scheda e registrare l'allenamento.</p>
                         <div class="all-tablet-qr-canvas-wrap">
                             <canvas id="tabletQrCanvas"></canvas>
                         </div>
@@ -1767,14 +1758,14 @@
                         <div class="all-tablet-qr-actions">
                             <button class="all-tablet-qr-btn" onclick="_downloadTabletQR()">
                                 <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="18" height="18"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
-                                Scarica QR
+                                Scarica
                             </button>
                             <button class="all-tablet-qr-btn all-tablet-qr-btn--secondary" onclick="_copyTabletLink()">
                                 <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="18" height="18"><rect x="9" y="9" width="13" height="13" rx="2"/><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/></svg>
                                 Copia link
                             </button>
                         </div>
-                        <p class="all-tablet-qr-hint">Il QR resta valido anche se cambi scheda: mostra sempre la tua scheda attiva.</p>
+                        <p class="all-tablet-qr-hint">Scansiona dal tablet in palestra. Resta valido anche se cambi scheda.</p>
                     </div>
                 </div>`;
 
