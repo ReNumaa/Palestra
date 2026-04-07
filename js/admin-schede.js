@@ -403,13 +403,13 @@ async function renderSchedeTab() {
         container.innerHTML = html;
 
         const inner = document.getElementById('schedeInner');
-        if (_schedeSection === 'clienti') {
+        if (_schedeView === 'edit') _renderPlanEditor(inner);
+        else if (_schedeView === 'progress') await _renderProgressView(inner);
+        else if (_schedeSection === 'clienti') {
             if (_schedeView === 'client-detail') await _renderClientDetail(inner);
             else _renderClientsList(inner);
         } else {
-            if (_schedeView === 'edit') _renderPlanEditor(inner);
-            else if (_schedeView === 'progress') await _renderProgressView(inner);
-            else _renderSchedeList(inner);
+            _renderSchedeList(inner);
         }
     } catch (e) {
         console.error('[Schede] renderSchedeTab error:', e);
@@ -951,7 +951,6 @@ function _schedeEditPlan(planId) {
     const days = [...new Set((plan.workout_exercises || []).map(e => e.day_label))];
     _editDayLabels = days.length ? days : ['Giorno A'];
     _editActiveDay = _editDayLabels[0];
-    _schedeSection = 'schede';
     _schedeView = 'edit';
     renderSchedeTab();
 }
@@ -1242,7 +1241,11 @@ async function _schedeSavePlan() {
 }
 
 function _schedeBackToList() {
-    _schedeView = _schedeSection === 'clienti' ? 'clients' : 'list';
+    if (_schedeSection === 'clienti' && _schedeClientUserId) {
+        _schedeView = 'client-detail';
+    } else {
+        _schedeView = _schedeSection === 'clienti' ? 'clients' : 'list';
+    }
     _editingPlan = null;
     _currentPlanId = null;
     renderSchedeTab();
