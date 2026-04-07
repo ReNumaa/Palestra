@@ -1560,7 +1560,7 @@
                             const svg = catSvg[c] || 'chest';
                             return `
                             <button type="button" class="schede-picker-cat-chip" data-cat="${_escHtml(c)}" onclick="pickExCategory('${_escHtml(c)}')">
-                                <img src="icone_muscoli/${svg}.svg" class="schede-picker-cat-icon" alt="" loading="lazy">
+                                <img src="images/icone_muscoli/${svg}.svg" class="schede-picker-cat-icon" alt="" loading="lazy">
                                 <span class="schede-picker-cat-name">${_escHtml(c)}</span>
                                 <span class="schede-picker-cat-count">${(_pickerExByCat[c] || []).length}</span>
                             </button>`;

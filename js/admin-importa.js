@@ -26,7 +26,7 @@ const _importaCatSvg = {
 async function _loadImportaCatalog() {
     if (_importaCatalogLoaded) return;
     try {
-        const resp = await fetch('esercizi_completo.json');
+        const resp = await fetch('data/esercizi_completo.json');
         _importaCatalog = await resp.json();
         _importaCatalogByCat = {};
         for (const ex of _importaCatalog) {
@@ -128,7 +128,7 @@ function _renderImportaUI(container) {
         if (_importaView === 'importati' && s.imported === 0) continue;
         html += `
         <button class="importa-cat-chip${_importaActiveCat === c ? ' active' : ''}" onclick="_importaPickCat('${_escHtml(c)}')">
-            <img src="icone_muscoli/${svg}.svg" class="importa-cat-icon" alt="">
+            <img src="images/icone_muscoli/${svg}.svg" class="importa-cat-icon" alt="">
             <span class="importa-cat-name">${_escHtml(c)}</span>
             <span class="importa-cat-count">${countLabel}</span>
         </button>`;
@@ -213,14 +213,14 @@ function _importaRenderGrid() {
             <div class="importa-card-media" onclick="_importaShowDetail('${_escHtml(slug)}')">
                 ${thumb
                     ? `<img src="${_escHtml(thumb)}" class="importa-card-img" alt="${_escHtml(nome)}" loading="lazy">`
-                    : `<div class="importa-card-img importa-card-img--placeholder"><img src="icone_muscoli/${svgFile}.svg" alt="" class="importa-card-placeholder-icon"></div>`
+                    : `<div class="importa-card-img importa-card-img--placeholder"><img src="images/icone_muscoli/${svgFile}.svg" alt="" class="importa-card-placeholder-icon"></div>`
                 }
                 ${isImported ? '<span class="importa-card-check">✓</span>' : ''}
             </div>
             <div class="importa-card-body">
                 <div class="importa-card-name" title="${_escHtml(nome)}">${_escHtml(nome)}</div>
                 <div class="importa-card-meta">
-                    <img src="icone_muscoli/${svgFile}.svg" class="importa-card-cat-icon" alt="">
+                    <img src="images/icone_muscoli/${svgFile}.svg" class="importa-card-cat-icon" alt="">
                     <span>${_escHtml(cat)}</span>
                 </div>
                 ${_importaView === 'importati' && ex._imported && ex._imported.nome_it !== ex._imported.nome_original
@@ -403,7 +403,7 @@ function _importaShowDetail(slug) {
                 ? `<video src="${_escHtml(ex.video)}" autoplay loop muted playsinline class="importa-detail-video"></video>`
                 : (ex.immagine
                     ? `<img src="${_escHtml(ex.immagine)}" class="importa-detail-img" alt="">`
-                    : `<div class="importa-detail-placeholder"><img src="icone_muscoli/${svgFile}.svg" alt=""></div>`)
+                    : `<div class="importa-detail-placeholder"><img src="images/icone_muscoli/${svgFile}.svg" alt=""></div>`)
             }
         </div>
         <div class="importa-detail-info">
@@ -414,7 +414,7 @@ function _importaShowDetail(slug) {
             }
             <div class="importa-detail-en">${_escHtml(ex.nome_en || '')}</div>
             <div class="importa-detail-cat">
-                <img src="icone_muscoli/${svgFile}.svg" class="importa-detail-cat-icon" alt="">
+                <img src="images/icone_muscoli/${svgFile}.svg" class="importa-detail-cat-icon" alt="">
                 ${_escHtml(ex.categoria)}
             </div>
             <div class="importa-detail-actions">

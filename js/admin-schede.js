@@ -131,7 +131,7 @@ function _schedeOpenPicker(exId) {
                 const svg = catSvg[c] || 'chest';
                 return `
                 <button type="button" class="schede-picker-cat-chip" onclick="_schedePickCat('${exId}','${_escHtml(c)}')" data-cat="${_escHtml(c)}">
-                    <img src="icone_muscoli/${svg}.svg" class="schede-picker-cat-icon" alt="">
+                    <img src="images/icone_muscoli/${svg}.svg" class="schede-picker-cat-icon" alt="">
                     <span class="schede-picker-cat-name">${_escHtml(c)}</span>
                     <span class="schede-picker-cat-count">${(EXERCISES_BY_CAT[c] || []).length}</span>
                 </button>`;
