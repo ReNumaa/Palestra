@@ -894,7 +894,7 @@ function liveSearchManualClient() {
         const safeW = (u.whatsapp || '').replace(/'/g, "\\'");
         const safeE = (u.email || '').replace(/'/g, "\\'");
         return `<div class="debtor-search-option" onclick="selectManualClient('${safeN}','${safeW}','${safeE}')">
-            <strong>${u.name}</strong>
+            <strong>${_escHtml(u.name)}</strong>
         </div>`;
     }).join('');
     dropdown.style.display = 'block';
@@ -909,10 +909,10 @@ function selectManualClient(name, whatsapp, email) {
     const initials = name.trim().split(/\s+/).map(w => w[0]).join('').toUpperCase().slice(0, 2);
     const sub = [whatsapp, email].filter(Boolean).join(' · ');
     sel.innerHTML = `
-        <div class="manual-client-avatar">${initials}</div>
+        <div class="manual-client-avatar">${_escHtml(initials)}</div>
         <div class="manual-client-info">
-            <strong>${name}</strong>
-            ${sub ? `<small>${sub}</small>` : ''}
+            <strong>${_escHtml(name)}</strong>
+            ${sub ? `<small>${_escHtml(sub)}</small>` : ''}
         </div>
         <button class="manual-client-clear" onclick="_manualEntryContact=null;
             document.getElementById('manualClientSelected').style.display='none';

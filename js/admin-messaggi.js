@@ -20,7 +20,7 @@ function showMsgResultPopup(recipients, failed) {
         html += `<div class="msg-popup-section-title msg-popup-section-title--ok">✅ Inviate con successo (${recipients.length})</div>`;
         html += '<ul class="msg-popup-list msg-popup-list--ok">';
         recipients.forEach(name => {
-            html += `<li><span class="msg-popup-avatar">${getInitials(name)}</span> ${name}</li>`;
+            html += `<li><span class="msg-popup-avatar">${getInitials(name)}</span> ${_escHtml(name)}</li>`;
         });
         html += '</ul></div>';
     }
@@ -29,7 +29,7 @@ function showMsgResultPopup(recipients, failed) {
         html += `<div class="msg-popup-section-title msg-popup-section-title--fail">❌ Non recapitate (${failed.length})</div>`;
         html += '<ul class="msg-popup-list msg-popup-list--fail">';
         failed.forEach(name => {
-            html += `<li><span class="msg-popup-avatar">${getInitials(name)}</span> ${name}</li>`;
+            html += `<li><span class="msg-popup-avatar">${getInitials(name)}</span> ${_escHtml(name)}</li>`;
         });
         html += '</ul></div>';
     }
