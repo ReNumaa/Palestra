@@ -541,7 +541,7 @@
                             <span class="all-log-set">${s}</span>
                             <input type="number" inputmode="numeric" min="0" value="${rVal}" class="all-log-input" data-field="reps" data-set="${s}" aria-label="Ripetizioni serie ${s}">
                             <input type="number" inputmode="decimal" min="0" step="0.5" value="${wVal}" class="all-log-input" data-field="weight" data-set="${s}" aria-label="Peso serie ${s}">
-                            <input type="number" inputmode="numeric" min="0" value="${restVal}" class="all-log-input all-log-rest-input" data-field="rest" data-exid="${ex.id}" onchange="saveRestSeconds(this)" aria-label="Riposo serie ${s}">
+                            <span class="all-log-rest">${restVal}${restVal ? restUnit : ''}</span>
                         </div>`;
                     }
                 }
@@ -565,18 +565,6 @@
             // Scroll al tab attivo se fuori vista
             const activeTab = container.querySelector('.all-day-tab.active');
             if (activeTab) activeTab.scrollIntoView({ behavior: 'smooth', inline: 'center', block: 'nearest' });
-        }
-
-        async function saveRestSeconds(input) {
-            const exId = input.dataset.exid;
-            const val = input.value !== '' ? parseInt(input.value) : null;
-            try {
-                await WorkoutPlanStorage.updateExercise(exId, { rest_seconds: val });
-                const ex = _allPlan?.workout_exercises?.find(e => e.id === exId);
-                if (ex) ex.rest_seconds = val;
-            } catch (e) {
-                console.error('[Allenamento] saveRestSeconds error:', e);
-            }
         }
 
         function toggleExCard(exId) {
@@ -1700,13 +1688,28 @@
 
         async function pickExerciseFromPicker(exerciseName) {
             const ex = _findEx(exerciseName);
+            const isCardio = ex && (ex.categoria || '').toLowerCase() === 'cardio';
+
+            // Chiedi serie, ripetizioni, riposo
+            let sets = 1, reps = '20', rest = 0;
+            if (!isCardio) {
+                const setsVal = prompt('Numero di serie:', '3');
+                if (setsVal === null) return;
+                sets = parseInt(setsVal) || 3;
+
+                const repsVal = prompt('Numero di ripetizioni:', '10');
+                if (repsVal === null) return;
+                reps = repsVal || '10';
+
+                const restVal = prompt('Riposo tra le serie (secondi):', '90');
+                if (restVal === null) return;
+                rest = parseInt(restVal) || 90;
+            }
+
             const dayLabel = _pendingDayLabel || _activeDay || 'Giorno A';
-            const wasPending = !!_pendingDayLabel;
             _pendingDayLabel = null;
             closeExercisePicker();
             try {
-                const isCardio = ex && (ex.categoria || '').toLowerCase() === 'cardio';
-                // Calcola sort_order: dopo l'ultimo esercizio dell'intero piano
                 const allExercises = _allPlan.workout_exercises || [];
                 const maxOrder = allExercises.reduce((m, e) => Math.max(m, e.sort_order), -1);
                 const exerciseData = {
@@ -1715,10 +1718,10 @@
                     exercise_name: exerciseName,
                     muscle_group: ex ? ex.categoria : null,
                     sort_order: maxOrder + 1,
-                    sets: isCardio ? 1 : 3,
-                    reps: isCardio ? '20' : '10',
+                    sets,
+                    reps,
                     weight_kg: null,
-                    rest_seconds: isCardio ? 0 : 90,
+                    rest_seconds: rest,
                     notes: null,
                 };
                 const { data: newEx, error } = await supabaseClient
@@ -1727,7 +1730,6 @@
                     .select()
                     .single();
                 if (error) throw error;
-                // Update local plan data
                 _allPlan.workout_exercises.push(newEx);
                 _activeDay = dayLabel;
                 renderScheda();

@@ -1695,10 +1695,6 @@
     white-space: nowrap;
 }
 
-.all-log-rest-input {
-    text-align: center;
-}
-
 /* ── Next booking inside day tab ──────────────────────────────────────────── */
 .all-day-tab-next {
     font-size: 0.68rem;
