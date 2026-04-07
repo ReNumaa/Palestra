@@ -475,7 +475,7 @@
 
                 const targetHtml = _cardio
                     ? `<input type="number" inputmode="numeric" min="0" value="${parseInt(ex.reps) || ''}" class="all-target-input" data-tf="reps" data-exid="${ex.id}" onchange="saveTargetField(this)" onclick="event.stopPropagation()"> min`
-                    : `<input type="number" inputmode="numeric" min="1" value="${ex.sets || ''}" class="all-target-input all-target-input-sm" data-tf="sets" data-exid="${ex.id}" onchange="saveTargetField(this)" onclick="event.stopPropagation()"> × <input type="number" inputmode="numeric" min="0" value="${parseInt(ex.reps) || ''}" class="all-target-input all-target-input-sm" data-tf="reps" data-exid="${ex.id}" onchange="saveTargetField(this)" onclick="event.stopPropagation()"> @ <input type="number" inputmode="decimal" min="0" step="0.5" value="${ex.weight_kg ?? ''}" class="all-target-input all-target-input-sm" data-tf="weight_kg" data-exid="${ex.id}" onchange="saveTargetField(this)" onclick="event.stopPropagation()"> kg &middot; <input type="number" inputmode="numeric" min="0" step="5" value="${ex.rest_seconds ?? ''}" class="all-target-input all-target-input-sm" data-tf="rest_seconds" data-exid="${ex.id}" onchange="saveTargetField(this)" onclick="event.stopPropagation()">s`;
+                    : `<input type="number" inputmode="numeric" min="1" value="${ex.sets || ''}" class="all-target-input all-target-input-sm" data-tf="sets" data-exid="${ex.id}" onchange="saveTargetField(this)" onclick="event.stopPropagation()"> × <input type="number" inputmode="numeric" min="0" value="${parseInt(ex.reps) || ''}" class="all-target-input all-target-input-sm" data-tf="reps" data-exid="${ex.id}" onchange="saveTargetField(this)" onclick="event.stopPropagation()"> @ <input type="number" inputmode="decimal" min="0" step="0.5" value="${ex.weight_kg ?? ''}" class="all-target-input all-target-input-sm" data-tf="weight_kg" data-exid="${ex.id}" onchange="saveTargetField(this)" onclick="event.stopPropagation()"> kg &middot; <input type="number" inputmode="numeric" min="0" value="${ex.rest_seconds ?? ''}" class="all-target-input all-target-input-sm" data-tf="rest_seconds" data-exid="${ex.id}" onchange="saveTargetField(this)" onclick="event.stopPropagation()"><span class="all-target-unit">${ex.rest_seconds && ex.rest_seconds <= 3 ? 'min' : 's'}</span>`;
 
                 html += `<div class="all-ex-card ${hasLogs ? 'all-ex-done' : ''}" id="ex-${ex.id}" data-ex-id="${ex.id}" data-sort="${ex.sort_order}">
                     <div class="all-ex-delete-action" onclick="deleteExerciseFromPlan('${ex.id}')">
@@ -577,7 +577,11 @@
             if (field === 'sets') updates.sets = parseInt(input.value) || 1;
             else if (field === 'reps') updates.reps = input.value || '0';
             else if (field === 'weight_kg') updates.weight_kg = input.value !== '' ? parseFloat(input.value) : null;
-            else if (field === 'rest_seconds') updates.rest_seconds = input.value !== '' ? parseInt(input.value) : null;
+            else if (field === 'rest_seconds') {
+                updates.rest_seconds = input.value !== '' ? parseInt(input.value) : null;
+                const unitSpan = input.nextElementSibling;
+                if (unitSpan) unitSpan.textContent = updates.rest_seconds && updates.rest_seconds <= 3 ? 'min' : 's';
+            }
             try {
                 await WorkoutPlanStorage.updateExercise(exId, updates);
                 const ex = _allPlan?.workout_exercises?.find(e => e.id === exId);
