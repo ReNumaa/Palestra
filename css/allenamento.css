@@ -1607,6 +1607,13 @@
     animation: allFadeUp 0.4s ease-out;
 }
 
+.all-tablet-qr-title {
+    font-size: 1.05rem;
+    font-weight: 800;
+    color: var(--all-navy);
+    margin: 0 0 0.8rem;
+}
+
 .all-tablet-qr-canvas-wrap {
     display: inline-flex;
     padding: 10px;
