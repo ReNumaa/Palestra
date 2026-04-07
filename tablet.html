@@ -281,11 +281,10 @@
         if (statusEl) statusEl.textContent = 'Caricamento scheda...';
 
         try {
-            // Fetch profile, plan, and exercise catalog in parallel
+            // Step 1: profile + plan in parallel
             const [profileRes, plansRes] = await Promise.all([
                 supabaseClient.from('profiles').select('name, email').eq('id', userId).single(),
-                supabaseClient.from('workout_plans').select('*, workout_exercises(*)').eq('user_id', userId).eq('active', true).order('updated_at', { ascending: false }).limit(1),
-                _loadExDB()
+                supabaseClient.from('workout_plans').select('*, workout_exercises(*)').eq('user_id', userId).eq('active', true).order('updated_at', { ascending: false }).limit(1)
             ]);
 
             _userName = profileRes.data?.name || profileRes.data?.email || 'Utente';
@@ -301,18 +300,21 @@
             _plan = plansRes.data[0];
             _exercises = (_plan.workout_exercises || []).sort((a, b) => a.sort_order - b.sort_order);
 
-            // Fetch logs (needs exercise IDs from plan)
+            // Step 2: exercise catalog (only needed names) + logs in parallel
             const exIds = _exercises.map(e => e.id);
-            if (exIds.length) {
-                const { data: logsData } = await supabaseClient
-                    .from('workout_logs')
-                    .select('*')
-                    .in('exercise_id', exIds)
-                    .eq('user_id', userId)
+            const exNames = [...new Set(_exercises.map(e => e.exercise_name))];
+            const logsPromise = exIds.length
+                ? supabaseClient.from('workout_logs').select('*')
+                    .in('exercise_id', exIds).eq('user_id', userId)
                     .order('log_date', { ascending: false })
-                    .order('set_number', { ascending: true });
-                _logs = logsData || [];
-            }
+                    .order('set_number', { ascending: true })
+                : Promise.resolve({ data: [] });
+
+            const [, logsRes] = await Promise.all([
+                _loadExDB(exNames),
+                logsPromise
+            ]);
+            _logs = logsRes.data || [];
 
             // Persist uid in URL so refresh keeps the session
             const url = new URL(window.location);
@@ -336,10 +338,16 @@
         }
     }
 
-    async function _loadExDB() {
+    async function _loadExDB(exerciseNames) {
         if (_exDBLoaded) return;
         try {
-            const { data } = await supabaseClient.from('imported_exercises').select('*');
+            let query = supabaseClient.from('imported_exercises')
+                .select('nome_it, nome_en, categoria, slug, immagine, immagine_thumbnail, video');
+            // If we know which exercises we need, fetch only those
+            if (exerciseNames?.length) {
+                query = query.in('nome_it', exerciseNames);
+            }
+            const { data } = await query;
             _exDB = (data || []).map(e => ({
                 nome_it: e.nome_it, nome_en: e.nome_en || '', categoria: e.categoria,
                 slug: e.slug, img: e.immagine_thumbnail || e.immagine || '',
@@ -598,12 +606,14 @@
         btn.disabled = true;
         btn.textContent = 'Salvataggio...';
         try {
+            // Batch all sets into a single upsert
+            const batch = [];
             for (const row of rows) {
                 const setEl = row.querySelector('.tab-log-set');
                 const s = setEl ? parseInt(setEl.textContent) : 1;
                 const reps = row.querySelector('input[data-field="reps"]');
                 const weight = row.querySelector('input[data-field="weight"]');
-                await supabaseClient.from('workout_logs').upsert({
+                batch.push({
                     exercise_id: exId,
                     user_id: _userId,
                     log_date: today,
@@ -611,11 +621,11 @@
                     reps_done: reps?.value ? parseInt(reps.value) : null,
                     weight_done: weight?.value ? parseFloat(weight.value) : null,
                     rpe: null, notes: null
-                }, { onConflict: 'exercise_id,user_id,log_date,set_number' });
+                });
             }
-            // Refresh logs for this exercise
-            const { data } = await supabaseClient.from('workout_logs').select('*')
-                .eq('exercise_id', exId).eq('user_id', _userId).eq('log_date', today);
+            const { data } = await supabaseClient.from('workout_logs')
+                .upsert(batch, { onConflict: 'exercise_id,user_id,log_date,set_number' })
+                .select();
             if (data) {
                 _logs = _logs.filter(l => !(l.exercise_id === exId && l.log_date === today));
                 _logs.push(...data);
