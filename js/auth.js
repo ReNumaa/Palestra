@@ -594,10 +594,10 @@ function renderProfileTab(tab) {
     }
 
     container.innerHTML = list.map(b => `
-        <div class="profile-booking-card ${b.slotType}">
-            <div class="profile-booking-date">📅 ${b.dateDisplay || b.date}</div>
-            <div class="profile-booking-time">🕐 ${b.time}</div>
-            <div class="profile-booking-type">${(window.SLOT_NAMES && window.SLOT_NAMES[b.slotType]) || b.slotType}</div>
+        <div class="profile-booking-card ${_escHtml(b.slotType)}">
+            <div class="profile-booking-date">📅 ${_escHtml(b.dateDisplay || b.date)}</div>
+            <div class="profile-booking-time">🕐 ${_escHtml(b.time)}</div>
+            <div class="profile-booking-type">${_escHtml((window.SLOT_NAMES && window.SLOT_NAMES[b.slotType]) || b.slotType)}</div>
         </div>
     `).join('');
 }
