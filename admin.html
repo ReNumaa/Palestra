@@ -72,8 +72,8 @@
                 <button class="admin-tab" data-tab="settings">🔧 Impostazioni</button>
                 <button class="admin-tab" data-tab="registro">📋 Registro</button>
                 <button class="admin-tab" data-tab="messaggi">📩 Messaggi</button>
-                <button class="admin-tab" data-tab="schede" id="adminTabSchede" style="display:none">🏋🏻 Schede</button>
-                <button class="admin-tab" data-tab="importa" id="adminTabImporta" style="display:none">💪🏻 Importa</button>
+                <button class="admin-tab" data-tab="schede" id="adminTabSchede">🏋🏻 Schede</button>
+                <button class="admin-tab" data-tab="importa" id="adminTabImporta">💪🏻 Importa</button>
                 <button class="admin-tab admin-tab--privacy" id="btnToggleSensitive" onclick="toggleSensitiveData()" title="Nascondi/mostra dati sensibili">👁</button>
             </div>
 
@@ -1179,14 +1179,6 @@
             if (typeof loadDashboardData === 'function') loadDashboardData();
             if (typeof renderAdminCalendar === 'function') renderAdminCalendar();
             if (typeof renderScheduleManager === 'function') renderScheduleManager();
-            // Mostra tab Schede, Importa e voce Allenamento per tutti gli admin
-            if (sessionStorage.getItem('adminAuth') === 'true') {
-                const _schedeBtn = document.getElementById('adminTabSchede');
-                if (_schedeBtn) _schedeBtn.style.display = '';
-                const _importaBtn = document.getElementById('adminTabImporta');
-                if (_importaBtn) _importaBtn.style.display = '';
-                // navAllenamento gestito centralmente da updateNavAuth() in auth.js
-            }
             // Re-render il tab attivo dopo il sync (le cache erano vuote al primo render)
             const _activeTab = document.querySelector('.admin-tab.active');
             if (_activeTab) switchTab(_activeTab.dataset.tab);
