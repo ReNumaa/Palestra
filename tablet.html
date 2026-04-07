@@ -284,10 +284,10 @@
             // Fetch user profile
             const { data: profile } = await supabaseClient
                 .from('profiles')
-                .select('full_name, email')
+                .select('name, email')
                 .eq('id', userId)
                 .single();
-            _userName = profile?.full_name || profile?.email || 'Utente';
+            _userName = profile?.name || profile?.email || 'Utente';
 
             // Fetch active workout plan with exercises
             const { data: plans, error } = await supabaseClient
