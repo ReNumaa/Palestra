@@ -281,38 +281,27 @@
         if (statusEl) statusEl.textContent = 'Caricamento scheda...';
 
         try {
-            // Fetch user profile
-            const { data: profile } = await supabaseClient
-                .from('profiles')
-                .select('name, email')
-                .eq('id', userId)
-                .single();
-            _userName = profile?.name || profile?.email || 'Utente';
+            // Fetch profile, plan, and exercise catalog in parallel
+            const [profileRes, plansRes] = await Promise.all([
+                supabaseClient.from('profiles').select('name, email').eq('id', userId).single(),
+                supabaseClient.from('workout_plans').select('*, workout_exercises(*)').eq('user_id', userId).eq('active', true).order('updated_at', { ascending: false }).limit(1),
+                _loadExDB()
+            ]);
 
-            // Fetch active workout plan with exercises
-            const { data: plans, error } = await supabaseClient
-                .from('workout_plans')
-                .select('*, workout_exercises(*)')
-                .eq('user_id', userId)
-                .eq('active', true)
-                .order('updated_at', { ascending: false })
-                .limit(1);
+            _userName = profileRes.data?.name || profileRes.data?.email || 'Utente';
 
-            if (error) throw error;
-            if (!plans?.length) {
+            if (plansRes.error) throw plansRes.error;
+            if (!plansRes.data?.length) {
                 if (statusEl) statusEl.textContent = 'Nessuna scheda attiva trovata per questo utente.';
                 _userId = null;
                 _startScanner();
                 return;
             }
 
-            _plan = plans[0];
+            _plan = plansRes.data[0];
             _exercises = (_plan.workout_exercises || []).sort((a, b) => a.sort_order - b.sort_order);
 
-            // Load exercise catalog
-            await _loadExDB();
-
-            // Load logs
+            // Fetch logs (needs exercise IDs from plan)
             const exIds = _exercises.map(e => e.id);
             if (exIds.length) {
                 const { data: logsData } = await supabaseClient
