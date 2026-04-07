@@ -11,7 +11,7 @@
     <meta name="apple-mobile-web-app-title" content="Tablet Gym">
     <title>Tablet Allenamento – Thomas Bresciani</title>
     <link rel="icon" type="image/jpeg" href="images/logo-tb---nero.jpg">
-    <link rel="stylesheet" href="css/tablet.css?v=1">
+    <link rel="stylesheet" href="css/tablet.css?v=2">
 </head>
 <body class="tab-body">
 
@@ -456,7 +456,7 @@
                 <div class="tab-ex-header" onclick="toggleTabEx('${ex.id}')">
                     ${thumb ? `<img src="${thumb}" class="tab-ex-thumb" alt="" loading="lazy">` : '<div class="tab-ex-thumb-placeholder"></div>'}
                     <div class="tab-ex-info">
-                        <div class="tab-ex-name">${_esc(ex.exercise_name)}</div>
+                        <div class="tab-ex-name">${_esc(ex.exercise_name)}${dbEx?.slug ? `<button class="tab-ex-info-btn" onclick="event.stopPropagation();showTabExDetail('${_esc(dbEx.slug)}')" title="Video esercizio">&#9432;</button>` : ''}</div>
                         <div class="tab-ex-target">${target}${!isCardio && ex.rest_seconds ? ' &middot; rec. ' + ex.rest_seconds + 's' : ''}</div>
                     </div>
                     <div class="tab-ex-status">${hasLogs ? '<span class="tab-ex-check">&#10003;</span>' : '<span class="tab-ex-chevron">&#9662;</span>'}</div>
@@ -535,6 +535,48 @@
     function toggleTabEx(exId) {
         const card = document.getElementById('tex-' + exId);
         if (card) card.classList.toggle('open');
+    }
+
+    function showTabExDetail(slug) {
+        const ex = _exDB.find(e => e.slug === slug);
+        if (!ex) return;
+        const old = document.getElementById('tabExDetailOverlay');
+        if (old) old.remove();
+
+        const overlay = document.createElement('div');
+        overlay.id = 'tabExDetailOverlay';
+        overlay.className = 'tab-ex-detail-overlay';
+        overlay.onclick = (e) => { if (e.target === overlay) overlay.remove(); };
+        overlay.innerHTML = `
+        <div class="tab-ex-detail-panel">
+            <div class="tab-ex-detail-header">
+                <div>
+                    <h3>${_esc(ex.nome_it)}</h3>
+                    <span class="tab-ex-detail-cat">${_esc(ex.categoria)}</span>
+                    ${ex.nome_en ? `<span class="tab-ex-detail-en">${_esc(ex.nome_en)}</span>` : ''}
+                </div>
+                <button class="tab-ex-detail-close" onclick="document.getElementById('tabExDetailOverlay').remove()">&times;</button>
+            </div>
+            <div class="tab-ex-detail-body" id="tabExDetailMedia"></div>
+        </div>`;
+        document.body.appendChild(overlay);
+
+        const mc = document.getElementById('tabExDetailMedia');
+        if (ex.video && mc) {
+            const v = document.createElement('video');
+            v.className = 'tab-ex-detail-video';
+            v.controls = true; v.autoplay = true; v.loop = true;
+            v.muted = true; v.playsInline = true; v.preload = 'auto';
+            v.src = ex.video;
+            mc.appendChild(v);
+            v.load(); v.play().catch(() => {});
+        } else if (mc && ex.img) {
+            const img = document.createElement('img');
+            img.className = 'tab-ex-detail-img';
+            img.src = ex.img; img.alt = ex.nome_it;
+            mc.appendChild(img);
+        }
+        requestAnimationFrame(() => overlay.classList.add('visible'));
     }
 
     function tabAddSet(exId, btn) {
