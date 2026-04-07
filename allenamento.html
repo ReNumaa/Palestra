@@ -541,9 +541,7 @@
                             <span class="all-log-set">${s}</span>
                             <input type="number" inputmode="numeric" min="0" value="${rVal}" class="all-log-input" data-field="reps" data-set="${s}" aria-label="Ripetizioni serie ${s}">
                             <input type="number" inputmode="decimal" min="0" step="0.5" value="${wVal}" class="all-log-input" data-field="weight" data-set="${s}" aria-label="Peso serie ${s}">
-                            ${s === 1
-                                ? `<input type="number" inputmode="numeric" min="0" value="${restVal}" class="all-log-input all-log-rest-input" data-field="rest" data-exid="${ex.id}" onchange="saveRestSeconds(this)" aria-label="Riposo secondi">`
-                                : `<span class="all-log-rest">${restVal}${restVal ? restUnit : ''}</span>`}
+                            <input type="number" inputmode="numeric" min="0" value="${restVal}" class="all-log-input all-log-rest-input" data-field="rest" data-exid="${ex.id}" onchange="saveRestSeconds(this)" aria-label="Riposo serie ${s}">
                         </div>`;
                     }
                 }
