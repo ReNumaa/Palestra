@@ -680,7 +680,7 @@
 
 .all-log-grid-header {
     display: grid;
-    grid-template-columns: 36px 1fr 1fr;
+    grid-template-columns: 36px 1fr 1fr auto;
     gap: 0.4rem;
     font-size: 0.62rem;
     font-weight: 800;
@@ -694,7 +694,7 @@
 
 .all-log-row {
     display: grid;
-    grid-template-columns: 36px 1fr 1fr;
+    grid-template-columns: 36px 1fr 1fr auto;
     gap: 0.4rem;
     align-items: center;
     padding: 0.2rem 0;
@@ -1237,12 +1237,12 @@
     }
 
     .all-log-grid-header {
-        grid-template-columns: 30px 1fr 1fr;
+        grid-template-columns: 30px 1fr 1fr auto;
         font-size: 0.58rem;
     }
 
     .all-log-row {
-        grid-template-columns: 30px 1fr 1fr;
+        grid-template-columns: 30px 1fr 1fr auto;
     }
 
     .all-log-input {
@@ -1304,11 +1304,11 @@
     }
 
     .all-log-grid-header {
-        grid-template-columns: 44px 1fr 1fr;
+        grid-template-columns: 44px 1fr 1fr auto;
     }
 
     .all-log-row {
-        grid-template-columns: 44px 1fr 1fr;
+        grid-template-columns: 44px 1fr 1fr auto;
     }
 
     .all-log-input {
@@ -1686,34 +1686,13 @@
     font-style: italic;
 }
 
-/* ── Inline target inputs ─────────────────────────────────────────────────── */
-.all-target-input {
-    width: 3.2em;
-    padding: 0.15rem 0.25rem;
-    border: 1px solid var(--all-border);
-    border-radius: 4px;
-    font-size: inherit;
+/* ── Rest column in log grid ──────────────────────────────────────────────── */
+.all-log-rest {
+    font-size: 0.78rem;
+    color: var(--all-muted);
     font-weight: 600;
-    color: var(--all-slate);
-    background: var(--all-surface);
     text-align: center;
-    -moz-appearance: textfield;
-}
-
-.all-target-input::-webkit-inner-spin-button,
-.all-target-input::-webkit-outer-spin-button {
-    -webkit-appearance: none;
-    margin: 0;
-}
-
-.all-target-input:focus {
-    outline: none;
-    border-color: var(--all-cyan);
-    box-shadow: 0 0 0 2px var(--all-cyan-glow);
-}
-
-.all-target-input-sm {
-    width: 2.5em;
+    white-space: nowrap;
 }
 
 /* ── Next booking inside day tab ──────────────────────────────────────────── */
