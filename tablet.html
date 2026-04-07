@@ -11,7 +11,7 @@
     <meta name="apple-mobile-web-app-title" content="Tablet Gym">
     <title>Tablet Allenamento – Thomas Bresciani</title>
     <link rel="icon" type="image/jpeg" href="images/logo-tb---nero.jpg">
-    <link rel="stylesheet" href="css/tablet.css?v=3">
+    <link rel="stylesheet" href="css/tablet.css?v=4">
 </head>
 <body class="tab-body">
 
@@ -756,18 +756,22 @@
             html += '<div class="tab-progress-grid">';
             for (const exName of Object.keys(logsByName).sort()) {
                 const exLogs = logsByName[exName];
+                const isCardio = (nameToMuscle[exName] || '').toLowerCase() === 'cardio';
+                const unit = isCardio ? 'min' : 'kg';
+
                 const sessionMap = {};
                 for (const l of exLogs) {
-                    if (l.weight_done == null) continue;
+                    const val = isCardio ? l.reps_done : l.weight_done;
+                    if (val == null) continue;
                     const key = l.exercise_id + '|' + l.log_date;
-                    if (!sessionMap[key] || l.weight_done > sessionMap[key].weight) {
-                        sessionMap[key] = { date: l.log_date, weight: l.weight_done };
+                    if (!sessionMap[key] || val > sessionMap[key].value) {
+                        sessionMap[key] = { date: l.log_date, value: val };
                     }
                 }
                 const sessions = Object.values(sessionMap).sort((a, b) => a.date.localeCompare(b.date));
                 if (!sessions.length) continue;
 
-                const values = sessions.map(s => s.weight);
+                const values = sessions.map(s => s.value);
                 const labels = sessions.map(s => _fmtDate(s.date));
                 const maxW = Math.max(...values);
                 const lastW = values[values.length - 1];
@@ -775,7 +779,9 @@
                 const trendSign = trend > 0 ? '+' : '';
                 const trendClass = trend > 0 ? 'tab-trend-up' : trend < 0 ? 'tab-trend-down' : '';
                 const target = targetByName[exName];
-                const targetStr = target ? `Target: ${target.sets}x${target.reps}${target.weight_kg != null ? ' @ ' + target.weight_kg + 'kg' : ''}` : '';
+                const targetStr = target
+                    ? (isCardio ? `Target: ${target.reps} min` : `Target: ${target.sets}x${target.reps}${target.weight_kg != null ? ' @ ' + target.weight_kg + 'kg' : ''}`)
+                    : '';
 
                 const canvasId = 'tc-' + (chartIdx++);
                 html += `<div class="tab-progress-card">
@@ -785,9 +791,9 @@
                     </div>
                     <canvas id="${canvasId}" width="400" height="160"></canvas>
                     <div class="tab-progress-stats">
-                        <span>Max <strong>${maxW}kg</strong></span>
-                        <span>Ultimo <strong>${lastW}kg</strong></span>
-                        <span class="${trendClass}">Trend <strong>${trendSign}${trend.toFixed(1)}kg</strong></span>
+                        <span>Max <strong>${maxW}${unit}</strong></span>
+                        <span>Ultimo <strong>${lastW}${unit}</strong></span>
+                        <span class="${trendClass}">Trend <strong>${trendSign}${trend.toFixed(1)}${unit}</strong></span>
                         <span>${sessions.length} sessioni</span>
                     </div>
                 </div>`;

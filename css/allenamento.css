@@ -893,15 +893,21 @@
 }
 
 .all-stat-card {
-    background: linear-gradient(145deg, var(--all-navy) 0%, var(--all-navy-light) 100%);
-    border: 1px solid rgba(255, 255, 255, 0.05);
+    background: var(--all-surface);
+    border: 1.5px solid var(--all-border);
     border-radius: var(--all-radius);
     padding: 1rem 0.5rem;
     text-align: center;
     position: relative;
     overflow: hidden;
-    box-shadow: var(--all-shadow-lg);
+    box-shadow: var(--all-shadow);
     animation: allFadeUp 0.4s ease-out both;
+    transition: all var(--all-transition);
+}
+
+.all-stat-card:hover {
+    box-shadow: var(--all-shadow-md);
+    transform: translateY(-1px);
 }
 
 .all-stat-card:nth-child(1) { animation-delay: 0.05s; }
@@ -911,45 +917,34 @@
 .all-stat-card::before {
     content: '';
     position: absolute;
-    bottom: 0;
+    top: 0;
     left: 0;
-    right: 0;
-    height: 3px;
-    background: linear-gradient(90deg, var(--all-cyan), var(--all-cyan-dark));
+    width: 3px;
+    height: 100%;
+    border-radius: 3px 0 0 3px;
+    background: linear-gradient(180deg, var(--all-cyan), var(--all-cyan-dark));
 }
 
 .all-stat-card:nth-child(2)::before {
-    background: linear-gradient(90deg, var(--all-amber), #e88e04);
+    background: linear-gradient(180deg, var(--all-amber), #e88e04);
 }
 
 .all-stat-card:nth-child(3)::before {
-    background: linear-gradient(90deg, var(--all-success), var(--all-success-dark));
-}
-
-.all-stat-card::after {
-    content: '';
-    position: absolute;
-    top: -20px;
-    right: -20px;
-    width: 80px;
-    height: 80px;
-    background: radial-gradient(circle, rgba(255,255,255,0.04), transparent 70%);
-    pointer-events: none;
+    background: linear-gradient(180deg, var(--all-success), var(--all-success-dark));
 }
 
 .all-stat-value {
     font-size: 1.5rem;
     font-weight: 900;
-    color: #fff;
+    color: var(--all-navy);
     font-variant-numeric: tabular-nums;
     letter-spacing: -0.02em;
     line-height: 1.1;
-    text-shadow: 0 2px 4px rgba(0, 0, 0, 0.15);
 }
 
 .all-stat-label {
     font-size: 0.6rem;
-    color: rgba(255, 255, 255, 0.4);
+    color: var(--all-muted);
     text-transform: uppercase;
     letter-spacing: 0.1em;
     font-weight: 700;

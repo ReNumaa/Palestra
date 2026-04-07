@@ -13,7 +13,7 @@
     <link rel="icon" type="image/jpeg" href="images/logo-tb---nero.jpg">
     <link rel="stylesheet" href="css/style.css?v=8">
     <link rel="stylesheet" href="css/login.css?v=4">
-    <link rel="stylesheet" href="css/allenamento.css?v=17">
+    <link rel="stylesheet" href="css/allenamento.css?v=18">
 </head>
 <body class="allenamento-body">
     <nav class="navbar">
@@ -804,30 +804,32 @@
                     const exLogs = filteredByName[exName];
                     if (!exLogs?.length) continue;
 
-                    // Raggruppa per (exercise_id, log_date) — max weight per sessione
-                    const sessionMap = {};  // key = "exId|date" → { date, weight, dateObj }
+                    // Detect cardio: muscle_group = "Cardio"
+                    const isCardio = (nameToMuscle[exName] || '').toLowerCase() === 'cardio';
+                    const unit = isCardio ? 'min' : 'kg';
+
+                    // Raggruppa per (exercise_id, log_date) — max weight (o reps per cardio) per sessione
+                    const sessionMap = {};
                     for (const l of exLogs) {
-                        if (l.weight_done == null) continue;
+                        const val = isCardio ? l.reps_done : l.weight_done;
+                        if (val == null) continue;
                         const key = l.exercise_id + '|' + l.log_date;
-                        if (!sessionMap[key] || l.weight_done > sessionMap[key].weight) {
-                            sessionMap[key] = { date: l.log_date, weight: l.weight_done };
+                        if (!sessionMap[key] || val > sessionMap[key].value) {
+                            sessionMap[key] = { date: l.log_date, value: val };
                         }
                     }
-                    // Ordina per data, poi per peso (se stessa data, mostra entrambi)
                     const sessions = Object.values(sessionMap).sort((a, b) =>
-                        a.date.localeCompare(b.date) || a.weight - b.weight
+                        a.date.localeCompare(b.date) || a.value - b.value
                     );
                     if (!sessions.length) continue;
 
-                    const values = sessions.map(s => s.weight);
-                    // Se più sessioni nella stessa data, numera: "31 mar (1)", "31 mar (2)"
+                    const values = sessions.map(s => s.value);
                     const dateCounts = {};
                     const labels = sessions.map(s => {
                         const fmt = _fmtDateAll(s.date);
                         dateCounts[s.date] = (dateCounts[s.date] || 0) + 1;
                         return fmt;
                     });
-                    // Disambigua label duplicate
                     const dateOccurrences = {};
                     for (let i = 0; i < labels.length; i++) {
                         const d = sessions[i].date;
@@ -844,7 +846,7 @@
                     const trendClass = trend > 0 ? 'all-trend-up' : trend < 0 ? 'all-trend-down' : '';
                     const target = targetByName[exName];
                     const targetStr = target
-                        ? `Target: ${target.sets}×${target.reps}${target.weight_kg != null ? ' @ ' + target.weight_kg + 'kg' : ''}`
+                        ? (isCardio ? `Target: ${target.reps} min` : `Target: ${target.sets}×${target.reps}${target.weight_kg != null ? ' @ ' + target.weight_kg + 'kg' : ''}`)
                         : '';
 
                     const canvasId = 'pchart-' + (chartIdx++);
@@ -855,9 +857,9 @@
                         </div>
                         <canvas id="${canvasId}" width="320" height="140"></canvas>
                         <div class="all-progress-stats">
-                            <span>Max <strong>${maxW}kg</strong></span>
-                            <span>Ultimo <strong>${lastW}kg</strong></span>
-                            <span class="${trendClass}">Trend <strong>${trendSign}${trend.toFixed(1)}kg</strong></span>
+                            <span>Max <strong>${maxW}${unit}</strong></span>
+                            <span>Ultimo <strong>${lastW}${unit}</strong></span>
+                            <span class="${trendClass}">Trend <strong>${trendSign}${trend.toFixed(1)}${unit}</strong></span>
                             <span>${sessions.length} sessioni</span>
                         </div>
                     </div>`;

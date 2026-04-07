@@ -885,15 +885,21 @@
 }
 
 .tab-stat-card {
-    background: linear-gradient(145deg, var(--navy), var(--navy-light));
-    border: 1px solid rgba(255, 255, 255, 0.05);
+    background: var(--surface);
+    border: 1.5px solid var(--border);
     border-radius: var(--radius);
     padding: 1.1rem 0.6rem;
     text-align: center;
     position: relative;
     overflow: hidden;
-    box-shadow: var(--shadow-lg);
+    box-shadow: var(--shadow);
     animation: tabFadeUp 0.4s ease-out both;
+    transition: all var(--transition);
+}
+
+.tab-stat-card:hover {
+    box-shadow: var(--shadow-md);
+    transform: translateY(-1px);
 }
 
 .tab-stat-card:nth-child(1) { animation-delay: 0.05s; }
@@ -903,24 +909,25 @@
 .tab-stat-card::before {
     content: '';
     position: absolute;
-    bottom: 0; left: 0; right: 0;
-    height: 3px;
-    background: linear-gradient(90deg, var(--cyan), var(--cyan-dark));
+    top: 0; left: 0;
+    width: 3px; height: 100%;
+    border-radius: 3px 0 0 3px;
+    background: linear-gradient(180deg, var(--cyan), var(--cyan-dark));
 }
 
-.tab-stat-card:nth-child(2)::before { background: linear-gradient(90deg, var(--amber), #e88e04); }
-.tab-stat-card:nth-child(3)::before { background: linear-gradient(90deg, var(--success), var(--success-dark)); }
+.tab-stat-card:nth-child(2)::before { background: linear-gradient(180deg, var(--amber), #e88e04); }
+.tab-stat-card:nth-child(3)::before { background: linear-gradient(180deg, var(--success), var(--success-dark)); }
 
 .tab-stat-value {
     font-size: 1.6rem;
     font-weight: 900;
-    color: #fff;
+    color: var(--navy);
     font-variant-numeric: tabular-nums;
 }
 
 .tab-stat-label {
     font-size: 0.65rem;
-    color: rgba(255, 255, 255, 0.4);
+    color: var(--muted);
     text-transform: uppercase;
     letter-spacing: 0.1em;
     font-weight: 700;
