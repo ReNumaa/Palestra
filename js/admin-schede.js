@@ -224,12 +224,13 @@ function _schedeRenderExercises(exId, cat, search) {
     // Limit to 50 for performance
     const shown = exercises.slice(0, 50);
     listEl.innerHTML = shown.map(ex => `
-        <div class="schede-picker-item" onclick="_schedePickExercise('${exId}', '${_escHtml(ex.nome_it).replace(/'/g, "\\'")}')">
+        <div class="schede-picker-item">
             <img src="${ex.immagine_url_small}" class="schede-picker-item-img" alt="" loading="lazy">
-            <div class="schede-picker-item-info">
+            <div class="schede-picker-item-info" onclick="_schedePickExercise('${exId}', '${_escHtml(ex.nome_it).replace(/'/g, "\\'")}')">
                 <span class="schede-picker-item-name">${_escHtml(ex.nome_it)}</span>
                 <span class="schede-picker-item-cat">${_escHtml(ex.categoria)}</span>
             </div>
+            ${ex.video_url ? `<button class="schede-picker-item-video" onclick="event.stopPropagation();_schedeShowExDetail('${_escHtml(ex.slug)}')" title="Video">&#9654;</button>` : ''}
         </div>
     `).join('') + (exercises.length > 50 ? `<div class="schede-picker-more">${exercises.length - 50} altri — affina la ricerca</div>` : '');
 }

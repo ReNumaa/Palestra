@@ -77,6 +77,11 @@
         </div>
     </div>
 
+    <!-- FAB: aggiungi esercizio -->
+    <button class="tab-fab" id="tabFabAdd" onclick="tabFabAction()" title="Aggiungi esercizio" style="display:none;">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" width="24" height="24"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
+    </button>
+
     <!-- Toast container -->
     <div id="tabToastContainer" class="tab-toast-container"></div>
 
@@ -179,6 +184,8 @@
         _activeDay = null;
         _tabView = 'scheda';
         _stopInactivity();
+        const fab = document.getElementById('tabFabAdd');
+        if (fab) fab.style.display = 'none';
         showScreen('scanScreen');
         // Restart scanner if it was stopped
         _startScanner();
@@ -330,6 +337,8 @@
             document.getElementById('tabUserName').textContent = _userName;
             document.getElementById('tabPlanName').textContent = _plan.name;
             showScreen('workoutScreen');
+            const fab = document.getElementById('tabFabAdd');
+            if (fab) fab.style.display = '';
             _resetInactivity();
             renderTabScheda();
 
@@ -344,13 +353,9 @@
     async function _loadExDB(exerciseNames) {
         if (_exDBLoaded) return;
         try {
-            let query = supabaseClient.from('imported_exercises')
+            // Load ALL exercises for picker support
+            const { data } = await supabaseClient.from('imported_exercises')
                 .select('nome_it, nome_en, categoria, slug, immagine, immagine_thumbnail, video');
-            // If we know which exercises we need, fetch only those
-            if (exerciseNames?.length) {
-                query = query.in('nome_it', exerciseNames);
-            }
-            const { data } = await query;
             _exDB = (data || []).map(e => ({
                 nome_it: e.nome_it, nome_en: e.nome_en || '', categoria: e.categoria,
                 slug: e.slug, img: e.immagine_thumbnail || e.immagine || '',
@@ -367,6 +372,8 @@
         _tabView = view;
         document.getElementById('tabPillScheda').classList.toggle('active', view === 'scheda');
         document.getElementById('tabPillProgressi').classList.toggle('active', view === 'progressi');
+        const fab = document.getElementById('tabFabAdd');
+        if (fab) fab.style.display = (view === 'scheda' && _userId) ? '' : 'none';
         if (view === 'scheda') renderTabScheda();
         else renderTabProgressi();
     }
@@ -895,6 +902,190 @@
         ctx.lineTo(bx-tw/2-5, by-8+br); ctx.quadraticCurveTo(bx-tw/2-5, by-8, bx-tw/2-5+br, by-8);
         ctx.closePath(); ctx.fill();
         ctx.fillStyle = '#fff'; ctx.textAlign = 'center'; ctx.fillText(label, bx, by-1);
+    }
+
+    // ── FAB action: aggiungi esercizio ──────────────────────────────────
+    function tabFabAction() {
+        if (!_plan) return;
+        _tabOpenExercisePicker();
+    }
+
+    // ── Exercise picker (add exercise to current plan/day) ───────────────
+    let _tabPickerActiveCat = '';
+    let _tabPickerExByCat = {};
+    let _tabPickerCategories = [];
+
+    function _tabBuildPickerData() {
+        if (_tabPickerCategories.length) return;
+        _tabPickerExByCat = {};
+        for (const ex of _exDB) {
+            if (!_tabPickerExByCat[ex.categoria]) _tabPickerExByCat[ex.categoria] = [];
+            _tabPickerExByCat[ex.categoria].push(ex);
+        }
+        _tabPickerCategories = Object.keys(_tabPickerExByCat).sort();
+    }
+
+    function _tabOpenExercisePicker() {
+        _tabBuildPickerData();
+        _tabPickerActiveCat = '';
+
+        const catSvg = {
+            'Petto': 'chest', 'Tricipiti': 'triceps', 'Bicipiti': 'biceps', 'Braccia': 'biceps',
+            'Spalle': 'shoulders', 'Schiena': 'back', 'Quadricipiti': 'quadriceps',
+            'Glutei e Femorali': 'hips', 'Femorali': 'hamstrings', 'Polpacci': 'calves',
+            'Addominali': 'waist_abs', 'Avambracci': 'forearms', 'Cardio': 'cardio'
+        };
+
+        const old = document.getElementById('tabExPickerOverlay');
+        if (old) old.remove();
+
+        const overlay = document.createElement('div');
+        overlay.id = 'tabExPickerOverlay';
+        overlay.className = 'tab-picker-overlay';
+        overlay.innerHTML = `
+            <div class="tab-picker-topbar">
+                <span class="tab-picker-title">Aggiungi esercizio — ${_esc(_activeDay || 'Giorno A')}</span>
+                <button type="button" class="tab-picker-close-btn" onclick="tabCloseExercisePicker()">&times;</button>
+            </div>
+            <div class="tab-picker-header">
+                <input type="text" class="tab-picker-search" id="tabPickerSearch" placeholder="Cerca esercizio..."
+                       oninput="tabFilterPicker(this.value)">
+            </div>
+            <div class="tab-picker-body">
+                <div class="tab-picker-cats" id="tabPickerCats">
+                    ${_tabPickerCategories.map(c => {
+                        const svg = catSvg[c] || 'chest';
+                        return `
+                        <button type="button" class="tab-picker-cat-chip" data-cat="${_esc(c)}" onclick="tabPickCategory('${_esc(c)}')">
+                            <img src="images/icone_muscoli/${svg}.svg" class="tab-picker-cat-icon" alt="" loading="lazy">
+                            <span class="tab-picker-cat-name">${_esc(c)}</span>
+                            <span class="tab-picker-cat-count">${(_tabPickerExByCat[c] || []).length}</span>
+                        </button>`;
+                    }).join('')}
+                </div>
+                <div class="tab-picker-list" id="tabPickerList" style="display:none;"></div>
+            </div>
+            <div class="tab-picker-footer">
+                <button type="button" class="tab-picker-custom-btn" onclick="tabPickCustom()">&#9998; Personalizzato</button>
+            </div>`;
+        document.body.appendChild(overlay);
+        document.body.style.overflow = 'hidden';
+    }
+
+    function tabCloseExercisePicker() {
+        const overlay = document.getElementById('tabExPickerOverlay');
+        if (overlay) overlay.remove();
+        document.body.style.overflow = '';
+    }
+
+    function tabPickCategory(cat) {
+        _tabPickerActiveCat = cat;
+        const overlay = document.getElementById('tabExPickerOverlay');
+        if (!overlay) return;
+        overlay.querySelectorAll('.tab-picker-cat-chip').forEach(ch => {
+            ch.classList.toggle('active', ch.dataset.cat === cat);
+        });
+        tabRenderPickerExercises(cat, '');
+    }
+
+    function tabFilterPicker(searchText) {
+        const search = (searchText || '').toLowerCase();
+        if (!search && !_tabPickerActiveCat) {
+            const catsEl = document.getElementById('tabPickerCats');
+            const listEl = document.getElementById('tabPickerList');
+            if (catsEl) catsEl.style.display = '';
+            if (listEl) listEl.style.display = 'none';
+            return;
+        }
+        tabRenderPickerExercises(_tabPickerActiveCat, search);
+    }
+
+    function tabRenderPickerExercises(cat, search) {
+        const catsEl = document.getElementById('tabPickerCats');
+        const listEl = document.getElementById('tabPickerList');
+        if (!listEl) return;
+        if (catsEl) catsEl.style.display = 'none';
+        listEl.style.display = '';
+
+        let exercises = _exDB;
+        if (cat) exercises = exercises.filter(e => e.categoria === cat);
+        if (search) exercises = exercises.filter(e =>
+            e.nome_it.toLowerCase().includes(search) || e.nome_en.toLowerCase().includes(search) || e.categoria.toLowerCase().includes(search)
+        );
+
+        if (!exercises.length) {
+            listEl.innerHTML = '<div class="tab-picker-empty">Nessun esercizio trovato</div>';
+            return;
+        }
+
+        const shown = exercises.slice(0, 50);
+        listEl.innerHTML = shown.map(ex => `
+            <div class="tab-picker-item">
+                <img src="${ex.img}" class="tab-picker-item-img" alt="" loading="lazy">
+                <div class="tab-picker-item-info" onclick="tabPickExercise('${_esc(ex.nome_it).replace(/'/g, "\\'")}')">
+                    <span class="tab-picker-item-name">${_esc(ex.nome_it)}</span>
+                    <span class="tab-picker-item-cat">${_esc(ex.categoria)}</span>
+                </div>
+                ${ex.video ? `<button class="tab-picker-item-video" onclick="event.stopPropagation();showTabExDetail('${_esc(ex.slug)}')" title="Video">&#9654;</button>` : ''}
+            </div>
+        `).join('') + (exercises.length > 50 ? `<div class="tab-picker-more">${exercises.length - 50} altri — affina la ricerca</div>` : '');
+    }
+
+    async function tabPickExercise(exerciseName) {
+        const ex = _findEx(exerciseName);
+        const isCardio = ex && (ex.categoria || '').toLowerCase() === 'cardio';
+
+        let sets = 1, reps = '20', rest = 0;
+        if (!isCardio) {
+            const setsVal = prompt('Numero di serie:', '3');
+            if (setsVal === null) return;
+            sets = parseInt(setsVal) || 3;
+
+            const repsVal = prompt('Numero di ripetizioni:', '10');
+            if (repsVal === null) return;
+            reps = repsVal || '10';
+
+            const restVal = prompt('Riposo tra le serie (secondi):', '90');
+            if (restVal === null) return;
+            rest = parseInt(restVal) || 90;
+        }
+
+        const dayLabel = _activeDay || 'Giorno A';
+        tabCloseExercisePicker();
+        try {
+            const maxOrder = _exercises.reduce((m, e) => Math.max(m, e.sort_order), -1);
+            const exerciseData = {
+                plan_id: _plan.id,
+                day_label: dayLabel,
+                exercise_name: exerciseName,
+                muscle_group: ex ? ex.categoria : null,
+                sort_order: maxOrder + 1,
+                sets,
+                reps,
+                weight_kg: null,
+                rest_seconds: rest,
+                notes: null,
+            };
+            const { data: newEx, error } = await supabaseClient
+                .from('workout_exercises')
+                .insert(exerciseData)
+                .select()
+                .single();
+            if (error) throw error;
+            _exercises.push(newEx);
+            _plan.workout_exercises = _exercises;
+            renderTabScheda();
+            _toast('Esercizio aggiunto!');
+        } catch (e) {
+            console.error('[Tablet] add exercise error:', e);
+            _toast('Errore aggiunta esercizio', 'error');
+        }
+    }
+
+    async function tabPickCustom() {
+        const name = prompt('Nome esercizio personalizzato:');
+        if (!name || !name.trim()) return;
+        await tabPickExercise(name.trim());
     }
 
     // ── PWA: register service worker ──────────────────────────────────────

@@ -1564,6 +1564,13 @@
 .schede-picker-item-info { flex: 1; min-width: 0; display: flex; flex-direction: column; }
 .schede-picker-item-name { font-size: 0.88rem; font-weight: 600; color: #0f172a; line-height: 1.3; }
 .schede-picker-item-cat { font-size: 0.72rem; color: #64748b; text-transform: uppercase; letter-spacing: 0.03em; }
+.schede-picker-item-video {
+    flex-shrink: 0; width: 34px; height: 34px; border-radius: 50%;
+    border: 1px solid #e2e8f0; background: #f8fafc; color: #00AEEF;
+    font-size: 0.9rem; cursor: pointer; display: flex; align-items: center; justify-content: center;
+    transition: all 0.15s;
+}
+.schede-picker-item-video:hover { background: #00AEEF; color: #fff; border-color: #00AEEF; }
 .schede-picker-empty { text-align: center; padding: 1.5rem; color: #94a3b8; font-size: 0.88rem; }
 .schede-picker-more { text-align: center; padding: 0.5rem; color: #64748b; font-size: 0.78rem; font-style: italic; }
 .schede-picker-footer {
