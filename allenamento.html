@@ -594,7 +594,7 @@
                         log_date: today,
                         set_number: s,
                         reps_done: reps?.value ? parseInt(reps.value) : null,
-                        weight_done: weight?.value !== '' ? parseFloat(weight.value) : null,
+                        weight_done: weight?.value ? parseFloat(weight.value) : null,
                         rest_done: rest?.value ? parseInt(rest.value) : null,
                         rpe: null,
                     });
