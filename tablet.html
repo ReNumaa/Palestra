@@ -477,11 +477,11 @@
                 html += `<div class="all-ss-card ${allDone?'all-ss-done':''}" id="tss-${ssId}">
                     <div class="all-ss-header" onclick="toggleTabSs('${ssId}')">
                         <div class="all-ss-thumbs">
+                            <span class="all-ss-badge">SS</span>
                             ${th1?`<img src="${th1}" class="all-ss-thumb" alt="" loading="lazy" onclick="event.stopPropagation();showTabExDetail('${_esc(sl1)}')">` :''}
                             ${th2?`<img src="${th2}" class="all-ss-thumb" alt="" loading="lazy" onclick="event.stopPropagation();showTabExDetail('${_esc(sl2)}')">` :''}
                         </div>
                         <div class="all-ss-info">
-                            <span class="all-ss-badge">SS</span>
                             <div class="all-ss-names">
                                 <span class="all-ss-ex-name">${_esc(pair[0].exercise_name)}</span>
                                 ${pair[1]?`<span class="all-ss-ex-name">${_esc(pair[1].exercise_name)}</span>`:''}

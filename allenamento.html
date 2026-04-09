@@ -2,7 +2,7 @@
 <html lang="it">
 <head>
     <meta charset="UTF-8">
-    <meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self' 'unsafe-inline' cdn.jsdelivr.net; style-src 'self' 'unsafe-inline'; connect-src 'self' https://*.supabase.co wss://*.supabase.co; img-src 'self' data: https:; media-src 'self' https://apilyfta.com; font-src 'self'; frame-src 'self' https://accounts.google.com; form-action 'self'">
+    <meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self' 'unsafe-inline' cdn.jsdelivr.net; style-src 'self' 'unsafe-inline'; connect-src 'self' https://*.supabase.co wss://*.supabase.co https://apilyfta.com; img-src 'self' data: https:; media-src 'self' https://apilyfta.com; font-src 'self'; frame-src 'self' https://accounts.google.com; form-action 'self'">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
     <link rel="manifest" href="manifest.json?v=3">
     <meta name="theme-color" content="#00AEEF">
@@ -606,11 +606,11 @@
                         <div class="all-ex-swipe-content">
                         <div class="all-ss-header" onclick="toggleSsCard('${ssId}')">
                             <div class="all-ss-thumbs">
+                                <span class="all-ss-badge">SS</span>
                                 ${thumb1 ? `<img src="${thumb1}" class="all-ss-thumb" alt="" loading="lazy" onclick="event.stopPropagation();showExDetail('${_escHtml(slug1)}')">` : ''}
                                 ${thumb2 ? `<img src="${thumb2}" class="all-ss-thumb" alt="" loading="lazy" onclick="event.stopPropagation();showExDetail('${_escHtml(slug2)}')">` : ''}
                             </div>
                             <div class="all-ss-info">
-                                <span class="all-ss-badge">SS</span>
                                 <div class="all-ss-names">
                                     <span class="all-ss-ex-name">${_escHtml(ex1.exercise_name)}</span>
                                     ${ex2 ? `<span class="all-ss-ex-name">${_escHtml(ex2.exercise_name)}</span>` : ''}
@@ -2292,12 +2292,26 @@
             await _loadPdfScript('https://cdn.jsdelivr.net/npm/jspdf-autotable@3.8.4/dist/jspdf.plugin.autotable.min.js');
         }
 
-        function _imgToBase64(url) {
+        async function _imgToBase64(url) {
+            if (!url) return null;
+            // Strategy 1: fetch as blob (works if server has CORS + CSP allows connect)
+            try {
+                const resp = await fetch(url, { mode: 'cors' });
+                if (resp.ok) {
+                    const blob = await resp.blob();
+                    return await new Promise(resolve => {
+                        const r = new FileReader();
+                        r.onload = () => resolve(r.result);
+                        r.onerror = () => resolve(null);
+                        r.readAsDataURL(blob);
+                    });
+                }
+            } catch (e) { /* CORS or network error, try canvas fallback */ }
+            // Strategy 2: img + canvas (works if server sends CORS headers)
             return new Promise(resolve => {
-                if (!url) return resolve(null);
                 const img = new Image();
                 img.crossOrigin = 'anonymous';
-                const timer = setTimeout(() => resolve(null), 5000);
+                const timer = setTimeout(() => resolve(null), 8000);
                 img.onload = () => {
                     clearTimeout(timer);
                     try {
@@ -2475,55 +2489,84 @@
                         y = (doc.lastAutoTable ? doc.lastAutoTable.finalY : y + 30) + 6;
                     }
 
+                    // Numbered divider between exercises
+                    let exNum = 0;
+                    function _pdfDivider() {
+                        exNum++;
+                        if (exNum > 1) {
+                            doc.setDrawColor(...LGRAY);
+                            doc.setLineWidth(0.5);
+                            doc.line(m, y, pw - m, y);
+                            y += 6;
+                        }
+                        // Number badge
+                        const r = 4.5;
+                        doc.setFillColor(...CYAN);
+                        doc.circle(m + r, y + r, r, 'F');
+                        doc.setFont('helvetica', 'bold');
+                        doc.setFontSize(9);
+                        doc.setTextColor(...WHITE);
+                        doc.text(exNum.toString(), m + r, y + r + 1, { align: 'center' });
+                        y += r * 2 + 3;
+                    }
+
                     for (const ex of dayEx) {
                         // ── Superset block ──
                         if (ex.superset_group && !ssRendered.has(ex.superset_group)) {
                             ssRendered.add(ex.superset_group);
                             const pair = ssMap[ex.superset_group] || [ex];
                             const ex1 = pair[0], ex2 = pair[1];
-                            const pairSets = pair.reduce((t, e) => t + (e.sets || 3), 0);
-                            const blockH = 30 + pair.length * (24 + 8 + (pairSets + 2) * 8);
                             if (y + 60 > ph - m - 10) { doc.addPage(); y = m; }
 
+                            _pdfDivider();
+
                             // SS accent bar
-                            doc.setFillColor(0, 174, 239);
-                            doc.roundedRect(m, y, 3, 10, 1.5, 1.5, 'F');
+                            doc.setFillColor(...CYAN);
+                            doc.roundedRect(m, y, cw, 0.8, 0, 0, 'F');
+                            y += 3;
                             doc.setFont('helvetica', 'bold');
                             doc.setFontSize(10);
                             doc.setTextColor(...CYAN);
-                            doc.text('SS', m + 6, y + 4);
+                            doc.text('SUPER SERIE', m, y + 4);
                             doc.setFontSize(9);
                             doc.setTextColor(...NAVY);
-                            const ssNames = pair.map(e => e.exercise_name).join('  +  ');
-                            doc.text(ssNames, m + 16, y + 4);
-                            // Combined target
+                            doc.text(pair.map(e => e.exercise_name).join('  +  '), m + 30, y + 4);
                             const t1 = (ex1.sets||'') + '\u00d7' + (ex1.reps||'') + (ex1.weight_kg != null ? ' @' + ex1.weight_kg + 'kg' : '');
                             const t2 = ex2 ? (ex2.sets||'') + '\u00d7' + (ex2.reps||'') + (ex2.weight_kg != null ? ' @' + ex2.weight_kg + 'kg' : '') : '';
                             const ssRest = ex2 && ex2.rest_seconds ? ' \u00b7 ' + ex2.rest_seconds + 's pausa' : '';
                             doc.setFont('helvetica', 'normal');
                             doc.setFontSize(8);
                             doc.setTextColor(...GRAY);
-                            doc.text(t1 + (t2 ? ' + ' + t2 : '') + ssRest, m + 16, y + 9);
-                            y += 14;
+                            doc.text(t1 + (t2 ? ' + ' + t2 : '') + ssRest, m, y + 9);
+                            y += 13;
 
-                            // Render each exercise in the pair, indented
                             pair.forEach((ssEx, idx) => {
+                                if (idx > 0) {
+                                    // Dashed separator between SS exercises
+                                    doc.setDrawColor(...CYAN);
+                                    doc.setLineWidth(0.3);
+                                    doc.setLineDashPattern([2, 2], 0);
+                                    doc.line(m + 4, y, pw - m, y);
+                                    doc.setLineDashPattern([], 0);
+                                    y += 4;
+                                }
                                 doc.setFont('helvetica', 'bold');
                                 doc.setFontSize(8);
                                 doc.setTextColor(...CYAN);
-                                doc.text('Esercizio ' + (idx + 1), m + 4, y + 3);
+                                doc.text(String.fromCharCode(65 + idx) + '.', m + 4, y + 3);
                                 y += 5;
                                 _pdfExBlock(ssEx, 4);
                             });
-                            y += 2;
+                            y += 4;
                             continue;
                         }
                         if (ex.superset_group && ssRendered.has(ex.superset_group)) continue;
 
                         // ── Normal single exercise ──
+                        _pdfDivider();
                         _pdfExBlock(ex, 0);
                     }
-                    y += 4;
+                    y += 6;
                 }
 
                 // Footer on each page
