@@ -321,32 +321,34 @@ class BookingStorage {
             // Utente: ultime 4 settimane + prossimi 3 mesi (storico vecchio non serve).
             // Query complete (senza limite) per stats/export avvengono tramite fetchForAdmin().
             const bookingSelect = 'id,local_id,user_id,date,time,slot_type,date_display,name,email,whatsapp,notes,status,paid,payment_method,paid_at,credit_applied,created_at,cancellation_requested_at,cancelled_at,cancelled_with_bonus,updated_at,cancelled_payment_method,cancelled_paid_at,cancelled_with_penalty,cancelled_refund_pct,created_by,cancelled_by,arrived_at';
-            let qBookings = supabaseClient.from('bookings').select(bookingSelect).order('created_at', { ascending: false }).range(0, 4999);
             // ownOnly: filtra per user_id server-side (es. prenotazioni.html — anche admin vedono solo i propri)
-            if (ownOnly && user) {
-                qBookings = qBookings.eq('user_id', user.id);
-            }
             const pastD   = new Date(); pastD.setDate(pastD.getDate() - 15);
             const futureD = new Date(); futureD.setDate(futureD.getDate() + 90);
-            qBookings = qBookings
-                .gte('date', _localDateStr(pastD))
-                .lte('date', _localDateStr(futureD));
-            const fetchBookings = qBookings;
+            const pastStr   = _localDateStr(pastD);
+            const futureStr = _localDateStr(futureD);
 
+            // Paginazione: Supabase limita a 1000 righe per request (max-rows server)
+            const PAGE = 1000;
+            let data = [], pageFrom = 0, done = false;
+            while (!done) {
+                let q = supabaseClient.from('bookings').select(bookingSelect)
+                    .order('created_at', { ascending: false })
+                    .range(pageFrom, pageFrom + PAGE - 1)
+                    .gte('date', pastStr).lte('date', futureStr);
+                if (ownOnly && user) q = q.eq('user_id', user.id);
+                const { data: page, error: pageErr } = await q;
+                if (pageErr) { console.error('[Supabase] syncFromSupabase page error:', pageErr.message); done = true; break; }
+                data = data.concat(page || []);
+                done = !page || page.length < PAGE;
+                pageFrom += PAGE;
+            }
             // Utente non-admin: richiede anche la disponibilità aggregata in parallelo
             const fetchAvail = !isAdmin
                 ? _rpcWithTimeout(supabaseClient.rpc('get_availability_range', { p_start: todayStr, p_end: endStr }))
                     .catch(e => ({ data: null, error: e }))
                 : Promise.resolve({ data: null, error: null });
 
-            const [{ data, error }, { data: availData, error: e2 }] =
-                await Promise.all([fetchBookings, fetchAvail]);
-
-            if (error) {
-                console.error('[Supabase] syncFromSupabase error:', error.message);
-                if (typeof showToast === 'function') showToast('Errore di sincronizzazione. I dati potrebbero non essere aggiornati.', 'error', 5000);
-                return;
-            }
+            const { data: availData, error: e2 } = await fetchAvail;
             if (e2) { console.error('[Supabase] get_availability_range error:', e2.message); }
 
             const mapped = data.map(row => this._mapRow(row));
