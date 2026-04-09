@@ -1013,6 +1013,7 @@ function _renderPlanEditor(container) {
                 ${_renderExercisesForDay()}
             </div>
             <button class="schede-add-exercise-btn" onclick="_schedeAddExerciseRow()">+ Aggiungi esercizio</button>
+            <button class="schede-add-exercise-btn" style="background:linear-gradient(135deg,#f59e0b,#f97316);color:#fff;border:none;margin-left:0.4rem;" onclick="_schedeAddSupersetRow()">SS + Super Serie</button>
         </div>
 
         <div class="schede-editor-actions">
@@ -1033,8 +1034,59 @@ function _renderExercisesForDay() {
         return '<div class="empty-slot">Salva la scheda, poi aggiungi esercizi.</div>';
     }
 
+    // Build superset group map
+    const ssRendered = new Set();
+    const ssMap = {};
+    for (const ex of exercises) {
+        if (ex.superset_group) {
+            if (!ssMap[ex.superset_group]) ssMap[ex.superset_group] = [];
+            ssMap[ex.superset_group].push(ex);
+        }
+    }
+
     let html = '';
     exercises.forEach((ex, i) => {
+        // ── Superset block ──────────────────────────────────────
+        if (ex.superset_group && !ssRendered.has(ex.superset_group)) {
+            ssRendered.add(ex.superset_group);
+            const pair = ssMap[ex.superset_group] || [ex];
+            html += `<div class="schede-ss-block">
+                <span class="schede-ss-badge">SUPER SERIE</span>
+                <button class="schede-ss-delete" onclick="_schedeDeleteSuperset('${ex.superset_group}')" title="Elimina super serie">✕ SS</button>`;
+            pair.forEach(ssEx => {
+                const dbEx = _findExercise(ssEx.exercise_name);
+                const catLabel = dbEx ? dbEx.categoria : (ssEx.muscle_group || '');
+                const _isCardio = (ssEx.muscle_group || '').toLowerCase() === 'cardio';
+                html += `
+                <div class="schede-exercise-row" data-ex-id="${ssEx.id}">
+                    <div class="schede-ex-drag"></div>
+                    <div class="schede-ex-fields">
+                        <div class="schede-ex-top-row">
+                            ${catLabel ? `<span class="schede-ex-muscle-badge">${_escHtml(catLabel)}</span>` : ''}
+                            ${_buildExercisePicker(ssEx.exercise_name, ssEx.id, ssEx.muscle_group)}
+                        </div>
+                        <div class="schede-ex-params">
+                            ${_isCardio ? `
+                            <label>Min<input type="text" value="${_escHtml(ssEx.reps)}" placeholder="20" onchange="_schedeUpdateExField('${ssEx.id}','reps',this.value)"></label>
+                            ` : `
+                            <label>Serie<input type="number" min="1" max="20" value="${ssEx.sets}" onchange="_schedeUpdateExField('${ssEx.id}','sets',+this.value)"></label>
+                            <label>Reps<input type="text" value="${_escHtml(ssEx.reps)}" placeholder="10" onchange="_schedeUpdateExField('${ssEx.id}','reps',this.value)"></label>
+                            <label>Kg<input type="number" step="0.5" min="0" value="${ssEx.weight_kg ?? ''}" placeholder="\u2014" onchange="_schedeUpdateExField('${ssEx.id}','weight_kg',this.value?+this.value:null)"></label>
+                            <label>Rec.<input type="number" min="0" step="15" value="${ssEx.rest_seconds ?? 0}" onchange="_schedeUpdateExField('${ssEx.id}','rest_seconds',+this.value)"></label>
+                            `}
+                        </div>
+                        <input type="text" class="schede-ex-notes" value="${_escHtml(ssEx.notes || '')}" placeholder="Note esercizio..."
+                               onchange="_schedeUpdateExField('${ssEx.id}','notes',this.value)">
+                    </div>
+                </div>`;
+            });
+            html += '</div>';
+            return;
+        }
+        // Skip second exercise in superset
+        if (ex.superset_group && ssRendered.has(ex.superset_group)) return;
+
+        // ── Normal exercise row ─────────────────────────────────
         const dbEx = _findExercise(ex.exercise_name);
         const catLabel = dbEx ? dbEx.categoria : (ex.muscle_group || '');
         const _isCardio = (ex.muscle_group || '').toLowerCase() === 'cardio';
@@ -1042,7 +1094,7 @@ function _renderExercisesForDay() {
         <div class="schede-exercise-row" data-ex-id="${ex.id}">
             <div class="schede-ex-drag">
                 ${i > 0 ? `<button onclick="_schedeMoveExercise('${ex.id}', -1)" title="Su">▲</button>` : '<span></span>'}
-                ${i < exercises.length - 1 ? `<button onclick="_schedeMoveExercise('${ex.id}', 1)" title="Giù">▼</button>` : '<span></span>'}
+                ${i < exercises.length - 1 ? `<button onclick="_schedeMoveExercise('${ex.id}', 1)" title="Gi\u00f9">▼</button>` : '<span></span>'}
             </div>
             <div class="schede-ex-fields">
                 <div class="schede-ex-top-row">
@@ -1055,7 +1107,7 @@ function _renderExercisesForDay() {
                     ` : `
                     <label>Serie<input type="number" min="1" max="20" value="${ex.sets}" onchange="_schedeUpdateExField('${ex.id}','sets',+this.value)"></label>
                     <label>Reps<input type="text" value="${_escHtml(ex.reps)}" placeholder="10" onchange="_schedeUpdateExField('${ex.id}','reps',this.value)"></label>
-                    <label>Kg<input type="number" step="0.5" min="0" value="${ex.weight_kg ?? ''}" placeholder="—" onchange="_schedeUpdateExField('${ex.id}','weight_kg',this.value?+this.value:null)"></label>
+                    <label>Kg<input type="number" step="0.5" min="0" value="${ex.weight_kg ?? ''}" placeholder="\u2014" onchange="_schedeUpdateExField('${ex.id}','weight_kg',this.value?+this.value:null)"></label>
                     <label>Rec.<input type="number" min="0" step="15" value="${ex.rest_seconds ?? 90}" onchange="_schedeUpdateExField('${ex.id}','rest_seconds',+this.value)"></label>
                     `}
                 </div>
@@ -1183,6 +1235,43 @@ async function _schedeDeleteExercise(exId) {
         _schedeRefreshEditor();
     } catch (e) {
         if (typeof showToast === 'function') showToast('Errore eliminazione', 'error');
+    }
+}
+
+async function _schedeAddSupersetRow() {
+    if (!_editingPlan) {
+        await _schedeSavePlan();
+        if (!_editingPlan) return;
+    }
+    try {
+        await WorkoutPlanStorage.addSuperset(_editingPlan.id, {
+            day_label: _editActiveDay,
+            exercise_name: 'Esercizio 1',
+            sets: 3, reps: '10',
+        }, {
+            day_label: _editActiveDay,
+            exercise_name: 'Esercizio 2',
+            sets: 3, reps: '10',
+            rest_seconds: 90,
+        });
+        _schedeRefreshEditor();
+        if (typeof showToast === 'function') showToast('Super Serie aggiunta!', 'success');
+    } catch (e) {
+        console.error('[Schede] addSuperset error:', e);
+        if (typeof showToast === 'function') showToast('Errore aggiunta super serie', 'error');
+    }
+}
+
+async function _schedeDeleteSuperset(groupId) {
+    if (!_editingPlan) return;
+    const toDelete = (_editingPlan.workout_exercises || []).filter(e => e.superset_group === groupId);
+    try {
+        for (const ex of toDelete) {
+            await WorkoutPlanStorage.deleteExercise(ex.id);
+        }
+        _schedeRefreshEditor();
+    } catch (e) {
+        if (typeof showToast === 'function') showToast('Errore eliminazione super serie', 'error');
     }
 }
 
