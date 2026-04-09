@@ -291,7 +291,7 @@ class BookingStorage {
         if (typeof supabaseClient === 'undefined') return;
         try {
             const user    = typeof getCurrentUser === 'function' ? getCurrentUser() : null;
-            const isAdmin = localStorage.getItem('adminAuthenticated') === 'true';
+            const isAdmin = sessionStorage.getItem('adminAuth') === 'true';
 
             // Date range for availability RPC (~3 months forward)
             const todayStr = _localDateStr();
@@ -320,9 +320,7 @@ class BookingStorage {
             // Admin: finestra operativa (6 mesi passati + 3 futuri) per contenere localStorage.
             // Utente: ultime 4 settimane + prossimi 3 mesi (storico vecchio non serve).
             // Query complete (senza limite) per stats/export avvengono tramite fetchForAdmin().
-            const bookingSelect = isAdmin
-                ? '*'
-                : 'id,local_id,user_id,date,time,slot_type,date_display,name,email,whatsapp,notes,status,paid,payment_method,paid_at,credit_applied,created_at,cancellation_requested_at,cancelled_at,cancelled_with_bonus,updated_at';
+            const bookingSelect = 'id,local_id,user_id,date,time,slot_type,date_display,name,email,whatsapp,notes,status,paid,payment_method,paid_at,credit_applied,created_at,cancellation_requested_at,cancelled_at,cancelled_with_bonus,updated_at,cancelled_payment_method,cancelled_paid_at,cancelled_with_penalty,cancelled_refund_pct,created_by,cancelled_by,arrived_at';
             let qBookings = supabaseClient.from('bookings').select(bookingSelect).order('created_at', { ascending: false }).range(0, 4999);
             // ownOnly: filtra per user_id server-side (es. prenotazioni.html — anche admin vedono solo i propri)
             if (ownOnly && user) {
