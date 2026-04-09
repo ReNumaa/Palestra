@@ -111,6 +111,18 @@
     transform: scale(0.97);
 }
 
+.all-nav-pill--icon {
+    flex: 0 0 auto;
+    padding: 0.6rem 0.65rem;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+}
+
+.all-nav-pill--icon svg {
+    display: block;
+}
+
 /* ── Filters (matching site tab style) ─────────────────────────────────────── */
 .all-filters {
     display: flex;
