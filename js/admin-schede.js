@@ -1012,8 +1012,16 @@ function _renderPlanEditor(container) {
             <div class="schede-exercises-list" id="schedeExercisesList">
                 ${_renderExercisesForDay()}
             </div>
-            <button class="schede-add-exercise-btn" onclick="_schedeAddExerciseRow()">+ Aggiungi esercizio</button>
-            <button class="schede-add-exercise-btn" style="background:linear-gradient(135deg,#f59e0b,#f97316);color:#fff;border:none;margin-left:0.4rem;" onclick="_schedeAddSupersetRow()">SS + Super Serie</button>
+            <div class="schede-add-btns">
+                <button class="schede-add-exercise-btn" onclick="_schedeAddExerciseRow()">
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" width="16" height="16"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
+                    Esercizio
+                </button>
+                <button class="schede-add-ss-btn" onclick="_schedeAddSupersetRow()">
+                    <span class="schede-add-ss-icon">SS</span>
+                    Super Serie
+                </button>
+            </div>
         </div>
 
         <div class="schede-editor-actions">

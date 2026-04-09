@@ -6367,17 +6367,42 @@ canvas {
     max-height: 300px;
 }
 
+.schede-add-btns {
+    display: flex; gap: 0.5rem; margin-top: 0.2rem;
+}
 .schede-add-exercise-btn {
-    background: linear-gradient(135deg, #f8fafc, #f1f5f9);
-    color: #00AEEF; border: 2px dashed #93c5fd;
-    border-radius: 12px; padding: 0.7rem 1rem;
-    cursor: pointer; font-size: 0.92rem; font-weight: 700;
-    width: 100%; transition: all 0.25s; letter-spacing: 0.01em;
+    flex: 1;
+    display: inline-flex; align-items: center; justify-content: center; gap: 0.4rem;
+    background: #fff; color: #00AEEF;
+    border: 2px dashed #93c5fd; border-radius: 10px;
+    padding: 0.6rem 0.8rem; cursor: pointer;
+    font-size: 0.85rem; font-weight: 700;
+    transition: all 0.2s; letter-spacing: 0.01em;
 }
 .schede-add-exercise-btn:hover {
-    background: linear-gradient(135deg, #e0f2fe, #bae6fd);
-    border-color: #00AEEF; border-style: solid;
+    background: #e0f7ff; border-color: #00AEEF; border-style: solid;
     box-shadow: 0 2px 8px rgba(0,174,239,0.12);
+}
+.schede-add-exercise-btn svg { flex-shrink: 0; }
+.schede-add-ss-btn {
+    flex: 1;
+    display: inline-flex; align-items: center; justify-content: center; gap: 0.4rem;
+    background: #fff; color: #f59e0b;
+    border: 2px dashed #fbbf24; border-radius: 10px;
+    padding: 0.6rem 0.8rem; cursor: pointer;
+    font-size: 0.85rem; font-weight: 700;
+    transition: all 0.2s; letter-spacing: 0.01em;
+}
+.schede-add-ss-btn:hover {
+    background: #fffbeb; border-color: #f59e0b; border-style: solid;
+    box-shadow: 0 2px 8px rgba(245,158,11,0.15);
+}
+.schede-add-ss-icon {
+    display: inline-flex; align-items: center; justify-content: center;
+    width: 22px; height: 22px; border-radius: 5px;
+    background: linear-gradient(135deg, #f59e0b, #f97316);
+    color: #fff; font-size: 0.6rem; font-weight: 800;
+    letter-spacing: 0.04em; flex-shrink: 0;
 }
 
 
@@ -6658,7 +6683,8 @@ canvas {
         min-width: 36px; min-height: 36px;
         display: flex; align-items: center; justify-content: center;
     }
-    .schede-add-exercise-btn { padding: 0.8rem; font-size: 0.95rem; border-radius: 14px; }
+    .schede-add-btns { flex-direction: column; }
+    .schede-add-exercise-btn, .schede-add-ss-btn { padding: 0.7rem; font-size: 0.88rem; border-radius: 12px; }
     .schede-editor-actions {
         position: sticky; bottom: 0; z-index: 10;
         background: linear-gradient(to top, #fff 70%, transparent);
