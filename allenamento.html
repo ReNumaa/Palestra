@@ -638,7 +638,7 @@
                     // Forza: righe serie × reps × kg × riposo
                     const todayMaxSet = todayLogs.filter(l => l.exercise_id === ex.id).reduce((m, l) => Math.max(m, l.set_number), 0);
                     const prevMaxSet = prevLogs.reduce((m, l) => Math.max(m, l.set_number), 0);
-                    const totalRows = Math.max(ex.sets, todayMaxSet, prevMaxSet);
+                    const totalRows = Math.max(ex.sets, todayMaxSet);
 
                     for (let s = 1; s <= totalRows; s++) {
                         const existing = todayLogs.find(l => l.exercise_id === ex.id && l.set_number === s);
@@ -1840,6 +1840,9 @@
         }
 
         async function pickExerciseFromPicker(exerciseName) {
+            // Route to superset flow if active
+            if (_supersetMode) { _supersetPickExercise(exerciseName); return; }
+
             const ex = _findEx(exerciseName);
             const isCardio = ex && (ex.categoria || '').toLowerCase() === 'cardio';
 
