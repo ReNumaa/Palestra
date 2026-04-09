@@ -2318,12 +2318,17 @@
                 const resp = await fetch(proxyUrl);
                 if (resp.ok) {
                     const blob = await resp.blob();
-                    return await new Promise(resolve => {
+                    // Get real dimensions via ImageBitmap
+                    const bmp = await createImageBitmap(blob);
+                    const ratio = bmp.height / bmp.width;
+                    bmp.close();
+                    const data = await new Promise(resolve => {
                         const r = new FileReader();
                         r.onload = () => resolve(r.result);
                         r.onerror = () => resolve(null);
                         r.readAsDataURL(blob);
                     });
+                    return data ? { data, ratio } : null;
                 }
             } catch (e) { /* proxy non disponibile, skip */ }
             return null;
@@ -2423,16 +2428,17 @@
                     // Helper: render one exercise block (image + name + table)
                     function _pdfExBlock(ex, indent) {
                         const isCardio = (ex.muscle_group || '').toLowerCase() === 'cardio';
-                        const img64 = imgCache[ex.exercise_name];
+                        const imgObj = imgCache[ex.exercise_name]; // { data, ratio } or null
                         const sets = isCardio ? 1 : (ex.sets || 3);
                         const blockH = 22 + 8 + (sets + 1) * 8;
                         if (y + blockH > ph - m - 10) { doc.addPage(); y = m; }
 
                         const lx = m + indent;
                         const imgW = 18;
+                        const imgH = imgObj ? imgW * imgObj.ratio : imgW;
                         let tx = lx;
-                        if (img64) {
-                            try { doc.addImage(img64, 'PNG', lx, y, imgW, imgW); tx = lx + imgW + 3; } catch (e) { /* skip */ }
+                        if (imgObj) {
+                            try { doc.addImage(imgObj.data, 'PNG', lx, y, imgW, imgH); tx = lx + imgW + 3; } catch (e) { /* skip */ }
                         }
                         doc.setFont('helvetica', 'bold');
                         doc.setFontSize(11);
@@ -2457,7 +2463,7 @@
                             doc.text(nl, tx, y + 18);
                             noteH = nl.length * 3.5;
                         }
-                        y += Math.max(img64 ? imgW + 2 : 18, 18 + noteH);
+                        y += Math.max(imgObj ? imgH + 2 : 18, 18 + noteH);
 
                         const tblLeft = m + indent;
                         const tblW = cw - indent;
