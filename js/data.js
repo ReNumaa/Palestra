@@ -468,14 +468,22 @@ class BookingStorage {
         if (typeof supabaseClient === 'undefined') return null;
         try {
             const adminCols = 'id,date,time,slot_type,name,email,whatsapp,notes,status,paid,payment_method,paid_at,credit_applied,created_at,cancelled_at,cancelled_with_bonus';
-            let q = supabaseClient.from('bookings').select(adminCols, { count: 'exact' })
-                .order('date', { ascending: false })
-                .range(0, 9999); // bypass default 1000-row limit
-            if (startStr) q = q.gte('date', startStr);
-            if (endStr)   q = q.lte('date', endStr);
-            const { data, error } = await q;
-            if (error) { console.error('[Supabase] fetchForAdmin error:', error.message); return null; }
-            return data.map(row => this._mapRow(row));
+            // Paginazione: il server limita a 1000 righe per request
+            const PAGE = 1000;
+            let all = [], pageFrom = 0, done = false;
+            while (!done) {
+                let q = supabaseClient.from('bookings').select(adminCols)
+                    .order('date', { ascending: false })
+                    .range(pageFrom, pageFrom + PAGE - 1);
+                if (startStr) q = q.gte('date', startStr);
+                if (endStr)   q = q.lte('date', endStr);
+                const { data, error } = await q;
+                if (error) { console.error('[Supabase] fetchForAdmin page error:', error.message); break; }
+                all = all.concat(data || []);
+                done = !data || data.length < PAGE;
+                pageFrom += PAGE;
+            }
+            return all.map(row => this._mapRow(row));
         } catch (e) {
             console.error('[Supabase] fetchForAdmin exception:', e);
             return null;
