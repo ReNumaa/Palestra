@@ -2501,12 +2501,13 @@ class WorkoutPlanStorage {
             day_label: exerciseData.day_label || 'Giorno A',
             exercise_name: exerciseData.exercise_name,
             muscle_group: exerciseData.muscle_group || null,
-            sort_order: maxOrder + 1,
+            sort_order: exerciseData.sort_order ?? (maxOrder + 1),
             sets: exerciseData.sets || 3,
             reps: exerciseData.reps || '10',
             weight_kg: exerciseData.weight_kg ?? null,
             rest_seconds: exerciseData.rest_seconds ?? 90,
             notes: exerciseData.notes || null,
+            superset_group: exerciseData.superset_group || null,
         };
         const { data, error } = await supabaseClient
             .from('workout_exercises')
@@ -2519,6 +2520,27 @@ class WorkoutPlanStorage {
             plan.workout_exercises.push(data);
         }
         return data;
+    }
+
+    // Add a superset pair (two exercises linked by the same superset_group UUID)
+    static async addSuperset(planId, ex1Data, ex2Data) {
+        const plan = this.getPlanById(planId);
+        const maxOrder = plan?.workout_exercises?.reduce((m, e) => Math.max(m, e.sort_order), -1) ?? -1;
+        const groupId = crypto.randomUUID();
+        // First exercise: no rest (done back-to-back)
+        const first = await this.addExercise(planId, {
+            ...ex1Data,
+            sort_order: maxOrder + 1,
+            rest_seconds: 0,
+            superset_group: groupId,
+        });
+        // Second exercise: has the actual rest
+        const second = await this.addExercise(planId, {
+            ...ex2Data,
+            sort_order: maxOrder + 2,
+            superset_group: groupId,
+        });
+        return { first, second, superset_group: groupId };
     }
 
     static async updateExercise(exerciseId, updates) {

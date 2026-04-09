@@ -1593,7 +1593,9 @@
 /* ── Tablet QR view (in allenamento.html) ─────────────────────────────────── */
 .all-tablet-qr-view {
     display: flex;
-    justify-content: center;
+    flex-direction: column;
+    align-items: center;
+    gap: 1rem;
     padding: 1rem 0;
 }
 
@@ -1691,6 +1693,45 @@
     margin: 0;
     line-height: 1.5;
     font-style: italic;
+}
+
+/* ── PDF Download Card ───────────────────────────────────────────────────── */
+.all-tablet-pdf-card {
+    background: var(--all-surface);
+    border-radius: var(--all-radius);
+    border: 1.5px solid var(--all-border);
+    box-shadow: var(--all-shadow-md);
+    padding: 1.5rem 1.2rem;
+    text-align: center;
+    max-width: 340px;
+    width: 100%;
+    animation: allFadeUp 0.4s ease-out;
+}
+
+.all-tablet-pdf-icon {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 56px;
+    height: 56px;
+    border-radius: 14px;
+    background: var(--all-cyan-glow);
+    color: var(--all-cyan);
+    margin-bottom: 0.6rem;
+}
+
+.all-tablet-pdf-title {
+    font-size: 1.05rem;
+    font-weight: 800;
+    color: var(--all-navy);
+    margin: 0 0 0.4rem;
+}
+
+.all-tablet-pdf-desc {
+    font-size: 0.78rem;
+    color: var(--all-muted);
+    margin: 0 0 1rem;
+    line-height: 1.5;
 }
 
 /* ── Next booking inside day tab ──────────────────────────────────────────── */
@@ -1817,6 +1858,323 @@
     transition: all 0.15s;
 }
 .all-edit-cancel:hover { border-color: var(--all-red); color: var(--all-red); }
+
+/* ── Super Serie (superset card) ──────────────────────────────────────────── */
+.all-ss-card {
+    background: var(--all-surface);
+    border: 1.5px solid var(--all-border);
+    border-radius: var(--all-radius);
+    margin-bottom: 0.65rem;
+    overflow: hidden;
+    transition: all var(--all-transition);
+    box-shadow: var(--all-shadow);
+    position: relative;
+}
+.all-ss-card::before {
+    content: '';
+    position: absolute;
+    top: 0; left: 0; width: 4px; height: 100%;
+    background: linear-gradient(180deg, var(--all-amber), #f97316);
+    border-radius: 3px 0 0 3px;
+    z-index: 1;
+}
+.all-ss-card:hover {
+    box-shadow: var(--all-shadow-md);
+}
+.all-ss-card.open {
+    border-color: var(--all-amber);
+    box-shadow: 0 0 0 3px var(--all-amber-glow), 0 4px 16px rgba(245,158,11,0.10);
+}
+.all-ss-card.all-ss-done {
+    border-color: var(--all-success);
+}
+.all-ss-card.all-ss-done::before {
+    background: var(--all-success);
+}
+
+/* Superset badge */
+.all-ss-badge {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.25rem;
+    padding: 0.15rem 0.5rem;
+    border-radius: 6px;
+    background: linear-gradient(135deg, var(--all-amber), #f97316);
+    color: #fff;
+    font-size: 0.62rem;
+    font-weight: 800;
+    letter-spacing: 0.06em;
+    text-transform: uppercase;
+    flex-shrink: 0;
+}
+
+/* Header: two thumbs side by side */
+.all-ss-header {
+    display: flex;
+    align-items: center;
+    padding: 0.75rem 1rem;
+    cursor: pointer;
+    gap: 0.7rem;
+    transition: background 0.15s;
+    -webkit-tap-highlight-color: transparent;
+}
+.all-ss-header:active {
+    background: rgba(245, 158, 11, 0.03);
+}
+
+.all-ss-thumbs {
+    display: flex;
+    gap: 0.35rem;
+    flex-shrink: 0;
+}
+.all-ss-thumb {
+    width: 40px;
+    height: 40px;
+    border-radius: 8px;
+    object-fit: cover;
+    background: #f1f5f9;
+    cursor: pointer;
+    border: 2px solid var(--all-border);
+    transition: border-color 0.15s;
+}
+.all-ss-thumb:hover {
+    border-color: var(--all-cyan);
+}
+
+.all-ss-info {
+    flex: 1;
+    min-width: 0;
+}
+
+.all-ss-names {
+    display: flex;
+    flex-direction: column;
+    gap: 0.1rem;
+}
+.all-ss-ex-name {
+    font-size: 0.82rem;
+    font-weight: 700;
+    color: var(--all-navy);
+    line-height: 1.3;
+    display: flex;
+    align-items: center;
+    gap: 0.2rem;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+.all-ss-ex-name .all-ex-info-btn,
+.all-ss-ex-name .all-ex-edit-btn {
+    font-size: 0.9rem;
+    padding: 0 0.15rem;
+}
+.all-ss-target {
+    font-size: 0.72rem;
+    color: var(--all-muted);
+    font-weight: 500;
+    margin-top: 0.15rem;
+    font-variant-numeric: tabular-nums;
+}
+.all-ss-status { flex-shrink: 0; }
+.all-ss-chevron {
+    font-size: 0.9rem;
+    color: var(--all-subtle);
+    transition: transform 0.3s cubic-bezier(0.4, 0, 0.2, 1), color var(--all-transition);
+    display: inline-block;
+}
+.all-ss-card.open .all-ss-chevron {
+    transform: rotate(180deg);
+    color: var(--all-amber);
+}
+
+/* Body (accordion) */
+.all-ss-body {
+    display: none;
+    padding: 0 1.1rem 1.1rem;
+}
+.all-ss-card.open .all-ss-body {
+    display: block;
+    animation: allSlideDown 0.3s ease-out;
+}
+
+/* Divider between the two exercises inside body */
+.all-ss-divider {
+    display: flex;
+    align-items: center;
+    gap: 0.6rem;
+    margin: 1rem 0 0.6rem;
+    color: var(--all-muted);
+    font-size: 0.72rem;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 0.04em;
+}
+.all-ss-divider::before,
+.all-ss-divider::after {
+    content: '';
+    flex: 1;
+    height: 1px;
+    background: var(--all-border);
+}
+
+/* Exercise sub-header inside superset body */
+.all-ss-ex-header {
+    display: flex;
+    align-items: center;
+    gap: 0.6rem;
+    margin-bottom: 0.5rem;
+}
+.all-ss-ex-header img {
+    width: 36px; height: 36px;
+    border-radius: 8px;
+    object-fit: cover;
+    background: #f1f5f9;
+    cursor: pointer;
+}
+.all-ss-ex-header-info {
+    flex: 1; min-width: 0;
+}
+.all-ss-ex-header-name {
+    font-size: 0.88rem; font-weight: 700;
+    color: var(--all-navy); line-height: 1.3;
+}
+.all-ss-ex-header-target {
+    font-size: 0.72rem; color: var(--all-muted); font-weight: 500;
+}
+
+/* FAB action sheet */
+.all-fab-sheet-overlay {
+    position: fixed; inset: 0; z-index: 9998;
+    background: rgba(0,0,0,0.4);
+    backdrop-filter: blur(4px);
+    -webkit-backdrop-filter: blur(4px);
+    opacity: 0;
+    transition: opacity 0.25s;
+}
+.all-fab-sheet-overlay.visible { opacity: 1; }
+.all-fab-sheet {
+    position: fixed; bottom: 0; left: 0; right: 0;
+    z-index: 9999;
+    background: var(--all-surface);
+    border-radius: 20px 20px 0 0;
+    padding: 1.2rem 1rem 1.5rem;
+    box-shadow: 0 -10px 40px rgba(0,0,0,0.15);
+    transform: translateY(100%);
+    transition: transform 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+}
+.all-fab-sheet-overlay.visible .all-fab-sheet {
+    transform: translateY(0);
+}
+.all-fab-sheet-handle {
+    width: 36px; height: 4px;
+    background: var(--all-border);
+    border-radius: 2px;
+    margin: 0 auto 1rem;
+}
+.all-fab-sheet-title {
+    font-size: 0.95rem; font-weight: 800;
+    color: var(--all-navy); text-align: center;
+    margin-bottom: 1rem;
+}
+.all-fab-sheet-options {
+    display: flex; flex-direction: column; gap: 0.5rem;
+}
+.all-fab-sheet-btn {
+    display: flex; align-items: center; gap: 0.8rem;
+    padding: 0.9rem 1rem;
+    border: 1.5px solid var(--all-border);
+    border-radius: var(--all-radius-sm);
+    background: var(--all-bg);
+    cursor: pointer;
+    transition: all 0.15s;
+    text-align: left;
+}
+.all-fab-sheet-btn:active {
+    transform: scale(0.98);
+}
+.all-fab-sheet-btn:hover {
+    border-color: var(--all-cyan);
+    background: #e0f7ff;
+}
+.all-fab-sheet-btn--ss:hover {
+    border-color: var(--all-amber);
+    background: #fffbeb;
+}
+.all-fab-sheet-btn-icon {
+    width: 40px; height: 40px;
+    border-radius: 10px;
+    display: flex; align-items: center; justify-content: center;
+    font-size: 1.2rem; flex-shrink: 0;
+}
+.all-fab-sheet-btn-icon--single {
+    background: linear-gradient(135deg, var(--all-cyan), var(--all-cyan-dark));
+    color: #fff;
+}
+.all-fab-sheet-btn-icon--ss {
+    background: linear-gradient(135deg, var(--all-amber), #f97316);
+    color: #fff;
+}
+.all-fab-sheet-btn-text {
+    display: flex; flex-direction: column;
+}
+.all-fab-sheet-btn-title {
+    font-size: 0.9rem; font-weight: 700; color: var(--all-navy);
+}
+.all-fab-sheet-btn-desc {
+    font-size: 0.72rem; color: var(--all-muted); margin-top: 0.15rem;
+}
+@media (min-width: 768px) {
+    .all-fab-sheet {
+        left: 50%; right: auto;
+        width: 400px;
+        transform: translate(-50%, 100%);
+        border-radius: 20px;
+        bottom: 5vh;
+    }
+    .all-fab-sheet-overlay.visible .all-fab-sheet {
+        transform: translate(-50%, 0);
+    }
+}
+
+/* ── Admin superset row ──────────────────────────────────────────────────── */
+.schede-ss-block {
+    border: 2px solid var(--all-amber, #f59e0b);
+    border-radius: 12px;
+    padding: 0.5rem;
+    margin-bottom: 0.5rem;
+    background: linear-gradient(135deg, #fffbeb 0%, #fff 60%);
+    position: relative;
+}
+.schede-ss-badge {
+    position: absolute;
+    top: -8px; left: 12px;
+    padding: 0.1rem 0.5rem;
+    border-radius: 4px;
+    background: linear-gradient(135deg, #f59e0b, #f97316);
+    color: #fff;
+    font-size: 0.62rem;
+    font-weight: 800;
+    letter-spacing: 0.06em;
+    text-transform: uppercase;
+}
+.schede-ss-block .schede-exercise-row {
+    margin-bottom: 0.3rem;
+}
+.schede-ss-block .schede-exercise-row:last-of-type {
+    margin-bottom: 0;
+}
+.schede-ss-delete {
+    position: absolute;
+    top: -8px; right: 12px;
+    background: #ef4444;
+    color: #fff;
+    border: none;
+    border-radius: 4px;
+    padding: 0.1rem 0.4rem;
+    font-size: 0.65rem;
+    font-weight: 700;
+    cursor: pointer;
+}
 
 /* ── Reduced motion ────────────────────────────────────────────────────────── */
 @media (prefers-reduced-motion: reduce) {

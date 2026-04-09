@@ -456,7 +456,97 @@
         </div>`;
 
         html += '<div class="tab-exercises">';
+
+        // Build superset group map
+        const _tssRendered = new Set();
+        const _tssMap = {};
+        for (const e of dayEx) { if (e.superset_group) { if (!_tssMap[e.superset_group]) _tssMap[e.superset_group]=[]; _tssMap[e.superset_group].push(e); } }
+
         for (const ex of dayEx) {
+            // ── Superset card ────────────────────────────────────────
+            if (ex.superset_group && !_tssRendered.has(ex.superset_group)) {
+                _tssRendered.add(ex.superset_group);
+                const pair = _tssMap[ex.superset_group] || [ex];
+                const allDone = pair.every(e => todayLogs.some(l => l.exercise_id === e.id));
+                const db1 = _findEx(pair[0].exercise_name), db2 = pair[1] ? _findEx(pair[1].exercise_name) : null;
+                const th1 = db1?db1.img:'', th2 = db2?db2.img:'';
+                const sl1 = db1?db1.slug:'', sl2 = db2?db2.slug:'';
+                const ssId = ex.superset_group;
+                const t1 = `${pair[0].sets}\u00d7${pair[0].reps}`, t2 = pair[1] ? `${pair[1].sets}\u00d7${pair[1].reps}` : '';
+
+                html += `<div class="all-ss-card ${allDone?'all-ss-done':''}" id="tss-${ssId}">
+                    <div class="all-ss-header" onclick="toggleTabSs('${ssId}')">
+                        <div class="all-ss-thumbs">
+                            ${th1?`<img src="${th1}" class="all-ss-thumb" alt="" loading="lazy" onclick="event.stopPropagation();showTabExDetail('${_esc(sl1)}')">` :''}
+                            ${th2?`<img src="${th2}" class="all-ss-thumb" alt="" loading="lazy" onclick="event.stopPropagation();showTabExDetail('${_esc(sl2)}')">` :''}
+                        </div>
+                        <div class="all-ss-info">
+                            <span class="all-ss-badge">SS</span>
+                            <div class="all-ss-names">
+                                <span class="all-ss-ex-name">${_esc(pair[0].exercise_name)}</span>
+                                ${pair[1]?`<span class="all-ss-ex-name">${_esc(pair[1].exercise_name)}</span>`:''}
+                            </div>
+                            <div class="all-ss-target">${t1} + ${t2}${pair[1]&&pair[1].rest_seconds?' \u00b7 '+pair[1].rest_seconds+'s pausa':''}</div>
+                        </div>
+                        <div class="all-ss-status">${allDone?'<span class="tab-ex-check">&#10003;</span>':'<span class="all-ss-chevron">&#9662;</span>'}</div>
+                    </div>
+                    <div class="all-ss-body">`;
+
+                pair.forEach((ssEx, idx) => {
+                    const _c = (ssEx.muscle_group||'').toLowerCase()==='cardio';
+                    const sH = todayLogs.some(l=>l.exercise_id===ssEx.id);
+                    const sP = _prevSession(ssEx.id);
+                    const sD = _findEx(ssEx.exercise_name);
+                    const sT = sD?sD.img:'', sS = sD?sD.slug:'';
+
+                    html += `<div class="all-ss-divider">Esercizio ${idx+1}</div>`;
+                    html += `<div class="all-ss-ex-header">
+                        ${sT?`<img src="${sT}" alt="" loading="lazy" onclick="showTabExDetail('${_esc(sS)}')">`:''}
+                        <div class="all-ss-ex-header-info">
+                            <div class="all-ss-ex-header-name">${_esc(ssEx.exercise_name)}${sS?`<button class="tab-ex-info-btn" onclick="showTabExDetail('${_esc(sS)}')" title="Info">&#9432;</button>`:''}<button class="tab-ex-edit-btn" onclick="showTabEditExercise('${ssEx.id}')" title="Modifica">&#9998;</button></div>
+                            <div class="all-ss-ex-header-target">${ssEx.sets} \u00d7 ${ssEx.reps}${ssEx.rest_seconds?' \u00b7 '+ssEx.rest_seconds+'s pausa':' \u00b7 no pausa'}</div>
+                        </div>
+                    </div>`;
+
+                    if (sP.length) {
+                        html += `<div class="tab-prev-session"><span class="tab-prev-label">Precedente \u2014 ${_fmtDate(sP[0].log_date)}</span><div class="tab-prev-sets">`;
+                        for (const pl of sP) html += _c?`<span class="tab-prev-set">${pl.reps_done||'\u2014'} min</span>`:`<span class="tab-prev-set">${pl.set_number}. ${pl.reps_done||'\u2014'}x${pl.weight_done!=null?pl.weight_done+'kg':'\u2014'}</span>`;
+                        html += '</div></div>';
+                    }
+
+                    html += `<div class="tab-log-section" data-ex-id="${ssEx.id}">
+                        <div class="tab-log-grid${_c?' tab-log-grid-cardio':''}"><div class="tab-log-grid-header">${_c?'<span>Min</span>':'<span>Serie</span><span>Reps</span><span>Kg</span>'}</div>`;
+                    if (_c) {
+                        const e0=todayLogs.find(l=>l.exercise_id===ssEx.id&&l.set_number===1);
+                        const p0=sP.find(l=>l.set_number===1);
+                        html += `<div class="tab-log-row tab-log-row-cardio"><input type="number" inputmode="numeric" min="0" value="${e0?.reps_done??p0?.reps_done??(parseInt(ssEx.reps)||'')}" class="tab-log-input" data-field="reps" data-set="1"></div>`;
+                    } else {
+                        const tM=todayLogs.filter(l=>l.exercise_id===ssEx.id).reduce((m,l)=>Math.max(m,l.set_number),0);
+                        const pM=sP.reduce((m,l)=>Math.max(m,l.set_number),0);
+                        const rows=Math.max(ssEx.sets,tM,pM);
+                        for (let s=1;s<=rows;s++){
+                            const e0=todayLogs.find(l=>l.exercise_id===ssEx.id&&l.set_number===s);
+                            const p0=sP.find(l=>l.set_number===s);
+                            const ext=s>ssEx.sets;
+                            html += `<div class="tab-log-row"><span class="tab-log-set">${s}</span>
+                                <input type="number" inputmode="numeric" min="0" value="${e0?.reps_done??p0?.reps_done??(ext?'':(parseInt(ssEx.reps)||''))}" class="tab-log-input" data-field="reps" data-set="${s}">
+                                <input type="number" inputmode="decimal" min="0" step="0.5" value="${e0?.weight_done??p0?.weight_done??(ext?'':(ssEx.weight_kg??''))}" class="tab-log-input" data-field="weight" data-set="${s}">
+                            </div>`;
+                        }
+                    }
+                    html += `</div>${_c?'':`<button class="tab-log-add-set" onclick="tabAddSet('${ssEx.id}', this)">+ Serie</button>`}
+                        <div class="tab-log-actions">
+                            <button class="tab-log-save" onclick="tabSaveLog('${ssEx.id}', this)">Salva</button>
+                            ${sH?`<button class="tab-log-delete" onclick="tabDeleteLog('${ssEx.id}', this)">Elimina log</button>`:''}
+                        </div>
+                    </div>`;
+                });
+                html += '</div></div>';
+                continue;
+            }
+            if (ex.superset_group && _tssRendered.has(ex.superset_group)) continue;
+
+            // ── Normal single exercise card ─────────────────────────
             const isCardio = (ex.muscle_group || '').toLowerCase() === 'cardio';
             const target = isCardio
                 ? `${ex.reps} min`
@@ -478,20 +568,18 @@
                 <div class="tab-ex-body">
                     ${ex.notes ? `<div class="tab-ex-note">${_esc(ex.notes)}</div>` : ''}`;
 
-            // Previous session
             if (prevLogs.length) {
                 html += `<div class="tab-prev-session">
                     <span class="tab-prev-label">Sessione precedente &mdash; ${_fmtDate(prevLogs[0].log_date)}</span>
                     <div class="tab-prev-sets">`;
                 for (const pl of prevLogs) {
                     html += isCardio
-                        ? `<span class="tab-prev-set">${pl.reps_done || '—'} min</span>`
-                        : `<span class="tab-prev-set">${pl.set_number}. ${pl.reps_done || '—'}x${pl.weight_done != null ? pl.weight_done + 'kg' : '—'}</span>`;
+                        ? `<span class="tab-prev-set">${pl.reps_done || '\u2014'} min</span>`
+                        : `<span class="tab-prev-set">${pl.set_number}. ${pl.reps_done || '\u2014'}x${pl.weight_done != null ? pl.weight_done + 'kg' : '\u2014'}</span>`;
                 }
                 html += '</div></div>';
             }
 
-            // Log form
             html += `<div class="tab-log-section" data-ex-id="${ex.id}">
                 <div class="tab-log-header">Registra per oggi &mdash; ${_fmtDate(today)}</div>
                 <div class="tab-log-grid${isCardio ? ' tab-log-grid-cardio' : ''}">
@@ -1013,7 +1101,46 @@
     // ── FAB action: aggiungi esercizio ──────────────────────────────────
     function tabFabAction() {
         if (!_plan) return;
-        _tabOpenExercisePicker();
+        _tabShowFabSheet();
+    }
+
+    function _tabShowFabSheet() {
+        const old = document.getElementById('tabFabSheetOverlay');
+        if (old) old.remove();
+        const overlay = document.createElement('div');
+        overlay.id = 'tabFabSheetOverlay';
+        overlay.className = 'all-fab-sheet-overlay';
+        overlay.innerHTML = `
+            <div class="all-fab-sheet">
+                <div class="all-fab-sheet-handle"></div>
+                <div class="all-fab-sheet-title">Aggiungi al ${_esc(_activeDay || 'Giorno A')}</div>
+                <div class="all-fab-sheet-options">
+                    <button class="all-fab-sheet-btn" onclick="_tabCloseFabSheet();_tabOpenExercisePicker()">
+                        <div class="all-fab-sheet-btn-icon all-fab-sheet-btn-icon--single">+</div>
+                        <div class="all-fab-sheet-btn-text">
+                            <span class="all-fab-sheet-btn-title">Esercizio singolo</span>
+                            <span class="all-fab-sheet-btn-desc">Aggiungi un esercizio con riposo</span>
+                        </div>
+                    </button>
+                    <button class="all-fab-sheet-btn all-fab-sheet-btn--ss" onclick="_tabCloseFabSheet();_tabOpenSupersetPicker()">
+                        <div class="all-fab-sheet-btn-icon all-fab-sheet-btn-icon--ss">SS</div>
+                        <div class="all-fab-sheet-btn-text">
+                            <span class="all-fab-sheet-btn-title">Super Serie</span>
+                            <span class="all-fab-sheet-btn-desc">Due esercizi senza pausa tra loro</span>
+                        </div>
+                    </button>
+                </div>
+            </div>`;
+        overlay.addEventListener('click', (e) => { if (e.target === overlay) _tabCloseFabSheet(); });
+        document.body.appendChild(overlay);
+        requestAnimationFrame(() => overlay.classList.add('visible'));
+    }
+
+    function _tabCloseFabSheet() {
+        const o = document.getElementById('tabFabSheetOverlay');
+        if (!o) return;
+        o.classList.remove('visible');
+        setTimeout(() => o.remove(), 300);
     }
 
     // ── Exercise picker (add exercise to current plan/day) ───────────────
@@ -1082,6 +1209,7 @@
         const overlay = document.getElementById('tabExPickerOverlay');
         if (overlay) overlay.remove();
         document.body.style.overflow = '';
+        _tabSsMode = false;
     }
 
     function tabPickCategory(cat) {
@@ -1138,6 +1266,8 @@
     }
 
     async function tabPickExercise(exerciseName) {
+        if (_tabSsMode) { _tabSsPickExercise(exerciseName); return; }
+
         const ex = _findEx(exerciseName);
         const isCardio = ex && (ex.categoria || '').toLowerCase() === 'cardio';
 
@@ -1192,6 +1322,78 @@
         const name = prompt('Nome esercizio personalizzato:');
         if (!name || !name.trim()) return;
         await tabPickExercise(name.trim());
+    }
+
+    // ── Superset picker flow (tablet) ────────────────────────────────────
+    let _tabSsMode = false;
+    let _tabSsStep = 0;
+    let _tabSsFirst = null;
+
+    function _tabOpenSupersetPicker() {
+        _tabSsMode = true;
+        _tabSsStep = 0;
+        _tabSsFirst = null;
+        _tabOpenExercisePicker();
+        setTimeout(() => {
+            const t = document.querySelector('#tabExPickerOverlay .tab-picker-title');
+            if (t) t.textContent = 'Super Serie \u2014 Esercizio 1 di 2';
+        }, 50);
+    }
+
+    function _tabSsPickExercise(exerciseName) {
+        const ex = _findEx(exerciseName);
+        const isCardio = ex && (ex.categoria || '').toLowerCase() === 'cardio';
+        let sets = 3, reps = '10';
+        if (!isCardio) {
+            const sv = prompt('Numero di serie:', '3');
+            if (sv === null) { _tabSsMode = false; tabCloseExercisePicker(); return; }
+            sets = parseInt(sv) || 3;
+            const rv = prompt('Numero di ripetizioni:', '10');
+            if (rv === null) { _tabSsMode = false; tabCloseExercisePicker(); return; }
+            reps = rv || '10';
+        } else { sets = 1; reps = '20'; }
+
+        if (_tabSsStep === 0) {
+            _tabSsFirst = { name: exerciseName, ex, sets, reps, muscle_group: ex ? ex.categoria : null };
+            _tabSsStep = 1;
+            _tabPickerActiveCat = '';
+            const c = document.getElementById('tabPickerCats'), l = document.getElementById('tabPickerList'), s = document.getElementById('tabPickerSearch');
+            if (c) c.style.display = ''; if (l) l.style.display = 'none'; if (s) s.value = '';
+            document.querySelectorAll('.tab-picker-cat-chip').forEach(ch => ch.classList.remove('active'));
+            const t = document.querySelector('#tabExPickerOverlay .tab-picker-title');
+            if (t) t.textContent = 'Super Serie \u2014 Esercizio 2 di 2';
+        } else {
+            const rv = prompt('Riposo dopo la super serie (secondi):', '90');
+            if (rv === null) { _tabSsMode = false; tabCloseExercisePicker(); return; }
+            const rest = parseInt(rv) || 90;
+            _tabSsMode = false;
+            tabCloseExercisePicker();
+            _tabSaveSupersetPair(_tabSsFirst, { name: exerciseName, ex, sets, reps, muscle_group: ex ? ex.categoria : null }, rest);
+        }
+    }
+
+    async function _tabSaveSupersetPair(first, second, rest) {
+        const dayLabel = _activeDay || 'Giorno A';
+        try {
+            await WorkoutPlanStorage.addSuperset(_plan.id, {
+                day_label: dayLabel, exercise_name: first.name, muscle_group: first.muscle_group,
+                sets: first.sets, reps: first.reps, weight_kg: null, notes: null,
+            }, {
+                day_label: dayLabel, exercise_name: second.name, muscle_group: second.muscle_group,
+                sets: second.sets, reps: second.reps, rest_seconds: rest, weight_kg: null, notes: null,
+            });
+            _exercises = _plan.workout_exercises;
+            renderTabScheda();
+            _toast('Super Serie aggiunta!');
+        } catch (e) {
+            console.error('[Tablet] add superset error:', e);
+            _toast('Errore aggiunta super serie', 'error');
+        }
+    }
+
+    function toggleTabSs(ssId) {
+        const card = document.getElementById('tss-' + ssId);
+        if (card) card.classList.toggle('open');
     }
 
     // ── PWA: register service worker ──────────────────────────────────────

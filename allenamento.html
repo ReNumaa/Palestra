@@ -13,7 +13,7 @@
     <link rel="icon" type="image/jpeg" href="images/logo-tb---nero.jpg">
     <link rel="stylesheet" href="css/style.css?v=8">
     <link rel="stylesheet" href="css/login.css?v=4">
-    <link rel="stylesheet" href="css/allenamento.css?v=23">
+    <link rel="stylesheet" href="css/allenamento.css?v=24">
 </head>
 <body class="allenamento-body">
     <nav class="navbar">
@@ -573,14 +573,110 @@
                     <span class="all-day-count">${dayDoneCount}/${dayExercises.length} completati</span>
                 </div>`;
 
+            // Build superset groups map
+            const _ssRendered = new Set();
+            const _ssGroupMap = {};
             for (const ex of dayExercises) {
+                if (ex.superset_group) {
+                    if (!_ssGroupMap[ex.superset_group]) _ssGroupMap[ex.superset_group] = [];
+                    _ssGroupMap[ex.superset_group].push(ex);
+                }
+            }
+
+            for (const ex of dayExercises) {
+                // ── Superset card ────────────────────────────────────────
+                if (ex.superset_group && !_ssRendered.has(ex.superset_group)) {
+                    _ssRendered.add(ex.superset_group);
+                    const pair = _ssGroupMap[ex.superset_group] || [ex];
+                    const ex1 = pair[0], ex2 = pair[1];
+                    const allDone = pair.every(e => todayLogs.some(l => l.exercise_id === e.id));
+                    const db1 = _findEx(ex1.exercise_name), db2 = ex2 ? _findEx(ex2.exercise_name) : null;
+                    const thumb1 = db1 ? db1.immagine_url_small : '', thumb2 = db2 ? db2.immagine_url_small : '';
+                    const slug1 = db1 ? db1.slug : '', slug2 = db2 ? db2.slug : '';
+                    const ssId = ex.superset_group;
+                    const t1 = `${ex1.sets}\u00d7${ex1.reps}${ex1.weight_kg != null ? ' @' + ex1.weight_kg + 'kg' : ''}`;
+                    const t2 = ex2 ? `${ex2.sets}\u00d7${ex2.reps}${ex2.weight_kg != null ? ' @' + ex2.weight_kg + 'kg' : ''}` : '';
+                    const restDisp = ex2 && ex2.rest_seconds ? `${ex2.rest_seconds}s pausa` : '';
+
+                    html += `<div class="all-ss-card ${allDone ? 'all-ss-done' : ''}" id="ss-${ssId}" data-ss-id="${ssId}">
+                        <div class="all-ss-header" onclick="toggleSsCard('${ssId}')">
+                            <div class="all-ss-thumbs">
+                                ${thumb1 ? `<img src="${thumb1}" class="all-ss-thumb" alt="" loading="lazy" onclick="event.stopPropagation();showExDetail('${_escHtml(slug1)}')">` : ''}
+                                ${thumb2 ? `<img src="${thumb2}" class="all-ss-thumb" alt="" loading="lazy" onclick="event.stopPropagation();showExDetail('${_escHtml(slug2)}')">` : ''}
+                            </div>
+                            <div class="all-ss-info">
+                                <span class="all-ss-badge">SS</span>
+                                <div class="all-ss-names">
+                                    <span class="all-ss-ex-name">${_escHtml(ex1.exercise_name)}</span>
+                                    ${ex2 ? `<span class="all-ss-ex-name">${_escHtml(ex2.exercise_name)}</span>` : ''}
+                                </div>
+                                <div class="all-ss-target">${t1} + ${t2}${restDisp ? ' \u00b7 ' + restDisp : ''}</div>
+                            </div>
+                            <div class="all-ss-status">${allDone ? '<span class="all-ex-check">&#10003;</span>' : '<span class="all-ss-chevron">&#9662;</span>'}</div>
+                        </div>
+                        <div class="all-ss-body">`;
+
+                    pair.forEach((ssEx, idx) => {
+                        const _c = (ssEx.muscle_group || '').toLowerCase() === 'cardio';
+                        const sHasLogs = todayLogs.some(l => l.exercise_id === ssEx.id);
+                        const sPrev = _prevSessionLogs(ssEx.id);
+                        const sDb = _findEx(ssEx.exercise_name);
+                        const sThumb = sDb ? sDb.immagine_url_small : '';
+                        const sSlug = sDb ? sDb.slug : '';
+
+                        html += `<div class="all-ss-divider">Esercizio ${idx + 1}</div>`;
+                        html += `<div class="all-ss-ex-header">
+                            ${sThumb ? `<img src="${sThumb}" alt="" loading="lazy" onclick="showExDetail('${_escHtml(sSlug)}')">` : ''}
+                            <div class="all-ss-ex-header-info">
+                                <div class="all-ss-ex-header-name">${_escHtml(ssEx.exercise_name)}${sSlug ? `<button class="all-ex-info-btn" onclick="showExDetail('${_escHtml(sSlug)}')" title="Info">&#9432;</button>` : ''}<button class="all-ex-edit-btn" onclick="showEditExercise('${ssEx.id}')" title="Modifica">&#9998;</button></div>
+                                <div class="all-ss-ex-header-target">${ssEx.sets} \u00d7 ${ssEx.reps}${ssEx.weight_kg != null ? ' @ ' + ssEx.weight_kg + ' kg' : ''}${ssEx.rest_seconds ? ' \u00b7 ' + ssEx.rest_seconds + 's pausa' : ' \u00b7 no pausa'}</div>
+                            </div>
+                        </div>`;
+                        if (sPrev.length) {
+                            html += `<div class="all-prev-session"><span class="all-prev-label">Precedente \u2014 ${_fmtDateAll(sPrev[0].log_date)}</span><div class="all-prev-sets">`;
+                            for (const pl of sPrev) html += _c ? `<span class="all-prev-set">${pl.reps_done||'\u2014'} min</span>` : `<span class="all-prev-set">${pl.set_number}. ${pl.reps_done||'\u2014'}\u00d7${pl.weight_done!=null?pl.weight_done+'kg':'\u2014'}</span>`;
+                            html += `</div></div>`;
+                        }
+                        const sRestVal = ssEx.rest_seconds ?? '';
+                        html += `<div class="all-log-section" data-ex-id="${ssEx.id}">
+                            <div class="all-log-grid${_c?' all-log-grid-cardio':''}"><div class="all-log-grid-header">${_c?'<span>Min</span>':'<span>Serie</span><span>Ripetizioni</span><span>Kg</span><span>Riposo</span>'}</div>`;
+                        if (_c) {
+                            const ex0 = todayLogs.find(l=>l.exercise_id===ssEx.id&&l.set_number===1);
+                            const p0 = sPrev.find(l=>l.set_number===1);
+                            html += `<div class="all-log-row all-log-row-cardio"><input type="number" inputmode="numeric" min="0" value="${ex0?.reps_done??p0?.reps_done??(parseInt(ssEx.reps)||'')}" class="all-log-input" data-field="reps" data-set="1"></div>`;
+                        } else {
+                            const tMax = todayLogs.filter(l=>l.exercise_id===ssEx.id).reduce((m,l)=>Math.max(m,l.set_number),0);
+                            const pMax = sPrev.reduce((m,l)=>Math.max(m,l.set_number),0);
+                            const rows = Math.max(ssEx.sets, tMax, pMax);
+                            for (let s=1;s<=rows;s++) {
+                                const e0=todayLogs.find(l=>l.exercise_id===ssEx.id&&l.set_number===s);
+                                const p0=sPrev.find(l=>l.set_number===s);
+                                const ext=s>ssEx.sets;
+                                html += `<div class="all-log-row"><span class="all-log-set">${s}</span>
+                                    <input type="number" inputmode="numeric" min="0" value="${e0?.reps_done??p0?.reps_done??(ext?'':(parseInt(ssEx.reps)||''))}" class="all-log-input" data-field="reps" data-set="${s}">
+                                    <input type="number" inputmode="decimal" min="0" step="0.5" value="${e0?.weight_done??p0?.weight_done??(ext?'':(ssEx.weight_kg??''))}" class="all-log-input" data-field="weight" data-set="${s}">
+                                    <input type="number" inputmode="numeric" min="0" value="${e0?.rest_done??p0?.rest_done??(ext?'':sRestVal)}" class="all-log-input" data-field="rest" data-set="${s}">
+                                </div>`;
+                            }
+                        }
+                        html += `</div>${_c?'':'<button class="all-log-add-set" onclick="addExtraSet(\''+ssEx.id+'\', this)">+ Serie</button>'}
+                            <div class="all-log-actions">
+                                <button class="all-log-save" onclick="saveLog('${ssEx.id}', this)">Salva</button>
+                                ${sHasLogs?`<button class="all-log-delete" onclick="deleteTodayLog('${ssEx.id}', this)">Elimina log</button>`:''}
+                            </div></div>`;
+                    });
+                    html += `</div></div>`;
+                    continue;
+                }
+                if (ex.superset_group && _ssRendered.has(ex.superset_group)) continue;
+
+                // ── Normal single exercise card ─────────────────────────
                 const _cardio = (ex.muscle_group || '').toLowerCase() === 'cardio';
                 const target = _cardio
                     ? `${ex.reps} min`
-                    : `${ex.sets} × ${ex.reps}${ex.weight_kg != null ? ' @ ' + ex.weight_kg + ' kg' : ''}${ex.rest_seconds ? ' · ' + (ex.rest_seconds <= 3 ? ex.rest_seconds + ' min' : ex.rest_seconds + 's') + ' pausa' : ''}`;
+                    : `${ex.sets} \u00d7 ${ex.reps}${ex.weight_kg != null ? ' @ ' + ex.weight_kg + ' kg' : ''}${ex.rest_seconds ? ' \u00b7 ' + (ex.rest_seconds <= 3 ? ex.rest_seconds + ' min' : ex.rest_seconds + 's') + ' pausa' : ''}`;
                 const hasLogs = todayLogs.some(l => l.exercise_id === ex.id);
                 const prevLogs = _prevSessionLogs(ex.id);
-
                 const dbEx = _findEx(ex.exercise_name);
                 const thumbSrc = dbEx ? dbEx.immagine_url_small : '';
                 const exSlug = dbEx ? dbEx.slug : '';
@@ -602,16 +698,15 @@
                     <div class="all-ex-body">
                         ${ex.notes ? `<div class="all-ex-note">${_escHtml(ex.notes)}</div>` : ''}`;
 
-                // Previous session reference
                 if (prevLogs.length) {
                     const prevDate = prevLogs[0].log_date;
                     html += `<div class="all-prev-session">
-                        <span class="all-prev-label">Sessione precedente — ${_fmtDateAll(prevDate)}</span>
+                        <span class="all-prev-label">Sessione precedente \u2014 ${_fmtDateAll(prevDate)}</span>
                         <div class="all-prev-sets">`;
                     for (const pl of prevLogs) {
                         html += _cardio
-                            ? `<span class="all-prev-set">${pl.reps_done || '—'} min</span>`
-                            : `<span class="all-prev-set">${pl.set_number}. ${pl.reps_done || '—'}×${pl.weight_done != null ? pl.weight_done + 'kg' : '—'}</span>`;
+                            ? `<span class="all-prev-set">${pl.reps_done || '\u2014'} min</span>`
+                            : `<span class="all-prev-set">${pl.set_number}. ${pl.reps_done || '\u2014'}\u00d7${pl.weight_done != null ? pl.weight_done + 'kg' : '\u2014'}</span>`;
                     }
                     html += `</div></div>`;
                 }
@@ -620,14 +715,13 @@
                 const restVal = ex.rest_seconds ?? '';
 
                 html += `<div class="all-log-section" data-ex-id="${ex.id}">
-                            <div class="all-log-header">Registra per oggi — ${_fmtDateAll(today)}</div>
+                            <div class="all-log-header">Registra per oggi \u2014 ${_fmtDateAll(today)}</div>
                             <div class="all-log-grid${_cardio ? ' all-log-grid-cardio' : ''}">
                                 <div class="all-log-grid-header">
                                     ${_cardio ? '<span>Min</span>' : `<span>Serie</span><span>Ripetizioni</span><span>Kg</span><span>Riposo</span>`}
                                 </div>`;
 
                 if (_cardio) {
-                    // Cardio: singola riga con input minuti
                     const existing = todayLogs.find(l => l.exercise_id === ex.id && l.set_number === 1);
                     const prev = prevLogs.find(l => l.set_number === 1);
                     const mVal = existing?.reps_done ?? prev?.reps_done ?? (parseInt(ex.reps) || '');
@@ -635,7 +729,6 @@
                         <input type="number" inputmode="numeric" min="0" value="${mVal}" class="all-log-input" data-field="reps" data-set="1" aria-label="Minuti">
                     </div>`;
                 } else {
-                    // Forza: righe serie × reps × kg × riposo
                     const todayMaxSet = todayLogs.filter(l => l.exercise_id === ex.id).reduce((m, l) => Math.max(m, l.set_number), 0);
                     const prevMaxSet = prevLogs.reduce((m, l) => Math.max(m, l.set_number), 0);
                     const totalRows = Math.max(ex.sets, todayMaxSet);
@@ -679,6 +772,11 @@
 
         function toggleExCard(exId) {
             const card = document.getElementById('ex-' + exId);
+            if (card) card.classList.toggle('open');
+        }
+
+        function toggleSsCard(ssId) {
+            const card = document.getElementById('ss-' + ssId);
             if (card) card.classList.toggle('open');
         }
 
@@ -1784,6 +1882,7 @@
             if (overlay) overlay.remove();
             document.body.style.overflow = '';
             _pendingDayLabel = null;
+            _supersetMode = false;
         }
 
         function pickExCategory(cat) {
@@ -2068,6 +2167,19 @@
                         </div>
                         <p class="all-tablet-qr-hint">Scansiona dal tablet in palestra. Resta valido anche se cambi scheda.</p>
                     </div>
+                    ${_allPlan ? `
+                    <div class="all-tablet-pdf-card">
+                        <div class="all-tablet-pdf-icon">
+                            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" width="36" height="36"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><path d="M12 18v-6"/><path d="M9 15l3 3 3-3"/></svg>
+                        </div>
+                        <h3 class="all-tablet-pdf-title">Scarica Scheda PDF</h3>
+                        <p class="all-tablet-pdf-desc">Tutti gli esercizi con immagini, serie impostate e spazi per compilare a mano</p>
+                        <button class="all-tablet-qr-btn" id="pdfDownloadBtn" onclick="_downloadSchedaPDF()">
+                            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="18" height="18"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
+                            Scarica PDF
+                        </button>
+                    </div>
+                    ` : ''}
                 </div>`;
 
             // Generate QR code on canvas
@@ -2123,6 +2235,238 @@
                         ctx.fillRect(c * cellSize, r * cellSize, cellSize + 0.5, cellSize + 0.5);
                     }
                 }
+            }
+        }
+
+        // ── PDF Generation ───────────────────────────────────────────
+        function _loadPdfScript(src) {
+            return new Promise((resolve, reject) => {
+                const s = document.createElement('script');
+                s.src = src; s.onload = resolve;
+                s.onerror = () => reject(new Error('Script non caricato: ' + src));
+                document.head.appendChild(s);
+            });
+        }
+
+        async function _ensureJsPDF() {
+            if (window.jspdf && window.jspdf.jsPDF) return;
+            await _loadPdfScript('https://cdn.jsdelivr.net/npm/jspdf@2.5.2/dist/jspdf.umd.min.js');
+            await _loadPdfScript('https://cdn.jsdelivr.net/npm/jspdf-autotable@3.8.4/dist/jspdf.plugin.autotable.min.js');
+        }
+
+        function _imgToBase64(url) {
+            return new Promise(resolve => {
+                if (!url) return resolve(null);
+                const img = new Image();
+                img.crossOrigin = 'anonymous';
+                const timer = setTimeout(() => resolve(null), 5000);
+                img.onload = () => {
+                    clearTimeout(timer);
+                    try {
+                        const c = document.createElement('canvas');
+                        c.width = img.naturalWidth; c.height = img.naturalHeight;
+                        c.getContext('2d').drawImage(img, 0, 0);
+                        resolve(c.toDataURL('image/png'));
+                    } catch (e) { resolve(null); }
+                };
+                img.onerror = () => { clearTimeout(timer); resolve(null); };
+                img.src = url;
+            });
+        }
+
+        async function _downloadSchedaPDF() {
+            if (!_allPlan) {
+                if (typeof showToast === 'function') showToast('Nessuna scheda disponibile', 'error');
+                return;
+            }
+            const btn = document.getElementById('pdfDownloadBtn');
+            const origHTML = btn ? btn.innerHTML : '';
+            if (btn) { btn.disabled = true; btn.innerHTML = 'Caricamento immagini\u2026'; }
+
+            try {
+                await _ensureJsPDF();
+                const { jsPDF } = window.jspdf;
+
+                // Pre-load exercise images
+                const exercises = _allPlan.workout_exercises || [];
+                const imgCache = {};
+                await Promise.all(exercises.map(async ex => {
+                    const db = _findEx(ex.exercise_name);
+                    if (db && db.immagine_url_small) {
+                        const b64 = await _imgToBase64(db.immagine_url_small);
+                        if (b64) imgCache[ex.exercise_name] = b64;
+                    }
+                }));
+
+                if (btn) btn.innerHTML = 'Generazione PDF\u2026';
+
+                const doc = new jsPDF('p', 'mm', 'a4');
+                const pw = 210, ph = 297, m = 14, cw = pw - m * 2;
+                let y = m;
+                const CYAN = [0, 174, 239], NAVY = [15, 23, 42], GRAY = [100, 116, 139];
+                const LGRAY = [226, 232, 240], WHITE = [255, 255, 255];
+
+                // ── Header ──
+                doc.setFont('helvetica', 'bold');
+                doc.setFontSize(20);
+                doc.setTextColor(...NAVY);
+                doc.text(_allPlan.name || 'Scheda Allenamento', m, y + 7);
+                y += 12;
+
+                const user = getCurrentUser();
+                doc.setFontSize(10);
+                doc.setFont('helvetica', 'normal');
+                doc.setTextColor(...GRAY);
+                if (user && user.name) doc.text(user.name, m, y + 4);
+                doc.text('Data: ____/____/________', pw - m, y + 4, { align: 'right' });
+                y += 9;
+
+                doc.setDrawColor(...CYAN);
+                doc.setLineWidth(1);
+                doc.line(m, y, pw - m, y);
+                y += 6;
+
+                if (_allPlan.notes) {
+                    doc.setFontSize(9);
+                    doc.setFont('helvetica', 'italic');
+                    doc.setTextColor(...GRAY);
+                    const nl = doc.splitTextToSize(_allPlan.notes, cw);
+                    doc.text(nl, m, y);
+                    y += nl.length * 4 + 4;
+                }
+
+                // ── Days ──
+                const dayMin = {};
+                for (const e of exercises) {
+                    if (!(e.day_label in dayMin) || e.sort_order < dayMin[e.day_label])
+                        dayMin[e.day_label] = e.sort_order;
+                }
+                const days = [...new Set(exercises.map(e => e.day_label))].sort((a, b) => dayMin[a] - dayMin[b]);
+
+                for (const day of days) {
+                    const dayEx = exercises.filter(e => e.day_label === day).sort((a, b) => a.sort_order - b.sort_order);
+                    if (y > ph - 50) { doc.addPage(); y = m; }
+
+                    // Day header bar
+                    doc.setFillColor(...CYAN);
+                    doc.roundedRect(m, y, cw, 10, 2, 2, 'F');
+                    doc.setFont('helvetica', 'bold');
+                    doc.setFontSize(13);
+                    doc.setTextColor(...WHITE);
+                    doc.text(day.toUpperCase(), m + 5, y + 7);
+                    y += 14;
+
+                    for (const ex of dayEx) {
+                        const isCardio = (ex.muscle_group || '').toLowerCase() === 'cardio';
+                        const img64 = imgCache[ex.exercise_name];
+                        const sets = isCardio ? 1 : (ex.sets || 3);
+                        const blockH = 24 + 8 + (sets + 1) * 8;
+
+                        if (y + blockH > ph - m - 10) { doc.addPage(); y = m; }
+
+                        // Image
+                        const imgW = 18;
+                        let tx = m;
+                        if (img64) {
+                            try { doc.addImage(img64, 'PNG', m, y, imgW, imgW); tx = m + imgW + 3; } catch (e) { /* skip */ }
+                        }
+
+                        // Exercise name
+                        doc.setFont('helvetica', 'bold');
+                        doc.setFontSize(11);
+                        doc.setTextColor(...NAVY);
+                        doc.text(ex.exercise_name, tx, y + 5);
+
+                        // Target line
+                        const restUnit = ex.rest_seconds && ex.rest_seconds <= 3 ? ' min' : 's';
+                        const target = isCardio
+                            ? ex.reps + ' min'
+                            : (ex.sets || '') + ' \u00d7 ' + (ex.reps || '') + (ex.weight_kg != null ? ' @ ' + ex.weight_kg + ' kg' : '') + (ex.rest_seconds ? ' \u00b7 ' + ex.rest_seconds + restUnit + ' pausa' : '');
+                        doc.setFont('helvetica', 'normal');
+                        doc.setFontSize(9);
+                        doc.setTextColor(...GRAY);
+                        doc.text(target, tx, y + 10);
+
+                        if (ex.muscle_group) {
+                            doc.setFontSize(8);
+                            doc.text(ex.muscle_group, tx, y + 14);
+                        }
+
+                        let noteH = 0;
+                        if (ex.notes) {
+                            doc.setFont('helvetica', 'italic');
+                            doc.setFontSize(8);
+                            const nl = doc.splitTextToSize(ex.notes, cw - (tx - m));
+                            doc.text(nl, tx, y + 18);
+                            noteH = nl.length * 3.5;
+                        }
+
+                        y += Math.max(img64 ? imgW + 2 : 18, 18 + noteH);
+
+                        // Sets table
+                        if (isCardio) {
+                            doc.autoTable({
+                                startY: y,
+                                head: [['Minuti', 'Fatto \u2713']],
+                                body: [[(ex.reps || '') + ' min', '']],
+                                margin: { left: m, right: m },
+                                tableWidth: cw,
+                                styles: { fontSize: 9, cellPadding: 3, lineColor: LGRAY, lineWidth: 0.3 },
+                                headStyles: { fillColor: NAVY, textColor: WHITE, fontStyle: 'bold', fontSize: 8, halign: 'center' },
+                                bodyStyles: { halign: 'center' },
+                                theme: 'grid'
+                            });
+                        } else {
+                            const body = [];
+                            for (let s = 1; s <= sets; s++) {
+                                body.push([
+                                    s.toString(),
+                                    (ex.reps || '').toString(),
+                                    ex.weight_kg != null ? ex.weight_kg.toString() : '',
+                                    ex.rest_seconds ? ex.rest_seconds + restUnit : '',
+                                    ''
+                                ]);
+                            }
+                            body.push(['', '', '', '', '']); // extra empty row
+
+                            doc.autoTable({
+                                startY: y,
+                                head: [['Serie', 'Reps', 'Kg', 'Riposo', 'Fatto \u2713']],
+                                body: body,
+                                margin: { left: m, right: m },
+                                tableWidth: cw,
+                                styles: { fontSize: 9, cellPadding: 3, lineColor: LGRAY, lineWidth: 0.3, minCellHeight: 8 },
+                                headStyles: { fillColor: NAVY, textColor: WHITE, fontStyle: 'bold', fontSize: 8, halign: 'center' },
+                                bodyStyles: { halign: 'center' },
+                                alternateRowStyles: { fillColor: [248, 250, 252] },
+                                columnStyles: { 0: { cellWidth: 18 }, 1: { cellWidth: 30 }, 2: { cellWidth: 30 }, 3: { cellWidth: 35 } },
+                                theme: 'grid'
+                            });
+                        }
+                        y = (doc.lastAutoTable ? doc.lastAutoTable.finalY : y + 30) + 8;
+                    }
+                    y += 4;
+                }
+
+                // Footer on each page
+                const tp = doc.internal.getNumberOfPages();
+                for (let i = 1; i <= tp; i++) {
+                    doc.setPage(i);
+                    doc.setFontSize(7);
+                    doc.setFont('helvetica', 'normal');
+                    doc.setTextColor(...GRAY);
+                    doc.text('Thomas Bresciani Personal Trainer', m, ph - 8);
+                    doc.text(i + ' / ' + tp, pw - m, ph - 8, { align: 'right' });
+                }
+
+                const fname = 'scheda-' + (_allPlan.name || 'allenamento').replace(/[^a-zA-Z0-9]+/g, '-').toLowerCase() + '.pdf';
+                doc.save(fname);
+                if (typeof showToast === 'function') showToast('PDF scaricato!', 'success');
+            } catch (e) {
+                console.error('[PDF] Errore:', e);
+                if (typeof showToast === 'function') showToast('Errore PDF: ' + (e.message || ''), 'error');
+            } finally {
+                if (btn) { btn.disabled = false; btn.innerHTML = origHTML; }
             }
         }
 

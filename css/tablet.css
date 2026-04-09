@@ -1510,6 +1510,114 @@
 }
 .tab-edit-cancel:hover { border-color: var(--red); color: var(--red); }
 
+/* ── Super Serie (superset card) — Tablet ─────────────────────────────────── */
+.all-ss-card {
+    background: var(--surface); border: 1.5px solid var(--border);
+    border-radius: var(--radius); margin-bottom: 0.65rem; overflow: hidden;
+    transition: all var(--transition); box-shadow: var(--shadow); position: relative;
+}
+.all-ss-card::before {
+    content: ''; position: absolute; top: 0; left: 0; width: 4px; height: 100%;
+    background: linear-gradient(180deg, var(--amber), #f97316);
+    border-radius: 3px 0 0 3px; z-index: 1;
+}
+.all-ss-card:hover { box-shadow: var(--shadow-md); }
+.all-ss-card.open { border-color: var(--amber); box-shadow: 0 0 0 3px rgba(245,158,11,0.12), 0 4px 16px rgba(245,158,11,0.10); }
+.all-ss-card.all-ss-done { border-color: var(--success); }
+.all-ss-card.all-ss-done::before { background: var(--success); }
+.all-ss-badge {
+    display: inline-flex; align-items: center; gap: 0.25rem;
+    padding: 0.15rem 0.5rem; border-radius: 6px;
+    background: linear-gradient(135deg, var(--amber), #f97316);
+    color: #fff; font-size: 0.65rem; font-weight: 800;
+    letter-spacing: 0.06em; text-transform: uppercase; flex-shrink: 0;
+}
+.all-ss-header {
+    display: flex; align-items: center; padding: 0.85rem 1.1rem;
+    cursor: pointer; gap: 0.7rem; transition: background 0.15s;
+    -webkit-tap-highlight-color: transparent; min-height: 48px;
+}
+.all-ss-header:active { background: rgba(245, 158, 11, 0.03); }
+.all-ss-thumbs { display: flex; gap: 0.35rem; flex-shrink: 0; }
+.all-ss-thumb {
+    width: 44px; height: 44px; border-radius: 8px; object-fit: cover;
+    background: #f1f5f9; cursor: pointer; border: 2px solid var(--border);
+    transition: border-color 0.15s;
+}
+.all-ss-thumb:hover { border-color: var(--cyan); }
+.all-ss-info { flex: 1; min-width: 0; }
+.all-ss-names { display: flex; flex-direction: column; gap: 0.1rem; }
+.all-ss-ex-name {
+    font-size: 0.88rem; font-weight: 700; color: var(--navy); line-height: 1.3;
+    display: flex; align-items: center; gap: 0.2rem;
+    white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+}
+.all-ss-target { font-size: 0.76rem; color: var(--muted); font-weight: 500; margin-top: 0.15rem; }
+.all-ss-status { flex-shrink: 0; }
+.all-ss-chevron {
+    font-size: 1rem; color: var(--subtle);
+    transition: transform 0.3s cubic-bezier(0.4,0,0.2,1), color var(--transition);
+    display: inline-block;
+}
+.all-ss-card.open .all-ss-chevron { transform: rotate(180deg); color: var(--amber); }
+.all-ss-body { display: none; padding: 0 1.1rem 1.1rem; }
+.all-ss-card.open .all-ss-body { display: block; }
+.all-ss-divider {
+    display: flex; align-items: center; gap: 0.6rem;
+    margin: 1rem 0 0.6rem; color: var(--muted);
+    font-size: 0.76rem; font-weight: 700;
+    text-transform: uppercase; letter-spacing: 0.04em;
+}
+.all-ss-divider::before, .all-ss-divider::after { content: ''; flex: 1; height: 1px; background: var(--border); }
+.all-ss-ex-header { display: flex; align-items: center; gap: 0.6rem; margin-bottom: 0.5rem; }
+.all-ss-ex-header img { width: 40px; height: 40px; border-radius: 8px; object-fit: cover; background: #f1f5f9; cursor: pointer; }
+.all-ss-ex-header-info { flex: 1; min-width: 0; }
+.all-ss-ex-header-name { font-size: 0.95rem; font-weight: 700; color: var(--navy); line-height: 1.3; }
+.all-ss-ex-header-target { font-size: 0.76rem; color: var(--muted); font-weight: 500; }
+
+/* FAB action sheet */
+.all-fab-sheet-overlay {
+    position: fixed; inset: 0; z-index: 9998;
+    background: rgba(0,0,0,0.4); backdrop-filter: blur(4px);
+    -webkit-backdrop-filter: blur(4px);
+    opacity: 0; transition: opacity 0.25s;
+}
+.all-fab-sheet-overlay.visible { opacity: 1; }
+.all-fab-sheet {
+    position: fixed; bottom: 0; left: 0; right: 0; z-index: 9999;
+    background: var(--surface); border-radius: 20px 20px 0 0;
+    padding: 1.2rem 1rem 1.5rem;
+    box-shadow: 0 -10px 40px rgba(0,0,0,0.15);
+    transform: translateY(100%); transition: transform 0.3s cubic-bezier(0.4,0,0.2,1);
+}
+.all-fab-sheet-overlay.visible .all-fab-sheet { transform: translateY(0); }
+.all-fab-sheet-handle { width: 36px; height: 4px; background: var(--border); border-radius: 2px; margin: 0 auto 1rem; }
+.all-fab-sheet-title { font-size: 1.05rem; font-weight: 800; color: var(--navy); text-align: center; margin-bottom: 1rem; }
+.all-fab-sheet-options { display: flex; flex-direction: column; gap: 0.5rem; }
+.all-fab-sheet-btn {
+    display: flex; align-items: center; gap: 0.8rem;
+    padding: 1rem 1.1rem; border: 1.5px solid var(--border);
+    border-radius: var(--radius-sm); background: var(--bg);
+    cursor: pointer; transition: all 0.15s; text-align: left; min-height: 48px;
+}
+.all-fab-sheet-btn:active { transform: scale(0.98); }
+.all-fab-sheet-btn:hover { border-color: var(--cyan); background: #e0f7ff; }
+.all-fab-sheet-btn--ss:hover { border-color: var(--amber); background: #fffbeb; }
+.all-fab-sheet-btn-icon {
+    width: 44px; height: 44px; border-radius: 10px;
+    display: flex; align-items: center; justify-content: center;
+    font-size: 1.3rem; flex-shrink: 0; font-weight: 800;
+}
+.all-fab-sheet-btn-icon--single { background: linear-gradient(135deg, var(--cyan), var(--cyan-dark)); color: #fff; }
+.all-fab-sheet-btn-icon--ss { background: linear-gradient(135deg, var(--amber), #f97316); color: #fff; }
+.all-fab-sheet-btn-text { display: flex; flex-direction: column; }
+.all-fab-sheet-btn-title { font-size: 1rem; font-weight: 700; color: var(--navy); }
+.all-fab-sheet-btn-desc { font-size: 0.78rem; color: var(--muted); margin-top: 0.15rem; }
+@media (min-width: 768px) {
+    .all-fab-sheet { left: 50%; right: auto; width: 440px; transform: translate(-50%, 100%); border-radius: 20px; bottom: 5vh; }
+    .all-fab-sheet-overlay.visible .all-fab-sheet { transform: translate(-50%, 0); }
+}
+
 /* ── Reduced motion ────────────────────────────────────────────────────────── */
 @media (prefers-reduced-motion: reduce) {
     *, *::before, *::after {
