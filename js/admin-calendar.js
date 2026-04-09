@@ -89,7 +89,7 @@ function renderAdminDaySelector(weekDates) {
 
     weekDates.forEach(dateInfo => {
         const bookings = BookingStorage.getAllBookings();
-        const dayBookingsCount = bookings.filter(b => b.date === dateInfo.formatted && b.status !== 'cancelled').length;
+        const dayBookingsCount = bookings.filter(b => b.date === dateInfo.formatted && b.status !== 'cancelled' && !b.id?.startsWith('_avail_')).length;
 
         const dayCard = document.createElement('div');
         dayCard.className = 'admin-day-card';
@@ -469,8 +469,10 @@ function createAdminSlotCard(dateInfo, scheduledSlot) {
 
     // Tutti i booking per questa data+ora (tutti i tipi)
     const allBookings = BookingStorage.getBookingsForSlot(date, timeSlot);
+    // Booking reali (escludi sintetici _avail_ per la visualizzazione partecipanti)
+    const realBookings = allBookings.filter(b => !b.id?.startsWith('_avail_'));
 
-    // Info slot principale
+    // Info slot principale (usa allBookings per conteggio corretto posti occupati)
     const mainEffCap   = BookingStorage.getEffectiveCapacity(date, timeSlot, mainType);
     const mainConfirmed = allBookings.filter(b => b.status === 'confirmed' && (!b.slotType || b.slotType === mainType)).length;
     const mainRemaining = mainEffCap - mainConfirmed;
@@ -516,18 +518,18 @@ function createAdminSlotCard(dateInfo, scheduledSlot) {
     let participantsHTML;
     if (!hasMixedExtras) {
         // Vista unificata (nessun extra o solo extra dello stesso tipo)
-        const mainBookings = allBookings.filter(b => !b.slotType || b.slotType === mainType);
+        const mainBookings = realBookings.filter(b => !b.slotType || b.slotType === mainType);
         participantsHTML = _buildParticipantsSection(mainBookings);
     } else {
         // Vista divisa in colonne
-        const mainBookings = allBookings.filter(b => !b.slotType || b.slotType === mainType);
+        const mainBookings = realBookings.filter(b => !b.slotType || b.slotType === mainType);
         const leftCol = `
             <div class="split-column">
                 <div class="split-col-title ${mainType}">${SLOT_NAMES[mainType]}</div>
                 ${_buildParticipantsSection(mainBookings)}
             </div>`;
         const rightCols = extraTypes.map(t => {
-            const eb = allBookings.filter(b => b.slotType === t);
+            const eb = realBookings.filter(b => b.slotType === t);
             const ec = BookingStorage.getEffectiveCapacity(date, timeSlot, t);
             const eConf = eb.filter(b => b.status === 'confirmed').length;
             const eRem  = ec - eConf;
