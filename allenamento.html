@@ -2103,7 +2103,7 @@
             const dayLabel = _pendingDayLabel || _activeDay || 'Giorno A';
             _pendingDayLabel = null;
             try {
-                await WorkoutPlanStorage.addSuperset(_allPlan.id, {
+                const result = await WorkoutPlanStorage.addSuperset(_allPlan.id, {
                     day_label: dayLabel,
                     exercise_name: first.name,
                     muscle_group: first.muscle_group,
@@ -2117,6 +2117,8 @@
                     rest_seconds: rest,
                     weight_kg: null, notes: null,
                 });
+                // Sync local _allPlan (non è nella cache WorkoutPlanStorage)
+                _allPlan.workout_exercises.push(result.first, result.second);
                 _activeDay = dayLabel;
                 renderScheda();
                 if (typeof showToast === 'function') showToast('Super Serie aggiunta!', 'success');

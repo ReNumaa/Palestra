@@ -1376,13 +1376,14 @@
     async function _tabSaveSupersetPair(first, second, rest) {
         const dayLabel = _activeDay || 'Giorno A';
         try {
-            await WorkoutPlanStorage.addSuperset(_plan.id, {
+            const result = await WorkoutPlanStorage.addSuperset(_plan.id, {
                 day_label: dayLabel, exercise_name: first.name, muscle_group: first.muscle_group,
                 sets: first.sets, reps: first.reps, weight_kg: null, notes: null,
             }, {
                 day_label: dayLabel, exercise_name: second.name, muscle_group: second.muscle_group,
                 sets: second.sets, reps: second.reps, rest_seconds: rest, weight_kg: null, notes: null,
             });
+            _plan.workout_exercises.push(result.first, result.second);
             _exercises = _plan.workout_exercises;
             renderTabScheda();
             _toast('Super Serie aggiunta!');
