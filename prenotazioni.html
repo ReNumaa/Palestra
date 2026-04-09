@@ -398,7 +398,7 @@
             }
         }
 
-        // Polling 30s — re-render se l'utente ha prenotazioni con cancellation_requested.
+        // Polling 120s — re-render se l'utente ha prenotazioni con cancellation_requested.
         // Le re-render live arrivano da Supabase Realtime (vedi _setupRealtime).
         function _startPolling() {
             if (_pollInterval) return;
@@ -419,7 +419,7 @@
                 renderPrenoList();
                 renderCreditBalance();
                 renderBonusBalance();
-            }, 30000);
+            }, 120000);
         }
         function _stopPolling() { if (_pollInterval) { clearInterval(_pollInterval); _pollInterval = null; } }
         document.addEventListener('visibilitychange', () => {
