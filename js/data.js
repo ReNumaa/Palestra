@@ -323,7 +323,7 @@ class BookingStorage {
             const bookingSelect = isAdmin
                 ? '*'
                 : 'id,local_id,user_id,date,time,slot_type,date_display,name,email,whatsapp,notes,status,paid,payment_method,paid_at,credit_applied,created_at,cancellation_requested_at,cancelled_at,cancelled_with_bonus,updated_at';
-            let qBookings = supabaseClient.from('bookings').select(bookingSelect).order('created_at', { ascending: false });
+            let qBookings = supabaseClient.from('bookings').select(bookingSelect).order('created_at', { ascending: false }).range(0, 4999);
             // ownOnly: filtra per user_id server-side (es. prenotazioni.html — anche admin vedono solo i propri)
             if (ownOnly && user) {
                 qBookings = qBookings.eq('user_id', user.id);
