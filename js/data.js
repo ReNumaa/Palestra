@@ -322,7 +322,7 @@ class BookingStorage {
             // Query complete (senza limite) per stats/export avvengono tramite fetchForAdmin().
             const bookingSelect = 'id,local_id,user_id,date,time,slot_type,date_display,name,email,whatsapp,notes,status,paid,payment_method,paid_at,credit_applied,created_at,cancellation_requested_at,cancelled_at,cancelled_with_bonus,updated_at,cancelled_payment_method,cancelled_paid_at,cancelled_with_penalty,cancelled_refund_pct,created_by,cancelled_by,arrived_at';
             // ownOnly: filtra per user_id server-side (es. prenotazioni.html — anche admin vedono solo i propri)
-            const pastD   = new Date(); pastD.setDate(pastD.getDate() - 15);
+            const pastD   = new Date(); pastD.setDate(pastD.getDate() - 60);
             const futureD = new Date(); futureD.setDate(futureD.getDate() + 90);
             const pastStr   = _localDateStr(pastD);
             const futureStr = _localDateStr(futureD);
