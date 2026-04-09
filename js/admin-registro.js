@@ -34,7 +34,8 @@ function buildRegistroEntries() {
     };
 
     // 1. Prenotazioni → eventi: created, paid, cancellation_requested, cancelled
-    const bookings = BookingStorage.getAllBookings();
+    // Escludi booking sintetici (_avail_*) — placeholder senza dati personali per slot occupati da altri
+    const bookings = BookingStorage.getAllBookings().filter(b => !b.id?.startsWith('_avail_'));
     for (const b of bookings) {
         const base = {
             bookingId:   b.id,

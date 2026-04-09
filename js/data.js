@@ -291,7 +291,7 @@ class BookingStorage {
         if (typeof supabaseClient === 'undefined') return;
         try {
             const user    = typeof getCurrentUser === 'function' ? getCurrentUser() : null;
-            const isAdmin = sessionStorage.getItem('adminAuth') === 'true';
+            const isAdmin = localStorage.getItem('adminAuthenticated') === 'true';
 
             // Date range for availability RPC (~3 months forward)
             const todayStr = _localDateStr();
