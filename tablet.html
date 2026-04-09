@@ -1343,18 +1343,15 @@
     function _tabSsPickExercise(exerciseName) {
         const ex = _findEx(exerciseName);
         const isCardio = ex && (ex.categoria || '').toLowerCase() === 'cardio';
-        let sets = 3, reps = '10';
+        let reps = '10';
         if (!isCardio) {
-            const sv = prompt('Numero di serie:', '3');
-            if (sv === null) { _tabSsMode = false; tabCloseExercisePicker(); return; }
-            sets = parseInt(sv) || 3;
             const rv = prompt('Numero di ripetizioni:', '10');
             if (rv === null) { _tabSsMode = false; tabCloseExercisePicker(); return; }
             reps = rv || '10';
-        } else { sets = 1; reps = '20'; }
+        } else { reps = '20'; }
 
         if (_tabSsStep === 0) {
-            _tabSsFirst = { name: exerciseName, ex, sets, reps, muscle_group: ex ? ex.categoria : null };
+            _tabSsFirst = { name: exerciseName, ex, reps, muscle_group: ex ? ex.categoria : null };
             _tabSsStep = 1;
             _tabPickerActiveCat = '';
             const c = document.getElementById('tabPickerCats'), l = document.getElementById('tabPickerList'), s = document.getElementById('tabPickerSearch');
@@ -1363,9 +1360,13 @@
             const t = document.querySelector('#tabExPickerOverlay .tab-picker-title');
             if (t) t.textContent = 'Super Serie \u2014 Esercizio 2 di 2';
         } else {
-            const rv = prompt('Riposo dopo la super serie (secondi):', '90');
-            if (rv === null) { _tabSsMode = false; tabCloseExercisePicker(); return; }
-            const rest = parseInt(rv) || 90;
+            const sv = prompt('Numero di serie (per entrambi):', '3');
+            if (sv === null) { _tabSsMode = false; tabCloseExercisePicker(); return; }
+            const sets = parseInt(sv) || 3;
+            const rv2 = prompt('Riposo dopo la super serie (secondi):', '90');
+            if (rv2 === null) { _tabSsMode = false; tabCloseExercisePicker(); return; }
+            const rest = parseInt(rv2) || 90;
+            _tabSsFirst.sets = sets;
             _tabSsMode = false;
             tabCloseExercisePicker();
             _tabSaveSupersetPair(_tabSsFirst, { name: exerciseName, ex, sets, reps, muscle_group: ex ? ex.categoria : null }, rest);

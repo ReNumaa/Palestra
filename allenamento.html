@@ -2024,18 +2024,15 @@
         function _supersetPickExercise(exerciseName) {
             const ex = _findEx(exerciseName);
             const isCardio = ex && (ex.categoria || '').toLowerCase() === 'cardio';
-            let sets = 3, reps = '10';
+            let reps = '10';
             if (!isCardio) {
-                const setsVal = prompt('Numero di serie:', '3');
-                if (setsVal === null) { _supersetMode = false; closeExercisePicker(); return; }
-                sets = parseInt(setsVal) || 3;
                 const repsVal = prompt('Numero di ripetizioni:', '10');
                 if (repsVal === null) { _supersetMode = false; closeExercisePicker(); return; }
                 reps = repsVal || '10';
-            } else { sets = 1; reps = '20'; }
+            } else { reps = '20'; }
 
             if (_supersetStep === 0) {
-                _supersetFirst = { name: exerciseName, ex, sets, reps, muscle_group: ex ? ex.categoria : null };
+                _supersetFirst = { name: exerciseName, ex, reps, muscle_group: ex ? ex.categoria : null };
                 _supersetStep = 1;
                 _pickerActiveCat = '';
                 const catsEl = document.getElementById('allPickerCats');
@@ -2048,9 +2045,14 @@
                 const title = document.querySelector('#allExPickerOverlay .schede-picker-title');
                 if (title) title.textContent = 'Super Serie \u2014 Esercizio 2 di 2';
             } else {
+                // Serie condivise per entrambi gli esercizi
+                const setsVal = prompt('Numero di serie (per entrambi):', '3');
+                if (setsVal === null) { _supersetMode = false; closeExercisePicker(); return; }
+                const sets = parseInt(setsVal) || 3;
                 const restVal = prompt('Riposo dopo la super serie (secondi):', '90');
                 if (restVal === null) { _supersetMode = false; closeExercisePicker(); return; }
                 const rest = parseInt(restVal) || 90;
+                _supersetFirst.sets = sets;
                 _supersetMode = false;
                 closeExercisePicker();
                 _saveSupersetPair(
