@@ -2356,28 +2356,34 @@
                     doc.text(day.toUpperCase(), m + 5, y + 7);
                     y += 14;
 
-                    for (const ex of dayEx) {
+                    // Build superset groups map
+                    const ssMap = {}, ssRendered = new Set();
+                    for (const e of dayEx) {
+                        if (e.superset_group) {
+                            if (!ssMap[e.superset_group]) ssMap[e.superset_group] = [];
+                            ssMap[e.superset_group].push(e);
+                        }
+                    }
+
+                    // Helper: render one exercise block (image + name + table)
+                    function _pdfExBlock(ex, indent) {
                         const isCardio = (ex.muscle_group || '').toLowerCase() === 'cardio';
                         const img64 = imgCache[ex.exercise_name];
                         const sets = isCardio ? 1 : (ex.sets || 3);
-                        const blockH = 24 + 8 + (sets + 1) * 8;
-
+                        const blockH = 22 + 8 + (sets + 1) * 8;
                         if (y + blockH > ph - m - 10) { doc.addPage(); y = m; }
 
-                        // Image
+                        const lx = m + indent;
                         const imgW = 18;
-                        let tx = m;
+                        let tx = lx;
                         if (img64) {
-                            try { doc.addImage(img64, 'PNG', m, y, imgW, imgW); tx = m + imgW + 3; } catch (e) { /* skip */ }
+                            try { doc.addImage(img64, 'PNG', lx, y, imgW, imgW); tx = lx + imgW + 3; } catch (e) { /* skip */ }
                         }
-
-                        // Exercise name
                         doc.setFont('helvetica', 'bold');
                         doc.setFontSize(11);
                         doc.setTextColor(...NAVY);
                         doc.text(ex.exercise_name, tx, y + 5);
 
-                        // Target line
                         const restUnit = ex.rest_seconds && ex.rest_seconds <= 3 ? ' min' : 's';
                         const target = isCardio
                             ? ex.reps + ' min'
@@ -2386,64 +2392,98 @@
                         doc.setFontSize(9);
                         doc.setTextColor(...GRAY);
                         doc.text(target, tx, y + 10);
-
-                        if (ex.muscle_group) {
-                            doc.setFontSize(8);
-                            doc.text(ex.muscle_group, tx, y + 14);
-                        }
+                        if (ex.muscle_group) { doc.setFontSize(8); doc.text(ex.muscle_group, tx, y + 14); }
 
                         let noteH = 0;
                         if (ex.notes) {
                             doc.setFont('helvetica', 'italic');
                             doc.setFontSize(8);
-                            const nl = doc.splitTextToSize(ex.notes, cw - (tx - m));
+                            const nl = doc.splitTextToSize(ex.notes, cw - indent - (tx - lx));
                             doc.text(nl, tx, y + 18);
                             noteH = nl.length * 3.5;
                         }
-
                         y += Math.max(img64 ? imgW + 2 : 18, 18 + noteH);
 
-                        // Sets table
+                        const tblLeft = m + indent;
+                        const tblW = cw - indent;
                         if (isCardio) {
                             doc.autoTable({
-                                startY: y,
-                                head: [['Minuti', 'Fatto \u2713']],
+                                startY: y, head: [['Minuti', 'Fatto \u2713']],
                                 body: [[(ex.reps || '') + ' min', '']],
-                                margin: { left: m, right: m },
-                                tableWidth: cw,
+                                margin: { left: tblLeft, right: m }, tableWidth: tblW,
                                 styles: { fontSize: 9, cellPadding: 3, lineColor: LGRAY, lineWidth: 0.3 },
                                 headStyles: { fillColor: NAVY, textColor: WHITE, fontStyle: 'bold', fontSize: 8, halign: 'center' },
-                                bodyStyles: { halign: 'center' },
-                                theme: 'grid'
+                                bodyStyles: { halign: 'center' }, theme: 'grid'
                             });
                         } else {
                             const body = [];
                             for (let s = 1; s <= sets; s++) {
-                                body.push([
-                                    s.toString(),
-                                    (ex.reps || '').toString(),
+                                body.push([s.toString(), (ex.reps || '').toString(),
                                     ex.weight_kg != null ? ex.weight_kg.toString() : '',
-                                    ex.rest_seconds ? ex.rest_seconds + restUnit : '',
-                                    ''
-                                ]);
+                                    ex.rest_seconds ? ex.rest_seconds + restUnit : '', '']);
                             }
-                            body.push(['', '', '', '', '']); // extra empty row
-
+                            body.push(['', '', '', '', '']);
                             doc.autoTable({
-                                startY: y,
-                                head: [['Serie', 'Reps', 'Kg', 'Riposo', 'Fatto \u2713']],
-                                body: body,
-                                margin: { left: m, right: m },
-                                tableWidth: cw,
+                                startY: y, head: [['Serie', 'Reps', 'Kg', 'Riposo', 'Fatto \u2713']],
+                                body: body, margin: { left: tblLeft, right: m }, tableWidth: tblW,
                                 styles: { fontSize: 9, cellPadding: 3, lineColor: LGRAY, lineWidth: 0.3, minCellHeight: 8 },
                                 headStyles: { fillColor: NAVY, textColor: WHITE, fontStyle: 'bold', fontSize: 8, halign: 'center' },
                                 bodyStyles: { halign: 'center' },
                                 alternateRowStyles: { fillColor: [248, 250, 252] },
-                                columnStyles: { 0: { cellWidth: 18 }, 1: { cellWidth: 30 }, 2: { cellWidth: 30 }, 3: { cellWidth: 35 } },
+                                columnStyles: { 0: { cellWidth: 18 }, 1: { cellWidth: 28 }, 2: { cellWidth: 28 }, 3: { cellWidth: 32 } },
                                 theme: 'grid'
                             });
                         }
-                        y = (doc.lastAutoTable ? doc.lastAutoTable.finalY : y + 30) + 8;
+                        y = (doc.lastAutoTable ? doc.lastAutoTable.finalY : y + 30) + 6;
+                    }
+
+                    for (const ex of dayEx) {
+                        // ── Superset block ──
+                        if (ex.superset_group && !ssRendered.has(ex.superset_group)) {
+                            ssRendered.add(ex.superset_group);
+                            const pair = ssMap[ex.superset_group] || [ex];
+                            const ex1 = pair[0], ex2 = pair[1];
+                            const pairSets = pair.reduce((t, e) => t + (e.sets || 3), 0);
+                            const blockH = 30 + pair.length * (24 + 8 + (pairSets + 2) * 8);
+                            if (y + 60 > ph - m - 10) { doc.addPage(); y = m; }
+
+                            // SS accent bar
+                            doc.setFillColor(0, 174, 239);
+                            doc.roundedRect(m, y, 3, 10, 1.5, 1.5, 'F');
+                            doc.setFont('helvetica', 'bold');
+                            doc.setFontSize(10);
+                            doc.setTextColor(...CYAN);
+                            doc.text('SS', m + 6, y + 4);
+                            doc.setFontSize(9);
+                            doc.setTextColor(...NAVY);
+                            const ssNames = pair.map(e => e.exercise_name).join('  +  ');
+                            doc.text(ssNames, m + 16, y + 4);
+                            // Combined target
+                            const t1 = (ex1.sets||'') + '\u00d7' + (ex1.reps||'') + (ex1.weight_kg != null ? ' @' + ex1.weight_kg + 'kg' : '');
+                            const t2 = ex2 ? (ex2.sets||'') + '\u00d7' + (ex2.reps||'') + (ex2.weight_kg != null ? ' @' + ex2.weight_kg + 'kg' : '') : '';
+                            const ssRest = ex2 && ex2.rest_seconds ? ' \u00b7 ' + ex2.rest_seconds + 's pausa' : '';
+                            doc.setFont('helvetica', 'normal');
+                            doc.setFontSize(8);
+                            doc.setTextColor(...GRAY);
+                            doc.text(t1 + (t2 ? ' + ' + t2 : '') + ssRest, m + 16, y + 9);
+                            y += 14;
+
+                            // Render each exercise in the pair, indented
+                            pair.forEach((ssEx, idx) => {
+                                doc.setFont('helvetica', 'bold');
+                                doc.setFontSize(8);
+                                doc.setTextColor(...CYAN);
+                                doc.text('Esercizio ' + (idx + 1), m + 4, y + 3);
+                                y += 5;
+                                _pdfExBlock(ssEx, 4);
+                            });
+                            y += 2;
+                            continue;
+                        }
+                        if (ex.superset_group && ssRendered.has(ex.superset_group)) continue;
+
+                        // ── Normal single exercise ──
+                        _pdfExBlock(ex, 0);
                     }
                     y += 4;
                 }
