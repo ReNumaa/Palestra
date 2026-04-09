@@ -195,6 +195,113 @@
             requestAnimationFrame(() => overlay.classList.add('visible'));
         }
 
+        function showEditExercise(exId) {
+            const ex = (_allPlan?.workout_exercises || []).find(e => e.id === exId);
+            if (!ex) return;
+            const old = document.getElementById('editExOverlay');
+            if (old) old.remove();
+
+            const isCardio = (ex.muscle_group || '').toLowerCase() === 'cardio';
+
+            const overlay = document.createElement('div');
+            overlay.id = 'editExOverlay';
+            overlay.className = 'all-edit-overlay';
+            overlay.onclick = (e) => { if (e.target === overlay) overlay.remove(); };
+
+            let setsHtml = '';
+            if (!isCardio) {
+                setsHtml = `
+                <label class="all-edit-label">Serie</label>
+                <div class="all-edit-field">
+                    <button class="all-edit-stepper" onclick="editExStepper('editExSets', -1)">−</button>
+                    <input type="number" id="editExSets" class="all-edit-input" value="${ex.sets || 3}" min="1" inputmode="numeric">
+                    <button class="all-edit-stepper" onclick="editExStepper('editExSets', 1)">+</button>
+                </div>
+
+                <label class="all-edit-label">Ripetizioni</label>
+                <div class="all-edit-field">
+                    <input type="text" id="editExReps" class="all-edit-input all-edit-input-wide" value="${_escHtml(ex.reps || '')}" inputmode="text" placeholder="es. 10 o 8-12">
+                </div>
+
+                <label class="all-edit-label">Peso (kg)</label>
+                <div class="all-edit-field">
+                    <input type="number" id="editExWeight" class="all-edit-input all-edit-input-wide" value="${ex.weight_kg ?? ''}" min="0" step="0.5" inputmode="decimal" placeholder="Opzionale">
+                </div>
+
+                <label class="all-edit-label">Recupero (secondi)</label>
+                <div class="all-edit-field">
+                    <input type="number" id="editExRest" class="all-edit-input all-edit-input-wide" value="${ex.rest_seconds ?? ''}" min="0" inputmode="numeric" placeholder="es. 90">
+                </div>`;
+            } else {
+                setsHtml = `
+                <label class="all-edit-label">Durata (minuti)</label>
+                <div class="all-edit-field">
+                    <input type="text" id="editExReps" class="all-edit-input all-edit-input-wide" value="${_escHtml(ex.reps || '')}" inputmode="text" placeholder="es. 20">
+                </div>`;
+            }
+
+            overlay.innerHTML = `
+            <div class="all-edit-panel">
+                <div class="all-edit-header">
+                    <h3>Modifica esercizio</h3>
+                    <button class="all-edit-close" onclick="document.getElementById('editExOverlay').remove()">&times;</button>
+                </div>
+                <div class="all-edit-body">
+                    <div class="all-edit-ex-name">${_escHtml(ex.exercise_name)}</div>
+                    ${setsHtml}
+                    <label class="all-edit-label">Note</label>
+                    <textarea id="editExNotes" class="all-edit-textarea" rows="3" placeholder="Aggiungi note...">${_escHtml(ex.notes || '')}</textarea>
+                    <div class="all-edit-actions">
+                        <button class="all-edit-save" onclick="saveEditExercise('${exId}', ${isCardio})">Salva modifiche</button>
+                        <button class="all-edit-cancel" onclick="document.getElementById('editExOverlay').remove()">Annulla</button>
+                    </div>
+                </div>
+            </div>`;
+            document.body.appendChild(overlay);
+            requestAnimationFrame(() => overlay.classList.add('visible'));
+        }
+
+        function editExStepper(inputId, delta) {
+            const inp = document.getElementById(inputId);
+            if (!inp) return;
+            const val = Math.max(1, (parseInt(inp.value) || 0) + delta);
+            inp.value = val;
+        }
+
+        async function saveEditExercise(exId, isCardio) {
+            const btn = document.querySelector('.all-edit-save');
+            if (btn) { btn.disabled = true; btn.textContent = 'Salvataggio...'; }
+            try {
+                const updates = {};
+                const notes = document.getElementById('editExNotes')?.value.trim() || null;
+                updates.notes = notes;
+
+                if (!isCardio) {
+                    updates.sets = parseInt(document.getElementById('editExSets')?.value) || 3;
+                    updates.reps = document.getElementById('editExReps')?.value.trim() || '10';
+                    const w = document.getElementById('editExWeight')?.value;
+                    updates.weight_kg = w !== '' && w != null ? parseFloat(w) : null;
+                    const r = document.getElementById('editExRest')?.value;
+                    updates.rest_seconds = r !== '' && r != null ? parseInt(r) : null;
+                } else {
+                    updates.reps = document.getElementById('editExReps')?.value.trim() || '10';
+                }
+
+                await supabaseClient.from('workout_exercises').update(updates).eq('id', exId);
+
+                // Update local cache
+                const ex = (_allPlan?.workout_exercises || []).find(e => e.id === exId);
+                if (ex) Object.assign(ex, updates);
+
+                document.getElementById('editExOverlay')?.remove();
+                renderScheda();
+            } catch (err) {
+                console.error('Errore salvataggio:', err);
+                alert('Errore nel salvataggio');
+                if (btn) { btn.disabled = false; btn.textContent = 'Salva modifiche'; }
+            }
+        }
+
         function switchAllView(view) {
             _allView = view;
             const pills = ['pillScheda', 'pillProgressi', 'pillTablet'];
@@ -485,7 +592,7 @@
                     <div class="all-ex-header" onclick="toggleExCard('${ex.id}')">
                         ${thumbSrc ? `<img src="${thumbSrc}" class="all-ex-thumb" alt="" loading="lazy" onclick="event.stopPropagation();showExDetail('${_escHtml(exSlug)}')">` : ''}
                         <div class="all-ex-info">
-                            <div class="all-ex-name">${_escHtml(ex.exercise_name)}${exSlug ? `<button class="all-ex-info-btn" onclick="event.stopPropagation();showExDetail('${_escHtml(exSlug)}')" title="Info esercizio">&#9432;</button>` : ''}</div>
+                            <div class="all-ex-name">${_escHtml(ex.exercise_name)}${exSlug ? `<button class="all-ex-info-btn" onclick="event.stopPropagation();showExDetail('${_escHtml(exSlug)}')" title="Info esercizio">&#9432;</button>` : ''}<button class="all-ex-edit-btn" onclick="event.stopPropagation();showEditExercise('${ex.id}')" title="Modifica esercizio">&#9998;</button></div>
                             <div class="all-ex-target">${target}</div>
                         </div>
                         <div class="all-ex-status">${hasLogs ? '<span class="all-ex-check">&#10003;</span>' : '<span class="all-ex-chevron">&#9662;</span>'}</div>

@@ -470,7 +470,7 @@
                 <div class="tab-ex-header" onclick="toggleTabEx('${ex.id}')">
                     ${thumb ? `<img src="${thumb}" class="tab-ex-thumb" alt="" loading="lazy">` : '<div class="tab-ex-thumb-placeholder"></div>'}
                     <div class="tab-ex-info">
-                        <div class="tab-ex-name">${_esc(ex.exercise_name)}${dbEx?.slug ? `<button class="tab-ex-info-btn" onclick="event.stopPropagation();showTabExDetail('${_esc(dbEx.slug)}')" title="Video esercizio">&#9432;</button>` : ''}</div>
+                        <div class="tab-ex-name">${_esc(ex.exercise_name)}${dbEx?.slug ? `<button class="tab-ex-info-btn" onclick="event.stopPropagation();showTabExDetail('${_esc(dbEx.slug)}')" title="Video esercizio">&#9432;</button>` : ''}<button class="tab-ex-edit-btn" onclick="event.stopPropagation();showTabEditExercise('${ex.id}')" title="Modifica esercizio">&#9998;</button></div>
                         <div class="tab-ex-target">${target}${!isCardio && ex.rest_seconds ? ' &middot; rec. ' + ex.rest_seconds + 's' : ''}</div>
                     </div>
                     <div class="tab-ex-status">${hasLogs ? '<span class="tab-ex-check">&#10003;</span>' : '<span class="tab-ex-chevron">&#9662;</span>'}</div>
@@ -591,6 +591,110 @@
             mc.appendChild(img);
         }
         requestAnimationFrame(() => overlay.classList.add('visible'));
+    }
+
+    function showTabEditExercise(exId) {
+        const ex = (_plan?.workout_exercises || []).find(e => e.id === exId);
+        if (!ex) return;
+        const old = document.getElementById('tabEditExOverlay');
+        if (old) old.remove();
+
+        const isCardio = (ex.muscle_group || '').toLowerCase() === 'cardio';
+
+        const overlay = document.createElement('div');
+        overlay.id = 'tabEditExOverlay';
+        overlay.className = 'tab-edit-overlay';
+        overlay.onclick = (e) => { if (e.target === overlay) overlay.remove(); };
+
+        let setsHtml = '';
+        if (!isCardio) {
+            setsHtml = `
+            <label class="tab-edit-label">Serie</label>
+            <div class="tab-edit-field">
+                <button class="tab-edit-stepper" onclick="tabEditStepper('tabEditSets', -1)">−</button>
+                <input type="number" id="tabEditSets" class="tab-edit-input" value="${ex.sets || 3}" min="1" inputmode="numeric">
+                <button class="tab-edit-stepper" onclick="tabEditStepper('tabEditSets', 1)">+</button>
+            </div>
+
+            <label class="tab-edit-label">Ripetizioni</label>
+            <div class="tab-edit-field">
+                <input type="text" id="tabEditReps" class="tab-edit-input tab-edit-input-wide" value="${_esc(ex.reps || '')}" inputmode="text" placeholder="es. 10 o 8-12">
+            </div>
+
+            <label class="tab-edit-label">Peso (kg)</label>
+            <div class="tab-edit-field">
+                <input type="number" id="tabEditWeight" class="tab-edit-input tab-edit-input-wide" value="${ex.weight_kg ?? ''}" min="0" step="0.5" inputmode="decimal" placeholder="Opzionale">
+            </div>
+
+            <label class="tab-edit-label">Recupero (secondi)</label>
+            <div class="tab-edit-field">
+                <input type="number" id="tabEditRest" class="tab-edit-input tab-edit-input-wide" value="${ex.rest_seconds ?? ''}" min="0" inputmode="numeric" placeholder="es. 90">
+            </div>`;
+        } else {
+            setsHtml = `
+            <label class="tab-edit-label">Durata (minuti)</label>
+            <div class="tab-edit-field">
+                <input type="text" id="tabEditReps" class="tab-edit-input tab-edit-input-wide" value="${_esc(ex.reps || '')}" inputmode="text" placeholder="es. 20">
+            </div>`;
+        }
+
+        overlay.innerHTML = `
+        <div class="tab-edit-panel">
+            <div class="tab-edit-header">
+                <h3>Modifica esercizio</h3>
+                <button class="tab-edit-close" onclick="document.getElementById('tabEditExOverlay').remove()">&times;</button>
+            </div>
+            <div class="tab-edit-body">
+                <div class="tab-edit-ex-name">${_esc(ex.exercise_name)}</div>
+                ${setsHtml}
+                <label class="tab-edit-label">Note</label>
+                <textarea id="tabEditNotes" class="tab-edit-textarea" rows="3" placeholder="Aggiungi note...">${_esc(ex.notes || '')}</textarea>
+                <div class="tab-edit-actions">
+                    <button class="tab-edit-save" onclick="tabSaveEditExercise('${exId}', ${isCardio})">Salva modifiche</button>
+                    <button class="tab-edit-cancel" onclick="document.getElementById('tabEditExOverlay').remove()">Annulla</button>
+                </div>
+            </div>
+        </div>`;
+        document.body.appendChild(overlay);
+        requestAnimationFrame(() => overlay.classList.add('visible'));
+    }
+
+    function tabEditStepper(inputId, delta) {
+        const inp = document.getElementById(inputId);
+        if (!inp) return;
+        inp.value = Math.max(1, (parseInt(inp.value) || 0) + delta);
+    }
+
+    async function tabSaveEditExercise(exId, isCardio) {
+        const btn = document.querySelector('.tab-edit-save');
+        if (btn) { btn.disabled = true; btn.textContent = 'Salvataggio...'; }
+        try {
+            const updates = {};
+            updates.notes = document.getElementById('tabEditNotes')?.value.trim() || null;
+
+            if (!isCardio) {
+                updates.sets = parseInt(document.getElementById('tabEditSets')?.value) || 3;
+                updates.reps = document.getElementById('tabEditReps')?.value.trim() || '10';
+                const w = document.getElementById('tabEditWeight')?.value;
+                updates.weight_kg = w !== '' && w != null ? parseFloat(w) : null;
+                const r = document.getElementById('tabEditRest')?.value;
+                updates.rest_seconds = r !== '' && r != null ? parseInt(r) : null;
+            } else {
+                updates.reps = document.getElementById('tabEditReps')?.value.trim() || '10';
+            }
+
+            await supabaseClient.from('workout_exercises').update(updates).eq('id', exId);
+
+            const ex = (_plan?.workout_exercises || []).find(e => e.id === exId);
+            if (ex) Object.assign(ex, updates);
+
+            document.getElementById('tabEditExOverlay')?.remove();
+            renderTabScheda();
+        } catch (err) {
+            console.error('Errore salvataggio:', err);
+            alert('Errore nel salvataggio');
+            if (btn) { btn.disabled = false; btn.textContent = 'Salva modifiche'; }
+        }
     }
 
     function tabAddSet(exId, btn) {
