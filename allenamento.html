@@ -598,7 +598,12 @@
                     const t2 = ex2 ? `${ex2.sets}\u00d7${ex2.reps}${ex2.weight_kg != null ? ' @' + ex2.weight_kg + 'kg' : ''}` : '';
                     const restDisp = ex2 && ex2.rest_seconds ? `${ex2.rest_seconds}s pausa` : '';
 
-                    html += `<div class="all-ss-card ${allDone ? 'all-ss-done' : ''}" id="ss-${ssId}" data-ss-id="${ssId}">
+                    html += `<div class="all-ss-card ${allDone ? 'all-ss-done' : ''}" id="ss-${ssId}" data-ss-id="${ssId}" data-sort="${ex1.sort_order}">
+                        <div class="all-ex-delete-action" onclick="deleteSupersetFromPlan('${ssId}')">
+                            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="22" height="22"><polyline points="3 6 5 6 21 6"/><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/></svg>
+                            <span>Elimina</span>
+                        </div>
+                        <div class="all-ex-swipe-content">
                         <div class="all-ss-header" onclick="toggleSsCard('${ssId}')">
                             <div class="all-ss-thumbs">
                                 ${thumb1 ? `<img src="${thumb1}" class="all-ss-thumb" alt="" loading="lazy" onclick="event.stopPropagation();showExDetail('${_escHtml(slug1)}')">` : ''}
@@ -665,7 +670,7 @@
                                 ${sHasLogs?`<button class="all-log-delete" onclick="deleteTodayLog('${ssEx.id}', this)">Elimina log</button>`:''}
                             </div></div>`;
                     });
-                    html += `</div></div>`;
+                    html += `</div></div></div>`;
                     continue;
                 }
                 if (ex.superset_group && _ssRendered.has(ex.superset_group)) continue;
@@ -1304,9 +1309,9 @@
         let _swipeState = null;
 
         function _initSwipeAndDrag() {
-            const cards = document.querySelectorAll('.all-ex-card[data-ex-id]');
+            const cards = document.querySelectorAll('.all-ex-card[data-ex-id], .all-ss-card[data-ss-id]');
             cards.forEach(card => {
-                const header = card.querySelector('.all-ex-header');
+                const header = card.querySelector('.all-ex-header') || card.querySelector('.all-ss-header');
                 if (!header) return;
                 header.addEventListener('touchstart', _onTouchStart, { passive: true });
                 header.addEventListener('touchmove', _onTouchMove, { passive: false });
@@ -1316,7 +1321,7 @@
 
         function _onTouchStart(e) {
             const touch = e.touches[0];
-            const card = e.currentTarget.closest('.all-ex-card');
+            const card = e.currentTarget.closest('.all-ex-card') || e.currentTarget.closest('.all-ss-card');
             if (!card) return;
 
             // Reset any other open swipe
@@ -1401,7 +1406,7 @@
         }
 
         function _resetAllSwipes(exceptCard) {
-            document.querySelectorAll('.all-ex-card.all-ex-swiped').forEach(card => {
+            document.querySelectorAll('.all-ex-card.all-ex-swiped, .all-ss-card.all-ex-swiped').forEach(card => {
                 if (card === exceptCard) return;
                 const content = card.querySelector('.all-ex-swipe-content');
                 if (content) { content.style.transition = 'transform 0.2s ease'; content.style.transform = ''; }
@@ -1412,11 +1417,10 @@
 
         // ── Long-press drag to reorder ──────────────────────────────────
         function _startDrag(card, touch) {
-            // Vibrate for haptic feedback
             if (navigator.vibrate) navigator.vibrate(30);
 
             const container = card.parentElement;
-            const cards = [...container.querySelectorAll('.all-ex-card[data-ex-id]')];
+            const cards = [...container.querySelectorAll('.all-ex-card[data-ex-id], .all-ss-card[data-ss-id]')];
             const idx = cards.indexOf(card);
 
             _dragState = {
@@ -1431,8 +1435,8 @@
 
             card.classList.add('all-ex-dragging');
             container.classList.add('reordering');
-            // Prevent card from opening on release
-            card.querySelector('.all-ex-header')?.removeAttribute('onclick');
+            const header = card.querySelector('.all-ex-header') || card.querySelector('.all-ss-header');
+            if (header) header.removeAttribute('onclick');
         }
 
         function _handleDragMove(touch) {
@@ -1475,28 +1479,43 @@
 
             // Restore onclick
             const exId = card.dataset.exId;
-            const header = card.querySelector('.all-ex-header');
-            if (header) header.setAttribute('onclick', `toggleExCard('${exId}')`);
+            const ssId = card.dataset.ssId;
+            const header = card.querySelector('.all-ex-header') || card.querySelector('.all-ss-header');
+            if (header) {
+                if (ssId) header.setAttribute('onclick', `toggleSsCard('${ssId}')`);
+                else if (exId) header.setAttribute('onclick', `toggleExCard('${exId}')`);
+            }
 
             _dragState = null;
 
             if (startIdx === currentIdx) return;
 
-            // Reorder in local data and save
-            const dayExercises = (_allPlan?.workout_exercises || [])
-                .filter(e => e.day_label === _activeDay)
-                .sort((a, b) => a.sort_order - b.sort_order);
+            // Build visual item order from DOM cards, then flatten to exercise order
+            const reordered = [...cards];
+            const [moved] = reordered.splice(startIdx, 1);
+            reordered.splice(currentIdx, 0, moved);
 
-            // Move exercise from startIdx to currentIdx
-            const [moved] = dayExercises.splice(startIdx, 1);
-            dayExercises.splice(currentIdx, 0, moved);
+            // Flatten: each visual card maps to 1 or 2 exercises
+            const allDayEx = (_allPlan?.workout_exercises || []).filter(e => e.day_label === _activeDay);
+            const newOrder = [];
+            for (const c of reordered) {
+                if (c.dataset.ssId) {
+                    // Superset: find both exercises in the group, keep their relative order
+                    const pair = allDayEx.filter(e => e.superset_group === c.dataset.ssId)
+                        .sort((a, b) => a.sort_order - b.sort_order);
+                    newOrder.push(...pair);
+                } else if (c.dataset.exId) {
+                    const ex = allDayEx.find(e => e.id === c.dataset.exId);
+                    if (ex) newOrder.push(ex);
+                }
+            }
 
             // Update sort_order
             try {
-                for (let i = 0; i < dayExercises.length; i++) {
-                    if (dayExercises[i].sort_order !== i) {
-                        dayExercises[i].sort_order = i;
-                        await WorkoutPlanStorage.updateExercise(dayExercises[i].id, { sort_order: i });
+                for (let i = 0; i < newOrder.length; i++) {
+                    if (newOrder[i].sort_order !== i) {
+                        newOrder[i].sort_order = i;
+                        await WorkoutPlanStorage.updateExercise(newOrder[i].id, { sort_order: i });
                     }
                 }
                 renderScheda();
@@ -1512,7 +1531,6 @@
             if (!confirm('Eliminare questo esercizio dalla scheda?')) return;
             try {
                 await WorkoutPlanStorage.deleteExercise(exId);
-                // Remove from local plan data
                 if (_allPlan) {
                     _allPlan.workout_exercises = (_allPlan.workout_exercises || []).filter(e => e.id !== exId);
                 }
@@ -1520,6 +1538,24 @@
                 if (typeof showToast === 'function') showToast('Esercizio eliminato', 'success');
             } catch (e) {
                 console.error('[Allenamento] delete exercise error:', e);
+                if (typeof showToast === 'function') showToast('Errore eliminazione', 'error');
+            }
+        }
+
+        async function deleteSupersetFromPlan(groupId) {
+            if (!confirm('Eliminare questa super serie dalla scheda?')) return;
+            try {
+                const toDelete = (_allPlan?.workout_exercises || []).filter(e => e.superset_group === groupId);
+                for (const ex of toDelete) {
+                    await WorkoutPlanStorage.deleteExercise(ex.id);
+                }
+                if (_allPlan) {
+                    _allPlan.workout_exercises = (_allPlan.workout_exercises || []).filter(e => e.superset_group !== groupId);
+                }
+                renderScheda();
+                if (typeof showToast === 'function') showToast('Super Serie eliminata', 'success');
+            } catch (e) {
+                console.error('[Allenamento] delete superset error:', e);
                 if (typeof showToast === 'function') showToast('Errore eliminazione', 'error');
             }
         }

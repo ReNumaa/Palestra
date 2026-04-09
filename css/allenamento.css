@@ -1399,7 +1399,7 @@
 }
 
 /* ── Swipe-to-delete & drag-to-reorder ─────────────────────────────────────── */
-.all-ex-card {
+.all-ex-card, .all-ss-card {
     overflow: hidden; /* clip the swipe content and delete action */
 }
 .all-ex-swipe-content {
@@ -1409,6 +1409,12 @@
     will-change: transform;
 }
 .all-ex-card.all-ex-done .all-ex-swipe-content {
+    background: linear-gradient(145deg, #f0fdf4 0%, var(--all-surface) 60%);
+}
+.all-ss-card .all-ex-swipe-content {
+    background: var(--all-surface);
+}
+.all-ss-card.all-ss-done .all-ex-swipe-content {
     background: linear-gradient(145deg, #f0fdf4 0%, var(--all-surface) 60%);
 }
 .all-ex-delete-action {
@@ -1436,6 +1442,10 @@
     opacity: 0.95;
     border-color: var(--all-cyan);
     transition: box-shadow 0.2s, opacity 0.2s;
+}
+.all-ss-card.all-ex-dragging {
+    border-color: var(--all-amber);
+    box-shadow: 0 12px 40px rgba(0,0,0,0.18), 0 0 0 2px var(--all-amber);
 }
 .all-ex-dragging, .all-ex-dragging * {
     user-select: none !important;
