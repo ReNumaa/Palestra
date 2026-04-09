@@ -604,7 +604,7 @@
         const overlay = document.createElement('div');
         overlay.id = 'tabEditExOverlay';
         overlay.className = 'tab-edit-overlay';
-        overlay.onclick = (e) => { if (e.target === overlay) overlay.remove(); };
+        overlay.onclick = (e) => { if (e.target === overlay) { overlay.remove(); document.body.style.overflow = ''; } };
 
         let setsHtml = '';
         if (!isCardio) {
@@ -642,7 +642,7 @@
         <div class="tab-edit-panel">
             <div class="tab-edit-header">
                 <h3>Modifica esercizio</h3>
-                <button class="tab-edit-close" onclick="document.getElementById('tabEditExOverlay').remove()">&times;</button>
+                <button class="tab-edit-close" onclick="document.getElementById('tabEditExOverlay').remove();document.body.style.overflow=''">&times;</button>
             </div>
             <div class="tab-edit-body">
                 <div class="tab-edit-ex-name">${_esc(ex.exercise_name)}</div>
@@ -651,11 +651,12 @@
                 <textarea id="tabEditNotes" class="tab-edit-textarea" rows="3" placeholder="Aggiungi note...">${_esc(ex.notes || '')}</textarea>
                 <div class="tab-edit-actions">
                     <button class="tab-edit-save" onclick="tabSaveEditExercise('${exId}', ${isCardio})">Salva modifiche</button>
-                    <button class="tab-edit-cancel" onclick="document.getElementById('tabEditExOverlay').remove()">Annulla</button>
+                    <button class="tab-edit-cancel" onclick="document.getElementById('tabEditExOverlay').remove();document.body.style.overflow=''">Annulla</button>
                 </div>
             </div>
         </div>`;
         document.body.appendChild(overlay);
+        document.body.style.overflow = 'hidden';
         requestAnimationFrame(() => overlay.classList.add('visible'));
     }
 
@@ -689,6 +690,7 @@
             if (ex) Object.assign(ex, updates);
 
             document.getElementById('tabEditExOverlay')?.remove();
+            document.body.style.overflow = '';
             renderTabScheda();
         } catch (err) {
             console.error('Errore salvataggio:', err);

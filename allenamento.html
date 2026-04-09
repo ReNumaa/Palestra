@@ -206,7 +206,7 @@
             const overlay = document.createElement('div');
             overlay.id = 'editExOverlay';
             overlay.className = 'all-edit-overlay';
-            overlay.onclick = (e) => { if (e.target === overlay) overlay.remove(); };
+            overlay.onclick = (e) => { if (e.target === overlay) { overlay.remove(); document.body.style.overflow = ''; } };
 
             let setsHtml = '';
             if (!isCardio) {
@@ -244,7 +244,7 @@
             <div class="all-edit-panel">
                 <div class="all-edit-header">
                     <h3>Modifica esercizio</h3>
-                    <button class="all-edit-close" onclick="document.getElementById('editExOverlay').remove()">&times;</button>
+                    <button class="all-edit-close" onclick="document.getElementById('editExOverlay').remove();document.body.style.overflow=''">&times;</button>
                 </div>
                 <div class="all-edit-body">
                     <div class="all-edit-ex-name">${_escHtml(ex.exercise_name)}</div>
@@ -253,11 +253,12 @@
                     <textarea id="editExNotes" class="all-edit-textarea" rows="3" placeholder="Aggiungi note...">${_escHtml(ex.notes || '')}</textarea>
                     <div class="all-edit-actions">
                         <button class="all-edit-save" onclick="saveEditExercise('${exId}', ${isCardio})">Salva modifiche</button>
-                        <button class="all-edit-cancel" onclick="document.getElementById('editExOverlay').remove()">Annulla</button>
+                        <button class="all-edit-cancel" onclick="document.getElementById('editExOverlay').remove();document.body.style.overflow=''">Annulla</button>
                     </div>
                 </div>
             </div>`;
             document.body.appendChild(overlay);
+            document.body.style.overflow = 'hidden';
             requestAnimationFrame(() => overlay.classList.add('visible'));
         }
 
@@ -294,6 +295,7 @@
                 if (ex) Object.assign(ex, updates);
 
                 document.getElementById('editExOverlay')?.remove();
+                document.body.style.overflow = '';
                 renderScheda();
             } catch (err) {
                 console.error('Errore salvataggio:', err);
@@ -1664,13 +1666,52 @@
             openExercisePicker();
         }
 
-        // ── FAB action: crea scheda se non esiste, altrimenti apri picker esercizi ──
+        // ── FAB action: crea scheda se non esiste, altrimenti mostra scelta ──
         function fabAction() {
             if (!_allPlan) {
                 openCreatePlanModal();
             } else {
-                openExercisePicker();
+                _showFabSheet();
             }
+        }
+
+        function _showFabSheet() {
+            const old = document.getElementById('allFabSheetOverlay');
+            if (old) old.remove();
+            const overlay = document.createElement('div');
+            overlay.id = 'allFabSheetOverlay';
+            overlay.className = 'all-fab-sheet-overlay';
+            overlay.innerHTML = `
+                <div class="all-fab-sheet">
+                    <div class="all-fab-sheet-handle"></div>
+                    <div class="all-fab-sheet-title">Aggiungi al ${_escHtml(_pendingDayLabel || _activeDay || 'Giorno A')}</div>
+                    <div class="all-fab-sheet-options">
+                        <button class="all-fab-sheet-btn" onclick="_closeFabSheet();openExercisePicker()">
+                            <div class="all-fab-sheet-btn-icon all-fab-sheet-btn-icon--single">+</div>
+                            <div class="all-fab-sheet-btn-text">
+                                <span class="all-fab-sheet-btn-title">Esercizio singolo</span>
+                                <span class="all-fab-sheet-btn-desc">Aggiungi un esercizio con riposo</span>
+                            </div>
+                        </button>
+                        <button class="all-fab-sheet-btn all-fab-sheet-btn--ss" onclick="_closeFabSheet();openSupersetPicker()">
+                            <div class="all-fab-sheet-btn-icon all-fab-sheet-btn-icon--ss">SS</div>
+                            <div class="all-fab-sheet-btn-text">
+                                <span class="all-fab-sheet-btn-title">Super Serie</span>
+                                <span class="all-fab-sheet-btn-desc">Due esercizi senza pausa tra loro</span>
+                            </div>
+                        </button>
+                    </div>
+                </div>`;
+            overlay.addEventListener('click', (e) => { if (e.target === overlay) _closeFabSheet(); });
+            document.body.appendChild(overlay);
+            requestAnimationFrame(() => overlay.classList.add('visible'));
+        }
+
+        function _closeFabSheet() {
+            const overlay = document.getElementById('allFabSheetOverlay');
+            if (!overlay) return;
+            overlay.classList.remove('visible');
+            setTimeout(() => overlay.remove(), 300);
         }
 
         // ── Exercise picker (add exercise to current plan/day) ──────────
@@ -1855,7 +1896,94 @@
         async function pickCustomExercise() {
             const name = prompt('Nome esercizio personalizzato:');
             if (!name || !name.trim()) return;
-            await pickExerciseFromPicker(name.trim());
+            if (_supersetMode) {
+                _supersetPickExercise(name.trim());
+            } else {
+                await pickExerciseFromPicker(name.trim());
+            }
+        }
+
+        // ── Superset picker flow ─────────────────────────────────────────
+        let _supersetMode = false;
+        let _supersetStep = 0;
+        let _supersetFirst = null;
+
+        function openSupersetPicker() {
+            _supersetMode = true;
+            _supersetStep = 0;
+            _supersetFirst = null;
+            openExercisePicker();
+            setTimeout(() => {
+                const title = document.querySelector('#allExPickerOverlay .schede-picker-title');
+                if (title) title.textContent = 'Super Serie \u2014 Esercizio 1 di 2';
+            }, 50);
+        }
+
+        function _supersetPickExercise(exerciseName) {
+            const ex = _findEx(exerciseName);
+            const isCardio = ex && (ex.categoria || '').toLowerCase() === 'cardio';
+            let sets = 3, reps = '10';
+            if (!isCardio) {
+                const setsVal = prompt('Numero di serie:', '3');
+                if (setsVal === null) { _supersetMode = false; closeExercisePicker(); return; }
+                sets = parseInt(setsVal) || 3;
+                const repsVal = prompt('Numero di ripetizioni:', '10');
+                if (repsVal === null) { _supersetMode = false; closeExercisePicker(); return; }
+                reps = repsVal || '10';
+            } else { sets = 1; reps = '20'; }
+
+            if (_supersetStep === 0) {
+                _supersetFirst = { name: exerciseName, ex, sets, reps, muscle_group: ex ? ex.categoria : null };
+                _supersetStep = 1;
+                _pickerActiveCat = '';
+                const catsEl = document.getElementById('allPickerCats');
+                const listEl = document.getElementById('allPickerList');
+                const searchEl = document.getElementById('allPickerSearch');
+                if (catsEl) catsEl.style.display = '';
+                if (listEl) listEl.style.display = 'none';
+                if (searchEl) searchEl.value = '';
+                document.querySelectorAll('.schede-picker-cat-chip').forEach(ch => ch.classList.remove('active'));
+                const title = document.querySelector('#allExPickerOverlay .schede-picker-title');
+                if (title) title.textContent = 'Super Serie \u2014 Esercizio 2 di 2';
+            } else {
+                const restVal = prompt('Riposo dopo la super serie (secondi):', '90');
+                if (restVal === null) { _supersetMode = false; closeExercisePicker(); return; }
+                const rest = parseInt(restVal) || 90;
+                _supersetMode = false;
+                closeExercisePicker();
+                _saveSupersetPair(
+                    _supersetFirst,
+                    { name: exerciseName, ex, sets, reps, muscle_group: ex ? ex.categoria : null },
+                    rest
+                );
+            }
+        }
+
+        async function _saveSupersetPair(first, second, rest) {
+            const dayLabel = _pendingDayLabel || _activeDay || 'Giorno A';
+            _pendingDayLabel = null;
+            try {
+                await WorkoutPlanStorage.addSuperset(_allPlan.id, {
+                    day_label: dayLabel,
+                    exercise_name: first.name,
+                    muscle_group: first.muscle_group,
+                    sets: first.sets, reps: first.reps,
+                    weight_kg: null, notes: null,
+                }, {
+                    day_label: dayLabel,
+                    exercise_name: second.name,
+                    muscle_group: second.muscle_group,
+                    sets: second.sets, reps: second.reps,
+                    rest_seconds: rest,
+                    weight_kg: null, notes: null,
+                });
+                _activeDay = dayLabel;
+                renderScheda();
+                if (typeof showToast === 'function') showToast('Super Serie aggiunta!', 'success');
+            } catch (e) {
+                console.error('[Allenamento] add superset error:', e);
+                if (typeof showToast === 'function') showToast('Errore aggiunta super serie', 'error');
+            }
         }
 
         // ── Crea scheda (modal) ──────────────────────────────────────────
