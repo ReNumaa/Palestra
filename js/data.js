@@ -2480,12 +2480,16 @@ class WorkoutPlanStorage {
     }
 
     // ── CRUD Plans ───────────────────────────────────────────────────────────
+    // Tutte le CRUD usano _queryWithTimeout(15000): senza timeout, in caso di
+    // auth lock contention o rete lenta le insert/update/delete restavano
+    // appese indefinitamente, lasciando l'utente senza feedback (es. click
+    // "Aggiungi Esercizio" che non aggiungeva nulla, niente toast, niente errore).
     static async createPlan({ user_id, name, start_date, end_date, notes }) {
-        const { data, error } = await supabaseClient
+        const { data, error } = await _queryWithTimeout(supabaseClient
             .from('workout_plans')
             .insert({ user_id, name, start_date: start_date || null, end_date: end_date || null, notes: notes || null, active: true })
             .select()
-            .single();
+            .single(), 15000);
         if (error) throw error;
         data.workout_exercises = [];
         this._cache.unshift(data);
@@ -2493,20 +2497,20 @@ class WorkoutPlanStorage {
     }
 
     static async updatePlan(planId, updates) {
-        const { error } = await supabaseClient
+        const { error } = await _queryWithTimeout(supabaseClient
             .from('workout_plans')
             .update(updates)
-            .eq('id', planId);
+            .eq('id', planId), 15000);
         if (error) throw error;
         const idx = this._cache.findIndex(p => p.id === planId);
         if (idx >= 0) Object.assign(this._cache[idx], updates);
     }
 
     static async deletePlan(planId) {
-        const { error } = await supabaseClient
+        const { error } = await _queryWithTimeout(supabaseClient
             .from('workout_plans')
             .delete()
-            .eq('id', planId);
+            .eq('id', planId), 15000);
         if (error) throw error;
         this._cache = this._cache.filter(p => p.id !== planId);
     }
@@ -2541,11 +2545,11 @@ class WorkoutPlanStorage {
             notes: exerciseData.notes || null,
             superset_group: exerciseData.superset_group || null,
         };
-        const { data, error } = await supabaseClient
+        const { data, error } = await _queryWithTimeout(supabaseClient
             .from('workout_exercises')
             .insert(row)
             .select()
-            .single();
+            .single(), 15000);
         if (error) throw error;
         if (plan) {
             plan.workout_exercises = plan.workout_exercises || [];
@@ -2598,10 +2602,10 @@ class WorkoutPlanStorage {
     }
 
     static async updateExercise(exerciseId, updates) {
-        const { error } = await supabaseClient
+        const { error } = await _queryWithTimeout(supabaseClient
             .from('workout_exercises')
             .update(updates)
-            .eq('id', exerciseId);
+            .eq('id', exerciseId), 15000);
         if (error) throw error;
         // Update cache
         for (const plan of this._cache) {
@@ -2611,10 +2615,10 @@ class WorkoutPlanStorage {
     }
 
     static async deleteExercise(exerciseId) {
-        const { error } = await supabaseClient
+        const { error } = await _queryWithTimeout(supabaseClient
             .from('workout_exercises')
             .delete()
-            .eq('id', exerciseId);
+            .eq('id', exerciseId), 15000);
         if (error) throw error;
         for (const plan of this._cache) {
             plan.workout_exercises = (plan.workout_exercises || []).filter(e => e.id !== exerciseId);
@@ -2624,7 +2628,7 @@ class WorkoutPlanStorage {
     static async reorderExercises(planId, orderedIds) {
         const updates = orderedIds.map((id, i) => ({ id, sort_order: i }));
         for (const u of updates) {
-            await supabaseClient.from('workout_exercises').update({ sort_order: u.sort_order }).eq('id', u.id);
+            await _queryWithTimeout(supabaseClient.from('workout_exercises').update({ sort_order: u.sort_order }).eq('id', u.id), 15000);
         }
         const plan = this.getPlanById(planId);
         if (plan && plan.workout_exercises) {
