@@ -4,18 +4,26 @@ const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBh
 
 const supabaseClient = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY, {
     auth: {
-        // Previeni deadlock in PWA: navigator.locks può restare bloccato quando
-        // l'OS sospende l'app in background durante un token refresh.
-        // Usiamo il lock con timeout: se non si acquisisce entro 1s, esegui senza lock.
+        // Previeni deadlock in PWA / desktop idle: navigator.locks può restare
+        // bloccato quando l'OS sospende l'app o la tab durante un token refresh
+        // (la fetch interna a Supabase rimane in pausa, lock mai rilasciato).
+        //
+        // Strategia: cap aggressivo a 3s sul timeout di acquisizione (supabase-js
+        // ne passa fino a 10s+, troppo per l'utente che vede i pulsanti morti).
+        // Se dopo 3s il lock non si libera, eseguiamo senza lock — il rischio di
+        // refresh concorrente è teorico e in pratica si risolve da solo, mentre
+        // l'attesa lunga si traduce in "app si è impallata" per l'utente.
+        // Usiamo `??` invece di `||` per rispettare un eventuale `0` (no-wait).
         lock: async (name, acquireTimeout, fn) => {
             if (navigator?.locks) {
+                const timeout = Math.min(acquireTimeout ?? 1000, 3000);
                 const ac = new AbortController();
-                const timer = setTimeout(() => ac.abort(), acquireTimeout || 1000);
+                const timer = setTimeout(() => ac.abort(), timeout);
                 try {
                     return await navigator.locks.request(name, { signal: ac.signal }, fn);
                 } catch (e) {
                     if (e.name === 'AbortError') {
-                        console.warn('[Supabase Auth] Lock timeout — esecuzione senza lock');
+                        console.warn(`[Supabase Auth] Lock timeout (${timeout}ms) — esecuzione senza lock`);
                         return fn();
                     }
                     throw e;
