@@ -186,9 +186,10 @@
     border: 1px solid #e2e8f0;
     border-radius: 14px;
     box-shadow: 0 1px 4px rgba(0,0,0,0.04), 0 4px 8px rgba(0,0,0,0.06);
-    /* Larghezza fissa coerente fra tutte le tab, anche quando il container
-       passa a "container--wide" (es. tab Importa). Centrata orizzontalmente. */
-    max-width: 620px;
+    /* Larghezza fissa coerente fra tutte le tab: la barra resta sempre
+       larga come in Importa (cap 1280px) anche quando il container parent
+       cambia max-width fra le tab. Centrata orizzontalmente. */
+    max-width: 1280px;
     width: 100%;
     margin-left: auto;
     margin-right: auto;
