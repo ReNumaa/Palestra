@@ -1002,11 +1002,18 @@
             container.innerHTML = '<div class="all-loading">Caricamento progressi...</div>';
 
             try {
-                // Fetch ALL user's plans (anche inattivi) per avere tutti gli exercise IDs
-                const { data: allPlans } = await supabaseClient
-                    .from('workout_plans')
-                    .select('id, workout_exercises(id, exercise_name, muscle_group, sets, reps, weight_kg)')
-                    .eq('user_id', user.id);
+                // Riusa _allPlans gia' in memoria (popolato da _refreshAllenamentoData).
+                // Fallback alla query con timeout 15s se la cache e' vuota (es. utente
+                // arriva qui prima del primo refresh).
+                let allPlans = _allPlans;
+                if (!allPlans || !allPlans.length) {
+                    const { data, error } = await _queryWithTimeout(supabaseClient
+                        .from('workout_plans')
+                        .select('id, workout_exercises(id, exercise_name, muscle_group, sets, reps, weight_kg)')
+                        .eq('user_id', user.id), 15000);
+                    if (error) throw error;
+                    allPlans = data || [];
+                }
 
                 const allExercises = (allPlans || []).flatMap(p => p.workout_exercises || []);
                 const allExIds = allExercises.map(e => e.id);
@@ -1015,13 +1022,14 @@
                     return;
                 }
 
-                // Fetch ALL logs for this user's exercises
-                const { data: logs } = await supabaseClient
+                // Fetch ALL logs for this user's exercises (timeout 15s come safety net)
+                const { data: logs, error: logsErr } = await _queryWithTimeout(supabaseClient
                     .from('workout_logs')
                     .select('*')
                     .in('exercise_id', allExIds)
                     .eq('user_id', user.id)
-                    .order('log_date', { ascending: true });
+                    .order('log_date', { ascending: true }), 15000);
+                if (logsErr) throw logsErr;
 
                 if (!logs?.length) {
                     container.innerHTML = '<div class="all-empty">Nessun log registrato ancora.<br>Inizia ad allenarti per vedere i progressi!</div>';
