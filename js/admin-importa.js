@@ -23,10 +23,15 @@ const _importaCatSvg = {
 };
 
 // ── Load full catalog from JSON ─────────────────────────────────────────────
+// Timeout 30s: il file e' ~3MB, su reti lente o con SW pasticciato puo' restare
+// appeso senza mai risolvere lasciando il tab bloccato su "Caricamento...".
 async function _loadImportaCatalog() {
     if (_importaCatalogLoaded) return;
+    const ac = new AbortController();
+    const timer = setTimeout(() => ac.abort(), 30000);
     try {
-        const resp = await fetch('data/esercizi_completo.json');
+        const resp = await fetch('data/esercizi_completo.json', { signal: ac.signal });
+        if (!resp.ok) throw new Error('HTTP ' + resp.status);
         _importaCatalog = await resp.json();
         _importaCatalogByCat = {};
         for (const ex of _importaCatalog) {
@@ -34,21 +39,22 @@ async function _loadImportaCatalog() {
             _importaCatalogByCat[ex.categoria].push(ex);
         }
         _importaCatalogLoaded = true;
-    } catch (e) { console.error('[Importa] Failed to load catalog:', e); }
+    } finally {
+        clearTimeout(timer);
+    }
 }
 
 // ── Load imported exercises from Supabase ───────────────────────────────────
+// Timeout 30s come admin-schede._loadExercisesDB: stessa tabella, stessa query.
 async function _loadImportaImported() {
-    try {
-        const { data, error } = await supabaseClient
-            .from('imported_exercises')
-            .select('*')
-            .order('categoria', { ascending: true })
-            .order('nome_it', { ascending: true });
-        if (error) throw error;
-        _importaImported = data || [];
-        _importaImportedSlugs = new Set(_importaImported.map(e => e.slug));
-    } catch (e) { console.error('[Importa] Failed to load imported:', e); }
+    const { data, error } = await _queryWithTimeout(supabaseClient
+        .from('imported_exercises')
+        .select('*')
+        .order('categoria', { ascending: true })
+        .order('nome_it', { ascending: true }), 30000);
+    if (error) throw error;
+    _importaImported = data || [];
+    _importaImportedSlugs = new Set(_importaImported.map(e => e.slug));
 }
 
 // ── Main render ─────────────────────────────────────────────────────────────
@@ -58,7 +64,17 @@ async function renderImportaTab() {
 
     container.innerHTML = '<div class="importa-loading">Caricamento catalogo esercizi...</div>';
 
-    await Promise.all([_loadImportaCatalog(), _loadImportaImported()]);
+    try {
+        await Promise.all([_loadImportaCatalog(), _loadImportaImported()]);
+    } catch (e) {
+        console.error('[Importa] Failed to load:', e);
+        container.innerHTML = `
+            <div class="importa-empty">
+                Errore caricamento catalogo (${_escHtml(e.message || e)}).<br>
+                <button class="importa-btn importa-btn--add" style="margin-top:12px" onclick="renderImportaTab()">Riprova</button>
+            </div>`;
+        return;
+    }
 
     _importaPage = 0;
     _renderImportaUI(container);
