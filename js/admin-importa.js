@@ -7,6 +7,7 @@ let _importaCatalogByCat = {};      // { 'Petto': [...], ... }
 let _importaCatalogLoaded = false;
 let _importaImported = [];          // rows from imported_exercises table
 let _importaImportedSlugs = new Set();
+let _importaImportedLoaded = false; // cache flag — solo questo tab modifica la tabella
 let _importaView = 'catalogo';     // 'catalogo' | 'importati'
 let _importaActiveCat = '';         // active category filter
 let _importaSearch = '';
@@ -45,8 +46,15 @@ async function _loadImportaCatalog() {
 }
 
 // ── Load imported exercises from Supabase ───────────────────────────────────
-// Timeout 30s come admin-schede._loadExercisesDB: stessa tabella, stessa query.
+// Cache in-memory: la tabella imported_exercises e' modificata SOLO da questo
+// tab (admin-schede.js la legge ma non scrive). Quindi dopo il primo load
+// possiamo riusare la cache su tutti i tab-switch successivi e re-fetchare
+// solo dopo add/remove/rename (che invalidano esplicitamente).
+// Questo evita il bug per cui il re-query mid-sessione restava appeso e il
+// tab Importa non usciva mai dallo stato "Caricamento catalogo...".
+// Timeout 30s come safety net per il primo load.
 async function _loadImportaImported() {
+    if (_importaImportedLoaded) return;
     const { data, error } = await _queryWithTimeout(supabaseClient
         .from('imported_exercises')
         .select('*')
@@ -55,6 +63,7 @@ async function _loadImportaImported() {
     if (error) throw error;
     _importaImported = data || [];
     _importaImportedSlugs = new Set(_importaImported.map(e => e.slug));
+    _importaImportedLoaded = true;
 }
 
 // ── Main render ─────────────────────────────────────────────────────────────
@@ -337,7 +346,8 @@ async function _importaAdd(slug) {
         });
         if (error) throw error;
 
-        // Update local state
+        // Invalida cache e ricarica
+        _importaImportedLoaded = false;
         await _loadImportaImported();
         // Also refresh schede DB if loaded
         if (typeof _refreshSchedeFromImported === 'function') _refreshSchedeFromImported();
@@ -359,6 +369,7 @@ async function _importaRemove(slug) {
         const { error } = await supabaseClient.from('imported_exercises').delete().eq('slug', slug);
         if (error) throw error;
 
+        _importaImportedLoaded = false;
         await _loadImportaImported();
         if (typeof _refreshSchedeFromImported === 'function') _refreshSchedeFromImported();
 
@@ -385,6 +396,7 @@ async function _importaRename(slug) {
             .eq('slug', slug);
         if (error) throw error;
 
+        _importaImportedLoaded = false;
         await _loadImportaImported();
         if (typeof _refreshSchedeFromImported === 'function') _refreshSchedeFromImported();
 
