@@ -11,7 +11,7 @@
     <meta name="apple-mobile-web-app-title" content="Tablet Gym">
     <title>Tablet Allenamento – Thomas Bresciani</title>
     <link rel="icon" type="image/jpeg" href="images/logo-tb---nero.jpg">
-    <link rel="stylesheet" href="css/tablet.css?v=4">
+    <link rel="stylesheet" href="css/tablet.css?v=5">
 </head>
 <body class="tab-body">
 
@@ -474,7 +474,12 @@
                 const ssId = ex.superset_group;
                 const t1 = `${pair[0].sets}\u00d7${pair[0].reps}`, t2 = pair[1] ? `${pair[1].sets}\u00d7${pair[1].reps}` : '';
 
-                html += `<div class="all-ss-card ${allDone?'all-ss-done':''}" id="tss-${ssId}">
+                html += `<div class="all-ss-card ${allDone?'all-ss-done':''}" id="tss-${ssId}" data-ss-id="${ssId}" data-sort="${pair[0].sort_order}">
+                    <div class="tab-ex-delete-action" onclick="deleteSupersetFromTabPlan('${ssId}')">
+                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="22" height="22"><polyline points="3 6 5 6 21 6"/><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/></svg>
+                        <span>Elimina</span>
+                    </div>
+                    <div class="tab-ex-swipe-content">
                     <div class="all-ss-header" onclick="toggleTabSs('${ssId}')">
                         <div class="all-ss-thumbs">
                             <span class="all-ss-badge">SS</span>
@@ -541,7 +546,7 @@
                         </div>
                     </div>`;
                 });
-                html += '</div></div>';
+                html += '</div></div></div>';
                 continue;
             }
             if (ex.superset_group && _tssRendered.has(ex.superset_group)) continue;
@@ -556,7 +561,12 @@
             const dbEx = _findEx(ex.exercise_name);
             const thumb = dbEx ? dbEx.img : '';
 
-            html += `<div class="tab-ex-card ${hasLogs ? 'tab-ex-done' : ''}" id="tex-${ex.id}">
+            html += `<div class="tab-ex-card ${hasLogs ? 'tab-ex-done' : ''}" id="tex-${ex.id}" data-ex-id="${ex.id}" data-sort="${ex.sort_order}">
+                <div class="tab-ex-delete-action" onclick="deleteExerciseFromTabPlan('${ex.id}')">
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="22" height="22"><polyline points="3 6 5 6 21 6"/><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/></svg>
+                    <span>Elimina</span>
+                </div>
+                <div class="tab-ex-swipe-content">
                 <div class="tab-ex-header" onclick="toggleTabEx('${ex.id}')">
                     ${thumb ? `<img src="${thumb}" class="tab-ex-thumb" alt="" loading="lazy">` : '<div class="tab-ex-thumb-placeholder"></div>'}
                     <div class="tab-ex-info">
@@ -618,7 +628,7 @@
                     <button class="tab-log-save" onclick="tabSaveLog('${ex.id}', this)">Salva</button>
                     ${hasLogs ? `<button class="tab-log-delete" onclick="tabDeleteLog('${ex.id}', this)">Elimina log</button>` : ''}
                 </div>
-            </div></div></div>`;
+            </div></div></div></div>`;
         }
         html += '</div>';
 
@@ -627,6 +637,8 @@
         // Auto-scroll active day tab
         const activeTab = c.querySelector('.tab-day-tab.active');
         if (activeTab) activeTab.scrollIntoView({ behavior: 'smooth', inline: 'center', block: 'nearest' });
+
+        _initTabSwipeAndDrag();
     }
 
     function switchTabDay(day) {
@@ -1376,20 +1388,44 @@
     async function _tabSaveSupersetPair(first, second, rest) {
         const dayLabel = _activeDay || 'Giorno A';
         try {
-            // _plan non è nella cache WorkoutPlanStorage: calcola sort_order qui
-            // per posizionare la super serie in fondo alla lista come gli esercizi singoli
+            // tablet.html non carica js/data.js: insert diretti via supabaseClient
             const maxOrder = _exercises.reduce((m, e) => Math.max(m, e.sort_order), -1);
-            const result = await WorkoutPlanStorage.addSuperset(_plan.id, {
-                day_label: dayLabel, exercise_name: first.name, muscle_group: first.muscle_group,
-                sets: first.sets, reps: first.reps, weight_kg: null, notes: null,
-                sort_order: maxOrder + 1,
-            }, {
-                day_label: dayLabel, exercise_name: second.name, muscle_group: second.muscle_group,
-                sets: second.sets, reps: second.reps, rest_seconds: rest, weight_kg: null, notes: null,
-                sort_order: maxOrder + 2,
-            });
-            _plan.workout_exercises.push(result.first, result.second);
-            _exercises = _plan.workout_exercises;
+            const groupId = crypto.randomUUID();
+            const rows = [
+                {
+                    plan_id: _plan.id,
+                    day_label: dayLabel,
+                    exercise_name: first.name,
+                    muscle_group: first.muscle_group,
+                    sort_order: maxOrder + 1,
+                    sets: first.sets,
+                    reps: first.reps,
+                    weight_kg: null,
+                    rest_seconds: 0,
+                    notes: null,
+                    superset_group: groupId,
+                },
+                {
+                    plan_id: _plan.id,
+                    day_label: dayLabel,
+                    exercise_name: second.name,
+                    muscle_group: second.muscle_group,
+                    sort_order: maxOrder + 2,
+                    sets: second.sets,
+                    reps: second.reps,
+                    weight_kg: null,
+                    rest_seconds: rest,
+                    notes: null,
+                    superset_group: groupId,
+                },
+            ];
+            const { data, error } = await supabaseClient
+                .from('workout_exercises')
+                .insert(rows)
+                .select();
+            if (error) throw error;
+            _exercises.push(...data);
+            _plan.workout_exercises = _exercises;
             renderTabScheda();
             _toast('Super Serie aggiunta!');
         } catch (e) {
@@ -1401,6 +1437,244 @@
     function toggleTabSs(ssId) {
         const card = document.getElementById('tss-' + ssId);
         if (card) card.classList.toggle('open');
+    }
+
+    // ── Swipe-to-delete + long-press drag-to-reorder ─────────────────────
+    let _tabDragState = null;
+    let _tabSwipeState = null;
+
+    function _initTabSwipeAndDrag() {
+        const cards = document.querySelectorAll('.tab-ex-card[data-ex-id], .all-ss-card[data-ss-id]');
+        cards.forEach(card => {
+            const header = card.querySelector('.tab-ex-header') || card.querySelector('.all-ss-header');
+            if (!header) return;
+            header.addEventListener('touchstart', _onTabTouchStart, { passive: true });
+            header.addEventListener('touchmove', _onTabTouchMove, { passive: false });
+            header.addEventListener('touchend', _onTabTouchEnd, { passive: true });
+        });
+    }
+
+    function _onTabTouchStart(e) {
+        const touch = e.touches[0];
+        const card = e.currentTarget.closest('.tab-ex-card') || e.currentTarget.closest('.all-ss-card');
+        if (!card) return;
+        _resetAllTabSwipes(card);
+        _tabSwipeState = {
+            card,
+            startX: touch.clientX,
+            startY: touch.clientY,
+            currentX: 0,
+            swiping: false,
+            locked: false,
+        };
+        _tabSwipeState.longPressTimer = setTimeout(() => {
+            if (_tabSwipeState && _tabSwipeState.card === card && !_tabSwipeState.swiping) {
+                _startTabDrag(card, touch);
+            }
+        }, 500);
+    }
+
+    function _onTabTouchMove(e) {
+        if (!_tabSwipeState) return;
+        const touch = e.touches[0];
+        const dx = touch.clientX - _tabSwipeState.startX;
+        const dy = touch.clientY - _tabSwipeState.startY;
+
+        if (_tabDragState) {
+            e.preventDefault();
+            _handleTabDragMove(touch);
+            return;
+        }
+
+        if (!_tabSwipeState.locked) {
+            if (Math.abs(dx) > 8 || Math.abs(dy) > 8) {
+                _tabSwipeState.locked = true;
+                _tabSwipeState.swiping = Math.abs(dx) > Math.abs(dy);
+                clearTimeout(_tabSwipeState.longPressTimer);
+                if (!_tabSwipeState.swiping) { _tabSwipeState = null; return; }
+            } else { return; }
+        }
+
+        if (!_tabSwipeState.swiping) return;
+        e.preventDefault();
+        const clampedX = Math.min(0, Math.max(dx, -100));
+        _tabSwipeState.currentX = clampedX;
+        const content = _tabSwipeState.card.querySelector('.tab-ex-swipe-content');
+        if (content) content.style.transform = `translateX(${clampedX}px)`;
+    }
+
+    function _onTabTouchEnd() {
+        clearTimeout(_tabSwipeState?.longPressTimer);
+        if (_tabDragState) {
+            _endTabDrag();
+            _tabSwipeState = null;
+            return;
+        }
+        if (!_tabSwipeState || !_tabSwipeState.swiping) { _tabSwipeState = null; return; }
+        const content = _tabSwipeState.card.querySelector('.tab-ex-swipe-content');
+        if (_tabSwipeState.currentX < -60) {
+            if (content) { content.style.transition = 'transform 0.2s ease'; content.style.transform = 'translateX(-85px)'; }
+            _tabSwipeState.card.classList.add('tab-ex-swiped');
+        } else {
+            if (content) { content.style.transition = 'transform 0.2s ease'; content.style.transform = ''; }
+            _tabSwipeState.card.classList.remove('tab-ex-swiped');
+        }
+        setTimeout(() => { if (content) content.style.transition = ''; }, 200);
+        _tabSwipeState = null;
+    }
+
+    function _resetAllTabSwipes(exceptCard) {
+        document.querySelectorAll('.tab-ex-card.tab-ex-swiped, .all-ss-card.tab-ex-swiped').forEach(card => {
+            if (card === exceptCard) return;
+            const content = card.querySelector('.tab-ex-swipe-content');
+            if (content) { content.style.transition = 'transform 0.2s ease'; content.style.transform = ''; }
+            card.classList.remove('tab-ex-swiped');
+            setTimeout(() => { if (content) content.style.transition = ''; }, 200);
+        });
+    }
+
+    // ── Long-press drag to reorder ──────────────────────────────────────
+    function _startTabDrag(card, touch) {
+        if (navigator.vibrate) navigator.vibrate(30);
+        const container = card.parentElement;
+        const cards = [...container.querySelectorAll('.tab-ex-card[data-ex-id], .all-ss-card[data-ss-id]')];
+        const idx = cards.indexOf(card);
+        _tabDragState = {
+            card,
+            container,
+            cards,
+            startIdx: idx,
+            currentIdx: idx,
+            startY: touch.clientY,
+            cardHeight: card.offsetHeight + parseInt(getComputedStyle(card).marginBottom || '0'),
+        };
+        card.classList.add('tab-ex-dragging');
+        container.classList.add('tab-reordering');
+        const header = card.querySelector('.tab-ex-header') || card.querySelector('.all-ss-header');
+        if (header) header.removeAttribute('onclick');
+    }
+
+    function _handleTabDragMove(touch) {
+        if (!_tabDragState) return;
+        const dy = touch.clientY - _tabDragState.startY;
+        _tabDragState.card.style.transform = `translateY(${dy}px) scale(1.02)`;
+        const offsetSteps = Math.round(dy / _tabDragState.cardHeight);
+        const newIdx = Math.max(0, Math.min(_tabDragState.cards.length - 1, _tabDragState.startIdx + offsetSteps));
+        if (newIdx !== _tabDragState.currentIdx) {
+            _tabDragState.cards.forEach((c, i) => {
+                if (c === _tabDragState.card) return;
+                if (_tabDragState.startIdx < newIdx) {
+                    c.style.transform = (i > _tabDragState.startIdx && i <= newIdx) ? `translateY(-${_tabDragState.cardHeight}px)` : '';
+                } else {
+                    c.style.transform = (i >= newIdx && i < _tabDragState.startIdx) ? `translateY(${_tabDragState.cardHeight}px)` : '';
+                }
+                c.style.transition = 'transform 0.2s ease';
+            });
+            _tabDragState.currentIdx = newIdx;
+        }
+    }
+
+    async function _endTabDrag() {
+        if (!_tabDragState) return;
+        const { card, cards, startIdx, currentIdx } = _tabDragState;
+
+        card.classList.remove('tab-ex-dragging');
+        _tabDragState.container.classList.remove('tab-reordering');
+        card.style.transform = '';
+        card.style.transition = '';
+        cards.forEach(c => { c.style.transform = ''; c.style.transition = ''; });
+        window.getSelection()?.removeAllRanges();
+
+        // Restore onclick
+        const exId = card.dataset.exId;
+        const ssId = card.dataset.ssId;
+        const header = card.querySelector('.tab-ex-header') || card.querySelector('.all-ss-header');
+        if (header) {
+            if (ssId) header.setAttribute('onclick', `toggleTabSs('${ssId}')`);
+            else if (exId) header.setAttribute('onclick', `toggleTabEx('${exId}')`);
+        }
+
+        _tabDragState = null;
+
+        if (startIdx === currentIdx) return;
+
+        const reordered = [...cards];
+        const [moved] = reordered.splice(startIdx, 1);
+        reordered.splice(currentIdx, 0, moved);
+
+        const allDayEx = _exercises.filter(e => e.day_label === _activeDay);
+        const newOrder = [];
+        for (const c of reordered) {
+            if (c.dataset.ssId) {
+                const pair = allDayEx.filter(e => e.superset_group === c.dataset.ssId)
+                    .sort((a, b) => a.sort_order - b.sort_order);
+                newOrder.push(...pair);
+            } else if (c.dataset.exId) {
+                const ex = allDayEx.find(e => e.id === c.dataset.exId);
+                if (ex) newOrder.push(ex);
+            }
+        }
+
+        // Compute base offset to keep other days untouched
+        const minSort = allDayEx.reduce((m, e) => Math.min(m, e.sort_order), Infinity);
+        const base = Number.isFinite(minSort) ? minSort : 0;
+
+        try {
+            for (let i = 0; i < newOrder.length; i++) {
+                const newSort = base + i;
+                if (newOrder[i].sort_order !== newSort) {
+                    const { error } = await supabaseClient
+                        .from('workout_exercises')
+                        .update({ sort_order: newSort })
+                        .eq('id', newOrder[i].id);
+                    if (error) throw error;
+                    newOrder[i].sort_order = newSort;
+                }
+            }
+            _exercises = (_plan.workout_exercises || []).sort((a, b) => a.sort_order - b.sort_order);
+            renderTabScheda();
+        } catch (e) {
+            console.error('[Tablet] reorder error:', e);
+            _toast('Errore riordino', 'error');
+            renderTabScheda();
+        }
+    }
+
+    // ── Delete from plan ─────────────────────────────────────────────────
+    async function deleteExerciseFromTabPlan(exId) {
+        if (!confirm('Eliminare questo esercizio dalla scheda?')) return;
+        try {
+            const { error } = await supabaseClient
+                .from('workout_exercises')
+                .delete()
+                .eq('id', exId);
+            if (error) throw error;
+            _exercises = _exercises.filter(e => e.id !== exId);
+            if (_plan) _plan.workout_exercises = _exercises;
+            renderTabScheda();
+            _toast('Esercizio eliminato');
+        } catch (e) {
+            console.error('[Tablet] delete exercise error:', e);
+            _toast('Errore eliminazione', 'error');
+        }
+    }
+
+    async function deleteSupersetFromTabPlan(groupId) {
+        if (!confirm('Eliminare questa super serie dalla scheda?')) return;
+        try {
+            const { error } = await supabaseClient
+                .from('workout_exercises')
+                .delete()
+                .eq('superset_group', groupId);
+            if (error) throw error;
+            _exercises = _exercises.filter(e => e.superset_group !== groupId);
+            if (_plan) _plan.workout_exercises = _exercises;
+            renderTabScheda();
+            _toast('Super Serie eliminata');
+        } catch (e) {
+            console.error('[Tablet] delete superset error:', e);
+            _toast('Errore eliminazione', 'error');
+        }
     }
 
     // ── PWA: register service worker ──────────────────────────────────────
