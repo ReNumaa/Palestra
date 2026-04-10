@@ -716,7 +716,7 @@ function clearSlotClient(timeSlot) {
     const booking = allBookings[index];
     const bookingName = booking.name || slot.client?.name || '';
     const price = SLOT_PRICES[booking.slotType] || 0;
-    const hasBonus = BonusStorage.getBonus(booking.whatsapp, booking.email) > 0;
+    const hasBonus = BonusStorage.getBonus(booking.whatsapp, booking.email, booking.userId) > 0;
 
     // Helper to finalize: clear slot override + render
     const finalizeSlotClear = () => {
@@ -844,7 +844,7 @@ function clearSlotClient(timeSlot) {
         const withMora = selectedMode === 'mora';
 
         if (useBonus) {
-            BonusStorage.useBonus(booking.whatsapp, booking.email, booking.name);
+            BonusStorage.useBonus(booking.whatsapp, booking.email, booking.name, booking.userId || null);
         }
 
         const isCancellationPending = booking.status === 'cancellation_requested';

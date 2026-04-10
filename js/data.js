@@ -809,12 +809,14 @@ class BookingStorage {
             );
         }
         // Usa i dati del profilo corrente come identificatore authoritative per il bonus,
-        // in modo che getBonus(user.whatsapp, user.email) trovi sempre il record.
+        // in modo che getBonus(user.whatsapp, user.email, user.id) trovi sempre il record.
+        // user.id è la chiave più robusta (sopravvive a cambi di email/phone del profilo).
         const _cu = typeof getCurrentUser === 'function' ? getCurrentUser() : null;
         BonusStorage.useBonus(
             _cu?.whatsapp || booking.whatsapp,
             _cu?.email    || booking.email,
-            _cu?.name     || booking.name
+            _cu?.name     || booking.name,
+            _cu?.id       || booking.userId || null
         );
         return true;
     }
@@ -1997,6 +1999,14 @@ class BonusStorage {
     static _save(data) {
         this._cache = data;
         if (typeof supabaseClient === 'undefined') return;
+        // NOTA: user_id NON è incluso volutamente nel body dell'upsert.
+        // PostgREST upsert esegue INSERT ... ON CONFLICT DO UPDATE settando
+        // solo le colonne presenti nel body → escludendo user_id preserviamo
+        // il valore già scritto dalla RPC backend e non rischiamo mai di
+        // sovrascrivere un user_id valido con null. Le righe nuove create
+        // da path frontend (es. resetClientBonus per cliente senza record)
+        // avranno user_id=null, poi backfillato dalla migration o dal
+        // prossimo consumo via RPC.
         const rows = Object.values(data).map(r => ({
             name:             r.name,
             whatsapp:         r.whatsapp || null,
@@ -2021,7 +2031,13 @@ class BonusStorage {
         return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}`;
     }
 
-    static _matchContact(record, whatsapp, email) {
+    // Match primario: user_id (autoritativo). Fallback: email/phone per record legacy senza user_id.
+    // Se il caller fornisce un userId e il record ha un userId diverso da quello → NON è il record giusto,
+    // evita cross-match via email per prevenire collisioni teoriche (es. email riciclate).
+    static _matchContact(record, whatsapp, email, userId) {
+        if (userId && record.userId) {
+            return record.userId === userId;
+        }
         const normStored = normalizePhone(record.whatsapp);
         const normInput  = normalizePhone(whatsapp);
         const phoneMatch = normInput && normStored && normStored === normInput;
@@ -2029,18 +2045,27 @@ class BonusStorage {
         return phoneMatch || emailMatch;
     }
 
-    static _findKey(whatsapp, email) {
+    static _findKey(whatsapp, email, userId) {
         const all = this._getAll();
+        // Priorità 1: cerca match esatto per user_id (se fornito)
+        if (userId) {
+            for (const [key, record] of Object.entries(all)) {
+                if (record.userId && record.userId === userId) return key;
+            }
+        }
+        // Priorità 2: fallback legacy su email/phone (anche per record senza userId)
         for (const [key, record] of Object.entries(all)) {
-            if (this._matchContact(record, whatsapp, email)) return key;
+            if (this._matchContact(record, whatsapp, email, userId)) return key;
         }
         return null;
     }
 
     // Returns current bonus (0 or 1). Auto-restores to 1 on month change (non-cumulative).
-    static getBonus(whatsapp, email) {
+    // `userId` opzionale: se fornito, il lookup è autoritativo via user_id (robusto anche
+    // se l'email del profilo è stata cambiata dopo il consumo del bonus).
+    static getBonus(whatsapp, email, userId) {
         const all       = this._getAll();
-        const key       = this._findKey(whatsapp, email);
+        const key       = this._findKey(whatsapp, email, userId);
         const thisMonth = this._thisMonthStr();
         if (!key || !all[key]) return 1; // new user: bonus starts at 1
         const record = all[key];
@@ -2058,12 +2083,13 @@ class BonusStorage {
         try {
             const { data, error } = await _queryWithTimeout(supabaseClient
                 .from('bonuses')
-                .select('name, whatsapp, email, bonus, last_reset_month'));
+                .select('user_id, name, whatsapp, email, bonus, last_reset_month'));
             if (error) { console.error('[Supabase] BonusStorage.syncFromSupabase error:', error.message); return; }
             const all = {};
             (data || []).forEach(r => {
                 const key = `${normalizePhone(r.whatsapp) || ''}||${(r.email || '').toLowerCase()}`;
                 all[key] = {
+                    userId:         r.user_id || null,
                     name:           r.name || '',
                     whatsapp:       normalizePhone(r.whatsapp) || '',
                     email:          (r.email || '').toLowerCase(),
@@ -2076,20 +2102,24 @@ class BonusStorage {
     }
 
     // Consume the bonus (1 → 0)
-    static useBonus(whatsapp, email, name) {
+    // `userId` opzionale: popolato nella cache locale per permettere lookup autoritativo
+    // nella stessa sessione prima che la sync da Supabase riporti il user_id dal DB.
+    static useBonus(whatsapp, email, name, userId) {
         const all       = this._getAll();
         const thisMonth = this._thisMonthStr();
         // Normalizza per garantire che getBonus() trovi sempre il record con gli stessi input
         const normWa = normalizePhone(whatsapp) || '';
         const normEm = (email || '').toLowerCase();
-        let key = this._findKey(normWa, normEm);
+        let key = this._findKey(normWa, normEm, userId);
         if (!key) key = `${normWa}||${normEm}`;
-        if (!all[key]) all[key] = { name, whatsapp: normWa, email: normEm, bonus: 1, lastResetMonth: thisMonth };
+        if (!all[key]) all[key] = { userId: userId || null, name, whatsapp: normWa, email: normEm, bonus: 1, lastResetMonth: thisMonth };
         all[key].bonus = 0;
         all[key].lastResetMonth = thisMonth;
         all[key].whatsapp = normWa;
         all[key].email    = normEm;
         all[key].name     = name || all[key].name;
+        // Backfill userId locale se il caller lo ha fornito e il record non lo aveva
+        if (userId && !all[key].userId) all[key].userId = userId;
         this._save(all);
     }
 }

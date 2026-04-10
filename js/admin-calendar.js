@@ -555,7 +555,7 @@ function deleteBooking(bookingId, bookingName) {
 
     const booking = bookings[index];
     const price = SLOT_PRICES[booking.slotType] || 0;
-    const hasBonus = BonusStorage.getBonus(booking.whatsapp, booking.email) > 0;
+    const hasBonus = BonusStorage.getBonus(booking.whatsapp, booking.email, booking.userId) > 0;
 
     // Calcola distanza dalla lezione
     const _tp = _parseSlotTime(booking.time);
@@ -626,7 +626,7 @@ function deleteBooking(bookingId, bookingName) {
         const wasPaid = !isCancellationPending && (booking.paid || (booking.creditApplied || 0) > 0);
 
         if (useBonus) {
-            BonusStorage.useBonus(booking.whatsapp, booking.email, booking.name);
+            BonusStorage.useBonus(booking.whatsapp, booking.email, booking.name, booking.userId || null);
         }
 
         if (withMora) {

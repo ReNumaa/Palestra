@@ -82,7 +82,7 @@ function toggleAnagFilter() {
 }
 
 function clientHasBonusIssue(client) {
-    return BonusStorage.getBonus(client.whatsapp, client.email) === 0;
+    return BonusStorage.getBonus(client.whatsapp, client.email, client.userId) === 0;
 }
 
 function toggleBonusFilter() {
@@ -143,19 +143,28 @@ function getAllClients() {
         let matchedKey = _findKey(normPhone, booking.email);
         if (!matchedKey) {
             matchedKey = normPhone || booking.email;
-            clientsMap[matchedKey] = { name: booking.name, whatsapp: booking.whatsapp, email: booking.email, bookings: [] };
+            clientsMap[matchedKey] = { userId: booking.userId || null, name: booking.name, whatsapp: booking.whatsapp, email: booking.email, bookings: [] };
             _registerKey(matchedKey, normPhone, booking.email);
+        } else if (!clientsMap[matchedKey].userId && booking.userId) {
+            // Arricchisci con userId se il record esistente non lo aveva
+            clientsMap[matchedKey].userId = booking.userId;
         }
         clientsMap[matchedKey].bookings.push(booking);
     });
 
-    // Include registered users even without bookings
+    // Include registered users even without bookings + arricchisci userId per match esistenti
     UserStorage.getAll().forEach(user => {
         const normPhone = normalizePhone(user.whatsapp);
-        if (!_findKey(normPhone, user.email)) {
+        const existingKey = _findKey(normPhone, user.email);
+        if (existingKey) {
+            // Cliente già presente (tramite booking): propaga userId dal profilo se mancante
+            if (!clientsMap[existingKey].userId && user.userId) {
+                clientsMap[existingKey].userId = user.userId;
+            }
+        } else {
             const key = normPhone || user.email;
             if (key) {
-                clientsMap[key] = { name: user.name, whatsapp: user.whatsapp || '', email: user.email || '', bookings: [] };
+                clientsMap[key] = { userId: user.userId || null, name: user.name, whatsapp: user.whatsapp || '', email: user.email || '', bookings: [] };
                 _registerKey(key, normPhone, user.email);
             }
         }
@@ -463,7 +472,7 @@ function createClientCard(client, index) {
         if (daysLeft <= 30) return `<span class="cedit-cert-badge cedit-cert-expiring">${expiringPrefix} ${label}</span>`;
         return `<span class="cedit-cert-badge cedit-cert-ok">${okPrefix} ${label}</span>`;
     };
-    const bonus = BonusStorage.getBonus(client.whatsapp, client.email);
+    const bonus = BonusStorage.getBonus(client.whatsapp, client.email, client.userId);
     const bonusDisplay = `<span class="cedit-cert-badge ${bonus > 0 ? 'cedit-cert-ok' : 'cedit-cert-expiring'}">🎟️ Bonus ${bonus}/1</span>`;
     const certDisplay  = _mkBadge(certScad,  '🏥 Imposta scadenza certificato medico', '🏥 Cert. scaduto il', '⏳ Cert. scade il', '✅ Cert. valido fino al');
     const assicDisplay = _mkBadge(assicScad2, '📋 Imposta scadenza assicurazione',      '📋 Assic. scaduta il', '⏳ Assic. scade il', '📋 Assic. valida fino al');
