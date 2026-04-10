@@ -232,9 +232,14 @@
     }
 
     function _stopScanner() {
-        if (_html5QrCode) {
-            _html5QrCode.stop().catch(() => {});
-        }
+        if (!_html5QrCode) return;
+        try {
+            const state = _html5QrCode.getState && _html5QrCode.getState();
+            // 2 = SCANNING, 3 = PAUSED — stop() throws se chiamato in altri stati
+            if (state === 2 || state === 3) {
+                _html5QrCode.stop().catch(() => {});
+            }
+        } catch(e) { /* scanner non avviato: ignora */ }
     }
 
     function _onQrScanned(text) {
