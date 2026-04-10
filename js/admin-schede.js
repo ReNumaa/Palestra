@@ -466,14 +466,44 @@ function _renderClientsList(container) {
         for (const uid of userIds) {
             const clientName = _escHtml(nameMap[uid] || 'Sconosciuto');
             const userPlans = byUser[uid];
-            const activePlan = userPlans.find(p => p.active);
+            const activePlans = userPlans.filter(p => p.active);
+            const activeCount = activePlans.length;
+            const inactiveCount = userPlans.length - activeCount;
             const totalExercises = userPlans.reduce((s, p) => s + (p.workout_exercises || []).length, 0);
+
+            // Distinct training days (day_label) across active plans
+            const activeDayLabels = new Set();
+            for (const p of activePlans) {
+                for (const ex of (p.workout_exercises || [])) {
+                    if (ex.day_label) activeDayLabels.add(ex.day_label);
+                }
+            }
+            const activeDaysCount = activeDayLabels.size;
+            const daysSuffix = activeDaysCount
+                ? ' &middot; ' + activeDaysCount + ' ' + (activeDaysCount === 1 ? 'giorno' : 'giorni')
+                : '';
+
+            let badgesHtml = '';
+            if (activeCount === 1) {
+                badgesHtml += '<span class="schede-badge-active">1 scheda attiva: '
+                    + _escHtml(activePlans[0].name) + daysSuffix + '</span>';
+            } else if (activeCount > 1) {
+                badgesHtml += '<span class="schede-badge-active">' + activeCount
+                    + ' schede attive' + daysSuffix + '</span>';
+            }
+            if (inactiveCount > 0) {
+                const inactiveLabel = inactiveCount === 1
+                    ? '1 scheda non attiva'
+                    : inactiveCount + ' schede non attive';
+                badgesHtml += '<span class="schede-badge-inactive">' + inactiveLabel + '</span>';
+            }
+
             html += `
             <div class="schede-plan-card schede-client-card" data-client="${clientName.toLowerCase()}" onclick="_schedeOpenClientDetail('${uid}')">
                 <div class="schede-plan-card-header">
                     <div class="schede-plan-card-info">
                         <div class="schede-plan-client">${clientName}</div>
-                        <div class="schede-plan-meta">${userPlans.length} schede &middot; ${totalExercises} esercizi${activePlan ? ' &middot; <span class="schede-badge-active">Attiva: ' + _escHtml(activePlan.name) + '</span>' : ''}</div>
+                        <div class="schede-plan-meta">${userPlans.length} schede &middot; ${totalExercises} esercizi${badgesHtml ? ' &middot; ' + badgesHtml : ''}</div>
                     </div>
                     <div class="schede-plan-actions"><span style="color:#9ca3af;font-size:1.1rem">→</span></div>
                 </div>
