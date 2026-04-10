@@ -1159,6 +1159,22 @@
     let _tabPickerActiveCat = '';
     let _tabPickerExByCat = {};
     let _tabPickerCategories = [];
+    // Flag: abbiamo pushato uno stato in history per il picker?
+    // Serve per intercettare il tasto "Indietro" del device/browser e
+    // chiudere il picker invece di navigare via da tablet.html.
+    let _tabPickerHistoryPushed = false;
+
+    // Intercetta il tasto Indietro: se il picker è aperto, chiudilo
+    // (lo state che avevamo pushato è già stato consumato dal browser).
+    window.addEventListener('popstate', () => {
+        if (!_tabPickerHistoryPushed) return;
+        const overlay = document.getElementById('tabExPickerOverlay');
+        if (!overlay) { _tabPickerHistoryPushed = false; return; }
+        _tabPickerHistoryPushed = false;
+        overlay.remove();
+        document.body.style.overflow = '';
+        _tabSsMode = false;
+    });
 
     function _tabBuildPickerData() {
         if (_tabPickerCategories.length) return;
@@ -1215,6 +1231,13 @@
             </div>`;
         document.body.appendChild(overlay);
         document.body.style.overflow = 'hidden';
+
+        // Pusha uno stato in history così il tasto Indietro chiude
+        // il picker invece di tornare al calendario (vedi popstate).
+        if (!_tabPickerHistoryPushed) {
+            history.pushState({ tabPickerOpen: true }, '', location.href);
+            _tabPickerHistoryPushed = true;
+        }
     }
 
     function tabCloseExercisePicker() {
@@ -1222,6 +1245,14 @@
         if (overlay) overlay.remove();
         document.body.style.overflow = '';
         _tabSsMode = false;
+        // Cleanup dello stato pushato in history. La popstate qui sopra
+        // si attiverà ma sarà no-op (overlay già rimosso).
+        if (_tabPickerHistoryPushed) {
+            _tabPickerHistoryPushed = false;
+            if (history.state && history.state.tabPickerOpen) {
+                history.back();
+            }
+        }
     }
 
     function tabPickCategory(cat) {

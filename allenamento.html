@@ -1933,6 +1933,23 @@
         let _pickerActiveCat = '';
         let _pickerExByCat = {};
         let _pickerCategories = [];
+        // Flag: abbiamo pushato uno stato in history per il picker?
+        // Serve per intercettare il tasto "Indietro" del device/browser e
+        // chiudere il picker invece di navigare via da allenamento.html.
+        let _pickerHistoryPushed = false;
+
+        // Intercetta il tasto Indietro: se il picker è aperto, chiudilo
+        // (lo state che avevamo pushato è già stato consumato dal browser).
+        window.addEventListener('popstate', () => {
+            if (!_pickerHistoryPushed) return;
+            const overlay = document.getElementById('allExPickerOverlay');
+            if (!overlay) { _pickerHistoryPushed = false; return; }
+            _pickerHistoryPushed = false;
+            overlay.remove();
+            document.body.style.overflow = '';
+            _pendingDayLabel = null;
+            _supersetMode = false;
+        });
 
         function _buildPickerData() {
             if (_pickerCategories.length) return;
@@ -1992,6 +2009,13 @@
             document.body.appendChild(overlay);
             document.body.style.overflow = 'hidden';
             // No auto-focus: evita apertura tastiera su mobile
+
+            // Pusha uno stato in history così il tasto Indietro chiude
+            // il picker invece di tornare al calendario (vedi popstate).
+            if (!_pickerHistoryPushed) {
+                history.pushState({ allPickerOpen: true }, '', location.href);
+                _pickerHistoryPushed = true;
+            }
         }
 
         function closeExercisePicker() {
@@ -2000,6 +2024,14 @@
             document.body.style.overflow = '';
             _pendingDayLabel = null;
             _supersetMode = false;
+            // Cleanup dello stato pushato in history. La popstate qui sotto
+            // si attiverà ma sarà no-op (overlay già rimosso).
+            if (_pickerHistoryPushed) {
+                _pickerHistoryPushed = false;
+                if (history.state && history.state.allPickerOpen) {
+                    history.back();
+                }
+            }
         }
 
         function pickExCategory(cat) {
