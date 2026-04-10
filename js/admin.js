@@ -139,9 +139,11 @@ function switchTab(tabName) {
         }
     });
 
-    // Toggle wide container for importa tab
+    // Container sempre "wide" (1280px): allinea il div tab-content sotto
+    // alla barra .admin-tabs (anch'essa cap 1280px) → larghezze coerenti
+    // fra tutte le tab, non solo Importa.
     const adminContainer = document.querySelector('.dashboard-section .container');
-    if (adminContainer) adminContainer.classList.toggle('container--wide', tabName === 'importa');
+    if (adminContainer) adminContainer.classList.add('container--wide');
 
     // Update tab content
     document.querySelectorAll('.tab-content').forEach(content => {
