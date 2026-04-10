@@ -390,12 +390,29 @@ async function renderSchedeTab() {
     try {
         await _loadExercisesDB();
 
-        // Skip sync if we synced recently (avoids double-load on tab switch + realtime)
+        // Sync workout_plans: bloccante SOLO al primo load (cache vuota).
+        // Se abbiamo gia' dati in cache, lancia il sync in background senza
+        // bloccare il render — i CRUD aggiornano _cache direttamente quindi
+        // la stale data e' al massimo di pochi secondi e si vede al prossimo render.
+        // Motivo: il re-sync mid-sessione a volte va in rpc_timeout (auth lock
+        // contention?) e bloccava il sub-tab switch Schede<->Clienti.
         const now = Date.now();
         if (now - _schedeLastSync > _SCHEDE_SYNC_INTERVAL) {
-            await WorkoutPlanStorage.syncFromSupabase({ adminMode: true });
-            await WorkoutPlanStorage.loadSuggestions();
-            _schedeLastSync = now;
+            if (hasData) {
+                // Background — segna ottimisticamente per evitare retry concorrenti
+                _schedeLastSync = now;
+                Promise.all([
+                    WorkoutPlanStorage.syncFromSupabase({ adminMode: true }),
+                    WorkoutPlanStorage.loadSuggestions()
+                ]).catch(e => {
+                    console.warn('[Schede] Background sync failed:', e);
+                    _schedeLastSync = 0; // permetti retry alla prossima render
+                });
+            } else {
+                await WorkoutPlanStorage.syncFromSupabase({ adminMode: true });
+                await WorkoutPlanStorage.loadSuggestions();
+                _schedeLastSync = now;
+            }
         }
 
         // Sub-navigation pills
