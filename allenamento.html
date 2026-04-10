@@ -328,7 +328,7 @@
         }
 
         // ── Init ──────────────────────────────────────────────────────────
-        (async function() {
+        async function _initAllenamento() {
             await initAuth();
             const user = getCurrentUser();
 
@@ -393,7 +393,12 @@
                 }
 
                 _allPlans = plans;
-                _allPlan = plans.find(p => p.active) || plans[0];
+                // Mantieni la scheda corrente se esiste ancora dopo un re-init,
+                // altrimenti fallback su quella attiva o la prima
+                const _previousPlanId = _allPlan?.id;
+                _allPlan = (_previousPlanId && plans.find(p => p.id === _previousPlanId))
+                    || plans.find(p => p.active)
+                    || plans[0];
 
                 // Build plan selector if multiple plans
                 _renderPlanSelector();
@@ -401,12 +406,61 @@
                 // Fetch logs for current plan
                 await _loadLogsForPlan(_allPlan);
 
-                renderScheda();
+                // Re-renderizza la view correntemente attiva (non sempre 'scheda':
+                // dopo un resume da background l'utente potrebbe essere su Progressi/Tablet/PDF)
+                if (_allView === 'progressi') renderProgressi();
+                else if (_allView === 'tablet') renderTabletQR();
+                else if (_allView === 'pdf') renderPdfDownload();
+                else renderScheda();
             } catch (e) {
                 console.error('[Allenamento] init error:', e);
                 document.getElementById('allContent').innerHTML = '<div class="all-empty">Errore caricamento scheda.</div>';
             }
-        })();
+        }
+        _initAllenamento();
+
+        // ── PWA lifecycle: resume da background ───────────────────────────
+        // Quando la PWA torna in foreground dopo essere stata in background,
+        // il runtime JS può essere stato congelato e il lock auth di Supabase
+        // può rimanere bloccato — risultato: i pulsanti smettono di rispondere.
+        // Qui ricarichiamo i dati e ri-renderizziamo, MA solo se l'utente non
+        // sta attivamente lavorando (modal aperto o input con focus), per non
+        // perdere ciò che stava facendo.
+        let _allLastHidden = 0;
+        function _allHasOpenOverlay() {
+            if (document.getElementById('editExOverlay')) return true;
+            if (document.getElementById('exDetailOverlay')) return true;
+            if (document.getElementById('allFabSheetOverlay')) return true;
+            const cpm = document.getElementById('createPlanModal');
+            if (cpm && cpm.style.display && cpm.style.display !== 'none') return true;
+            return false;
+        }
+        function _allHasFocusedInput() {
+            const ae = document.activeElement;
+            if (!ae) return false;
+            if (ae.tagName !== 'INPUT' && ae.tagName !== 'TEXTAREA') return false;
+            return !!ae.closest('#allContent');
+        }
+        document.addEventListener('visibilitychange', async () => {
+            if (document.hidden) { _allLastHidden = Date.now(); return; }
+            // Ignora micro-switch (<30s): inutile rifare tutto e rischiare race
+            const bgSec = _allLastHidden ? (Date.now() - _allLastHidden) / 1000 : 0;
+            if (bgSec < 30) return;
+            if (_allHasOpenOverlay() || _allHasFocusedInput()) return;
+            // Aspetta che auth.js (che ha il suo visibilitychange a 500ms)
+            // finisca il suo lavoro sul lock Supabase prima di partire noi
+            await new Promise(r => setTimeout(r, 800));
+            // Re-check dopo l'attesa: l'utente potrebbe aver aperto un modal nel frattempo
+            if (_allHasOpenOverlay() || _allHasFocusedInput()) return;
+            _initAllenamento();
+        });
+        // bfcache restore (back/forward cache): la pagina viene ripristinata
+        // dalla memoria senza ri-eseguire gli script — serve il pageshow per accorgersene
+        window.addEventListener('pageshow', (e) => {
+            if (!e.persisted) return;
+            if (_allHasOpenOverlay() || _allHasFocusedInput()) return;
+            _initAllenamento();
+        });
 
         // ── Plan selector ─────────────────────────────────────────────────
         function _renderPlanSelector() {
