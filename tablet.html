@@ -123,6 +123,16 @@
         return d.toLocaleDateString('it-IT', { day: '2-digit', month: 'short' });
     }
 
+    // tablet.html non include data.js: piccolo helper inline equivalente a
+    // _queryWithTimeout di data.js. Senza timeout, le query Supabase restavano
+    // appese indefinitamente quando l'auth e' in stato impallato.
+    function _queryWithTimeout(promise, ms = 15000) {
+        return Promise.race([
+            promise,
+            new Promise((_, reject) => setTimeout(() => reject(new Error('rpc_timeout')), ms))
+        ]);
+    }
+
     function _toast(msg, type = 'success') {
         const c = document.getElementById('tabToastContainer');
         const t = document.createElement('div');
@@ -912,12 +922,15 @@
         c.innerHTML = '<div class="tab-loading">Caricamento progressi...</div>';
 
         try {
-            // Fetch all plans + logs (last 90 days, only needed columns) in parallel
+            // Fetch all plans + logs (last 90 days, only needed columns) in parallel.
+            // Timeout 15s su entrambe le query: senza, in caso di auth lock contention
+            // restavano appese e il tab Progressi era bloccato su "Caricamento progressi...".
             const progCutoff = _localDate(new Date(Date.now() - 90 * 86400000));
-            const { data: allPlans } = await supabaseClient
+            const { data: allPlans, error: plansErr } = await _queryWithTimeout(supabaseClient
                 .from('workout_plans')
                 .select('id, workout_exercises(id, exercise_name, muscle_group, sets, reps, weight_kg)')
-                .eq('user_id', _userId);
+                .eq('user_id', _userId), 15000);
+            if (plansErr) throw plansErr;
 
             const allEx = (allPlans || []).flatMap(p => p.workout_exercises || []);
             const allExIds = allEx.map(e => e.id);
@@ -926,13 +939,14 @@
                 return;
             }
 
-            const { data: logs } = await supabaseClient
+            const { data: logs, error: logsErr } = await _queryWithTimeout(supabaseClient
                 .from('workout_logs')
                 .select('exercise_id,log_date,set_number,reps_done,weight_done')
                 .in('exercise_id', allExIds)
                 .eq('user_id', _userId)
                 .gte('log_date', progCutoff)
-                .order('log_date', { ascending: true });
+                .order('log_date', { ascending: true }), 15000);
+            if (logsErr) throw logsErr;
 
             if (!logs?.length) {
                 c.innerHTML = '<div class="tab-empty">Nessun log registrato. Inizia ad allenarti!</div>';
