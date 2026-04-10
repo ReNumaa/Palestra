@@ -2523,21 +2523,43 @@ class WorkoutPlanStorage {
     }
 
     // Add a superset pair (two exercises linked by the same superset_group UUID)
+    // Caller can pass sort_order in ex1Data/ex2Data to force placement;
+    // otherwise maxOrder is computed from cache, or (fallback) fetched from Supabase.
     static async addSuperset(planId, ex1Data, ex2Data) {
-        const plan = this.getPlanById(planId);
-        const maxOrder = plan?.workout_exercises?.reduce((m, e) => Math.max(m, e.sort_order), -1) ?? -1;
+        let maxOrder = -1;
+        if (ex1Data.sort_order == null || ex2Data.sort_order == null) {
+            const plan = this.getPlanById(planId);
+            if (plan && Array.isArray(plan.workout_exercises) && plan.workout_exercises.length > 0) {
+                maxOrder = plan.workout_exercises.reduce((m, e) => Math.max(m, e.sort_order ?? -1), -1);
+            } else {
+                // Plan not in cache (allenamento.html / tablet.html): query Supabase
+                try {
+                    const { data } = await supabaseClient
+                        .from('workout_exercises')
+                        .select('sort_order')
+                        .eq('plan_id', planId)
+                        .order('sort_order', { ascending: false })
+                        .limit(1);
+                    maxOrder = (data && data[0]) ? data[0].sort_order : -1;
+                } catch (_) {
+                    maxOrder = -1;
+                }
+            }
+        }
         const groupId = crypto.randomUUID();
+        const so1 = ex1Data.sort_order != null ? ex1Data.sort_order : (maxOrder + 1);
+        const so2 = ex2Data.sort_order != null ? ex2Data.sort_order : (maxOrder + 2);
         // First exercise: no rest (done back-to-back)
         const first = await this.addExercise(planId, {
             ...ex1Data,
-            sort_order: maxOrder + 1,
+            sort_order: so1,
             rest_seconds: 0,
             superset_group: groupId,
         });
         // Second exercise: has the actual rest
         const second = await this.addExercise(planId, {
             ...ex2Data,
-            sort_order: maxOrder + 2,
+            sort_order: so2,
             superset_group: groupId,
         });
         return { first, second, superset_group: groupId };

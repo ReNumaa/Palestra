@@ -2184,12 +2184,17 @@
             const dayLabel = _pendingDayLabel || _activeDay || 'Giorno A';
             _pendingDayLabel = null;
             try {
+                // _allPlan non è nella cache WorkoutPlanStorage: calcola sort_order qui
+                // per posizionare la super serie in fondo alla lista come gli esercizi singoli
+                const allExercises = _allPlan.workout_exercises || [];
+                const maxOrder = allExercises.reduce((m, e) => Math.max(m, e.sort_order), -1);
                 const result = await WorkoutPlanStorage.addSuperset(_allPlan.id, {
                     day_label: dayLabel,
                     exercise_name: first.name,
                     muscle_group: first.muscle_group,
                     sets: first.sets, reps: first.reps,
                     weight_kg: null, notes: null,
+                    sort_order: maxOrder + 1,
                 }, {
                     day_label: dayLabel,
                     exercise_name: second.name,
@@ -2197,6 +2202,7 @@
                     sets: second.sets, reps: second.reps,
                     rest_seconds: rest,
                     weight_kg: null, notes: null,
+                    sort_order: maxOrder + 2,
                 });
                 // Sync local _allPlan (non è nella cache WorkoutPlanStorage)
                 _allPlan.workout_exercises.push(result.first, result.second);
