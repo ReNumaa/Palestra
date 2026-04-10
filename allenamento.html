@@ -328,33 +328,17 @@
         }
 
         // ── Init ──────────────────────────────────────────────────────────
-        async function _initAllenamento() {
-            await initAuth();
+        // _initAllenamento(): full init (auth + admin check + data) — usato al
+        // primo caricamento e su bfcache restore (pageshow persisted).
+        // _refreshAllenamentoData(): solo refetch dati + render — usato sul
+        // resume da background. NON chiama initAuth perché:
+        //  1) initAuth attende INITIAL_SESSION che su un client già esistente
+        //     non viene mai più emesso → 6s di timeout fallback inutile
+        //  2) Su iOS PWA può inchiodarsi sul lock auth di Supabase
+        //  Il refresh sessione lo gestisce auth.js con il suo visibilitychange.
+        async function _refreshAllenamentoData({ isInitial = false } = {}) {
             const user = getCurrentUser();
-
-            // Redirect utenti non loggati
-            if (!user) {
-                window.location.replace('/');
-                return;
-            }
-
-            const _isAdmin = sessionStorage.getItem('adminAuth') === 'true';
-
-            // Utenti non admin: verifica che abbiano almeno una scheda attiva
-            if (!_isAdmin) {
-                const { count } = await supabaseClient.from('workout_plans')
-                    .select('id', { count: 'exact', head: true })
-                    .eq('user_id', user.id).eq('active', true);
-                if (!count) {
-                    window.location.replace('/');
-                    return;
-                }
-            }
-
-            // Mostra FAB per creare scheda
-            const fab = document.getElementById('allFabCreate');
-            if (fab) fab.style.display = '';
-
+            if (!user) return;
             try {
                 await _loadAllExDB();
 
@@ -413,9 +397,43 @@
                 else if (_allView === 'pdf') renderPdfDownload();
                 else renderScheda();
             } catch (e) {
-                console.error('[Allenamento] init error:', e);
-                document.getElementById('allContent').innerHTML = '<div class="all-empty">Errore caricamento scheda.</div>';
+                console.warn('[Allenamento] data refresh failed:', e);
+                // Su init mostra l'errore. Su resume tieni l'UI esistente
+                // (l'utente vede ancora i suoi dati cached, prossimo refresh riproverà).
+                if (isInitial) {
+                    document.getElementById('allContent').innerHTML = '<div class="all-empty">Errore caricamento scheda.</div>';
+                }
             }
+        }
+
+        async function _initAllenamento() {
+            await initAuth();
+            const user = getCurrentUser();
+
+            // Redirect utenti non loggati
+            if (!user) {
+                window.location.replace('/');
+                return;
+            }
+
+            const _isAdmin = sessionStorage.getItem('adminAuth') === 'true';
+
+            // Utenti non admin: verifica che abbiano almeno una scheda attiva
+            if (!_isAdmin) {
+                const { count } = await supabaseClient.from('workout_plans')
+                    .select('id', { count: 'exact', head: true })
+                    .eq('user_id', user.id).eq('active', true);
+                if (!count) {
+                    window.location.replace('/');
+                    return;
+                }
+            }
+
+            // Mostra FAB per creare scheda
+            const fab = document.getElementById('allFabCreate');
+            if (fab) fab.style.display = '';
+
+            await _refreshAllenamentoData({ isInitial: true });
         }
         _initAllenamento();
 
@@ -452,10 +470,15 @@
             await new Promise(r => setTimeout(r, 800));
             // Re-check dopo l'attesa: l'utente potrebbe aver aperto un modal nel frattempo
             if (_allHasOpenOverlay() || _allHasFocusedInput()) return;
-            _initAllenamento();
+            // Solo refresh dati: NON chiamiamo initAuth (eviterebbe i 6s di
+            // timeout + il rischio deadlock sul lock Supabase su iOS PWA).
+            // Auth.js ha il suo visibilitychange separato che gestisce la sessione.
+            _refreshAllenamentoData();
         });
         // bfcache restore (back/forward cache): la pagina viene ripristinata
-        // dalla memoria senza ri-eseguire gli script — serve il pageshow per accorgersene
+        // dalla memoria senza ri-eseguire gli script — serve il pageshow per accorgersene.
+        // Qui sì initAuth completo: il bfcache potrebbe avere restituito uno stato
+        // dove anche auth.js è "addormentato" e va risvegliato esplicitamente.
         window.addEventListener('pageshow', (e) => {
             if (!e.persisted) return;
             if (_allHasOpenOverlay() || _allHasFocusedInput()) return;
