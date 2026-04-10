@@ -11,11 +11,13 @@ let _exercisesDBLoaded = false;
 async function _loadExercisesDB() {
     if (_exercisesDBLoaded) return;
     try {
+        // Timeout 30s: la tabella imported_exercises puo' crescere e la SELECT *
+        // con order by su due colonne a volte supera i 12s di default su reti lente.
         const { data, error } = await _queryWithTimeout(supabaseClient
             .from('imported_exercises')
             .select('*')
             .order('categoria')
-            .order('nome_it'));
+            .order('nome_it'), 30000);
         if (error) throw error;
         // Normalize field names for backward compat with picker
         EXERCISES_DB = (data || []).map(e => ({

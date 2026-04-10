@@ -2463,7 +2463,9 @@ class WorkoutPlanStorage {
             }
             query = query.order('updated_at', { ascending: false });
 
-            const { data, error } = await _queryWithTimeout(query);
+            // Timeout 30s: query pesante (join workout_exercises su tutti i piani).
+            // In admin mode carica 30+ piani e puo' superare i 12s di default.
+            const { data, error } = await _queryWithTimeout(query, 30000);
             if (error) { console.error('[Supabase] WorkoutPlanStorage.sync error:', error.message); return; }
 
             // Sort exercises within each plan by sort_order
