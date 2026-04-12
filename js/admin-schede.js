@@ -16,7 +16,7 @@ async function _loadExercisesDB() {
         try {
             // Riusa la cache di Importa se gia' caricata (stessa tabella, evita query duplicata)
             let rawData;
-            if (typeof _importaImportedLoaded !== 'undefined' && _importaImportedLoaded && _importaImported.length > 0) {
+            if (typeof _importaImportedLoaded !== 'undefined' && _importaImportedLoaded) {
                 rawData = _importaImported;
             } else {
                 const { data, error } = await _queryWithTimeout(supabaseClient

@@ -2433,7 +2433,6 @@ function hasPushEnabled(userId) {
 // ═══════════════════════════════════════════════════════════════════════════════
 class WorkoutPlanStorage {
     static _cache = [];           // array of plan objects with nested exercises
-    static _suggestions = [];     // autocomplete exercise names
 
     static getAllPlans() { return this._cache; }
 
@@ -2666,16 +2665,6 @@ class WorkoutPlanStorage {
         }
     }
 
-    // ── Exercise suggestions (autocomplete) ──────────────────────────────────
-    static async loadSuggestions() {
-        try {
-            const { data, error } = await _rpcWithTimeout(
-                supabaseClient.rpc('get_exercise_suggestions'), 12000);
-            if (!error && data) this._suggestions = data.map(r => r.exercise_name);
-        } catch (e) { console.warn('[WorkoutPlanStorage] loadSuggestions failed:', e); }
-    }
-
-    static getSuggestions() { return this._suggestions; }
 }
 
 // ═══════════════════════════════════════════════════════════════════════════════
