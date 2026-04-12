@@ -279,7 +279,7 @@
 
 .nt-why-points {
     display: grid;
-    grid-template-columns: repeat(3, 1fr);
+    grid-template-columns: repeat(2, 1fr);
     gap: 1.5rem;
 }
 
@@ -446,5 +446,108 @@
 @media (min-width: 769px) {
     .nt-hero-title {
         font-size: 2.4rem;
+    }
+}
+
+/* Hero eyebrow */
+.nt-hero-eyebrow {
+    font-size: 0.78rem;
+    text-transform: uppercase;
+    letter-spacing: 3px;
+    color: var(--primary-cyan);
+    font-weight: 700;
+    margin-bottom: 1rem;
+    opacity: 0.9;
+}
+
+/* Professionals grid */
+.nt-professionals {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 1rem;
+    max-width: 480px;
+    margin: 1.5rem auto;
+}
+
+.nt-professional {
+    background: #f8f9fa;
+    border-radius: 12px;
+    padding: 1rem 1.25rem;
+    border: 1px solid #eee;
+    text-align: left;
+}
+
+.nt-professional-name {
+    font-weight: 700;
+    font-size: 0.95rem;
+    color: var(--dark-bg);
+    margin: 0 0 0.2rem;
+}
+
+.nt-professional-role {
+    font-size: 0.78rem;
+    color: var(--primary-cyan);
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+    margin: 0;
+}
+
+/* Why check */
+.nt-why-check {
+    width: 36px;
+    height: 36px;
+    background: var(--primary-cyan);
+    color: white;
+    border-radius: 50%;
+    font-size: 1rem;
+    font-weight: 800;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    margin: 0 auto 0.6rem;
+    flex-shrink: 0;
+}
+
+/* Results grid */
+.nt-results-grid {
+    display: grid;
+    grid-template-columns: repeat(2, 1fr);
+    gap: 1.25rem;
+    max-width: 640px;
+    margin: 2rem auto 0;
+}
+
+.nt-result-item {
+    background: white;
+    border-radius: 14px;
+    padding: 1.5rem;
+    box-shadow: 0 4px 20px rgba(0,0,0,0.06);
+    border: 1px solid #f0f0f0;
+}
+
+.nt-result-number {
+    font-size: 2.4rem;
+    font-weight: 900;
+    color: rgba(0,174,239,0.18);
+    line-height: 1;
+    margin-bottom: 0.5rem;
+}
+
+.nt-result-item p {
+    color: #333;
+    font-size: 0.95rem;
+    line-height: 1.55;
+    margin: 0;
+    font-weight: 600;
+}
+
+@media (max-width: 768px) {
+    .nt-professionals {
+        grid-template-columns: 1fr;
+    }
+
+    .nt-results-grid {
+        grid-template-columns: 1fr;
     }
 }

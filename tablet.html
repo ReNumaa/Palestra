@@ -305,8 +305,8 @@
         try {
             // Step 1: profile + plan in parallel
             const [profileRes, plansRes] = await Promise.all([
-                supabaseClient.from('profiles').select('name, email').eq('id', userId).single(),
-                supabaseClient.from('workout_plans').select('*, workout_exercises(*)').eq('user_id', userId).eq('active', true).order('updated_at', { ascending: false }).limit(1)
+                _queryWithTimeout(supabaseClient.from('profiles').select('name, email').eq('id', userId).single()),
+                _queryWithTimeout(supabaseClient.from('workout_plans').select('*, workout_exercises(*)').eq('user_id', userId).eq('active', true).order('updated_at', { ascending: false }).limit(1))
             ]);
 
             _userName = profileRes.data?.name || profileRes.data?.email || 'Utente';
@@ -327,12 +327,12 @@
             const exNames = [...new Set(_exercises.map(e => e.exercise_name))];
             const cutoff = _localDate(new Date(Date.now() - 30 * 86400000));
             const logsPromise = exIds.length
-                ? supabaseClient.from('workout_logs')
+                ? _queryWithTimeout(supabaseClient.from('workout_logs')
                     .select('id,exercise_id,user_id,log_date,set_number,reps_done,weight_done,rpe')
                     .in('exercise_id', exIds).eq('user_id', userId)
                     .gte('log_date', cutoff)
                     .order('log_date', { ascending: false })
-                    .order('set_number', { ascending: true })
+                    .order('set_number', { ascending: true }))
                 : Promise.resolve({ data: [] });
 
             const [, logsRes] = await Promise.all([
@@ -369,8 +369,8 @@
         if (_exDBLoaded) return;
         try {
             // Load ALL exercises for picker support
-            const { data } = await supabaseClient.from('imported_exercises')
-                .select('nome_it, nome_en, categoria, slug, immagine, immagine_thumbnail, video');
+            const { data } = await _queryWithTimeout(supabaseClient.from('imported_exercises')
+                .select('nome_it, nome_en, categoria, slug, immagine, immagine_thumbnail, video'));
             _exDB = (data || []).map(e => ({
                 nome_it: e.nome_it, nome_en: e.nome_en || '', categoria: e.categoria,
                 slug: e.slug, img: e.immagine_thumbnail || e.immagine || '',
@@ -799,7 +799,10 @@
                 updates.reps = document.getElementById('tabEditReps')?.value.trim() || '10';
             }
 
-            await supabaseClient.from('workout_exercises').update(updates).eq('id', exId);
+            const { error: saveErr } = await _queryWithTimeout(
+                supabaseClient.from('workout_exercises').update(updates).eq('id', exId)
+            );
+            if (saveErr) throw saveErr;
 
             const ex = (_plan?.workout_exercises || []).find(e => e.id === exId);
             if (ex) Object.assign(ex, updates);
@@ -810,6 +813,7 @@
         } catch (err) {
             console.error('Errore salvataggio:', err);
             alert('Errore nel salvataggio');
+        } finally {
             if (btn) { btn.disabled = false; btn.textContent = 'Salva modifiche'; }
         }
     }
@@ -854,9 +858,12 @@
                     rpe: null, notes: null
                 });
             }
-            const { data } = await supabaseClient.from('workout_logs')
-                .upsert(batch, { onConflict: 'exercise_id,user_id,log_date,set_number' })
-                .select();
+            const { data, error: logErr } = await _queryWithTimeout(
+                supabaseClient.from('workout_logs')
+                    .upsert(batch, { onConflict: 'exercise_id,user_id,log_date,set_number' })
+                    .select()
+            );
+            if (logErr) throw logErr;
             if (data) {
                 _logs = _logs.filter(l => !(l.exercise_id === exId && l.log_date === today));
                 _logs.push(...data);
@@ -903,15 +910,19 @@
         try {
             const todayForEx = _logs.filter(l => l.exercise_id === exId && l.log_date === today);
             for (const log of todayForEx) {
-                await supabaseClient.from('workout_logs').delete().eq('id', log.id);
+                const { error: delErr } = await _queryWithTimeout(
+                    supabaseClient.from('workout_logs').delete().eq('id', log.id)
+                );
+                if (delErr) throw delErr;
             }
             _logs = _logs.filter(l => !(l.exercise_id === exId && l.log_date === today));
             _toast('Log eliminato');
             renderTabScheda();
         } catch(e) {
             console.error('[Tablet] delete error:', e);
-            btn.disabled = false;
             _toast('Errore eliminazione', 'error');
+        } finally {
+            if (btn) btn.disabled = false;
         }
     }
 
@@ -1364,11 +1375,13 @@
                 rest_seconds: rest,
                 notes: null,
             };
-            const { data: newEx, error } = await supabaseClient
-                .from('workout_exercises')
-                .insert(exerciseData)
-                .select()
-                .single();
+            const { data: newEx, error } = await _queryWithTimeout(
+                supabaseClient
+                    .from('workout_exercises')
+                    .insert(exerciseData)
+                    .select()
+                    .single()
+            );
             if (error) throw error;
             _exercises.push(newEx);
             _plan.workout_exercises = _exercises;
@@ -1469,10 +1482,12 @@
                     superset_group: groupId,
                 },
             ];
-            const { data, error } = await supabaseClient
-                .from('workout_exercises')
-                .insert(rows)
-                .select();
+            const { data, error } = await _queryWithTimeout(
+                supabaseClient
+                    .from('workout_exercises')
+                    .insert(rows)
+                    .select()
+            );
             if (error) throw error;
             _exercises.push(...data);
             _plan.workout_exercises = _exercises;
@@ -1673,10 +1688,12 @@
             for (let i = 0; i < newOrder.length; i++) {
                 const newSort = base + i;
                 if (newOrder[i].sort_order !== newSort) {
-                    const { error } = await supabaseClient
-                        .from('workout_exercises')
-                        .update({ sort_order: newSort })
-                        .eq('id', newOrder[i].id);
+                    const { error } = await _queryWithTimeout(
+                        supabaseClient
+                            .from('workout_exercises')
+                            .update({ sort_order: newSort })
+                            .eq('id', newOrder[i].id)
+                    );
                     if (error) throw error;
                     newOrder[i].sort_order = newSort;
                 }
@@ -1694,10 +1711,12 @@
     async function deleteExerciseFromTabPlan(exId) {
         if (!confirm('Eliminare questo esercizio dalla scheda?')) return;
         try {
-            const { error } = await supabaseClient
-                .from('workout_exercises')
-                .delete()
-                .eq('id', exId);
+            const { error } = await _queryWithTimeout(
+                supabaseClient
+                    .from('workout_exercises')
+                    .delete()
+                    .eq('id', exId)
+            );
             if (error) throw error;
             _exercises = _exercises.filter(e => e.id !== exId);
             if (_plan) _plan.workout_exercises = _exercises;
@@ -1712,10 +1731,12 @@
     async function deleteSupersetFromTabPlan(groupId) {
         if (!confirm('Eliminare questa super serie dalla scheda?')) return;
         try {
-            const { error } = await supabaseClient
-                .from('workout_exercises')
-                .delete()
-                .eq('superset_group', groupId);
+            const { error } = await _queryWithTimeout(
+                supabaseClient
+                    .from('workout_exercises')
+                    .delete()
+                    .eq('superset_group', groupId)
+            );
             if (error) throw error;
             _exercises = _exercises.filter(e => e.superset_group !== groupId);
             if (_plan) _plan.workout_exercises = _exercises;
@@ -1730,6 +1751,61 @@
     // ── PWA: register service worker ──────────────────────────────────────
     if ('serviceWorker' in navigator) {
         navigator.serviceWorker.register('/sw.js').catch(() => {});
+    }
+
+    // ── Lifecycle: recovery da background/offline ─────────────────────────
+    // Quando il tablet torna in foreground (lock screen, multitasking) o
+    // riconnette la rete, aggiorniamo i log per evitare stati stantii che
+    // altrimenti richiedono un reload manuale.
+    document.addEventListener('visibilitychange', () => {
+        if (document.visibilityState === 'visible' && _userId) _refreshLogsFromBg();
+    });
+    window.addEventListener('pageshow', (e) => {
+        if (e.persisted && _userId) _refreshLogsFromBg();
+    });
+    window.addEventListener('online', () => {
+        if (_userId) _refreshLogsFromBg();
+    });
+
+    async function _refreshLogsFromBg() {
+        if (!_userId || !_plan) return;
+        try {
+            // Ricarica piano + esercizi (possono essere cambiati durante il background:
+            // edit, aggiunta, rimozione, riordino)
+            const { data: planData, error: planErr } = await _queryWithTimeout(
+                supabaseClient.from('workout_plans')
+                    .select('*, workout_exercises(*)')
+                    .eq('id', _plan.id)
+                    .single()
+            );
+            if (planErr) throw planErr;
+            if (planData) {
+                _plan = planData;
+                _exercises = (_plan.workout_exercises || []).sort((a, b) => a.sort_order - b.sort_order);
+            }
+
+            // Ricarica log (ultimi 30 gg) con gli exercise_id aggiornati
+            const exIds = _exercises.map(e => e.id);
+            if (exIds.length) {
+                const cutoff = _localDate(new Date(Date.now() - 30 * 86400000));
+                const { data: logsData, error: logsErr } = await _queryWithTimeout(
+                    supabaseClient.from('workout_logs')
+                        .select('id,exercise_id,user_id,log_date,set_number,reps_done,weight_done,rpe')
+                        .in('exercise_id', exIds).eq('user_id', _userId)
+                        .gte('log_date', cutoff)
+                        .order('log_date', { ascending: false })
+                        .order('set_number', { ascending: true })
+                );
+                if (logsErr) throw logsErr;
+                if (logsData) _logs = logsData;
+            } else {
+                _logs = [];
+            }
+
+            if (_tabView === 'scheda') renderTabScheda();
+        } catch(e) {
+            console.warn('[Tablet] bg refresh failed', e);
+        }
     }
     </script>
 </body>

@@ -25,10 +25,10 @@ async function renderMaintenanceUI() {
     if (!toggle) return;
 
     try {
-        const { data } = await supabaseClient
+        const { data } = await _queryWithTimeout(supabaseClient
             .from('app_settings')
             .select('key, value')
-            .in('key', ['maintenance_mode', 'maintenance_message', 'maintenance_admin']);
+            .in('key', ['maintenance_mode', 'maintenance_message', 'maintenance_admin']));
         const flags = Object.fromEntries((data || []).map(r => [r.key, r.value]));
 
         const modeOn = flags.maintenance_mode === true || flags.maintenance_mode === 'true';
@@ -44,11 +44,22 @@ async function renderMaintenanceUI() {
 }
 
 async function saveMaintenanceMode(val) {
+    const toggle = document.getElementById('maintenanceModeToggle');
     const text = document.getElementById('maintenanceModeText');
     if (text) text.textContent = val ? 'Attiva' : 'Non attiva';
     const now = new Date().toISOString();
-    await supabaseClient.from('app_settings').upsert({ key: 'maintenance_mode', value: val, updated_at: now });
-    showToast(val ? '🔧 Manutenzione attivata' : '✅ Manutenzione disattivata', val ? 'error' : 'success');
+    try {
+        const { error } = await _queryWithTimeout(
+            supabaseClient.from('app_settings').upsert({ key: 'maintenance_mode', value: val, updated_at: now })
+        );
+        if (error) throw error;
+        showToast(val ? '🔧 Manutenzione attivata' : '✅ Manutenzione disattivata', val ? 'error' : 'success');
+    } catch (e) {
+        console.error('[Maintenance] saveMode error:', e);
+        if (toggle) toggle.checked = !val;
+        if (text) text.textContent = !val ? 'Attiva' : 'Non attiva';
+        showToast('Errore salvataggio manutenzione', 'error');
+    }
 }
 
 async function saveMaintenanceAdmin(val) {
@@ -64,17 +75,35 @@ async function saveMaintenanceAdmin(val) {
     const text = document.getElementById('maintenanceAdminText');
     if (text) text.textContent = val ? 'Admin bloccato' : 'Admin accessibile';
     const now = new Date().toISOString();
-    await supabaseClient.from('app_settings').upsert({ key: 'maintenance_admin', value: val, updated_at: now });
-    showToast(val ? '⚠️ Admin bloccato — sblocca da Supabase' : '✅ Admin sbloccato', val ? 'error' : 'success');
+    try {
+        const { error } = await _queryWithTimeout(
+            supabaseClient.from('app_settings').upsert({ key: 'maintenance_admin', value: val, updated_at: now })
+        );
+        if (error) throw error;
+        showToast(val ? '⚠️ Admin bloccato — sblocca da Supabase' : '✅ Admin sbloccato', val ? 'error' : 'success');
+    } catch (e) {
+        console.error('[Maintenance] saveAdmin error:', e);
+        if (toggle) toggle.checked = !val;
+        if (text) text.textContent = !val ? 'Admin bloccato' : 'Admin accessibile';
+        showToast('Errore salvataggio', 'error');
+    }
 }
 
 async function saveMaintenanceMessage() {
     const input = document.getElementById('maintenanceMessageInput');
     const msg = (input?.value || '').trim();
     const now = new Date().toISOString();
-    await supabaseClient.from('app_settings').upsert({ key: 'maintenance_message', value: msg, updated_at: now });
-    const savedMsg = document.getElementById('maintenanceMessageSaved');
-    if (savedMsg) { savedMsg.style.display = 'block'; setTimeout(() => { savedMsg.style.display = 'none'; }, 2000); }
+    try {
+        const { error } = await _queryWithTimeout(
+            supabaseClient.from('app_settings').upsert({ key: 'maintenance_message', value: msg, updated_at: now })
+        );
+        if (error) throw error;
+        const savedMsg = document.getElementById('maintenanceMessageSaved');
+        if (savedMsg) { savedMsg.style.display = 'block'; setTimeout(() => { savedMsg.style.display = 'none'; }, 2000); }
+    } catch (e) {
+        console.error('[Maintenance] saveMessage error:', e);
+        showToast('Errore salvataggio messaggio', 'error');
+    }
 }
 
 function saveCancellationMode(mode) {
@@ -430,7 +459,7 @@ async function runHealthCheck() {
     resultEl.style.display = 'none';
 
     try {
-        const { data, error } = await supabaseClient.rpc('admin_health_check');
+        const { data, error } = await _rpcWithTimeout(supabaseClient.rpc('admin_health_check'), 30000);
         if (error) throw new Error(error.message);
         if (!data.success) throw new Error(data.error || 'Errore sconosciuto');
 
@@ -483,7 +512,7 @@ async function runHealthFix() {
     btn.textContent = '⏳ Correzione in corso...';
 
     try {
-        const { data, error } = await supabaseClient.rpc('admin_health_fix');
+        const { data, error } = await _rpcWithTimeout(supabaseClient.rpc('admin_health_fix'), 30000);
         if (error) throw new Error(error.message);
         if (!data.success) throw new Error(data.error || 'Errore sconosciuto');
 

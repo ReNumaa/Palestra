@@ -531,7 +531,7 @@ function _showSlotChangePopup(timeSlot, newType, bookings) {
                 // Sync to Supabase with await
                 if (typeof supabaseClient !== 'undefined' && bk._sbId) {
                     try {
-                        const { data: rpcData, error: rpcErr } = await supabaseClient.rpc('admin_update_booking', {
+                        const { data: rpcData, error: rpcErr } = await _rpcWithTimeout(supabaseClient.rpc('admin_update_booking', {
                             p_booking_id:                bk._sbId,
                             p_status:                    'cancelled',
                             p_paid:                      false,
@@ -546,7 +546,7 @@ function _showSlotChangePopup(timeSlot, newType, bookings) {
                             p_cancelled_with_penalty:    false,
                             p_cancelled_refund_pct:      null,
                             p_expected_updated_at:       bk.updatedAt || null,
-                        });
+                        }));
                         if (rpcErr) {
                             console.error('[SlotChange] admin_update_booking error:', rpcErr.message);
                             cancelErrors.push(b.name);
@@ -589,8 +589,13 @@ function _showSlotChangePopup(timeSlot, newType, bookings) {
 
         } catch (e) {
             resultDiv.innerHTML = `<div style="color:#dc2626; font-size:0.85rem;">❌ Errore: ${_escHtml(e.message)}</div>`;
-            confirmBtn.disabled = false;
-            confirmBtn.textContent = 'Conferma annullamento';
+        } finally {
+            // Ri-abilita il bottone solo se non siamo già nello stato successo
+            // (stato successo: testo cambiato e popup si auto-chiude dopo 2.5s)
+            if (confirmBtn && confirmBtn.textContent !== '✅ Fatto') {
+                confirmBtn.disabled = false;
+                confirmBtn.textContent = 'Conferma annullamento';
+            }
         }
     });
 }

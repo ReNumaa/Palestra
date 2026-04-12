@@ -333,17 +333,19 @@ async function _importaAdd(slug) {
     if (btn) { btn.disabled = true; btn.textContent = '...'; }
 
     try {
-        const { error } = await supabaseClient.from('imported_exercises').insert({
-            slug: ex.slug,
-            nome_it: ex.nome,
-            nome_original: ex.nome,
-            nome_en: ex.nome_en || null,
-            categoria: ex.categoria,
-            immagine: ex.immagine || null,
-            immagine_thumbnail: ex.immagine_thumbnail || null,
-            video: ex.video || null,
-            popolarita: ex.popolarita || 0
-        });
+        const { error } = await _queryWithTimeout(
+            supabaseClient.from('imported_exercises').insert({
+                slug: ex.slug,
+                nome_it: ex.nome,
+                nome_original: ex.nome,
+                nome_en: ex.nome_en || null,
+                categoria: ex.categoria,
+                immagine: ex.immagine || null,
+                immagine_thumbnail: ex.immagine_thumbnail || null,
+                video: ex.video || null,
+                popolarita: ex.popolarita || 0
+            })
+        );
         if (error) throw error;
 
         // Invalida cache e ricarica
@@ -357,6 +359,7 @@ async function _importaAdd(slug) {
     } catch (e) {
         console.error('[Importa] Insert error:', e);
         alert('Errore durante l\'importazione: ' + (e.message || e));
+    } finally {
         if (btn) { btn.disabled = false; btn.textContent = '+ Importa'; }
     }
 }
@@ -365,8 +368,14 @@ async function _importaAdd(slug) {
 async function _importaRemove(slug) {
     if (!confirm('Rimuovere questo esercizio dagli importati?\nNon sarà più disponibile nel picker delle schede.')) return;
 
+    const card = document.querySelector(`.importa-card[data-slug="${slug}"]`);
+    const btn = card?.querySelector('.importa-btn--remove');
+    if (btn) { btn.disabled = true; btn.textContent = '...'; }
+
     try {
-        const { error } = await supabaseClient.from('imported_exercises').delete().eq('slug', slug);
+        const { error } = await _queryWithTimeout(
+            supabaseClient.from('imported_exercises').delete().eq('slug', slug)
+        );
         if (error) throw error;
 
         _importaImportedLoaded = false;
@@ -378,6 +387,8 @@ async function _importaRemove(slug) {
     } catch (e) {
         console.error('[Importa] Delete error:', e);
         alert('Errore: ' + (e.message || e));
+    } finally {
+        if (btn) { btn.disabled = false; btn.textContent = '✕ Rimuovi'; }
     }
 }
 
@@ -390,10 +401,12 @@ async function _importaRename(slug) {
     if (!newName || newName.trim() === imp.nome_it) return;
 
     try {
-        const { error } = await supabaseClient
-            .from('imported_exercises')
-            .update({ nome_it: newName.trim() })
-            .eq('slug', slug);
+        const { error } = await _queryWithTimeout(
+            supabaseClient
+                .from('imported_exercises')
+                .update({ nome_it: newName.trim() })
+                .eq('slug', slug)
+        );
         if (error) throw error;
 
         _importaImportedLoaded = false;
