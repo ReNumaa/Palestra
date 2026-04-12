@@ -153,6 +153,7 @@
             _saveOpsQueue(q);
         }
         function _dequeueOp(opId) { _saveOpsQueue(_getOpsQueue().filter(o => o.id !== opId)); }
+        function _hasPendingOp(opId) { return _getOpsQueue().some(o => o.id === opId); }
 
         // Restituisce il numero di operazioni completate con successo
         async function flushPendingWorkoutOps() {
@@ -369,8 +370,15 @@
                 renderScheda();
             } catch (err) {
                 console.error('Errore salvataggio:', err);
-                alert('Errore nel salvataggio');
-                if (btn) { btn.disabled = false; btn.textContent = 'Salva modifiche'; }
+                // Se l'op non è più in coda, il flush l'ha già completata in background
+                if (!_hasPendingOp('ex:' + exId)) {
+                    _refreshAllenamentoData();
+                    document.getElementById('editExOverlay')?.remove();
+                    document.body.style.overflow = '';
+                } else {
+                    if (btn) { btn.disabled = false; btn.textContent = 'Salva modifiche'; }
+                    alert('Errore nel salvataggio');
+                }
             }
         }
 
@@ -1040,9 +1048,22 @@
                 setTimeout(() => { btn.textContent = 'Salva'; btn.disabled = false; btn.classList.remove('all-log-save--done'); }, 2000);
             } catch (e) {
                 console.error('[Allenamento] log error:', e);
-                btn.textContent = 'Salva';
-                btn.disabled = false;
-                if (typeof showToast === 'function') showToast('Errore salvataggio', 'error');
+                // Se l'op non è più in coda, il flush l'ha già completata mentre eravamo
+                // in background: non mostrare falso errore, aggiorna la UI come successo
+                const opId = exerciseId + ':' + today;
+                const alreadySaved = !_hasPendingOp(opId) ||
+                    WorkoutLogStorage.getByExercise(exerciseId).some(l => l.log_date === today);
+                if (alreadySaved) {
+                    _refreshAllenamentoData();
+                    btn.textContent = 'Salvato!';
+                    btn.disabled = false;
+                    btn.classList.add('all-log-save--done');
+                    setTimeout(() => { btn.textContent = 'Salva'; btn.classList.remove('all-log-save--done'); }, 2000);
+                } else {
+                    btn.textContent = 'Salva';
+                    btn.disabled = false;
+                    if (typeof showToast === 'function') showToast('Errore salvataggio', 'error');
+                }
             }
         }
 
