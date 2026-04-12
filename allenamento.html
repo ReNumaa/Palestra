@@ -154,11 +154,13 @@
         }
         function _dequeueOp(opId) { _saveOpsQueue(_getOpsQueue().filter(o => o.id !== opId)); }
 
+        // Restituisce il numero di operazioni completate con successo
         async function flushPendingWorkoutOps() {
             const q = _getOpsQueue();
-            if (!q.length) return;
+            if (!q.length) return 0;
             const user = getCurrentUser();
-            if (!user) return;
+            if (!user) return 0;
+            let flushed = 0;
             console.log(`[PendingOps] flush: ${q.length} op(s) pendenti`);
             for (const op of [...q]) {
                 try {
@@ -176,16 +178,19 @@
                             });
                         }
                         _dequeueOp(op.id);
+                        flushed++;
                         console.log('[PendingOps] save_log completato:', op.exerciseId, op.logDate);
                     } else if (op.type === 'save_edit_exercise') {
                         await WorkoutPlanStorage.updateExercise(op.exId, op.updates);
                         _dequeueOp(op.id);
+                        flushed++;
                         console.log('[PendingOps] save_edit_exercise completato:', op.exId);
                     }
                 } catch (e) {
                     console.warn('[PendingOps] op fallita, riprovo al prossimo flush:', op.type, e.message);
                 }
             }
+            return flushed;
         }
 
         // ── Exercise catalog from imported_exercises (Supabase) ────────────
@@ -526,18 +531,35 @@
         }
         document.addEventListener('visibilitychange', async () => {
             if (document.hidden) { _allLastHidden = Date.now(); return; }
-            // Ignora micro-switch (<30s): inutile rifare tutto e rischiare race
             const bgSec = _allLastHidden ? (Date.now() - _allLastHidden) / 1000 : 0;
-            if (bgSec < 30) return;
-            if (_allHasOpenOverlay() || _allHasFocusedInput()) return;
+            if (bgSec < 1) return; // ignora micro-switch assoluti (<1s)
             // Aspetta che auth.js (che ha il suo visibilitychange a 500ms)
             // finisca il suo lavoro sul lock Supabase prima di partire noi
             await new Promise(r => setTimeout(r, 800));
-            // Re-check dopo l'attesa: l'utente potrebbe aver aperto un modal nel frattempo
+            // Flush sempre al ritorno, indipendentemente da bgSec:
+            // anche un background breve può aver lasciato ops pendenti
+            const flushed = await flushPendingWorkoutOps();
+            if (flushed > 0) {
+                // Resetta bottoni bloccati su "Salvataggio..." dalla sessione interrotta
+                document.querySelectorAll('.all-log-save').forEach(btn => {
+                    if (btn.textContent === 'Salvataggio...') {
+                        btn.textContent = 'Salva';
+                        btn.disabled = false;
+                        btn.classList.remove('all-log-save--done');
+                    }
+                });
+                const editBtn = document.querySelector('.all-edit-save');
+                if (editBtn && editBtn.textContent === 'Salvataggio...') {
+                    editBtn.disabled = false;
+                    editBtn.textContent = 'Salva modifiche';
+                }
+                // Refresh completo per allineare UI con i dati appena scritti
+                _refreshAllenamentoData();
+                return;
+            }
+            // Nessuna op pendente: refresh standard solo se >30s e nessun overlay
+            if (bgSec < 30) return;
             if (_allHasOpenOverlay() || _allHasFocusedInput()) return;
-            // Solo refresh dati: NON chiamiamo initAuth (eviterebbe i 6s di
-            // timeout + il rischio deadlock sul lock Supabase su iOS PWA).
-            // Auth.js ha il suo visibilitychange separato che gestisce la sessione.
             _refreshAllenamentoData();
         });
         // bfcache restore (back/forward cache): la pagina viene ripristinata
