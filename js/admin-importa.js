@@ -352,7 +352,7 @@ async function _importaAdd(slug) {
         _importaImportedLoaded = false;
         await _loadImportaImported();
         // Also refresh schede DB if loaded
-        if (typeof _refreshSchedeFromImported === 'function') _refreshSchedeFromImported();
+        if (typeof _refreshSchedeFromImported === 'function') await _refreshSchedeFromImported();
 
         const container = document.getElementById('importaContainer');
         if (container) _renderImportaUI(container);
@@ -380,7 +380,7 @@ async function _importaRemove(slug) {
 
         _importaImportedLoaded = false;
         await _loadImportaImported();
-        if (typeof _refreshSchedeFromImported === 'function') _refreshSchedeFromImported();
+        if (typeof _refreshSchedeFromImported === 'function') await _refreshSchedeFromImported();
 
         const container = document.getElementById('importaContainer');
         if (container) _renderImportaUI(container);
@@ -411,7 +411,7 @@ async function _importaRename(slug) {
 
         _importaImportedLoaded = false;
         await _loadImportaImported();
-        if (typeof _refreshSchedeFromImported === 'function') _refreshSchedeFromImported();
+        if (typeof _refreshSchedeFromImported === 'function') await _refreshSchedeFromImported();
 
         const container = document.getElementById('importaContainer');
         if (container) _renderImportaUI(container);

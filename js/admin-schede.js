@@ -7,43 +7,48 @@ let EXERCISES_DB = [];          // populated by _loadExercisesDB()
 let EXERCISES_BY_CAT = {};      // { 'Petto': [...], ... }
 let EXERCISE_CATEGORIES = [];   // unique sorted categories
 let _exercisesDBLoaded = false;
+let _loadExercisesDBPromise = null; // singleton: evita query concorrenti
 
 async function _loadExercisesDB() {
     if (_exercisesDBLoaded) return;
-    try {
-        // Timeout 30s: la tabella imported_exercises puo' crescere e la SELECT *
-        // con order by su due colonne a volte supera i 12s di default su reti lente.
-        const { data, error } = await _queryWithTimeout(supabaseClient
-            .from('imported_exercises')
-            .select('*')
-            .order('categoria')
-            .order('nome_it'), 30000);
-        if (error) throw error;
-        // Normalize field names for backward compat with picker
-        EXERCISES_DB = (data || []).map(e => ({
-            nome_it: e.nome_it,
-            nome_en: e.nome_en || '',
-            categoria: e.categoria,
-            slug: e.slug,
-            immagine_url: e.immagine || '',
-            immagine_url_small: e.immagine_thumbnail || e.immagine || '',
-            video_url: e.video || '',
-            popolarita: e.popolarita || 0
-        }));
-        EXERCISES_BY_CAT = {};
-        for (const ex of EXERCISES_DB) {
-            if (!EXERCISES_BY_CAT[ex.categoria]) EXERCISES_BY_CAT[ex.categoria] = [];
-            EXERCISES_BY_CAT[ex.categoria].push(ex);
-        }
-        EXERCISE_CATEGORIES = Object.keys(EXERCISES_BY_CAT).sort();
-        _exercisesDBLoaded = true;
-    } catch (e) { console.error('[Schede] Failed to load exercises DB:', e); }
+    if (_loadExercisesDBPromise) return _loadExercisesDBPromise;
+    _loadExercisesDBPromise = (async () => {
+        try {
+            // Timeout 30s: la tabella imported_exercises puo' crescere e la SELECT *
+            // con order by su due colonne a volte supera i 12s di default su reti lente.
+            const { data, error } = await _queryWithTimeout(supabaseClient
+                .from('imported_exercises')
+                .select('*')
+                .order('categoria')
+                .order('nome_it'), 30000);
+            if (error) throw error;
+            // Normalize field names for backward compat with picker
+            EXERCISES_DB = (data || []).map(e => ({
+                nome_it: e.nome_it,
+                nome_en: e.nome_en || '',
+                categoria: e.categoria,
+                slug: e.slug,
+                immagine_url: e.immagine || '',
+                immagine_url_small: e.immagine_thumbnail || e.immagine || '',
+                video_url: e.video || '',
+                popolarita: e.popolarita || 0
+            }));
+            EXERCISES_BY_CAT = {};
+            for (const ex of EXERCISES_DB) {
+                if (!EXERCISES_BY_CAT[ex.categoria]) EXERCISES_BY_CAT[ex.categoria] = [];
+                EXERCISES_BY_CAT[ex.categoria].push(ex);
+            }
+            EXERCISE_CATEGORIES = Object.keys(EXERCISES_BY_CAT).sort();
+            _exercisesDBLoaded = true;
+        } catch (e) { console.error('[Schede] Failed to load exercises DB:', e); }
+    })();
+    try { await _loadExercisesDBPromise; } finally { _loadExercisesDBPromise = null; }
 }
 
 // Refresh after import/remove in Importa tab
-function _refreshSchedeFromImported() {
+async function _refreshSchedeFromImported() {
     _exercisesDBLoaded = false;
-    _loadExercisesDB();
+    await _loadExercisesDB();
 }
 
 function _findExercise(name) {

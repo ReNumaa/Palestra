@@ -2534,7 +2534,26 @@ class WorkoutPlanStorage {
     // ── CRUD Exercises ───────────────────────────────────────────────────────
     static async addExercise(planId, exerciseData) {
         const plan = this.getPlanById(planId);
-        const maxOrder = plan?.workout_exercises?.reduce((m, e) => Math.max(m, e.sort_order), -1) ?? -1;
+        // Se sort_order non è passato esplicitamente, leggi il max reale dal DB
+        let maxOrder = -1;
+        if (exerciseData.sort_order == null) {
+            try {
+                const { data: lastEx } = await _queryWithTimeout(
+                    supabaseClient
+                        .from('workout_exercises')
+                        .select('sort_order')
+                        .eq('plan_id', planId)
+                        .order('sort_order', { ascending: false })
+                        .limit(1)
+                        .maybeSingle(),
+                    15000
+                );
+                maxOrder = lastEx?.sort_order ?? -1;
+            } catch (_) {
+                // Fallback: cache locale se la query fallisce
+                maxOrder = plan?.workout_exercises?.reduce((m, e) => Math.max(m, e.sort_order ?? -1), -1) ?? -1;
+            }
+        }
         const row = {
             plan_id: planId,
             day_label: exerciseData.day_label || 'Giorno A',
@@ -2568,21 +2587,24 @@ class WorkoutPlanStorage {
     static async addSuperset(planId, ex1Data, ex2Data) {
         let maxOrder = -1;
         if (ex1Data.sort_order == null || ex2Data.sort_order == null) {
-            const plan = this.getPlanById(planId);
-            if (plan && Array.isArray(plan.workout_exercises) && plan.workout_exercises.length > 0) {
-                maxOrder = plan.workout_exercises.reduce((m, e) => Math.max(m, e.sort_order ?? -1), -1);
-            } else {
-                // Plan not in cache (allenamento.html / tablet.html): query Supabase
-                try {
-                    const { data } = await supabaseClient
+            // Sempre dal DB per evitare sort_order stale da cache locale
+            try {
+                const { data: lastEx } = await _queryWithTimeout(
+                    supabaseClient
                         .from('workout_exercises')
                         .select('sort_order')
                         .eq('plan_id', planId)
                         .order('sort_order', { ascending: false })
-                        .limit(1);
-                    maxOrder = (data && data[0]) ? data[0].sort_order : -1;
-                } catch (_) {
-                    maxOrder = -1;
+                        .limit(1)
+                        .maybeSingle(),
+                    15000
+                );
+                maxOrder = lastEx?.sort_order ?? -1;
+            } catch (_) {
+                // Fallback: cache locale
+                const plan = this.getPlanById(planId);
+                if (plan && Array.isArray(plan.workout_exercises) && plan.workout_exercises.length > 0) {
+                    maxOrder = plan.workout_exercises.reduce((m, e) => Math.max(m, e.sort_order ?? -1), -1);
                 }
             }
         }
