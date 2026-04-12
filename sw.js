@@ -1,4 +1,4 @@
-const CACHE_NAME = 'palestra-v381';
+const CACHE_NAME = 'palestra-v382';
 
 const APP_SHELL = [
     '/',
@@ -29,6 +29,13 @@ const APP_SHELL = [
     '/js/maintenance.js',
     '/js/admin-calendar.js',
     '/js/admin-schedule.js',
+    '/js/admin-analytics.js',
+    '/js/admin-backup.js',
+    '/js/admin-messaggi.js',
+    '/js/admin-settings.js',
+    '/js/admin-payments.js',
+    '/js/admin-clients.js',
+    '/js/admin-importa.js',
     '/js/admin-schede.js',
     '/allenamento.html',
     '/css/allenamento.css',
@@ -37,6 +44,13 @@ const APP_SHELL = [
     '/manifest-tablet.json',
     '/images/logo-tb---nero.jpg',
     '/manifest.json',
+    '/index.html',
+    '/nutrizione.html',
+    '/regolamento.html',
+    '/viewer.html',
+    '/css/nutrizione.css',
+    '/css/regolamento.css',
+    '/js/supabase-client.js',
     '/privacy.html',
     '/termini.html',
 ];
