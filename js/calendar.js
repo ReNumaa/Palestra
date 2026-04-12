@@ -27,7 +27,17 @@ function _isUserEnrolledOnDate(date) {
     return all.some(b => b.date === date && b.userId === user.id && b.status === 'confirmed');
 }
 
+function _autoAdvanceWeek() {
+    if (currentWeekOffset !== 0) return;
+    const weekDates = getWeekDatesDesktop(0);
+    const hasAvailable = weekDates.some(d => dateHasAvailableSlots(d));
+    if (!hasAvailable && weekHasSlotsDesktop(1)) {
+        currentWeekOffset = 1;
+    }
+}
+
 function initCalendar() {
+    _autoAdvanceWeek();
     renderCalendar();
     renderMobileCalendar();
     setupCalendarControls();
