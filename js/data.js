@@ -2536,6 +2536,7 @@ class WorkoutPlanStorage {
             plan_id: planId,
             day_label: exerciseData.day_label || 'Giorno A',
             exercise_name: exerciseData.exercise_name,
+            exercise_slug: exerciseData.exercise_slug || null,
             muscle_group: exerciseData.muscle_group || null,
             sort_order: exerciseData.sort_order ?? (maxOrder + 1),
             sets: exerciseData.sets || 3,

@@ -48,7 +48,17 @@ function _refreshSchedeFromImported() {
 
 function _findExercise(name) {
     if (!name) return null;
-    return EXERCISES_DB.find(e => e.nome_it === name) || null;
+    return EXERCISES_DB.find(e => e.nome_it === name)
+        || EXERCISES_DB.find(e => e.nome_original === name)
+        || null;
+}
+
+function _findExerciseForCard(ex) {
+    if (ex.exercise_slug) {
+        const bySlug = EXERCISES_DB.find(e => e.slug === ex.exercise_slug);
+        if (bySlug) return bySlug;
+    }
+    return _findExercise(ex.exercise_name);
 }
 
 function _schedeCleanupPickerScroll() {
@@ -68,8 +78,10 @@ document.addEventListener('click', (e) => {
 // ── Exercise picker (replaces old select dropdowns) ──────────────────────────
 // Opens a search-panel inline within the exercise row
 
-function _buildExercisePicker(currentValue, exId, muscleGroup) {
-    const ex = _findExercise(currentValue);
+function _buildExercisePicker(currentValue, exId, muscleGroup, exerciseSlug = null) {
+    let ex = null;
+    if (exerciseSlug) ex = EXERCISES_DB.find(e => e.slug === exerciseSlug) || _findExercise(currentValue);
+    else ex = _findExercise(currentValue);
     const isCustom = currentValue && currentValue !== 'Nuovo esercizio' && !ex;
     const thumbUrl = ex ? ex.immagine_url_small : '';
     const displayName = isCustom ? currentValue : (ex ? ex.nome_it : '');
@@ -242,6 +254,7 @@ function _schedePickExercise(exId, exerciseName) {
     // Update DB fields
     _schedeUpdateExField(exId, 'exercise_name', exerciseName);
     if (ex) {
+        _schedeUpdateExField(exId, 'exercise_slug', ex.slug);
         _schedeUpdateExField(exId, 'muscle_group', ex.categoria);
         // Cardio: set time-based defaults
         if ((ex.categoria || '').toLowerCase() === 'cardio') {
@@ -266,6 +279,7 @@ function _schedePickCustom(exId) {
     _schedeCleanupPickerScroll();
 
     _schedeUpdateExField(exId, 'exercise_name', '');
+    _schedeUpdateExField(exId, 'exercise_slug', null);
 
     const row = document.querySelector(`.schede-exercise-row[data-ex-id="${exId}"]`);
     if (row) {
@@ -1111,7 +1125,7 @@ function _renderExercisesForDay() {
                 <span class="schede-ss-badge">SUPER SERIE</span>
                 <button class="schede-ss-delete" onclick="_schedeDeleteSuperset('${ex.superset_group}')" title="Elimina super serie">✕ SS</button>`;
             pair.forEach(ssEx => {
-                const dbEx = _findExercise(ssEx.exercise_name);
+                const dbEx = _findExerciseForCard(ssEx);
                 const catLabel = dbEx ? dbEx.categoria : (ssEx.muscle_group || '');
                 const _isCardio = (ssEx.muscle_group || '').toLowerCase() === 'cardio';
                 html += `
@@ -1120,7 +1134,7 @@ function _renderExercisesForDay() {
                     <div class="schede-ex-fields">
                         <div class="schede-ex-top-row">
                             ${catLabel ? `<span class="schede-ex-muscle-badge">${_escHtml(catLabel)}</span>` : ''}
-                            ${_buildExercisePicker(ssEx.exercise_name, ssEx.id, ssEx.muscle_group)}
+                            ${_buildExercisePicker(ssEx.exercise_name, ssEx.id, ssEx.muscle_group, ssEx.exercise_slug)}
                         </div>
                         <div class="schede-ex-params">
                             ${_isCardio ? `
@@ -1144,7 +1158,7 @@ function _renderExercisesForDay() {
         if (ex.superset_group && ssRendered.has(ex.superset_group)) return;
 
         // ── Normal exercise row ─────────────────────────────────
-        const dbEx = _findExercise(ex.exercise_name);
+        const dbEx = _findExerciseForCard(ex);
         const catLabel = dbEx ? dbEx.categoria : (ex.muscle_group || '');
         const _isCardio = (ex.muscle_group || '').toLowerCase() === 'cardio';
         html += `
@@ -1156,7 +1170,7 @@ function _renderExercisesForDay() {
             <div class="schede-ex-fields">
                 <div class="schede-ex-top-row">
                     ${catLabel ? `<span class="schede-ex-muscle-badge">${_escHtml(catLabel)}</span>` : ''}
-                    ${_buildExercisePicker(ex.exercise_name, ex.id, ex.muscle_group)}
+                    ${_buildExercisePicker(ex.exercise_name, ex.id, ex.muscle_group, ex.exercise_slug)}
                 </div>
                 <div class="schede-ex-params">
                     ${_isCardio ? `
@@ -1525,10 +1539,11 @@ async function _renderProgressView(container) {
                 }
                 const dates = Object.keys(byDate).sort().reverse();
 
+                const _dbExProg = _findExerciseForCard(ex);
                 html += `
                 <div class="schede-progress-exercise">
                     <div class="schede-progress-ex-header">
-                        <strong>${_escHtml(ex.exercise_name)}</strong>
+                        <strong>${_escHtml(_dbExProg ? _dbExProg.nome_it : ex.exercise_name)}</strong>
                         <span class="schede-progress-target">Target: ${(ex.muscle_group || '').toLowerCase() === 'cardio' ? ex.reps + ' min' : ex.sets + '×' + ex.reps + ' @ ' + (ex.weight_kg != null ? ex.weight_kg + 'kg' : '—')}</span>
                     </div>
                     <table class="schede-progress-table">
