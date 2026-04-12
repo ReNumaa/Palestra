@@ -14,16 +14,27 @@ async function _loadExercisesDB() {
     if (_loadExercisesDBPromise) return _loadExercisesDBPromise;
     _loadExercisesDBPromise = (async () => {
         try {
-            // Timeout 30s: la tabella imported_exercises puo' crescere e la SELECT *
-            // con order by su due colonne a volte supera i 12s di default su reti lente.
-            const { data, error } = await _queryWithTimeout(supabaseClient
-                .from('imported_exercises')
-                .select('*')
-                .order('categoria')
-                .order('nome_it'), 30000);
-            if (error) throw error;
+            // Riusa la cache di Importa se gia' caricata (stessa tabella, evita query duplicata)
+            let rawData;
+            if (typeof _importaImportedLoaded !== 'undefined' && _importaImportedLoaded && _importaImported.length > 0) {
+                rawData = _importaImported;
+            } else {
+                const { data, error } = await _queryWithTimeout(supabaseClient
+                    .from('imported_exercises')
+                    .select('*')
+                    .order('categoria')
+                    .order('nome_it'), 30000);
+                if (error) throw error;
+                rawData = data || [];
+                // Popola anche la cache di Importa se il modulo e' caricato
+                if (typeof _importaImportedLoaded !== 'undefined' && !_importaImportedLoaded) {
+                    _importaImported = rawData;
+                    _importaImportedSlugs = new Set(rawData.map(e => e.slug));
+                    _importaImportedLoaded = true;
+                }
+            }
             // Normalize field names for backward compat with picker
-            EXERCISES_DB = (data || []).map(e => ({
+            EXERCISES_DB = rawData.map(e => ({
                 nome_it: e.nome_it,
                 nome_en: e.nome_en || '',
                 categoria: e.categoria,
@@ -428,17 +439,12 @@ async function renderSchedeTab() {
             if (hasData) {
                 // Background — segna ottimisticamente per evitare retry concorrenti
                 _schedeLastSync = now;
-                Promise.all([
-                    WorkoutPlanStorage.syncFromSupabase({ adminMode: true }),
-                    WorkoutPlanStorage.loadSuggestions()
-                ]).catch(e => {
+                WorkoutPlanStorage.syncFromSupabase({ adminMode: true }).catch(e => {
                     console.warn('[Schede] Background sync failed:', e);
                     _schedeLastSync = 0; // permetti retry alla prossima render
                 });
             } else {
                 await WorkoutPlanStorage.syncFromSupabase({ adminMode: true });
-                // Suggestions in background: nice-to-have, non devono bloccare il render
-                WorkoutPlanStorage.loadSuggestions().catch(() => {});
                 _schedeLastSync = now;
             }
         }
