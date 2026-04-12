@@ -129,6 +129,65 @@
         let _filterPeriod = 'all';
         let _filterMuscle = 'all';
 
+        // ── Pending workout operations queue ──────────────────────────────────
+        // Operazioni scritte localmente PRIMA di inviare a Supabase.
+        // Se l'app va in background durante il salvataggio, le operazioni
+        // restano in coda e vengono reintentate al ritorno (visibilitychange,
+        // pageshow, online). Le write sono idempotenti:
+        //   saveLog           → upsert (exercise_id, user_id, log_date, set_number)
+        //   saveEditExercise  → update by id
+        const _PENDING_OPS_KEY = 'pt_pending_workout_ops';
+        function _getOpsQueue() {
+            try { return JSON.parse(localStorage.getItem(_PENDING_OPS_KEY) || '[]'); }
+            catch (e) { return []; }
+        }
+        function _saveOpsQueue(q) {
+            try { localStorage.setItem(_PENDING_OPS_KEY, JSON.stringify(q)); }
+            catch (e) { console.warn('[PendingOps] localStorage write failed:', e); }
+        }
+        // Aggiunge o sovrascrive per id (dedup: l'ultima versione vince)
+        function _enqueueOp(op) {
+            const q = _getOpsQueue();
+            const idx = q.findIndex(o => o.id === op.id);
+            if (idx >= 0) q[idx] = op; else q.push(op);
+            _saveOpsQueue(q);
+        }
+        function _dequeueOp(opId) { _saveOpsQueue(_getOpsQueue().filter(o => o.id !== opId)); }
+
+        async function flushPendingWorkoutOps() {
+            const q = _getOpsQueue();
+            if (!q.length) return;
+            const user = getCurrentUser();
+            if (!user) return;
+            console.log(`[PendingOps] flush: ${q.length} op(s) pendenti`);
+            for (const op of [...q]) {
+                try {
+                    if (op.type === 'save_log') {
+                        for (const s of op.sets) {
+                            await WorkoutLogStorage.logSet({
+                                exercise_id: op.exerciseId,
+                                user_id: op.userId,
+                                log_date: op.logDate,
+                                set_number: s.setNumber,
+                                reps_done: s.repsDone,
+                                weight_done: s.weightDone,
+                                rest_done: s.restDone,
+                                rpe: s.rpe,
+                            });
+                        }
+                        _dequeueOp(op.id);
+                        console.log('[PendingOps] save_log completato:', op.exerciseId, op.logDate);
+                    } else if (op.type === 'save_edit_exercise') {
+                        await WorkoutPlanStorage.updateExercise(op.exId, op.updates);
+                        _dequeueOp(op.id);
+                        console.log('[PendingOps] save_edit_exercise completato:', op.exId);
+                    }
+                } catch (e) {
+                    console.warn('[PendingOps] op fallita, riprovo al prossimo flush:', op.type, e.message);
+                }
+            }
+        }
+
         // ── Exercise catalog from imported_exercises (Supabase) ────────────
         let _allExDB = [];
         let _allExDBLoaded = false;
@@ -291,7 +350,10 @@
                     updates.reps = document.getElementById('editExReps')?.value.trim() || '10';
                 }
 
+                // Salva in coda PRIMA di inviare: se l'app va in background riprende al ritorno
+                _enqueueOp({ id: 'ex:' + exId, type: 'save_edit_exercise', exId, updates });
                 await WorkoutPlanStorage.updateExercise(exId, updates);
+                _dequeueOp('ex:' + exId);
 
                 // Aggiorna anche _allPlan locale (WorkoutPlanStorage._cache è separato)
                 const ex = (_allPlan?.workout_exercises || []).find(e => e.id === exId);
@@ -341,6 +403,9 @@
             if (!user) return;
             try {
                 await _loadAllExDB();
+                // Tenta di completare operazioni pendenti prima del fetch dati,
+                // così il DB è allineato prima che carichiamo i piani freschi
+                await flushPendingWorkoutOps();
 
                 // Fetch plans + next booking in parallel
                 const today = _localDateStr();
@@ -483,6 +548,11 @@
             if (!e.persisted) return;
             if (_allHasOpenOverlay() || _allHasFocusedInput()) return;
             _initAllenamento();
+        });
+        // Connessione ripristinata: flush immediato senza aspettare il prossimo refresh
+        window.addEventListener('online', async () => {
+            const user = getCurrentUser();
+            if (user) await flushPendingWorkoutOps();
         });
 
         // ── Plan selector ─────────────────────────────────────────────────
@@ -875,23 +945,36 @@
             btn.disabled = true;
             btn.textContent = 'Salvataggio...';
             try {
-                for (const row of rows) {
+                // Raccoglie i set in anticipo per poterli mettere in coda prima di inviare
+                const setsPayload = Array.from(rows).map(row => {
                     const setEl = row.querySelector('.all-log-set');
-                    const s = setEl ? parseInt(setEl.textContent) : 1;
                     const reps = row.querySelector('input[data-field="reps"]');
                     const weight = row.querySelector('input[data-field="weight"]');
                     const rest = row.querySelector('input[data-field="rest"]');
+                    return {
+                        setNumber: setEl ? parseInt(setEl.textContent) : 1,
+                        repsDone:   reps?.value   ? parseInt(reps.value)     : null,
+                        weightDone: weight?.value ? parseFloat(weight.value) : null,
+                        restDone:   rest?.value   ? parseInt(rest.value)     : null,
+                        rpe: null,
+                    };
+                });
+                // Salva in coda PRIMA di inviare: se l'app va in background riprende al ritorno
+                const opId = exerciseId + ':' + today;
+                _enqueueOp({ id: opId, type: 'save_log', exerciseId, userId: user.id, logDate: today, sets: setsPayload });
+                for (const s of setsPayload) {
                     await WorkoutLogStorage.logSet({
                         exercise_id: exerciseId,
                         user_id: user.id,
                         log_date: today,
-                        set_number: s,
-                        reps_done: reps?.value ? parseInt(reps.value) : null,
-                        weight_done: weight?.value ? parseFloat(weight.value) : null,
-                        rest_done: rest?.value ? parseInt(rest.value) : null,
-                        rpe: null,
+                        set_number: s.setNumber,
+                        reps_done: s.repsDone,
+                        weight_done: s.weightDone,
+                        rest_done: s.restDone,
+                        rpe: s.rpe,
                     });
                 }
+                _dequeueOp(opId);
                 // Update local logs from cache (WorkoutLogStorage.logSet() l'ha già aggiornata)
                 const cachedLogs = WorkoutLogStorage.getByExercise(exerciseId).filter(l => l.log_date === today);
                 _allLogs = _allLogs.filter(l => !(l.exercise_id === exerciseId && l.log_date === today));
