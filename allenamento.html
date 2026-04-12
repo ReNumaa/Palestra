@@ -128,6 +128,11 @@
         let _nextBookings = []; // prossime prenotazioni confermate
         let _filterPeriod = 'all';
         let _filterMuscle = 'all';
+        // Incrementato ogni volta che l'app va in background.
+        // I catch di saveLog/saveEditExercise lo confrontano col valore
+        // al momento della chiamata: se diverso → siamo andati in background
+        // → il flush gestisce, nessun falso errore.
+        let _bgGeneration = 0;
 
         // ── Pending workout operations queue ──────────────────────────────────
         // Operazioni scritte localmente PRIMA di inviare a Supabase.
@@ -339,6 +344,7 @@
 
         async function saveEditExercise(exId, isCardio) {
             const btn = document.querySelector('.all-edit-save');
+            const saveGen = _bgGeneration; // snapshot generation
             if (btn) { btn.disabled = true; btn.textContent = 'Salvataggio...'; }
             try {
                 const updates = {};
@@ -370,9 +376,9 @@
                 renderScheda();
             } catch (err) {
                 console.error('Errore salvataggio:', err);
-                // Se l'op non è più in coda, il flush l'ha già completata in background
-                if (!_hasPendingOp('ex:' + exId)) {
-                    _refreshAllenamentoData();
+                if (saveGen !== _bgGeneration) {
+                    // Siamo andati in background durante il save: il flush gestisce.
+                    // Chiudi overlay silenziosamente, il refresh dati arriverà dal flush.
                     document.getElementById('editExOverlay')?.remove();
                     document.body.style.overflow = '';
                 } else {
@@ -538,7 +544,7 @@
             return !!ae.closest('#allContent');
         }
         document.addEventListener('visibilitychange', async () => {
-            if (document.hidden) { _allLastHidden = Date.now(); return; }
+            if (document.hidden) { _allLastHidden = Date.now(); _bgGeneration++; return; }
             const bgSec = _allLastHidden ? (Date.now() - _allLastHidden) / 1000 : 0;
             if (bgSec < 1) return; // ignora micro-switch assoluti (<1s)
             // Reset IMMEDIATO bottoni bloccati: il dato è già al sicuro in localStorage,
@@ -969,6 +975,7 @@
             const section = btn.closest('.all-log-section');
             const rows = section.querySelectorAll('.all-log-row');
             const today = _localDateStr();
+            const saveGen = _bgGeneration; // snapshot: se cambia → siamo andati in background
             btn.disabled = true;
             btn.textContent = 'Salvataggio...';
             try {
@@ -1048,17 +1055,11 @@
                 setTimeout(() => { btn.textContent = 'Salva'; btn.disabled = false; btn.classList.remove('all-log-save--done'); }, 2000);
             } catch (e) {
                 console.error('[Allenamento] log error:', e);
-                // Se l'op non è più in coda, il flush l'ha già completata mentre eravamo
-                // in background: non mostrare falso errore, aggiorna la UI come successo
-                const opId = exerciseId + ':' + today;
-                const alreadySaved = !_hasPendingOp(opId) ||
-                    WorkoutLogStorage.getByExercise(exerciseId).some(l => l.log_date === today);
-                if (alreadySaved) {
-                    _refreshAllenamentoData();
-                    btn.textContent = 'Salvato!';
+                if (saveGen !== _bgGeneration) {
+                    // Siamo andati in background durante il save: il flush gestisce.
+                    // Non mostrare falso errore, sblocca solo il bottone silenziosamente.
+                    btn.textContent = 'Salva';
                     btn.disabled = false;
-                    btn.classList.add('all-log-save--done');
-                    setTimeout(() => { btn.textContent = 'Salva'; btn.classList.remove('all-log-save--done'); }, 2000);
                 } else {
                     btn.textContent = 'Salva';
                     btn.disabled = false;
