@@ -533,34 +533,28 @@
             if (document.hidden) { _allLastHidden = Date.now(); return; }
             const bgSec = _allLastHidden ? (Date.now() - _allLastHidden) / 1000 : 0;
             if (bgSec < 1) return; // ignora micro-switch assoluti (<1s)
-            // Aspetta che auth.js (che ha il suo visibilitychange a 500ms)
-            // finisca il suo lavoro sul lock Supabase prima di partire noi
-            await new Promise(r => setTimeout(r, 800));
-            // Flush sempre al ritorno, indipendentemente da bgSec:
-            // anche un background breve può aver lasciato ops pendenti
-            const flushed = await flushPendingWorkoutOps();
-            if (flushed > 0) {
-                // Resetta bottoni bloccati su "Salvataggio..." dalla sessione interrotta
-                document.querySelectorAll('.all-log-save').forEach(btn => {
-                    if (btn.textContent === 'Salvataggio...') {
-                        btn.textContent = 'Salva';
-                        btn.disabled = false;
-                        btn.classList.remove('all-log-save--done');
-                    }
-                });
-                const editBtn = document.querySelector('.all-edit-save');
-                if (editBtn && editBtn.textContent === 'Salvataggio...') {
-                    editBtn.disabled = false;
-                    editBtn.textContent = 'Salva modifiche';
+            // Reset IMMEDIATO bottoni bloccati: il dato è già al sicuro in localStorage,
+            // non serve aspettare il flush per sbloccare la UI
+            document.querySelectorAll('.all-log-save').forEach(btn => {
+                if (btn.textContent === 'Salvataggio...') {
+                    btn.textContent = 'Salva';
+                    btn.disabled = false;
+                    btn.classList.remove('all-log-save--done');
                 }
-                // Refresh completo per allineare UI con i dati appena scritti
-                _refreshAllenamentoData();
-                return;
+            });
+            const editBtn = document.querySelector('.all-edit-save');
+            if (editBtn && editBtn.textContent === 'Salvataggio...') {
+                editBtn.disabled = false;
+                editBtn.textContent = 'Salva modifiche';
             }
-            // Nessuna op pendente: refresh standard solo se >30s e nessun overlay
-            if (bgSec < 30) return;
-            if (_allHasOpenOverlay() || _allHasFocusedInput()) return;
-            _refreshAllenamentoData();
+            // Aspetta che auth.js finisca il suo lavoro sul lock Supabase
+            await new Promise(r => setTimeout(r, 800));
+            // Flush sempre al ritorno (anche background breve può avere ops pendenti)
+            const flushed = await flushPendingWorkoutOps();
+            // Refresh se ci sono stati flush, oppure se background >30s senza overlay attivi
+            if (flushed > 0 || (bgSec >= 30 && !_allHasOpenOverlay() && !_allHasFocusedInput())) {
+                _refreshAllenamentoData();
+            }
         });
         // bfcache restore (back/forward cache): la pagina viene ripristinata
         // dalla memoria senza ri-eseguire gli script — serve il pageshow per accorgersene.
