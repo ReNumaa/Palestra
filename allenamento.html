@@ -128,6 +128,7 @@
         let _nextBookings = []; // prossime prenotazioni confermate
         let _filterPeriod = 'all';
         let _filterMuscle = 'all';
+        let _allLastRefreshTs = Date.now(); // aggiornato ad ogni _refreshAllenamentoData
         // Incrementato ogni volta che l'app va in background.
         // I catch di saveLog/saveEditExercise lo confrontano col valore
         // al momento della chiamata: se diverso → siamo andati in background
@@ -439,16 +440,16 @@
                 // così il DB è allineato prima che carichiamo i piani freschi
                 await flushPendingWorkoutOps();
 
-                // Fetch plans + next booking in parallel
+                // Fetch plans + next booking in parallel (timeout 15s ciascuna)
                 const today = _localDateStr();
                 const [plansRes, bookingRes] = await Promise.all([
-                    supabaseClient
+                    _queryWithTimeout(supabaseClient
                         .from('workout_plans')
                         .select('*, workout_exercises(*)')
                         .eq('user_id', user.id)
                         .order('active', { ascending: false })
-                        .order('updated_at', { ascending: false }),
-                    supabaseClient
+                        .order('updated_at', { ascending: false }), 15000),
+                    _queryWithTimeout(supabaseClient
                         .from('bookings')
                         .select('date, time, slot_type')
                         .eq('user_id', user.id)
@@ -456,7 +457,7 @@
                         .gte('date', today)
                         .order('date', { ascending: true })
                         .order('time', { ascending: true })
-                        .limit(20)
+                        .limit(20), 15000)
                 ]);
 
                 const { data: plans, error } = plansRes;
@@ -493,6 +494,7 @@
                 else if (_allView === 'tablet') renderTabletQR();
                 else if (_allView === 'pdf') renderPdfDownload();
                 else renderScheda();
+                _allLastRefreshTs = Date.now();
             } catch (e) {
                 console.warn('[Allenamento] data refresh failed:', e);
                 // Su init mostra l'errore. Su resume tieni l'UI esistente
@@ -517,9 +519,9 @@
 
             // Utenti non admin: verifica che abbiano almeno una scheda attiva
             if (!_isAdmin) {
-                const { count } = await supabaseClient.from('workout_plans')
+                const { count } = await _queryWithTimeout(supabaseClient.from('workout_plans')
                     .select('id', { count: 'exact', head: true })
-                    .eq('user_id', user.id).eq('active', true);
+                    .eq('user_id', user.id).eq('active', true), 15000);
                 if (!count) {
                     window.location.replace('/');
                     return;
@@ -594,6 +596,47 @@
                 _refreshAllenamentoData();
             }
         });
+
+        // ── Heartbeat: sessione + refresh dati mentre la pagina resta aperta ──
+        // Ogni 90s controlla che la sessione Supabase sia valida.
+        // Se non valida → reload. Se valida ma dati fermi da >5min → refresh.
+        setInterval(async () => {
+            if (document.hidden) return;
+            try {
+                const { data: { session }, error } = await supabaseClient.auth.getSession();
+                if (error || !session) {
+                    console.warn('[Heartbeat] sessione non valida, ricarico');
+                    window.location.reload();
+                    return;
+                }
+                if (Date.now() - _allLastRefreshTs > 5 * 60 * 1000) {
+                    _refreshAllenamentoData();
+                }
+            } catch (e) {
+                console.warn('[Heartbeat] getSession fallita:', e.message);
+            }
+        }, 90000);
+
+        // ── Watchdog UI: sblocca bottoni rimasti su Salvataggio... oltre 20s ──
+        // Con _queryWithTimeout(15s) un save legittimo non può durare >15s.
+        // Se dopo 20s il bottone è ancora bloccato, la promise è congelata.
+        setInterval(() => {
+            if (document.hidden) return;
+            document.querySelectorAll('.all-log-save').forEach(btn => {
+                if (btn.disabled && btn.textContent === 'Salvataggio...') {
+                    console.warn('[Watchdog] bottone log bloccato, sblocco');
+                    btn.textContent = 'Salva';
+                    btn.disabled = false;
+                    btn.classList.remove('all-log-save--done');
+                }
+            });
+            const editBtn = document.querySelector('.all-edit-save');
+            if (editBtn && editBtn.disabled && editBtn.textContent === 'Salvataggio...') {
+                console.warn('[Watchdog] bottone edit bloccato, sblocco');
+                editBtn.disabled = false;
+                editBtn.textContent = 'Salva modifiche';
+            }
+        }, 20000);
 
         // ── Plan selector ─────────────────────────────────────────────────
         function _renderPlanSelector() {
