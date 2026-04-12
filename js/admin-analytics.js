@@ -1705,7 +1705,7 @@ async function _updateSupabaseProfile(email, whatsapp, fields) {
         } else {
             return { ok: true };
         }
-        const { error } = await query;
+        const { error } = await _queryWithTimeout(query);
         if (error) {
             console.error('Supabase profile update error:', error.message);
             return { ok: false, error: error.message };

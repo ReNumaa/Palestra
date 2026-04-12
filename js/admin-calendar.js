@@ -245,8 +245,8 @@ async function bookForClient(slotType) {
     let clientUserId = null;
     if (typeof supabaseClient !== 'undefined' && client.email) {
         try {
-            const { data: prof } = await supabaseClient
-                .from('profiles').select('id').eq('email', (client.email || '').toLowerCase()).maybeSingle();
+            const { data: prof } = await _queryWithTimeout(supabaseClient
+                .from('profiles').select('id').eq('email', (client.email || '').toLowerCase()).maybeSingle());
             clientUserId = prof?.id || null;
         } catch {}
     }
@@ -408,9 +408,9 @@ function renderAdminDayView(dateInfo) {
         dayBookings.forEach(b => {
             if (b.email && !seen.has(b.email.toLowerCase())) {
                 seen.add(b.email.toLowerCase());
-                supabaseClient.rpc('apply_credit_to_past_bookings', {
+                _rpcWithTimeout(supabaseClient.rpc('apply_credit_to_past_bookings', {
                     p_email: b.email, p_slot_prices: _slotPrices
-                }).then(() => {}, () => {});
+                }), 15000).then(() => {}, () => {});
             }
         });
     }

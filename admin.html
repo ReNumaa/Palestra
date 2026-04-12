@@ -1132,20 +1132,20 @@
     <script src="js/supabase-client.js?v=2"></script>
     <script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js" integrity="sha384-vtjasyidUo0kW94K5MXDXntzOJpQgBKXmE7e2Ga4LG0skTTLeBi97eFAXsqewJjw" crossorigin="anonymous"></script>
     <script src="js/ui.js?v=2"></script>
-    <script src="js/data.js?v=65"></script>
+    <script src="js/data.js?v=66"></script>
     <script src="js/auth.js?v=22"></script>
     <script src="js/push.js?v=17"></script>
     <script src="js/chart-mini.js?v=12"></script>
     <script src="js/admin.js?v=112"></script>
-    <script src="js/admin-analytics.js?v=2"></script>
-    <script src="js/admin-backup.js?v=2"></script>
-    <script src="js/admin-calendar.js?v=2"></script>
+    <script src="js/admin-analytics.js?v=3"></script>
+    <script src="js/admin-backup.js?v=3"></script>
+    <script src="js/admin-calendar.js?v=3"></script>
     <script src="js/admin-schedule.js?v=1"></script>
     <script src="js/admin-settings.js?v=1"></script>
     <script src="js/admin-payments.js?v=2"></script>
     <script src="js/admin-clients.js?v=1"></script>
-    <script src="js/admin-registro.js?v=3"></script>
-    <script src="js/admin-messaggi.js?v=1"></script>
+    <script src="js/admin-registro.js?v=4"></script>
+    <script src="js/admin-messaggi.js?v=2"></script>
     <script src="js/admin-schede.js?v=11"></script>
     <script src="js/admin-importa.js?v=3"></script>
     <script src="js/maintenance.js?v=1"></script>
@@ -1153,35 +1153,49 @@
         // Avvia auth, sincronizza i booking da Supabase, poi aggiorna la dashboard
         (async function () {
             await initAuth();
+            // ── Sync critici per il primo render (bloccanti, con timeout) ──
             await Promise.all([
                 BookingStorage.syncFromSupabase(),
                 BookingStorage.syncAppSettingsFromSupabase(),
                 UserStorage.syncUsersFromSupabase(),
                 ManualDebtStorage.syncFromSupabase(),
                 CreditStorage.syncFromSupabase(),
-                typeof syncPushEnabledUsers === 'function' ? syncPushEnabledUsers() : Promise.resolve(),
             ]);
-            // Reconcile via RPC Supabase (non client-side, per evitare loop realtime)
-            if (typeof supabaseClient !== 'undefined') {
-                const _slotPrices = { 'personal-training': 5, 'small-group': 10, 'group-class': 30 };
-                const _clients = CreditStorage.getAllWithBalance().filter(c => c.email);
-                const _rpcResults = await Promise.all(_clients.map(c =>
-                    supabaseClient.rpc('apply_credit_to_past_bookings', {
-                        p_email: c.email, p_slot_prices: _slotPrices
-                    }).then(r => r.data).catch(() => null)
-                ));
-                if (_rpcResults.some(r => r && r.bookings_paid > 0)) {
-                    await Promise.all([BookingStorage.syncFromSupabase(), CreditStorage.syncFromSupabase()]);
-                }
-            }
-            // Push: mostra banner se permesso non ancora concesso
-            if (typeof promptPushPermission === 'function') setTimeout(promptPushPermission, 1500);
+            // ── Render subito: l'admin diventa utilizzabile ──
             if (typeof loadDashboardData === 'function') loadDashboardData();
             if (typeof renderAdminCalendar === 'function') renderAdminCalendar();
             if (typeof renderScheduleManager === 'function') renderScheduleManager();
-            // Re-render il tab attivo dopo il sync (le cache erano vuote al primo render)
             const _activeTab = document.querySelector('.admin-tab.active');
             if (_activeTab) switchTab(_activeTab.dataset.tab);
+            // Push: mostra banner se permesso non ancora concesso
+            if (typeof promptPushPermission === 'function') setTimeout(promptPushPermission, 1500);
+
+            // ── Sync accessori in background (non bloccano il render) ──
+            if (typeof syncPushEnabledUsers === 'function') {
+                syncPushEnabledUsers().catch(e => console.warn('[Push] background sync error:', e));
+            }
+            // Reconcile crediti via RPC in background con timeout
+            if (typeof supabaseClient !== 'undefined') {
+                (async () => {
+                    try {
+                        const _slotPrices = { 'personal-training': 5, 'small-group': 10, 'group-class': 30 };
+                        const _clients = CreditStorage.getAllWithBalance().filter(c => c.email);
+                        const _rpcResults = await Promise.allSettled(_clients.map(c =>
+                            _rpcWithTimeout(supabaseClient.rpc('apply_credit_to_past_bookings', {
+                                p_email: c.email, p_slot_prices: _slotPrices
+                            }), 15000).then(r => r.data).catch(() => null)
+                        ));
+                        const anyPaid = _rpcResults.some(r => r.status === 'fulfilled' && r.value && r.value.bookings_paid > 0);
+                        if (anyPaid) {
+                            await Promise.all([BookingStorage.syncFromSupabase(), CreditStorage.syncFromSupabase()]);
+                            if (typeof loadDashboardData === 'function') loadDashboardData();
+                            if (typeof renderAdminCalendar === 'function') renderAdminCalendar();
+                            const activeTab = document.querySelector('.admin-tab.active');
+                            if (activeTab) switchTab(activeTab.dataset.tab);
+                        }
+                    } catch (e) { console.warn('[Reconcile] background error:', e); }
+                })();
+            }
 
             // Supabase Realtime: un unico handler debounced che sincronizza TUTTO
             // evita race condition tra canali separati (es. bookings si aggiorna ma credits no)

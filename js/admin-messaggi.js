@@ -133,13 +133,17 @@ async function sendAdminMessage() {
     status.textContent = '⏳ Invio in corso...';
     status.style.color = '#6b7280';
 
+    const _abortCtrl = new AbortController();
+    const _abortTimer = setTimeout(() => _abortCtrl.abort(), 20000);
     try {
         const { data: { session: _msgSession } } = await supabaseClient.auth.getSession();
         const res = await fetch(`${SUPABASE_URL}/functions/v1/send-admin-message`, {
             method: 'POST',
             headers: { 'Content-Type': 'application/json', 'Authorization': 'Bearer ' + (_msgSession?.access_token || '') },
-            body: JSON.stringify({ title, body, mode, date, time })
+            body: JSON.stringify({ title, body, mode, date, time }),
+            signal: _abortCtrl.signal
         });
+        clearTimeout(_abortTimer);
         const data = await res.json();
         if (data.ok) {
             status.textContent = `✅ Inviate ${data.sent} notifiche.`;
@@ -152,7 +156,9 @@ async function sendAdminMessage() {
             status.style.color = '#dc2626';
         }
     } catch (e) {
-        status.textContent = `❌ Errore di rete: ${e.message}`;
+        clearTimeout(_abortTimer);
+        const msg = e.name === 'AbortError' ? 'Timeout — invio non confermato. Riprova.' : `Errore di rete: ${e.message}`;
+        status.textContent = `❌ ${msg}`;
         status.style.color = '#dc2626';
     }
 }

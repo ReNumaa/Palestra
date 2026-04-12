@@ -477,7 +477,7 @@ class BookingStorage {
                     .range(pageFrom, pageFrom + PAGE - 1);
                 if (startStr) q = q.gte('date', startStr);
                 if (endStr)   q = q.lte('date', endStr);
-                const { data, error } = await q;
+                const { data, error } = await _queryWithTimeout(q, 15000);
                 if (error) { console.error('[Supabase] fetchForAdmin page error:', error.message); break; }
                 all = all.concat(data || []);
                 done = !data || data.length < PAGE;
@@ -1306,15 +1306,18 @@ class BookingStorage {
         if (typeof supabaseClient === 'undefined') return;
         try {
             // Promise.allSettled: ogni query è indipendente — se una fallisce le altre vanno avanti
+            // Ogni query è wrappata in _queryWithTimeout per evitare hang infiniti
             const _results = await Promise.allSettled([
-                supabaseClient.from('app_settings').select('value').eq('key', 'data_cleared_at').maybeSingle(),
-                supabaseClient.from('credits').select('id, name, whatsapp, email, balance, free_balance'),
-                supabaseClient.from('credit_history').select('credit_id, amount, note, created_at, method').order('created_at', { ascending: true }),
-                supabaseClient.from('manual_debts').select('name, whatsapp, email, balance, history'),
-                supabaseClient.from('bonuses').select('name, whatsapp, email, bonus, last_reset_month'),
-                supabaseClient.from('schedule_overrides').select('date, time, slot_type, extras, client_name, client_email, client_whatsapp, booking_id').order('date').order('time'),
-                supabaseClient.from('settings').select('key, value'),
+                _queryWithTimeout(supabaseClient.from('app_settings').select('value').eq('key', 'data_cleared_at').maybeSingle()),
+                _queryWithTimeout(supabaseClient.from('credits').select('id, name, whatsapp, email, balance, free_balance')),
+                _queryWithTimeout(supabaseClient.from('credit_history').select('credit_id, amount, note, created_at, method').order('created_at', { ascending: true })),
+                _queryWithTimeout(supabaseClient.from('manual_debts').select('name, whatsapp, email, balance, history')),
+                _queryWithTimeout(supabaseClient.from('bonuses').select('name, whatsapp, email, bonus, last_reset_month')),
+                _queryWithTimeout(supabaseClient.from('schedule_overrides').select('date, time, slot_type, extras, client_name, client_email, client_whatsapp, booking_id').order('date').order('time')),
+                _queryWithTimeout(supabaseClient.from('settings').select('key, value')),
             ]);
+            const _syncLabels = ['app_settings', 'credits', 'credit_history', 'manual_debts', 'bonuses', 'schedule_overrides', 'settings'];
+            _results.forEach((r, i) => { if (r.status === 'rejected') console.warn(`[Supabase] syncAppSettings: ${_syncLabels[i]} skipped (timeout/error)`); });
             const _v = (i) => _results[i].status === 'fulfilled' ? _results[i].value : { data: null, error: 'rejected' };
             const { data: clearedRow }              = _v(0);
             const { data: creditsData,  error: e1 } = _v(1);
@@ -2414,7 +2417,7 @@ let _pushEnabledUsers = new Set();
 async function syncPushEnabledUsers() {
     if (typeof supabaseClient === 'undefined') return;
     try {
-        const { data, error } = await supabaseClient.rpc('get_push_enabled_users');
+        const { data, error } = await _rpcWithTimeout(supabaseClient.rpc('get_push_enabled_users'), 12000);
         if (error) { console.warn('[Push] get_push_enabled_users error:', error.message); return; }
         _pushEnabledUsers = new Set((data || []).map(id => id));
     } catch (e) {

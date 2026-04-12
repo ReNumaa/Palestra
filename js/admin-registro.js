@@ -644,16 +644,23 @@ const _MSG_TYPE_LABELS = {
 async function loadMessaggi() {
     if (typeof supabaseClient === 'undefined') return;
     try {
-        const { data, error } = await supabaseClient
+        const { data, error } = await _queryWithTimeout(supabaseClient
             .from('admin_messages')
             .select('created_at,type,date,title,body,client_name')
             .order('created_at', { ascending: false })
-            .limit(500);
-        if (error) { console.warn('[Messaggi] load error:', error.message); return; }
+            .limit(500));
+        if (error) {
+            console.warn('[Messaggi] load error:', error.message);
+            const tbody = document.getElementById('messaggiTableBody');
+            if (tbody) tbody.innerHTML = '<tr><td colspan="5" class="registro-empty">❌ Errore caricamento messaggi. <a href="#" onclick="loadMessaggi();return false">Riprova</a></td></tr>';
+            return;
+        }
         _messaggiCache = data || [];
         renderMessaggiTable();
     } catch (e) {
         console.warn('[Messaggi] load exception:', e);
+        const tbody = document.getElementById('messaggiTableBody');
+        if (tbody) tbody.innerHTML = '<tr><td colspan="5" class="registro-empty">❌ Errore caricamento messaggi. <a href="#" onclick="loadMessaggi();return false">Riprova</a></td></tr>';
     }
 }
 
@@ -741,16 +748,23 @@ const _CN_STATUS_LABELS = {
 async function loadClientNotifications() {
     if (typeof supabaseClient === 'undefined') return;
     try {
-        const { data, error } = await supabaseClient
+        const { data, error } = await _queryWithTimeout(supabaseClient
             .from('client_notifications')
             .select('created_at,type,status,user_name,user_email,title,body,error,booking_date')
             .order('created_at', { ascending: false })
-            .limit(1000);
-        if (error) { console.warn('[ClientNotif] load error:', error.message); return; }
+            .limit(1000));
+        if (error) {
+            console.warn('[ClientNotif] load error:', error.message);
+            const tbody = document.getElementById('clientNotifTableBody');
+            if (tbody) tbody.innerHTML = '<tr><td colspan="7" class="registro-empty">❌ Errore caricamento notifiche. <a href="#" onclick="loadClientNotifications();return false">Riprova</a></td></tr>';
+            return;
+        }
         _cnCache = data || [];
         renderClientNotifTable();
     } catch (e) {
         console.warn('[ClientNotif] load exception:', e);
+        const tbody = document.getElementById('clientNotifTableBody');
+        if (tbody) tbody.innerHTML = '<tr><td colspan="7" class="registro-empty">❌ Errore caricamento notifiche. <a href="#" onclick="loadClientNotifications();return false">Riprova</a></td></tr>';
     }
 }
 

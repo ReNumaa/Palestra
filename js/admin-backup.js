@@ -147,42 +147,34 @@ async function exportBackup(format = 'json') {
 
     // ── Raccogli dati grezzi da Supabase ─────────────────────────────────────
     const tables = {};
+    let _skippedTables = [];
     if (typeof supabaseClient !== 'undefined') {
         try {
-            const [bookingsRes, creditsRes, creditHistRes, debtsRes, bonusesRes,
-                   overridesRes, profilesRes, settingsRes, pushSubsRes,
-                   auditRes, clicksRes, appSettingsRes, adminMsgRes] = await Promise.all([
-                supabaseClient.from('bookings').select('*').order('created_at', { ascending: true }),
-                supabaseClient.from('credits').select('*').order('created_at', { ascending: true }),
-                supabaseClient.from('credit_history').select('*').order('created_at', { ascending: true }),
-                supabaseClient.from('manual_debts').select('*').order('created_at', { ascending: true }),
-                supabaseClient.from('bonuses').select('*').order('created_at', { ascending: true }),
-                supabaseClient.from('schedule_overrides').select('*').order('date', { ascending: true }),
-                supabaseClient.rpc('get_all_profiles'),
-                supabaseClient.from('settings').select('*'),
-                supabaseClient.from('push_subscriptions').select('*'),
-                supabaseClient.from('admin_audit_log').select('*').order('created_at', { ascending: true }),
-                supabaseClient.from('credit_link_clicks').select('*'),
-                supabaseClient.from('app_settings').select('*'),
-                supabaseClient.from('admin_messages').select('*').order('created_at', { ascending: true }),
-            ]);
-            if (bookingsRes.data)    tables.bookings            = bookingsRes.data;
-            if (creditsRes.data)     tables.credits             = creditsRes.data;
-            if (creditHistRes.data)  tables.credit_history      = creditHistRes.data;
-            if (debtsRes.data)       tables.manual_debts        = debtsRes.data;
-            if (bonusesRes.data)     tables.bonuses             = bonusesRes.data;
-            if (overridesRes.data)   tables.schedule_overrides  = overridesRes.data;
-            if (profilesRes.data)    tables.profiles            = profilesRes.data;
-            if (settingsRes.data)    tables.settings            = settingsRes.data;
-            if (pushSubsRes.data)    tables.push_subscriptions  = pushSubsRes.data;
-            if (auditRes.data)       tables.admin_audit_log     = auditRes.data;
-            if (clicksRes.data)      tables.credit_link_clicks  = clicksRes.data;
-            if (appSettingsRes.data) tables.app_settings        = appSettingsRes.data;
-            if (adminMsgRes.data)    tables.admin_messages      = adminMsgRes.data;
-
-            // Client notifications
-            const cnRes = await supabaseClient.from('client_notifications').select('*').order('created_at', { ascending: true });
-            if (cnRes.data) tables.client_notifications = cnRes.data;
+            const _exportQueries = [
+                { key: 'bookings',             q: _queryWithTimeout(supabaseClient.from('bookings').select('*').order('created_at', { ascending: true }), 20000) },
+                { key: 'credits',              q: _queryWithTimeout(supabaseClient.from('credits').select('*').order('created_at', { ascending: true }), 20000) },
+                { key: 'credit_history',       q: _queryWithTimeout(supabaseClient.from('credit_history').select('*').order('created_at', { ascending: true }), 20000) },
+                { key: 'manual_debts',         q: _queryWithTimeout(supabaseClient.from('manual_debts').select('*').order('created_at', { ascending: true }), 20000) },
+                { key: 'bonuses',              q: _queryWithTimeout(supabaseClient.from('bonuses').select('*').order('created_at', { ascending: true }), 20000) },
+                { key: 'schedule_overrides',   q: _queryWithTimeout(supabaseClient.from('schedule_overrides').select('*').order('date', { ascending: true }), 20000) },
+                { key: 'profiles',             q: _rpcWithTimeout(supabaseClient.rpc('get_all_profiles'), 20000) },
+                { key: 'settings',             q: _queryWithTimeout(supabaseClient.from('settings').select('*'), 20000) },
+                { key: 'push_subscriptions',   q: _queryWithTimeout(supabaseClient.from('push_subscriptions').select('*'), 20000) },
+                { key: 'admin_audit_log',      q: _queryWithTimeout(supabaseClient.from('admin_audit_log').select('*').order('created_at', { ascending: true }), 20000) },
+                { key: 'credit_link_clicks',   q: _queryWithTimeout(supabaseClient.from('credit_link_clicks').select('*'), 20000) },
+                { key: 'app_settings',         q: _queryWithTimeout(supabaseClient.from('app_settings').select('*'), 20000) },
+                { key: 'admin_messages',       q: _queryWithTimeout(supabaseClient.from('admin_messages').select('*').order('created_at', { ascending: true }), 20000) },
+                { key: 'client_notifications', q: _queryWithTimeout(supabaseClient.from('client_notifications').select('*').order('created_at', { ascending: true }), 20000) },
+            ];
+            const _exportResults = await Promise.allSettled(_exportQueries.map(e => e.q));
+            _exportQueries.forEach((e, i) => {
+                if (_exportResults[i].status === 'fulfilled' && _exportResults[i].value?.data) {
+                    tables[e.key] = _exportResults[i].value.data;
+                } else {
+                    _skippedTables.push(e.key);
+                }
+            });
+            if (_skippedTables.length > 0) console.warn('[Backup] Tabelle saltate (timeout/errore):', _skippedTables.join(', '));
         } catch (e) {
             console.warn('[Backup] Errore fetch Supabase:', e.message);
         }
@@ -207,7 +199,9 @@ async function exportBackup(format = 'json') {
     a.download = `gym-backup-${_localDateStr()}.json`;
     a.click();
     URL.revokeObjectURL(a.href);
-    if (s) s.textContent = `✅ Backup JSON esportato il ${new Date().toLocaleString('it-IT')}`;
+    if (s) s.textContent = _skippedTables && _skippedTables.length > 0
+        ? `⚠️ Backup esportato (tabelle mancanti: ${_skippedTables.join(', ')}) — ${new Date().toLocaleString('it-IT')}`
+        : `✅ Backup JSON esportato il ${new Date().toLocaleString('it-IT')}`;
 }
 
 function _exportBackupCSV(tables, statusEl) {
@@ -300,14 +294,18 @@ function importBackup(input) {
                 }
             });
             const s = document.getElementById('backupStatus');
-            if (s) s.textContent = '⏳ Ripristino su Supabase in corso...';
+            const _restoreStep = (label) => { if (s) s.textContent = `⏳ Ripristino: ${label}...`; };
+            _restoreStep('avvio');
 
             // ── Push dati ripristinati su Supabase ──────────────
             if (typeof supabaseClient !== 'undefined') {
                 try {
                     const promises = [];
+                    const _restoreErrors = [];
+                    const _T = 20000; // timeout per step
 
                     // 1. Bookings — upsert completo
+                    _restoreStep('bookings');
                     const bookings = JSON.parse(backup.data.gym_bookings || '[]');
                     if (Array.isArray(bookings) && bookings.length > 0) {
                         const bRows = bookings
@@ -338,11 +336,12 @@ function importBackup(input) {
                                 cancelled_refund_pct:      b.cancelledRefundPct ?? null,
                             }));
                         if (bRows.length > 0) {
-                            promises.push(supabaseClient.from('bookings').upsert(bRows, { onConflict: 'local_id' }));
+                            promises.push(_queryWithTimeout(supabaseClient.from('bookings').upsert(bRows, { onConflict: 'local_id' }), _T).catch(e => { _restoreErrors.push('bookings'); }));
                         }
                     }
 
                     // 2. Credits
+                    _restoreStep('credits');
                     const credits = JSON.parse(backup.data.gym_credits || '{}');
                     const cRows = Object.values(credits).map(r => ({
                         name:         r.name,
@@ -352,10 +351,11 @@ function importBackup(input) {
                         free_balance: r.freeBalance || 0,
                     })).filter(r => r.email);
                     if (cRows.length > 0) {
-                        promises.push(supabaseClient.from('credits').upsert(cRows, { onConflict: 'email' }));
+                        promises.push(_queryWithTimeout(supabaseClient.from('credits').upsert(cRows, { onConflict: 'email' }), _T).catch(e => { _restoreErrors.push('credits'); }));
                     }
 
                     // 3. Manual debts
+                    _restoreStep('manual_debts');
                     const debts = JSON.parse(backup.data.gym_manual_debts || '{}');
                     const dRows = Object.values(debts).map(r => ({
                         name:     r.name,
@@ -365,10 +365,11 @@ function importBackup(input) {
                         history:  r.history || [],
                     })).filter(r => r.email);
                     if (dRows.length > 0) {
-                        promises.push(supabaseClient.from('manual_debts').upsert(dRows, { onConflict: 'email' }));
+                        promises.push(_queryWithTimeout(supabaseClient.from('manual_debts').upsert(dRows, { onConflict: 'email' }), _T).catch(e => { _restoreErrors.push('manual_debts'); }));
                     }
 
                     // 4. Bonuses
+                    _restoreStep('bonuses');
                     const bonus = JSON.parse(backup.data.gym_bonus || '{}');
                     const bonRows = Object.values(bonus).map(r => ({
                         name:             r.name,
@@ -378,10 +379,11 @@ function importBackup(input) {
                         last_reset_month: r.lastResetMonth || null,
                     })).filter(r => r.email);
                     if (bonRows.length > 0) {
-                        promises.push(supabaseClient.from('bonuses').upsert(bonRows, { onConflict: 'email' }));
+                        promises.push(_queryWithTimeout(supabaseClient.from('bonuses').upsert(bonRows, { onConflict: 'email' }), _T).catch(e => { _restoreErrors.push('bonuses'); }));
                     }
 
                     // 5. Schedule overrides
+                    _restoreStep('schedule_overrides');
                     const overrides = JSON.parse(backup.data.scheduleOverrides || '{}');
                     const oRows = [];
                     for (const [dateStr, slots] of Object.entries(overrides)) {
@@ -390,17 +392,18 @@ function importBackup(input) {
                         }
                     }
                     if (oRows.length > 0) {
-                        promises.push(supabaseClient.from('schedule_overrides').upsert(oRows, { onConflict: 'date,time' }));
+                        promises.push(_queryWithTimeout(supabaseClient.from('schedule_overrides').upsert(oRows, { onConflict: 'date,time' }), _T).catch(e => { _restoreErrors.push('schedule_overrides'); }));
                     }
 
                     // 6. Credit history — ripristino completo
+                    _restoreStep('credit_history');
                     if (backup.data._credit_history) {
                         const chRows = JSON.parse(backup.data._credit_history || '[]');
                         if (chRows.length > 0) {
                             // Wait for credits upsert to complete first so IDs exist
                             await Promise.allSettled(promises);
                             promises.length = 0;
-                            const creditsRes = await supabaseClient.from('credits').select('id,email');
+                            const creditsRes = await _queryWithTimeout(supabaseClient.from('credits').select('id,email'), _T);
                             const emailToId = {};
                             if (creditsRes.data) creditsRes.data.forEach(c => { emailToId[c.email] = c.id; });
                             const histRows = chRows
@@ -416,35 +419,37 @@ function importBackup(input) {
                                 }));
                             if (histRows.length > 0) {
                                 // Cancella storico esistente e re-inserisci per evitare duplicati
-                                await supabaseClient.from('credit_history').delete().neq('id', '00000000-0000-0000-0000-000000000000');
-                                promises.push(supabaseClient.from('credit_history').insert(histRows));
+                                await _queryWithTimeout(supabaseClient.from('credit_history').delete().neq('id', '00000000-0000-0000-0000-000000000000'), _T);
+                                promises.push(_queryWithTimeout(supabaseClient.from('credit_history').insert(histRows), _T).catch(e => { _restoreErrors.push('credit_history'); }));
                             }
                         }
                     }
 
                     // 7. Settings (tabella Supabase)
+                    _restoreStep('settings');
                     if (backup.data._settings) {
                         const sRows = JSON.parse(backup.data._settings || '[]');
                         if (sRows.length > 0) {
-                            promises.push(supabaseClient.from('settings').upsert(sRows, { onConflict: 'key' }));
+                            promises.push(_queryWithTimeout(supabaseClient.from('settings').upsert(sRows, { onConflict: 'key' }), _T).catch(e => { _restoreErrors.push('settings'); }));
                         }
                     }
 
                     // 8. App settings
+                    _restoreStep('app_settings');
                     if (backup.data._app_settings) {
                         const asRows = JSON.parse(backup.data._app_settings || '[]');
                         if (asRows.length > 0) {
-                            promises.push(supabaseClient.from('app_settings').upsert(asRows, { onConflict: 'key' }));
+                            promises.push(_queryWithTimeout(supabaseClient.from('app_settings').upsert(asRows, { onConflict: 'key' }), _T).catch(e => { _restoreErrors.push('app_settings'); }));
                         }
                     }
 
                     // 9. Profiles — ripristino su Supabase
+                    _restoreStep('profiles');
                     if (backup.data._profiles) {
                         const pRows = JSON.parse(backup.data._profiles || '[]');
                         if (pRows.length > 0) {
                             for (const p of pRows) {
-                                // Update solo campi dati (non toccare id/auth)
-                                promises.push(supabaseClient.from('profiles').update({
+                                promises.push(_queryWithTimeout(supabaseClient.from('profiles').update({
                                     name: p.name,
                                     whatsapp: p.whatsapp || null,
                                     medical_cert_expiry: p.medical_cert_expiry || null,
@@ -458,67 +463,75 @@ function importBackup(input) {
                                     documento_firmato: p.documento_firmato || false,
                                     geo_enabled: p.geo_enabled || false,
                                     push_enabled: p.push_enabled || false,
-                                }).eq('email', (p.email || '').toLowerCase()));
+                                }).eq('email', (p.email || '').toLowerCase()), _T).catch(() => { _restoreErrors.push('profiles'); }));
                             }
                         }
                     }
 
                     // 10. Push subscriptions
+                    _restoreStep('push_subscriptions');
                     if (backup.data._push_subscriptions) {
                         const psRows = JSON.parse(backup.data._push_subscriptions || '[]');
                         if (psRows.length > 0) {
                             for (const ps of psRows) {
-                                promises.push(supabaseClient.from('push_subscriptions').upsert({
+                                promises.push(_queryWithTimeout(supabaseClient.from('push_subscriptions').upsert({
                                     user_id: ps.user_id,
                                     endpoint: ps.endpoint,
                                     p256dh: ps.p256dh,
                                     auth: ps.auth,
-                                }, { onConflict: 'endpoint' }));
+                                }, { onConflict: 'endpoint' }), _T).catch(() => { _restoreErrors.push('push_subscriptions'); }));
                             }
                         }
                     }
 
                     // 11. Admin audit log
+                    _restoreStep('admin_audit_log');
                     if (backup.data._admin_audit_log) {
                         const alRows = JSON.parse(backup.data._admin_audit_log || '[]');
                         if (alRows.length > 0) {
-                            // Cancella e re-inserisci per evitare duplicati
-                            await supabaseClient.from('admin_audit_log').delete().neq('id', '00000000-0000-0000-0000-000000000000');
-                            promises.push(supabaseClient.from('admin_audit_log').insert(alRows));
+                            await _queryWithTimeout(supabaseClient.from('admin_audit_log').delete().neq('id', '00000000-0000-0000-0000-000000000000'), _T).catch(() => {});
+                            promises.push(_queryWithTimeout(supabaseClient.from('admin_audit_log').insert(alRows), _T).catch(() => { _restoreErrors.push('admin_audit_log'); }));
                         }
                     }
 
                     // 12. Admin messages
+                    _restoreStep('admin_messages');
                     if (backup.data._admin_messages) {
                         const amRows = JSON.parse(backup.data._admin_messages || '[]');
                         if (amRows.length > 0) {
-                            await supabaseClient.from('admin_messages').delete().neq('id', '00000000-0000-0000-0000-000000000000');
-                            promises.push(supabaseClient.from('admin_messages').insert(amRows));
+                            await _queryWithTimeout(supabaseClient.from('admin_messages').delete().neq('id', '00000000-0000-0000-0000-000000000000'), _T).catch(() => {});
+                            promises.push(_queryWithTimeout(supabaseClient.from('admin_messages').insert(amRows), _T).catch(() => { _restoreErrors.push('admin_messages'); }));
                         }
                     }
 
                     // 13. Client notifications
+                    _restoreStep('client_notifications');
                     if (backup.data._client_notifications) {
                         const cnRows = JSON.parse(backup.data._client_notifications || '[]');
                         if (cnRows.length > 0) {
-                            await supabaseClient.from('client_notifications').delete().neq('id', '00000000-0000-0000-0000-000000000000');
-                            promises.push(supabaseClient.from('client_notifications').insert(cnRows));
+                            await _queryWithTimeout(supabaseClient.from('client_notifications').delete().neq('id', '00000000-0000-0000-0000-000000000000'), _T).catch(() => {});
+                            promises.push(_queryWithTimeout(supabaseClient.from('client_notifications').insert(cnRows), _T).catch(() => { _restoreErrors.push('client_notifications'); }));
                         }
                     }
 
                     // 14. Credit link clicks
+                    _restoreStep('credit_link_clicks');
                     if (backup.data._credit_link_clicks) {
                         const clRows = JSON.parse(backup.data._credit_link_clicks || '[]');
                         if (clRows.length > 0) {
-                            await supabaseClient.from('credit_link_clicks').delete().neq('id', '00000000-0000-0000-0000-000000000000');
-                            promises.push(supabaseClient.from('credit_link_clicks').insert(clRows));
+                            await _queryWithTimeout(supabaseClient.from('credit_link_clicks').delete().neq('id', '00000000-0000-0000-0000-000000000000'), _T).catch(() => {});
+                            promises.push(_queryWithTimeout(supabaseClient.from('credit_link_clicks').insert(clRows), _T).catch(() => { _restoreErrors.push('credit_link_clicks'); }));
                         }
                     }
 
+                    _restoreStep('finalizzazione');
                     const results = await Promise.allSettled(promises);
                     const errors = results.filter(r => r.status === 'fulfilled' && r.value?.error);
                     if (errors.length > 0) {
                         console.warn('[Backup] Alcuni upsert con errore:', errors.map(r => r.value.error.message));
+                    }
+                    if (_restoreErrors.length > 0) {
+                        console.warn('[Backup] Step con timeout/errore:', _restoreErrors.join(', '));
                     }
                     console.log('[Backup] Ripristino Supabase completato:', results.length, 'operazioni');
                 } catch (e) {
@@ -526,7 +539,9 @@ function importBackup(input) {
                 }
             }
 
-            if (s) s.textContent = '✅ Backup ripristinato. Ricarico...';
+            if (s) s.textContent = typeof _restoreErrors !== 'undefined' && _restoreErrors && _restoreErrors.length > 0
+                ? `⚠️ Ripristinato con errori (${_restoreErrors.join(', ')}). Ricarico...`
+                : '✅ Backup ripristinato. Ricarico...';
             setTimeout(() => location.reload(), 1200);
         } catch (err) {
             alert('Errore durante l\'importazione: ' + err.message);
