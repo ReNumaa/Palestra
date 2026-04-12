@@ -549,10 +549,13 @@
             if (_allHasOpenOverlay() || _allHasFocusedInput()) return;
             _initAllenamento();
         });
-        // Connessione ripristinata: flush immediato senza aspettare il prossimo refresh
+        // Connessione ripristinata: flush immediato + re-render per allineare la UI
         window.addEventListener('online', async () => {
             const user = getCurrentUser();
-            if (user) await flushPendingWorkoutOps();
+            if (user) {
+                await flushPendingWorkoutOps();
+                _refreshAllenamentoData();
+            }
         });
 
         // ── Plan selector ─────────────────────────────────────────────────
