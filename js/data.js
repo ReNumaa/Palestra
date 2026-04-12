@@ -2713,11 +2713,11 @@ class WorkoutLogStorage {
             rest_done: rest_done ?? null,
             notes: notes || null,
         };
-        const { data, error } = await supabaseClient
+        const { data, error } = await _queryWithTimeout(supabaseClient
             .from('workout_logs')
             .upsert(row, { onConflict: 'exercise_id,user_id,log_date,set_number' })
             .select()
-            .single();
+            .single(), 15000);
         if (error) throw error;
         // Update cache
         const idx = this._cache.findIndex(l =>
@@ -2730,10 +2730,10 @@ class WorkoutLogStorage {
 
     // Delete a single log entry
     static async deleteLog(logId) {
-        const { error } = await supabaseClient
+        const { error } = await _queryWithTimeout(supabaseClient
             .from('workout_logs')
             .delete()
-            .eq('id', logId);
+            .eq('id', logId), 15000);
         if (error) throw error;
         this._cache = this._cache.filter(l => l.id !== logId);
     }

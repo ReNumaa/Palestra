@@ -116,7 +116,7 @@
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.99.1/dist/umd/supabase.min.js" integrity="sha384-nBSomYN4UWX4we7Pw5GsQDkjtwLh2Wde+3szWl5Lzf0zuN9XncHIZLNoucos4C7f" crossorigin="anonymous"></script>
     <script src="js/supabase-client.js?v=2"></script>
     <script src="js/ui.js?v=2"></script>
-    <script src="js/data.js?v=64"></script>
+    <script src="js/data.js?v=65"></script>
     <script src="js/auth.js?v=22"></script>
     <!-- chart-mini.js non serve: usa drawDarkLineChart() interno -->
     <script>
@@ -291,9 +291,9 @@
                     updates.reps = document.getElementById('editExReps')?.value.trim() || '10';
                 }
 
-                await supabaseClient.from('workout_exercises').update(updates).eq('id', exId);
+                await WorkoutPlanStorage.updateExercise(exId, updates);
 
-                // Update local cache
+                // Aggiorna anche _allPlan locale (WorkoutPlanStorage._cache è separato)
                 const ex = (_allPlan?.workout_exercises || []).find(e => e.id === exId);
                 if (ex) Object.assign(ex, updates);
 
@@ -892,17 +892,10 @@
                         rpe: null,
                     });
                 }
-                // Update local logs
-                const { data } = await supabaseClient
-                    .from('workout_logs')
-                    .select('*')
-                    .eq('exercise_id', exerciseId)
-                    .eq('user_id', user.id)
-                    .eq('log_date', today);
-                if (data) {
-                    _allLogs = _allLogs.filter(l => !(l.exercise_id === exerciseId && l.log_date === today));
-                    _allLogs.push(...data);
-                }
+                // Update local logs from cache (WorkoutLogStorage.logSet() l'ha già aggiornata)
+                const cachedLogs = WorkoutLogStorage.getByExercise(exerciseId).filter(l => l.log_date === today);
+                _allLogs = _allLogs.filter(l => !(l.exercise_id === exerciseId && l.log_date === today));
+                _allLogs.push(...cachedLogs);
                 // Update UI: checkmark + done state
                 const card = document.getElementById('ex-' + exerciseId);
                 if (card) {
@@ -2122,26 +2115,18 @@
             _pendingDayLabel = null;
             closeExercisePicker();
             try {
-                const allExercises = _allPlan.workout_exercises || [];
-                const maxOrder = allExercises.reduce((m, e) => Math.max(m, e.sort_order), -1);
-                const exerciseData = {
-                    plan_id: _allPlan.id,
+                const newEx = await WorkoutPlanStorage.addExercise(_allPlan.id, {
                     day_label: dayLabel,
                     exercise_name: exerciseName,
                     muscle_group: ex ? ex.categoria : null,
-                    sort_order: maxOrder + 1,
                     sets,
                     reps,
                     weight_kg: null,
                     rest_seconds: rest,
                     notes: null,
-                };
-                const { data: newEx, error } = await supabaseClient
-                    .from('workout_exercises')
-                    .insert(exerciseData)
-                    .select()
-                    .single();
-                if (error) throw error;
+                });
+                // Aggiorna anche _allPlan locale (WorkoutPlanStorage._cache è separato)
+                _allPlan.workout_exercises = _allPlan.workout_exercises || [];
                 _allPlan.workout_exercises.push(newEx);
                 _activeDay = dayLabel;
                 renderScheda();
