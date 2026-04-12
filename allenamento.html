@@ -605,8 +605,12 @@
             try {
                 const { data: { session }, error } = await supabaseClient.auth.getSession();
                 if (error || !session) {
-                    console.warn('[Heartbeat] sessione non valida, ricarico');
-                    window.location.reload();
+                    console.warn('[Heartbeat] sessione assente, provo refresh...');
+                    const { error: refreshErr } = await supabaseClient.auth.refreshSession();
+                    if (refreshErr) {
+                        console.warn('[Heartbeat] refreshSession fallita, ricarico:', refreshErr.message);
+                        window.location.reload();
+                    }
                     return;
                 }
                 if (Date.now() - _allLastRefreshTs > 5 * 60 * 1000) {
@@ -619,15 +623,18 @@
 
         // ── Watchdog UI: sblocca bottoni rimasti su Salvataggio... oltre 20s ──
         // Con _queryWithTimeout(15s) un save legittimo non può durare >15s.
-        // Se dopo 20s il bottone è ancora bloccato, la promise è congelata.
+        // Se dopo 20s il bottone è ancora bloccato, la promise è congelata:
+        // sblocca la UI e riallinea i dati con un refresh.
         setInterval(() => {
             if (document.hidden) return;
+            let stuck = false;
             document.querySelectorAll('.all-log-save').forEach(btn => {
                 if (btn.disabled && btn.textContent === 'Salvataggio...') {
                     console.warn('[Watchdog] bottone log bloccato, sblocco');
                     btn.textContent = 'Salva';
                     btn.disabled = false;
                     btn.classList.remove('all-log-save--done');
+                    stuck = true;
                 }
             });
             const editBtn = document.querySelector('.all-edit-save');
@@ -635,7 +642,9 @@
                 console.warn('[Watchdog] bottone edit bloccato, sblocco');
                 editBtn.disabled = false;
                 editBtn.textContent = 'Salva modifiche';
+                stuck = true;
             }
+            if (stuck) _refreshAllenamentoData();
         }, 20000);
 
         // ── Plan selector ─────────────────────────────────────────────────
