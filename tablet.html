@@ -884,9 +884,23 @@
                     actions.appendChild(d);
                 }
             }
-            // Update day count
+            // Update superset card if this exercise belongs to one
             const dayEx = _exercises.filter(e => e.day_label === _activeDay);
             const todayLogs = _logs.filter(l => l.log_date === today);
+            const thisEx = dayEx.find(e => e.id === exId);
+            if (thisEx && thisEx.superset_group) {
+                const ssCard = document.getElementById('tss-' + thisEx.superset_group);
+                if (ssCard) {
+                    const pair = dayEx.filter(e => e.superset_group === thisEx.superset_group);
+                    const allSsDone = pair.every(e => todayLogs.some(l => l.exercise_id === e.id));
+                    if (allSsDone) {
+                        ssCard.classList.add('all-ss-done');
+                        const ssStatus = ssCard.querySelector('.all-ss-status');
+                        if (ssStatus) ssStatus.innerHTML = '<span class="tab-ex-check">&#10003;</span>';
+                    }
+                }
+            }
+            // Update day count
             const dc = dayEx.filter(e => todayLogs.some(l => l.exercise_id === e.id)).length;
             const countEl = document.querySelector('.tab-day-count');
             if (countEl) countEl.textContent = `${dc}/${dayEx.length} completati`;

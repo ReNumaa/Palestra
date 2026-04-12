@@ -1086,9 +1086,23 @@
                         actions.appendChild(delBtn);
                     }
                 }
-                // Update day done count
+                // Update superset card if this exercise belongs to one
                 const dayExercises = (_allPlan?.workout_exercises || []).filter(e => e.day_label === _activeDay);
                 const todayLogs = _allLogs.filter(l => l.log_date === today);
+                const thisEx = dayExercises.find(e => e.id === exerciseId);
+                if (thisEx && thisEx.superset_group) {
+                    const ssCard = document.getElementById('ss-' + thisEx.superset_group);
+                    if (ssCard) {
+                        const pair = dayExercises.filter(e => e.superset_group === thisEx.superset_group);
+                        const allSsDone = pair.every(e => todayLogs.some(l => l.exercise_id === e.id));
+                        if (allSsDone) {
+                            ssCard.classList.add('all-ss-done');
+                            const ssStatus = ssCard.querySelector('.all-ss-status');
+                            if (ssStatus) ssStatus.innerHTML = '<span class="all-ex-check">&#10003;</span>';
+                        }
+                    }
+                }
+                // Update day done count
                 const doneCount = dayExercises.filter(ex => todayLogs.some(l => l.exercise_id === ex.id)).length;
                 const countEl = document.querySelector('.all-day-count');
                 if (countEl) countEl.textContent = `${doneCount}/${dayExercises.length} completati`;

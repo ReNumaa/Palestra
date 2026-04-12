@@ -254,19 +254,24 @@ function _schedeRenderExercises(exId, cat, search) {
     `).join('') + (exercises.length > 50 ? `<div class="schede-picker-more">${exercises.length - 50} altri — affina la ricerca</div>` : '');
 }
 
-function _schedePickExercise(exId, exerciseName) {
+async function _schedePickExercise(exId, exerciseName) {
     const ex = _findExercise(exerciseName);
-    // Update DB fields
-    _schedeUpdateExField(exId, 'exercise_name', exerciseName);
+    // Build all updates in one batch
+    const updates = { exercise_name: exerciseName };
     if (ex) {
-        _schedeUpdateExField(exId, 'exercise_slug', ex.slug);
-        _schedeUpdateExField(exId, 'muscle_group', ex.categoria);
+        updates.exercise_slug = ex.slug;
+        updates.muscle_group = ex.categoria;
         // Cardio: set time-based defaults
         if ((ex.categoria || '').toLowerCase() === 'cardio') {
-            _schedeUpdateExField(exId, 'sets', 1);
-            _schedeUpdateExField(exId, 'reps', '20');
-            _schedeUpdateExField(exId, 'rest_seconds', 0);
+            updates.sets = 1;
+            updates.reps = '20';
+            updates.rest_seconds = 0;
         }
+    }
+    try {
+        await WorkoutPlanStorage.updateExercise(exId, updates);
+    } catch (e) {
+        if (typeof showToast === 'function') showToast('Errore aggiornamento', 'error');
     }
 
     // Close picker and re-render row
@@ -278,13 +283,16 @@ function _schedePickExercise(exId, exerciseName) {
     _schedeRefreshEditor();
 }
 
-function _schedePickCustom(exId) {
+async function _schedePickCustom(exId) {
     const dropdown = document.getElementById('picker-' + exId);
     if (dropdown) dropdown.style.display = 'none';
     _schedeCleanupPickerScroll();
 
-    _schedeUpdateExField(exId, 'exercise_name', '');
-    _schedeUpdateExField(exId, 'exercise_slug', null);
+    try {
+        await WorkoutPlanStorage.updateExercise(exId, { exercise_name: '', exercise_slug: null });
+    } catch (e) {
+        if (typeof showToast === 'function') showToast('Errore aggiornamento', 'error');
+    }
 
     const row = document.querySelector(`.schede-exercise-row[data-ex-id="${exId}"]`);
     if (row) {
