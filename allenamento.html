@@ -543,12 +543,21 @@
             if (ae.tagName !== 'INPUT' && ae.tagName !== 'TEXTAREA') return false;
             return !!ae.closest('#allContent');
         }
+        let _hadSaveInFlightOnHide = false;
         document.addEventListener('visibilitychange', async () => {
-            if (document.hidden) { _allLastHidden = Date.now(); _bgGeneration++; return; }
+            if (document.hidden) {
+                _allLastHidden = Date.now();
+                _bgGeneration++;
+                // Rileva se c'era un save in corso al momento del background
+                _hadSaveInFlightOnHide =
+                    !!document.querySelector('.all-log-save[disabled]') ||
+                    !!document.querySelector('.all-edit-save[disabled]') ||
+                    _getOpsQueue().length > 0;
+                return;
+            }
             const bgSec = _allLastHidden ? (Date.now() - _allLastHidden) / 1000 : 0;
             if (bgSec < 1) return; // ignora micro-switch assoluti (<1s)
-            // Reset IMMEDIATO bottoni bloccati: il dato è già al sicuro in localStorage,
-            // non serve aspettare il flush per sbloccare la UI
+            // Reset IMMEDIATO bottoni bloccati: il dato è già al sicuro in localStorage
             document.querySelectorAll('.all-log-save').forEach(btn => {
                 if (btn.textContent === 'Salvataggio...') {
                     btn.textContent = 'Salva';
@@ -563,11 +572,15 @@
             }
             // Aspetta che auth.js finisca il suo lavoro sul lock Supabase
             await new Promise(r => setTimeout(r, 800));
-            // Flush sempre al ritorno (anche background breve può avere ops pendenti)
+            // Flush sempre al ritorno
             const flushed = await flushPendingWorkoutOps();
-            // Refresh se ci sono stati flush, oppure se background >30s senza overlay attivi
-            if (flushed > 0 || (bgSec >= 30 && !_allHasOpenOverlay() && !_allHasFocusedInput())) {
+            // Refresh se: save era in corso al momento del background, oppure
+            // ci sono stati flush, oppure background >30s senza overlay attivi
+            if (_hadSaveInFlightOnHide || flushed > 0 || (bgSec >= 30 && !_allHasOpenOverlay() && !_allHasFocusedInput())) {
+                _hadSaveInFlightOnHide = false;
                 _refreshAllenamentoData();
+            } else {
+                _hadSaveInFlightOnHide = false;
             }
         });
         // bfcache restore (back/forward cache): la pagina viene ripristinata
