@@ -2644,7 +2644,8 @@ class WorkoutPlanStorage {
     // ── Exercise suggestions (autocomplete) ──────────────────────────────────
     static async loadSuggestions() {
         try {
-            const { data, error } = await supabaseClient.rpc('get_exercise_suggestions');
+            const { data, error } = await _rpcWithTimeout(
+                supabaseClient.rpc('get_exercise_suggestions'), 12000);
             if (!error && data) this._suggestions = data.map(r => r.exercise_name);
         } catch (e) { console.warn('[WorkoutPlanStorage] loadSuggestions failed:', e); }
     }

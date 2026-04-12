@@ -424,7 +424,8 @@ async function renderSchedeTab() {
                 });
             } else {
                 await WorkoutPlanStorage.syncFromSupabase({ adminMode: true });
-                await WorkoutPlanStorage.loadSuggestions();
+                // Suggestions in background: nice-to-have, non devono bloccare il render
+                WorkoutPlanStorage.loadSuggestions().catch(() => {});
                 _schedeLastSync = now;
             }
         }
