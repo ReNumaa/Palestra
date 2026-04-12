@@ -544,7 +544,7 @@
             return !!ae.closest('#allContent');
         }
         let _hadSaveInFlightOnHide = false;
-        document.addEventListener('visibilitychange', async () => {
+        document.addEventListener('visibilitychange', () => {
             if (document.hidden) {
                 _allLastHidden = Date.now();
                 _bgGeneration++;
@@ -557,30 +557,11 @@
             }
             const bgSec = _allLastHidden ? (Date.now() - _allLastHidden) / 1000 : 0;
             if (bgSec < 1) return; // ignora micro-switch assoluti (<1s)
-            // Reset IMMEDIATO bottoni bloccati: il dato è già al sicuro in localStorage
-            document.querySelectorAll('.all-log-save').forEach(btn => {
-                if (btn.textContent === 'Salvataggio...') {
-                    btn.textContent = 'Salva';
-                    btn.disabled = false;
-                    btn.classList.remove('all-log-save--done');
-                }
-            });
-            const editBtn = document.querySelector('.all-edit-save');
-            if (editBtn && editBtn.textContent === 'Salvataggio...') {
-                editBtn.disabled = false;
-                editBtn.textContent = 'Salva modifiche';
-            }
-            // Aspetta che auth.js finisca il suo lavoro sul lock Supabase
-            await new Promise(r => setTimeout(r, 800));
-            // Flush sempre al ritorno
-            const flushed = await flushPendingWorkoutOps();
-            // Refresh se: save era in corso al momento del background, oppure
-            // ci sono stati flush, oppure background >30s senza overlay attivi
-            if (_hadSaveInFlightOnHide || flushed > 0 || (bgSec >= 30 && !_allHasOpenOverlay() && !_allHasFocusedInput())) {
-                _hadSaveInFlightOnHide = false;
-                _refreshAllenamentoData();
-            } else {
-                _hadSaveInFlightOnHide = false;
+            // Se c'era un save in corso oppure background >= 2s: reload completo.
+            // La coda in localStorage sopravvive al reload; il flush parte in
+            // _initAllenamento → _refreshAllenamentoData → flushPendingWorkoutOps.
+            if (_hadSaveInFlightOnHide || bgSec >= 2) {
+                window.location.reload();
             }
         });
         // bfcache restore (back/forward cache): la pagina viene ripristinata
