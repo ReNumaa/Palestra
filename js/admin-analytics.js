@@ -292,6 +292,7 @@ function updateStatsCards(filteredBookings, allBookings) {
     // Revenue — exclude free lessons (lezione-gratuita) from revenue stats
     const { from: filterFrom, to: filterTo } = getFilterDateRange(currentFilter);
     // Calcola more nel periodo corrente e precedente
+    // Fonte 1: debiti manuali con entryType === 'mora'
     let _moraRevenue = 0, _moraPrevRevenue = 0;
     const allDebts = ManualDebtStorage._getAll();
     for (const key in allDebts) {
@@ -304,6 +305,15 @@ function updateStatsCards(filteredBookings, allBookings) {
             if (prevRange && d >= prevRange.from && d <= prevRange.to) _moraPrevRevenue += h.amount;
         });
     }
+    // Fonte 2: more trattenute da booking annullati con penalità
+    allBookings.forEach(b => {
+        if (b.status !== 'cancelled' || !b.cancelledWithPenalty) return;
+        const bd = b.cancelledAt ? new Date(b.cancelledAt) : new Date(b.date + 'T00:00:00');
+        const moraAmt = Math.round((SLOT_PRICES[b.slotType] || 0) * 0.5 * 100) / 100;
+        if (moraAmt <= 0) return;
+        if (bd >= filterFrom && bd <= filterTo) _moraRevenue += moraAmt;
+        if (prevRange && bd >= prevRange.from && bd <= prevRange.to) _moraPrevRevenue += moraAmt;
+    });
     const revenue = filteredBookings
         .filter(b => b.paymentMethod !== 'lezione-gratuita')
         .reduce((t, b) => t + (SLOT_PRICES[b.slotType] || 0), 0) + _moraRevenue;
