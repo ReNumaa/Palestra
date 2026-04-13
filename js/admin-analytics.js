@@ -657,10 +657,10 @@ function renderFatturatoDetail(panel) {
             });
         }
     }
-    // Fonte 2 — more trattenute da booking già pagati (entrambe le modalità):
-    // il 50% non rimborsato è denaro reale già incassato.
+    // Fonte 2 — more trattenute da booking annullati con penalità (entrambe le modalità):
+    // il 50% non rimborsato è denaro reale già incassato (pagato con contanti, carta, o credito).
     (_statsBookings ?? _excludeAdminBookings(BookingStorage.getAllBookings())).forEach(b => {
-        if (b.status !== 'cancelled' || !b.cancelledWithPenalty || !b.cancelledPaidAt) return;
+        if (b.status !== 'cancelled' || !b.cancelledWithPenalty) return;
         const moraAmount = Math.round((SLOT_PRICES[b.slotType] || 0) * 0.5 * 100) / 100;
         if (moraAmount > 0) {
             _moraEntries.push({ date: b.cancelledAt || (b.date + 'T00:00:00'), amount: moraAmount });
@@ -1539,9 +1539,9 @@ function renderClientiDetail(panel) {
             moraUsers[uKey].total += h.amount;
         });
     }
-    // Fonte 2: booking già pagati annullati con mora trattenuta (50% trattenuto)
+    // Fonte 2: booking annullati con mora trattenuta (50% trattenuto, anche se pagato con credito)
     allBookings.forEach(b => {
-        if (b.status !== 'cancelled' || !b.cancelledWithPenalty || !b.cancelledPaidAt) return;
+        if (b.status !== 'cancelled' || !b.cancelledWithPenalty) return;
         const bd = b.cancelledAt ? new Date(b.cancelledAt) : new Date(b.date + 'T00:00:00');
         if (bd < periodFrom || bd > periodTo) return;
         const moraAmount = Math.round((SLOT_PRICES[b.slotType] || 0) * 0.5 * 100) / 100;
