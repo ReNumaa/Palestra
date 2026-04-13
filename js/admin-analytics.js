@@ -642,7 +642,7 @@ function renderFatturatoDetail(panel) {
         .reduce((s, h) => s + h._cashValue, 0);
 
     // ── More (penalità cancellazione) ────────────────────────────────────────
-    // In modalità Reale le more NON sono contate: rappresentano creazione debito,
+    // Fonte 1 — debiti manuali (solo non-Reale): rappresentano creazione debito,
     // non soldi in cassa. Il cash arriva quando vengono pagate (via admin_pay_bookings → displayAmount).
     const _moraEntries = [];
     if (!isReale) {
@@ -657,6 +657,15 @@ function renderFatturatoDetail(panel) {
             });
         }
     }
+    // Fonte 2 — more trattenute da booking già pagati (entrambe le modalità):
+    // il 50% non rimborsato è denaro reale già incassato.
+    (_statsBookings ?? _excludeAdminBookings(BookingStorage.getAllBookings())).forEach(b => {
+        if (b.status !== 'cancelled' || !b.cancelledWithPenalty || !b.cancelledPaidAt) return;
+        const moraAmount = Math.round((SLOT_PRICES[b.slotType] || 0) * 0.5 * 100) / 100;
+        if (moraAmount > 0) {
+            _moraEntries.push({ date: b.cancelledAt || (b.date + 'T00:00:00'), amount: moraAmount });
+        }
+    });
     const moraInRange = (dateFrom, dateTo) => _moraEntries
         .filter(h => { const d = new Date(h.date); return d >= dateFrom && d <= dateTo; })
         .reduce((s, h) => s + h.amount, 0);
