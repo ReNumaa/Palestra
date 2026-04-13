@@ -467,7 +467,7 @@ class BookingStorage {
     static async fetchForAdmin(startStr, endStr) {
         if (typeof supabaseClient === 'undefined') return null;
         try {
-            const adminCols = 'id,date,time,slot_type,name,email,whatsapp,notes,status,paid,payment_method,paid_at,credit_applied,created_at,cancelled_at,cancelled_with_bonus';
+            const adminCols = 'id,date,time,slot_type,name,email,whatsapp,notes,status,paid,payment_method,paid_at,credit_applied,created_at,cancelled_at,cancelled_with_bonus,cancelled_with_penalty,cancelled_paid_at,cancelled_payment_method,cancelled_refund_pct';
             // Paginazione: il server limita a 1000 righe per request
             const PAGE = 1000;
             let all = [], pageFrom = 0, done = false;
