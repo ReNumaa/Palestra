@@ -1514,6 +1514,7 @@ function renderClientiDetail(panel) {
     const bonusTotalSaved = bonusUsersList.reduce((s, c) => s + c.saved, 0);
 
     // ── Pagamento more nel periodo ───────────────────────────────────────────
+    // Fonte 1: debiti manuali con entryType === 'mora' (mora da incassare)
     const moraUsers = {};
     const allDebtsC = ManualDebtStorage._getAll();
     for (const dKey in allDebtsC) {
@@ -1529,6 +1530,18 @@ function renderClientiDetail(panel) {
             moraUsers[uKey].total += h.amount;
         });
     }
+    // Fonte 2: booking già pagati annullati con mora trattenuta (50% trattenuto)
+    allBookings.forEach(b => {
+        if (b.status !== 'cancelled' || !b.cancelledWithPenalty || !b.cancelledPaidAt) return;
+        const bd = b.cancelledAt ? new Date(b.cancelledAt) : new Date(b.date + 'T00:00:00');
+        if (bd < periodFrom || bd > periodTo) return;
+        const moraAmount = Math.round((SLOT_PRICES[b.slotType] || 0) * 0.5 * 100) / 100;
+        if (moraAmount <= 0) return;
+        const uKey = b.email || b.whatsapp || b.name;
+        if (!moraUsers[uKey]) moraUsers[uKey] = { name: b.name, count: 0, total: 0 };
+        moraUsers[uKey].count++;
+        moraUsers[uKey].total += moraAmount;
+    });
     const moraUsersList = Object.values(moraUsers).sort((a, b) => b.total - a.total);
     const moraTotalAmount = Math.round(moraUsersList.reduce((s, c) => s + c.total, 0) * 100) / 100;
 
