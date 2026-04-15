@@ -21,7 +21,7 @@ async function _loadExercisesDB() {
             } else {
                 const { data, error } = await _queryWithTimeout(supabaseClient
                     .from('imported_exercises')
-                    .select('*')
+                    .select('slug, nome_it, nome_original, nome_en, categoria, immagine, immagine_thumbnail, video, popolarita')
                     .order('categoria')
                     .order('nome_it'), 30000);
                 if (error) throw error;
@@ -659,7 +659,7 @@ async function _renderClientDetail(container) {
         try {
             const { data, error } = await _queryWithTimeout(supabaseClient
                 .from('workout_logs')
-                .select('*')
+                .select('exercise_id, log_date, weight_done, reps_done')
                 .in('exercise_id', allExIds)
                 .order('log_date', { ascending: true }));
             if (error) throw error;

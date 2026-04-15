@@ -399,21 +399,8 @@ function renderAdminDayView(dateInfo) {
         return;
     }
 
-    // Auto-apply any available credit for each unique contact with bookings on this day
-    // Reconcile crediti via RPC (non client-side) per evitare loop realtime
-    if (typeof supabaseClient !== 'undefined') {
-        const dayBookings = BookingStorage.getAllBookings().filter(b => b.date === dateInfo.formatted);
-        const seen = new Set();
-        const _slotPrices = { 'personal-training': 5, 'small-group': 10, 'group-class': 30 };
-        dayBookings.forEach(b => {
-            if (b.email && !seen.has(b.email.toLowerCase())) {
-                seen.add(b.email.toLowerCase());
-                _rpcWithTimeout(supabaseClient.rpc('apply_credit_to_past_bookings', {
-                    p_email: b.email, p_slot_prices: _slotPrices
-                }), 15000).then(() => {}, () => {});
-            }
-        });
-    }
+    // Reconcile crediti: gestito da pg_cron (ogni minuto) + wrapper on-load in admin.html.
+    // Nessuna RPC qui per evitare fan-out N-chiamate ad ogni click giorno.
 
     scheduledSlots.forEach(scheduledSlot => {
         const slotCard = createAdminSlotCard(dateInfo, scheduledSlot);

@@ -57,7 +57,7 @@ async function _loadImportaImported() {
     if (_importaImportedLoaded) return;
     const { data, error } = await _queryWithTimeout(supabaseClient
         .from('imported_exercises')
-        .select('*')
+        .select('slug, nome_it, nome_original, nome_en, categoria, immagine, immagine_thumbnail, video, popolarita')
         .order('categoria', { ascending: true })
         .order('nome_it', { ascending: true }), 30000);
     if (error) throw error;

@@ -1174,19 +1174,17 @@
             if (typeof syncPushEnabledUsers === 'function') {
                 syncPushEnabledUsers().catch(e => console.warn('[Push] background sync error:', e));
             }
-            // Reconcile crediti via RPC in background con timeout
+            // Reconcile crediti via wrapper RPC (1 sola chiamata vs fan-out per cliente).
+            // Il cron `apply-credit-to-past-bookings-all` fa la stessa cosa ogni minuto;
+            // questa chiamata on-load è safety net per riflettere subito lo stato aggiornato.
             if (typeof supabaseClient !== 'undefined') {
                 (async () => {
                     try {
-                        const _slotPrices = { 'personal-training': 5, 'small-group': 10, 'group-class': 30 };
-                        const _clients = CreditStorage.getAllWithBalance().filter(c => c.email);
-                        const _rpcResults = await Promise.allSettled(_clients.map(c =>
-                            _rpcWithTimeout(supabaseClient.rpc('apply_credit_to_past_bookings', {
-                                p_email: c.email, p_slot_prices: _slotPrices
-                            }), 15000).then(r => r.data).catch(() => null)
-                        ));
-                        const anyPaid = _rpcResults.some(r => r.status === 'fulfilled' && r.value && r.value.bookings_paid > 0);
-                        if (anyPaid) {
+                        const { data } = await _rpcWithTimeout(
+                            supabaseClient.rpc('apply_credit_to_past_bookings_all'),
+                            20000
+                        );
+                        if (data && data.bookings_paid > 0) {
                             await Promise.all([BookingStorage.syncFromSupabase(), CreditStorage.syncFromSupabase()]);
                             if (typeof loadDashboardData === 'function') loadDashboardData();
                             if (typeof renderAdminCalendar === 'function') renderAdminCalendar();
