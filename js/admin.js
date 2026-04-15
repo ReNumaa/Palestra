@@ -166,7 +166,7 @@ function switchTab(tabName) {
     const loader = {
         analytics: () => requestAnimationFrame(() => requestAnimationFrame(() => loadDashboardData())),
         bookings:  () => { renderAdminCalendar(); },
-        payments:  () => renderPaymentsTab(),
+        payments:  () => renderPaymentsTab('switchTab'),
         clients:   () => renderClientsTab(),
         schedule:  () => renderScheduleManager(),
         settings:  () => renderSettingsTab(),

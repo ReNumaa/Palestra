@@ -2,6 +2,10 @@
 let debtorsListVisible = false;
 let creditsListVisible = false;
 
+// [DIAG] Temp instrumentation — rimuovere dopo diagnosi
+let _paymentsReqCounter = 0;
+let _paymentsInFlight   = 0;
+
 /**
  * Dopo salvataggio debito/credito, riapre la card del contatto nella lista
  * mostrando i dati aggiornati senza perdere il contesto.
@@ -28,21 +32,45 @@ function _setPaymentCardsLoading(on) {
         c.classList.toggle('payment-stat-card--loading', on));
 }
 
-async function renderPaymentsTab() {
+async function renderPaymentsTab(_diagSource = 'unknown') {
+    // [DIAG] inizio — misura tempi e rileva invocazioni concorrenti
+    const _diagReqId = ++_paymentsReqCounter;
+    const _diagTag   = `[Payments#${_diagReqId}]`;
+    _paymentsInFlight++;
+    const _diagT0 = performance.now();
+    console.log(`${_diagTag} render start (source=${_diagSource}, inFlight=${_paymentsInFlight})`);
+
     // Skeleton anti-flicker: mostra solo se il fetch dura >150ms
     let skeletonTimer = setTimeout(() => _setPaymentCardsLoading(true), 150);
 
     // RPC server-side (veloce, dati freschi), fallback al JS locale se non disponibile
     let debtors;
     if (typeof supabaseClient !== 'undefined') {
+        const _diagTRpc = performance.now();
+        console.log(`${_diagTag} rpc get_debtors start`);
         try {
             const { data, error } = await _rpcWithTimeout(supabaseClient.rpc('get_debtors', {
                 p_slot_prices: SLOT_PRICES
             }));
-            if (!error && data) debtors = data;
-        } catch (_) { /* Supabase non raggiungibile — usa fallback JS */ }
+            const _diagDtRpc = (performance.now() - _diagTRpc).toFixed(1);
+            if (!error && data) {
+                debtors = data;
+                console.log(`${_diagTag} rpc get_debtors success in ${_diagDtRpc} ms (rows=${data.length})`);
+            } else {
+                console.log(`${_diagTag} rpc get_debtors returned no data in ${_diagDtRpc} ms`, error || '(no error)');
+            }
+        } catch (_e) {
+            const _diagDtRpc = (performance.now() - _diagTRpc).toFixed(1);
+            console.log(`${_diagTag} rpc get_debtors failed/timeout in ${_diagDtRpc} ms`, _e);
+            /* Supabase non raggiungibile — usa fallback JS */
+        }
     }
-    if (!debtors) debtors = getDebtors();
+    if (!debtors) {
+        const _diagTFb = performance.now();
+        console.log(`${_diagTag} fallback getDebtors start`);
+        debtors = getDebtors();
+        console.log(`${_diagTag} fallback getDebtors done in ${(performance.now() - _diagTFb).toFixed(1)} ms (rows=${debtors.length})`);
+    }
 
     // Rimuovi skeleton
     if (skeletonTimer) clearTimeout(skeletonTimer);
@@ -81,6 +109,7 @@ async function renderPaymentsTab() {
     }
 
     // Render debtors
+    const _diagTDebtors = performance.now();
     if (debtors.length === 0) {
         debtorsList.innerHTML = '<div class="empty-slot">Nessun cliente con pagamenti in sospeso! 🎉</div>';
     } else {
@@ -90,8 +119,10 @@ async function renderPaymentsTab() {
             debtorsList.appendChild(debtorCard);
         });
     }
+    console.log(`${_diagTag} render debtors DOM in ${(performance.now() - _diagTDebtors).toFixed(1)} ms (n=${debtors.length})`);
 
     // Render credits
+    const _diagTCredits = performance.now();
     if (creditsList) {
         if (credits.length === 0) {
             creditsList.innerHTML = '<div class="empty-slot">Nessun cliente con credito attivo</div>';
@@ -102,7 +133,10 @@ async function renderPaymentsTab() {
             });
         }
     }
+    console.log(`${_diagTag} render credits DOM in ${(performance.now() - _diagTCredits).toFixed(1)} ms (n=${credits.length})`);
 
+    _paymentsInFlight--;
+    console.log(`${_diagTag} render total in ${(performance.now() - _diagT0).toFixed(1)} ms (inFlight=${_paymentsInFlight})`);
 }
 
 function deleteManualDebtEntry(whatsapp, email, entryDate) {
@@ -125,7 +159,7 @@ function deleteManualDebtEntry(whatsapp, email, entryDate) {
                 }
                 console.log('[admin_delete_debt_entry]', data);
                 await ManualDebtStorage.syncFromSupabase();
-                renderPaymentsTab();
+                renderPaymentsTab('deleteManualDebtEntry/supabase');
                 showToast('Voce eliminata.', 'success');
             } catch (ex) {
                 console.error('[deleteManualDebtEntry] unexpected error:', ex);
@@ -135,7 +169,7 @@ function deleteManualDebtEntry(whatsapp, email, entryDate) {
     } else {
         const ok = ManualDebtStorage.deleteDebtEntry(whatsapp, email, entryDate);
         if (ok) {
-            renderPaymentsTab();
+            renderPaymentsTab('deleteManualDebtEntry/local');
             showToast('Voce eliminata.', 'success');
         }
     }
@@ -233,7 +267,7 @@ async function saveEditEntry() {
     }
 
     closeEditEntryPopup();
-    renderPaymentsTab();
+    renderPaymentsTab('editEntry');
     showToast('Voce modificata.', 'success');
 }
 
@@ -257,7 +291,7 @@ function deleteCreditEntryFromCard(whatsapp, email, entryDate) {
                 }
                 console.log('[admin_delete_credit_entry]', data);
                 await CreditStorage.syncFromSupabase();
-                renderPaymentsTab();
+                renderPaymentsTab('deleteCreditEntry/supabase');
                 showToast('Voce di credito eliminata.', 'success');
             } catch (ex) {
                 console.error('[deleteCreditEntryFromCard] unexpected error:', ex);
@@ -267,7 +301,7 @@ function deleteCreditEntryFromCard(whatsapp, email, entryDate) {
     } else {
         const ok = CreditStorage.deleteCreditEntry(whatsapp, email, entryDate);
         if (ok) {
-            renderPaymentsTab();
+            renderPaymentsTab('deleteCreditEntry/local');
             showToast('Voce di credito eliminata.', 'success');
         }
     }
@@ -794,7 +828,7 @@ function markBookingPaid(bookingId) {
         BookingStorage.replaceAllBookings(bookings);
 
         // Refresh payments tab
-        renderPaymentsTab();
+        renderPaymentsTab('registerPayment');
 
         // Re-run search if it was active
         const searchInput = document.getElementById('debtorSearchInput');
@@ -984,7 +1018,7 @@ async function saveManualEntry() {
             }
             closeManualEntryPopup();
             showToast('Debito aggiunto con successo', 'success');
-            await renderPaymentsTab();
+            await renderPaymentsTab('saveManualEntry/debt');
             _reopenContactCard(name, whatsapp, email);
         } else {
             // Credito: operazione atomica server-side via RPC
@@ -1044,7 +1078,7 @@ async function saveManualEntry() {
             closeManualEntryPopup();
             const bonusMsg = rechargeBonus > 0 ? ` + ${rechargeBonus}€ bonus gratuito` : '';
             showToast('Credito aggiunto con successo' + bonusMsg, 'success');
-            await renderPaymentsTab();
+            await renderPaymentsTab('saveManualEntry/credit');
             _reopenContactCard(name, whatsapp, email);
         }
     } catch (err) {
@@ -1368,7 +1402,7 @@ async function paySelectedDebts() {
         closeDebtPopup();
         if (selectedAdminDay) renderAdminDayView(selectedAdminDay);
         const activeTab = document.querySelector('.admin-tab.active');
-        if (activeTab && activeTab.dataset.tab === 'payments') renderPaymentsTab();
+        if (activeTab && activeTab.dataset.tab === 'payments') renderPaymentsTab('saveDebtPayment/credit-only');
         return;
     }
 
@@ -1394,7 +1428,7 @@ async function paySelectedDebts() {
         await Promise.all([BookingStorage.syncFromSupabase(), CreditStorage.syncFromSupabase(), ManualDebtStorage.syncFromSupabase()]);
         if (selectedAdminDay) renderAdminDayView(selectedAdminDay);
         const activeTab = document.querySelector('.admin-tab.active');
-        if (activeTab && activeTab.dataset.tab === 'payments') renderPaymentsTab();
+        if (activeTab && activeTab.dataset.tab === 'payments') renderPaymentsTab('saveDebtPayment/admin_pay_bookings');
     })();
 }
 

@@ -1216,7 +1216,7 @@
                         if (typeof renderScheduleManager === 'function') renderScheduleManager();
                         const activeTab = document.querySelector('.admin-tab.active');
                         if (activeTab) {
-                            if (activeTab.dataset.tab === 'payments' && typeof renderPaymentsTab === 'function') renderPaymentsTab();
+                            if (activeTab.dataset.tab === 'payments' && typeof renderPaymentsTab === 'function') renderPaymentsTab('realtime');
                             if (activeTab.dataset.tab === 'clients' && typeof renderClientsTab === 'function') renderClientsTab();
                             if (activeTab.dataset.tab === 'settings' && typeof renderSettingsTab === 'function') renderSettingsTab();
                             if (activeTab.dataset.tab === 'schede' && typeof renderSchedeTab === 'function') renderSchedeTab();
