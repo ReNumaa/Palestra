@@ -537,9 +537,47 @@ function switchRegistroSubtab(name, btn) {
     if (name === 'notifiche-clienti' && typeof loadClientNotifications === 'function') loadClientNotifications();
 }
 
+// ── Refresh mirato dei dati del Registro ──────────────────────────────────
+// Sync di Booking + Credit + ManualDebt (le uniche sorgenti lette da
+// buildRegistroEntries). Guard doppia: non rifetcha se c'è già un sync in
+// corso e non più di 1 fetch ogni REGISTRO_SYNC_COOLDOWN_MS.
+// Questa funzione è invocata SOLO da renderRegistroTab() (entrata nel tab):
+// i re-render interni dovuti a filtri/ordinamento passano per
+// applyRegistroFilters() direttamente e non toccano la rete.
+const REGISTRO_SYNC_COOLDOWN_MS = 10_000;
+let _registroSyncInFlight = false;
+let _registroLastSyncAt   = 0;
+
+async function _registroRefreshData() {
+    if (typeof supabaseClient === 'undefined') return;
+    if (_registroSyncInFlight) return;
+    if (Date.now() - _registroLastSyncAt < REGISTRO_SYNC_COOLDOWN_MS) return;
+
+    _registroSyncInFlight = true;
+    try {
+        await Promise.all([
+            BookingStorage.syncFromSupabase(),
+            CreditStorage.syncFromSupabase(),
+            ManualDebtStorage.syncFromSupabase(),
+        ]);
+        _registroLastSyncAt = Date.now();
+        // Re-render solo se siamo ancora sul tab Registro: evita lavoro inutile
+        // se l'utente ha già cambiato tab mentre il fetch era in volo.
+        const active = document.querySelector('.admin-tab.active');
+        if (active && active.dataset.tab === 'registro') {
+            applyRegistroFilters();
+        }
+    } catch (e) {
+        console.warn('[Registro] refresh error:', e);
+    } finally {
+        _registroSyncInFlight = false;
+    }
+}
+
 // ── Entry point chiamato da switchTab ──────────────────────────────────────
 function renderRegistroTab() {
-    applyRegistroFilters();
+    applyRegistroFilters();      // render immediato da cache (no flicker)
+    _registroRefreshData();      // fetch in background, guardato
 }
 
 // ── Export Excel della vista filtrata ─────────────────────────────────────
