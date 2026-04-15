@@ -2,9 +2,10 @@
 let debtorsListVisible = false;
 let creditsListVisible = false;
 
-// [DIAG] Temp instrumentation — rimuovere dopo diagnosi
+// Contatore render: ogni chiamata a renderPaymentsTab lo incrementa e lo usa
+// come guard. Le RPC in volo che tornano con un reqId non più corrente
+// vengono scartate per evitare race (tab switch rapidi, azioni concorrenti).
 let _paymentsReqCounter = 0;
-let _paymentsInFlight   = 0;
 
 /**
  * Dopo salvataggio debito/credito, riapre la card del contatto nella lista
@@ -27,55 +28,49 @@ function _reopenContactCard(name, whatsapp, email) {
     }
 }
 
-function _setPaymentCardsLoading(on) {
-    document.querySelectorAll('.payment-stat-card').forEach(c =>
-        c.classList.toggle('payment-stat-card--loading', on));
+async function renderPaymentsTab(_diagSource = 'unknown') {
+    const reqId = ++_paymentsReqCounter;
+    const tag   = `[Payments#${reqId}]`;
+    const t0    = performance.now();
+
+    // 1) Render sincrono dai dati locali: il tab è utilizzabile subito,
+    //    senza attendere la RPC (che può essere lenta o andare in timeout).
+    const localDebtors = getDebtors();
+    _paintPaymentsTab(localDebtors, { preserveUiState: false });
+    console.log(`${tag} sync render from local in ${(performance.now() - t0).toFixed(1)} ms (n=${localDebtors.length}, source=${_diagSource})`);
+
+    // 2) Riallineo in background con la RPC server-side: se arriva ed è
+    //    ancora rilevante, aggiorno il tab preservando lo stato UI.
+    if (typeof supabaseClient !== 'undefined') {
+        _refreshPaymentsFromServer(reqId, tag);
+    }
 }
 
-async function renderPaymentsTab(_diagSource = 'unknown') {
-    // [DIAG] inizio — misura tempi e rileva invocazioni concorrenti
-    const _diagReqId = ++_paymentsReqCounter;
-    const _diagTag   = `[Payments#${_diagReqId}]`;
-    _paymentsInFlight++;
-    const _diagT0 = performance.now();
-    console.log(`${_diagTag} render start (source=${_diagSource}, inFlight=${_paymentsInFlight})`);
-
-    // Skeleton anti-flicker: mostra solo se il fetch dura >150ms
-    let skeletonTimer = setTimeout(() => _setPaymentCardsLoading(true), 150);
-
-    // RPC server-side (veloce, dati freschi), fallback al JS locale se non disponibile
-    let debtors;
-    if (typeof supabaseClient !== 'undefined') {
-        const _diagTRpc = performance.now();
-        console.log(`${_diagTag} rpc get_debtors start`);
-        try {
-            const { data, error } = await _rpcWithTimeout(supabaseClient.rpc('get_debtors', {
-                p_slot_prices: SLOT_PRICES
-            }));
-            const _diagDtRpc = (performance.now() - _diagTRpc).toFixed(1);
-            if (!error && data) {
-                debtors = data;
-                console.log(`${_diagTag} rpc get_debtors success in ${_diagDtRpc} ms (rows=${data.length})`);
-            } else {
-                console.log(`${_diagTag} rpc get_debtors returned no data in ${_diagDtRpc} ms`, error || '(no error)');
+function _refreshPaymentsFromServer(reqId, tag) {
+    const tRpc = performance.now();
+    _rpcWithTimeout(supabaseClient.rpc('get_debtors', { p_slot_prices: SLOT_PRICES }))
+        .then(({ data, error }) => {
+            const dt = (performance.now() - tRpc).toFixed(1);
+            // Guard: un render più recente ha già sovrascritto → scarto
+            if (reqId !== _paymentsReqCounter) {
+                console.log(`${tag} rpc stale in ${dt} ms (reqId=${reqId}, current=${_paymentsReqCounter}) — scarto`);
+                return;
             }
-        } catch (_e) {
-            const _diagDtRpc = (performance.now() - _diagTRpc).toFixed(1);
-            console.log(`${_diagTag} rpc get_debtors failed/timeout in ${_diagDtRpc} ms`, _e);
-            /* Supabase non raggiungibile — usa fallback JS */
-        }
-    }
-    if (!debtors) {
-        const _diagTFb = performance.now();
-        console.log(`${_diagTag} fallback getDebtors start`);
-        debtors = getDebtors();
-        console.log(`${_diagTag} fallback getDebtors done in ${(performance.now() - _diagTFb).toFixed(1)} ms (rows=${debtors.length})`);
-    }
+            if (error || !data) {
+                console.log(`${tag} rpc no data in ${dt} ms`, error || '(no error)');
+                return;
+            }
+            console.log(`${tag} rpc ok in ${dt} ms (rows=${data.length}) — aggiorno tab`);
+            _paintPaymentsTab(data, { preserveUiState: true });
+        })
+        .catch(e => {
+            const dt = (performance.now() - tRpc).toFixed(1);
+            console.log(`${tag} rpc failed/timeout in ${dt} ms`, e?.message || e);
+            /* Tab già funzionante dal render locale, niente da fare */
+        });
+}
 
-    // Rimuovi skeleton
-    if (skeletonTimer) clearTimeout(skeletonTimer);
-    _setPaymentCardsLoading(false);
-
+function _paintPaymentsTab(debtors, { preserveUiState }) {
     const totalUnpaid = debtors.reduce((sum, debtor) => sum + debtor.totalAmount, 0);
     // Net debts against credit balance: only show as creditor if credit > debt
     // NB: getUnpaidAmountForContact include GIÀ ManualDebtStorage.getBalance(),
@@ -95,34 +90,35 @@ async function renderPaymentsTab(_diagSource = 'unknown') {
     sensitiveSet('totalCreditors', credits.length);
     sensitiveSet('totalCreditAmount', `€${totalCredit}`);
 
-    // Reset search UI and list visibility
-    clearSearch();
-    debtorsListVisible = false;
-    creditsListVisible = false;
     const debtorsList = document.getElementById('debtorsList');
-    debtorsList.style.display = 'none';
-    document.getElementById('debtorsToggleHint').textContent = '▼ Mostra lista';
     const creditsList = document.getElementById('creditsList');
-    if (creditsList) {
-        creditsList.style.display = 'none';
-        document.getElementById('creditorsToggleHint').textContent = '▼ Mostra lista';
+    if (!debtorsList) return;
+
+    // Reset UI solo sul primo render: il refresh in background non deve
+    // chiudere liste che l'utente ha appena aperto né azzerare la ricerca.
+    if (!preserveUiState) {
+        clearSearch();
+        debtorsListVisible = false;
+        creditsListVisible = false;
+        debtorsList.style.display = 'none';
+        const debtorsHint = document.getElementById('debtorsToggleHint');
+        if (debtorsHint) debtorsHint.textContent = '▼ Mostra lista';
+        if (creditsList) {
+            creditsList.style.display = 'none';
+            const creditsHint = document.getElementById('creditorsToggleHint');
+            if (creditsHint) creditsHint.textContent = '▼ Mostra lista';
+        }
     }
 
-    // Render debtors
-    const _diagTDebtors = performance.now();
     if (debtors.length === 0) {
         debtorsList.innerHTML = '<div class="empty-slot">Nessun cliente con pagamenti in sospeso! 🎉</div>';
     } else {
         debtorsList.innerHTML = '';
         debtors.forEach((debtor, index) => {
-            const debtorCard = createDebtorCard(debtor, `main-${index}`);
-            debtorsList.appendChild(debtorCard);
+            debtorsList.appendChild(createDebtorCard(debtor, `main-${index}`));
         });
     }
-    console.log(`${_diagTag} render debtors DOM in ${(performance.now() - _diagTDebtors).toFixed(1)} ms (n=${debtors.length})`);
 
-    // Render credits
-    const _diagTCredits = performance.now();
     if (creditsList) {
         if (credits.length === 0) {
             creditsList.innerHTML = '<div class="empty-slot">Nessun cliente con credito attivo</div>';
@@ -133,10 +129,6 @@ async function renderPaymentsTab(_diagSource = 'unknown') {
             });
         }
     }
-    console.log(`${_diagTag} render credits DOM in ${(performance.now() - _diagTCredits).toFixed(1)} ms (n=${credits.length})`);
-
-    _paymentsInFlight--;
-    console.log(`${_diagTag} render total in ${(performance.now() - _diagT0).toFixed(1)} ms (inFlight=${_paymentsInFlight})`);
 }
 
 function deleteManualDebtEntry(whatsapp, email, entryDate) {
