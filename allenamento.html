@@ -2745,7 +2745,7 @@
                     doc.setFontSize(13);
                     doc.setTextColor(...WHITE);
                     doc.text(day.toUpperCase(), m + 5, y + 7);
-                    y += 14;
+                    y += 12;
 
                     // Build superset groups map
                     const ssMap = {}, ssRendered = new Set();
@@ -2764,33 +2764,33 @@
                         const isCardio = (ex.muscle_group || '').toLowerCase() === 'cardio';
                         const imgObj = imgCache[ex.exercise_name];
                         const sets = isCardio ? 1 : (ex.sets || 3);
-                        const imgW = 18;
-                        const imgH = imgObj ? imgW * imgObj.ratio : 18;
+                        const imgW = 16;
+                        const imgH = imgObj ? imgW * imgObj.ratio : 16;
                         let noteH = 0;
                         if (ex.notes) {
                             const tx = (imgObj ? imgW + 3 : 0);
                             doc.setFont('helvetica', 'italic'); doc.setFontSize(8);
                             noteH = doc.splitTextToSize(ex.notes, cw - indent - tx).length * 3.5;
                         }
-                        const topH = Math.max(imgObj ? imgH + 2 : 18, 18 + noteH);
-                        const tableH = isCardio ? 20 : ((sets + 2) * 8 + 2);
-                        return topH + tableH + 6;
+                        const topH = Math.max(imgObj ? imgH + 2 : 16, 16 + noteH);
+                        const tableH = isCardio ? 14 : ((sets + 2) * 7 + 1);
+                        return topH + tableH + 3;
                     }
 
                     // Altezza del prossimo divider. Il separatore viene disegnato solo
                     // se non siamo a inizio pagina e se c'è già almeno un esercizio sopra.
                     function _dividerH() {
-                        return (exNum >= 1 && y > m + 0.5 ? 6 : 0) + 12;
+                        return (exNum >= 1 && y > m + 0.5 ? 4 : 0) + 10;
                     }
 
                     function _measureSuperset(pair) {
-                        let h = _dividerH() + 3 + 13;
+                        let h = _dividerH() + 3 + 11;
                         pair.forEach((e, idx) => {
-                            if (idx > 0) h += 4;
-                            h += 5;
+                            if (idx > 0) h += 3;
+                            h += 4;
                             h += _measureExBlock(e, 4);
                         });
-                        return h + 4;
+                        return h + 2;
                     }
 
                     // Helper: render one exercise block (image + name + table)
@@ -2800,7 +2800,7 @@
                         const sets = isCardio ? 1 : (ex.sets || 3);
 
                         const lx = m + indent;
-                        const imgW = 18;
+                        const imgW = 16;
                         const imgH = imgObj ? imgW * imgObj.ratio : imgW;
                         let tx = lx;
                         if (imgObj) {
@@ -2829,7 +2829,7 @@
                             doc.text(nl, tx, y + 18);
                             noteH = nl.length * 3.5;
                         }
-                        y += Math.max(imgObj ? imgH + 2 : 18, 18 + noteH);
+                        y += Math.max(imgObj ? imgH + 2 : 16, 16 + noteH);
 
                         const tblLeft = m + indent;
                         const tblW = cw - indent;
@@ -2838,7 +2838,7 @@
                                 startY: y, head: [['Minuti', 'Fatto \u2713']],
                                 body: [[(ex.reps || '') + ' min', '']],
                                 margin: { left: tblLeft, right: m }, tableWidth: tblW,
-                                styles: { fontSize: 9, cellPadding: 3, lineColor: LGRAY, lineWidth: 0.3 },
+                                styles: { fontSize: 9, cellPadding: 2, lineColor: LGRAY, lineWidth: 0.3, minCellHeight: 6 },
                                 headStyles: { fillColor: NAVY, textColor: WHITE, fontStyle: 'bold', fontSize: 8, halign: 'center' },
                                 bodyStyles: { halign: 'center' }, theme: 'grid'
                             });
@@ -2853,7 +2853,7 @@
                             doc.autoTable({
                                 startY: y, head: [['Serie', 'Reps', 'Kg', 'Riposo', 'Fatto \u2713']],
                                 body: body, margin: { left: tblLeft, right: m }, tableWidth: tblW,
-                                styles: { fontSize: 9, cellPadding: 3, lineColor: LGRAY, lineWidth: 0.3, minCellHeight: 8 },
+                                styles: { fontSize: 9, cellPadding: 2, lineColor: LGRAY, lineWidth: 0.3, minCellHeight: 7 },
                                 headStyles: { fillColor: NAVY, textColor: WHITE, fontStyle: 'bold', fontSize: 8, halign: 'center' },
                                 bodyStyles: { halign: 'center' },
                                 alternateRowStyles: { fillColor: [248, 250, 252] },
@@ -2861,7 +2861,7 @@
                                 theme: 'grid'
                             });
                         }
-                        y = (doc.lastAutoTable ? doc.lastAutoTable.finalY : y + 30) + 6;
+                        y = (doc.lastAutoTable ? doc.lastAutoTable.finalY : y + 30) + 3;
                     }
 
                     // Numbered divider between exercises
@@ -2874,7 +2874,7 @@
                             doc.setDrawColor(...LGRAY);
                             doc.setLineWidth(0.5);
                             doc.line(m, y, pw - m, y);
-                            y += 6;
+                            y += 4;
                         }
                         // Number badge
                         const r = 4.5;
@@ -2884,7 +2884,7 @@
                         doc.setFontSize(9);
                         doc.setTextColor(...WHITE);
                         doc.text(exNum.toString(), m + r, y + r + 1, { align: 'center' });
-                        y += r * 2 + 3;
+                        y += r * 2 + 1;
                     }
 
                     for (const ex of dayEx) {
@@ -2917,7 +2917,7 @@
                             doc.setFontSize(8);
                             doc.setTextColor(...GRAY);
                             doc.text(t1 + (t2 ? ' + ' + t2 : '') + ssRest, m, y + 9);
-                            y += 13;
+                            y += 11;
 
                             pair.forEach((ssEx, idx) => {
                                 if (idx > 0) {
@@ -2927,16 +2927,16 @@
                                     doc.setLineDashPattern([2, 2], 0);
                                     doc.line(m + 4, y, pw - m, y);
                                     doc.setLineDashPattern([], 0);
-                                    y += 4;
+                                    y += 3;
                                 }
                                 doc.setFont('helvetica', 'bold');
                                 doc.setFontSize(8);
                                 doc.setTextColor(...CYAN);
                                 doc.text(String.fromCharCode(65 + idx) + '.', m + 4, y + 3);
-                                y += 5;
+                                y += 4;
                                 _pdfExBlock(ssEx, 4);
                             });
-                            y += 4;
+                            y += 2;
                             continue;
                         }
                         if (ex.superset_group && ssRendered.has(ex.superset_group)) continue;
@@ -2948,7 +2948,7 @@
                         _pdfDivider();
                         _pdfExBlock(ex, 0);
                     }
-                    y += 6;
+                    y += 4;
                 }
 
                 // Footer on each page
