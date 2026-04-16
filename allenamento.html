@@ -649,22 +649,45 @@
 
         // ── Plan selector ─────────────────────────────────────────────────
         function _renderPlanSelector() {
-            if (_allPlans.length <= 1) return;
+            if (!_allPlan) return;
             const nav = document.querySelector('.all-nav');
             if (!nav) return;
-            // Insert selector before the nav pills
             const existing = document.getElementById('allPlanSelector');
             if (existing) existing.remove();
             const sel = document.createElement('div');
             sel.id = 'allPlanSelector';
             sel.className = 'all-plan-selector';
-            sel.innerHTML = `<select onchange="switchPlan(this.value)">
-                ${_allPlans.map(p => {
-                    const label = _escHtml(p.name) + (p.active ? ' (attiva)' : '');
-                    return `<option value="${p.id}" ${p.id === _allPlan.id ? 'selected' : ''}>${label}</option>`;
-                }).join('')}
-            </select>`;
+            const hasMany = _allPlans.length > 1;
+            const picker = hasMany
+                ? `<select class="all-plan-select" onchange="switchPlan(this.value)">
+                    ${_allPlans.map(p => {
+                        const label = _escHtml(p.name) + (p.active ? ' (attiva)' : '');
+                        return `<option value="${p.id}" ${p.id === _allPlan.id ? 'selected' : ''}>${label}</option>`;
+                    }).join('')}
+                </select>`
+                : `<span class="all-plan-single">${_escHtml(_allPlan.name)}</span>`;
+            sel.innerHTML = `${picker}<button class="all-plan-rename-btn" onclick="renamePlan()" title="Rinomina scheda" aria-label="Rinomina scheda">&#9998;</button>`;
             nav.parentNode.insertBefore(sel, nav);
+        }
+
+        async function renamePlan() {
+            if (!_allPlan) return;
+            const current = _allPlan.name || '';
+            const next = prompt('Nuovo nome scheda:', current);
+            if (next == null) return;
+            const trimmed = next.trim();
+            if (!trimmed || trimmed === current) return;
+            try {
+                await WorkoutPlanStorage.updatePlan(_allPlan.id, { name: trimmed });
+                _allPlan.name = trimmed;
+                const idx = _allPlans.findIndex(p => p.id === _allPlan.id);
+                if (idx >= 0) _allPlans[idx].name = trimmed;
+                _renderPlanSelector();
+                if (typeof showToast === 'function') showToast('Scheda rinominata', 'success');
+            } catch (e) {
+                console.error('[Allenamento] rename plan error:', e);
+                if (typeof showToast === 'function') showToast('Errore rinomina: ' + (e.message || ''), 'error');
+            }
         }
 
         async function switchPlan(planId) {
@@ -874,7 +897,7 @@
                         html += `<div class="all-ss-ex-header">
                             ${sThumb ? `<img src="${sThumb}" alt="" loading="lazy" onclick="showExDetail('${_escHtml(sSlug)}')">` : ''}
                             <div class="all-ss-ex-header-info">
-                                <div class="all-ss-ex-header-name">${_escHtml(sDb ? sDb.nome_it : ssEx.exercise_name)}${sSlug ? `<button class="all-ex-info-btn" onclick="showExDetail('${_escHtml(sSlug)}')" title="Info">&#9432;</button>` : ''}<button class="all-ex-edit-btn" onclick="showEditExercise('${ssEx.id}')" title="Modifica">&#9998;</button></div>
+                                <div class="all-ss-ex-header-name">${_escHtml(sDb ? sDb.nome_it : ssEx.exercise_name)}<button class="all-ex-edit-btn" onclick="showEditExercise('${ssEx.id}')" title="Modifica">&#9998;</button></div>
                                 <div class="all-ss-ex-header-target">${ssEx.sets} \u00d7 ${ssEx.reps}${ssEx.weight_kg != null ? ' @ ' + ssEx.weight_kg + ' kg' : ''}${ssEx.rest_seconds ? ' \u00b7 ' + ssEx.rest_seconds + 's pausa' : ' \u00b7 no pausa'}</div>
                             </div>
                         </div>`;
@@ -936,7 +959,7 @@
                     <div class="all-ex-header" onclick="toggleExCard('${ex.id}')">
                         ${thumbSrc ? `<img src="${thumbSrc}" class="all-ex-thumb" alt="" loading="lazy" onclick="event.stopPropagation();showExDetail('${_escHtml(exSlug)}')">` : ''}
                         <div class="all-ex-info">
-                            <div class="all-ex-name">${_escHtml(dbEx ? dbEx.nome_it : ex.exercise_name)}${exSlug ? `<button class="all-ex-info-btn" onclick="event.stopPropagation();showExDetail('${_escHtml(exSlug)}')" title="Info esercizio">&#9432;</button>` : ''}<button class="all-ex-edit-btn" onclick="event.stopPropagation();showEditExercise('${ex.id}')" title="Modifica esercizio">&#9998;</button></div>
+                            <div class="all-ex-name">${_escHtml(dbEx ? dbEx.nome_it : ex.exercise_name)}<button class="all-ex-edit-btn" onclick="event.stopPropagation();showEditExercise('${ex.id}')" title="Modifica esercizio">&#9998;</button></div>
                             <div class="all-ex-target">${target}</div>
                         </div>
                         <div class="all-ex-status">${hasLogs ? '<span class="all-ex-check">&#10003;</span>' : '<span class="all-ex-chevron">&#9662;</span>'}</div>
@@ -2310,10 +2333,15 @@
             _pendingDayLabel = null;
             closeExercisePicker();
             try {
+                // Rende esplicito anche qui il posizionamento in coda:
+                // nuovo esercizio sempre alla fine della scheda.
+                const allExercises = _allPlan?.workout_exercises || [];
+                const maxOrder = allExercises.reduce((m, e) => Math.max(m, e.sort_order ?? -1), -1);
                 const newEx = await WorkoutPlanStorage.addExercise(_allPlan.id, {
                     day_label: dayLabel,
                     exercise_name: exerciseName,
                     muscle_group: ex ? ex.categoria : null,
+                    sort_order: maxOrder + 1,
                     sets,
                     reps,
                     weight_kg: null,
@@ -2728,13 +2756,48 @@
                         }
                     }
 
+                    // Misura altezza approssimata di un esercizio (immagine+titolo+note+tabella)
+                    // Serve per fare il page-break PRIMA del divider, così numero+immagine
+                    // restano sempre sulla stessa pagina. Il caller garantisce lo spazio,
+                    // quindi _pdfExBlock non fa più page-break interni.
+                    function _measureExBlock(ex, indent) {
+                        const isCardio = (ex.muscle_group || '').toLowerCase() === 'cardio';
+                        const imgObj = imgCache[ex.exercise_name];
+                        const sets = isCardio ? 1 : (ex.sets || 3);
+                        const imgW = 18;
+                        const imgH = imgObj ? imgW * imgObj.ratio : 18;
+                        let noteH = 0;
+                        if (ex.notes) {
+                            const tx = (imgObj ? imgW + 3 : 0);
+                            doc.setFont('helvetica', 'italic'); doc.setFontSize(8);
+                            noteH = doc.splitTextToSize(ex.notes, cw - indent - tx).length * 3.5;
+                        }
+                        const topH = Math.max(imgObj ? imgH + 2 : 18, 18 + noteH);
+                        const tableH = isCardio ? 20 : ((sets + 2) * 8 + 2);
+                        return topH + tableH + 6;
+                    }
+
+                    // Altezza del prossimo divider. Il separatore viene disegnato solo
+                    // se non siamo a inizio pagina e se c'è già almeno un esercizio sopra.
+                    function _dividerH() {
+                        return (exNum >= 1 && y > m + 0.5 ? 6 : 0) + 12;
+                    }
+
+                    function _measureSuperset(pair) {
+                        let h = _dividerH() + 3 + 13;
+                        pair.forEach((e, idx) => {
+                            if (idx > 0) h += 4;
+                            h += 5;
+                            h += _measureExBlock(e, 4);
+                        });
+                        return h + 4;
+                    }
+
                     // Helper: render one exercise block (image + name + table)
                     function _pdfExBlock(ex, indent) {
                         const isCardio = (ex.muscle_group || '').toLowerCase() === 'cardio';
                         const imgObj = imgCache[ex.exercise_name]; // { data, ratio } or null
                         const sets = isCardio ? 1 : (ex.sets || 3);
-                        const blockH = 22 + 8 + (sets + 1) * 8;
-                        if (y + blockH > ph - m - 10) { doc.addPage(); y = m; }
 
                         const lx = m + indent;
                         const imgW = 18;
@@ -2805,7 +2868,9 @@
                     let exNum = 0;
                     function _pdfDivider() {
                         exNum++;
-                        if (exNum > 1) {
+                        // Separatore solo se non siamo a inizio pagina (dopo page-break
+                        // y === m, il separatore in cima alla pagina non ha senso)
+                        if (exNum > 1 && y > m + 0.5) {
                             doc.setDrawColor(...LGRAY);
                             doc.setLineWidth(0.5);
                             doc.line(m, y, pw - m, y);
@@ -2828,7 +2893,9 @@
                             ssRendered.add(ex.superset_group);
                             const pair = ssMap[ex.superset_group] || [ex];
                             const ex1 = pair[0], ex2 = pair[1];
-                            if (y + 60 > ph - m - 10) { doc.addPage(); y = m; }
+                            // Pre-check: tutto il superset deve stare sulla stessa pagina
+                            const ssH = _measureSuperset(pair);
+                            if (y + ssH > ph - m - 10 && y > m) { doc.addPage(); y = m; }
 
                             _pdfDivider();
 
@@ -2875,6 +2942,9 @@
                         if (ex.superset_group && ssRendered.has(ex.superset_group)) continue;
 
                         // ── Normal single exercise ──
+                        // Pre-check: numero + immagine + tabella devono stare insieme
+                        const needH = _dividerH() + _measureExBlock(ex, 0);
+                        if (y + needH > ph - m - 10 && y > m) { doc.addPage(); y = m; }
                         _pdfDivider();
                         _pdfExBlock(ex, 0);
                     }

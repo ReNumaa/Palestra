@@ -306,6 +306,32 @@
     text-overflow: ellipsis;
 }
 
+.tab-topbar-plan-row {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.35rem;
+    min-width: 0;
+    max-width: 100%;
+}
+
+.tab-topbar-plan-rename {
+    background: none;
+    border: none;
+    cursor: pointer;
+    color: var(--cyan);
+    font-size: 0.9rem;
+    line-height: 1;
+    padding: 0.1rem 0.25rem;
+    opacity: 0.8;
+    transition: opacity 0.15s, color 0.15s;
+    flex-shrink: 0;
+}
+
+.tab-topbar-plan-rename:hover {
+    opacity: 1;
+    color: #fff;
+}
+
 .tab-topbar-right {
     display: flex;
     align-items: center;
@@ -582,6 +608,8 @@
     flex-shrink: 0;
     background: var(--bg);
 }
+
+.tab-ex-thumb[onclick] { cursor: pointer; }
 
 .tab-ex-thumb-placeholder {
     width: 52px;

@@ -55,7 +55,10 @@
             </button>
             <div class="tab-topbar-user">
                 <span id="tabUserName" class="tab-topbar-name"></span>
-                <span id="tabPlanName" class="tab-topbar-plan"></span>
+                <span class="tab-topbar-plan-row">
+                    <span id="tabPlanName" class="tab-topbar-plan"></span>
+                    <button id="tabPlanRenameBtn" class="tab-topbar-plan-rename" onclick="renameTabPlan()" title="Rinomina scheda" aria-label="Rinomina scheda" style="display:none;">&#9998;</button>
+                </span>
             </div>
             <div class="tab-topbar-right">
                 <span id="tabTimer" class="tab-topbar-timer" title="Reset inattivita"></span>
@@ -196,6 +199,8 @@
         _stopInactivity();
         const fab = document.getElementById('tabFabAdd');
         if (fab) fab.style.display = 'none';
+        const renameBtn = document.getElementById('tabPlanRenameBtn');
+        if (renameBtn) renameBtn.style.display = 'none';
         showScreen('scanScreen');
         // Restart scanner if it was stopped
         _startScanner();
@@ -351,6 +356,8 @@
             // Show workout screen
             document.getElementById('tabUserName').textContent = _userName;
             document.getElementById('tabPlanName').textContent = _plan.name;
+            const renameBtn = document.getElementById('tabPlanRenameBtn');
+            if (renameBtn) renameBtn.style.display = '';
             showScreen('workoutScreen');
             const fab = document.getElementById('tabFabAdd');
             if (fab) fab.style.display = '';
@@ -523,7 +530,7 @@
                     html += `<div class="all-ss-ex-header">
                         ${sT?`<img src="${sT}" alt="" loading="lazy" onclick="showTabExDetail('${_esc(sS)}')">`:''}
                         <div class="all-ss-ex-header-info">
-                            <div class="all-ss-ex-header-name">${_esc(ssEx.exercise_name)}${sS?`<button class="tab-ex-info-btn" onclick="showTabExDetail('${_esc(sS)}')" title="Info">&#9432;</button>`:''}<button class="tab-ex-edit-btn" onclick="showTabEditExercise('${ssEx.id}')" title="Modifica">&#9998;</button></div>
+                            <div class="all-ss-ex-header-name">${_esc(ssEx.exercise_name)}<button class="tab-ex-edit-btn" onclick="showTabEditExercise('${ssEx.id}')" title="Modifica">&#9998;</button></div>
                             <div class="all-ss-ex-header-target">${ssEx.sets} \u00d7 ${ssEx.reps}${ssEx.rest_seconds?' \u00b7 '+ssEx.rest_seconds+'s pausa':' \u00b7 no pausa'}</div>
                         </div>
                     </div>`;
@@ -583,9 +590,9 @@
                 </div>
                 <div class="tab-ex-swipe-content">
                 <div class="tab-ex-header" onclick="toggleTabEx('${ex.id}')">
-                    ${thumb ? `<img src="${thumb}" class="tab-ex-thumb" alt="" loading="lazy">` : '<div class="tab-ex-thumb-placeholder"></div>'}
+                    ${thumb ? `<img src="${thumb}" class="tab-ex-thumb" alt="" loading="lazy"${dbEx?.slug ? ` onclick="event.stopPropagation();showTabExDetail('${_esc(dbEx.slug)}')"` : ''}>` : '<div class="tab-ex-thumb-placeholder"></div>'}
                     <div class="tab-ex-info">
-                        <div class="tab-ex-name">${_esc(ex.exercise_name)}${dbEx?.slug ? `<button class="tab-ex-info-btn" onclick="event.stopPropagation();showTabExDetail('${_esc(dbEx.slug)}')" title="Video esercizio">&#9432;</button>` : ''}<button class="tab-ex-edit-btn" onclick="event.stopPropagation();showTabEditExercise('${ex.id}')" title="Modifica esercizio">&#9998;</button></div>
+                        <div class="tab-ex-name">${_esc(ex.exercise_name)}<button class="tab-ex-edit-btn" onclick="event.stopPropagation();showTabEditExercise('${ex.id}')" title="Modifica esercizio">&#9998;</button></div>
                         <div class="tab-ex-target">${target}${!isCardio && ex.rest_seconds ? ' &middot; rec. ' + ex.rest_seconds + 's' : ''}</div>
                     </div>
                     <div class="tab-ex-status">${hasLogs ? '<span class="tab-ex-check">&#10003;</span>' : '<span class="tab-ex-chevron">&#9662;</span>'}</div>
@@ -706,6 +713,27 @@
             mc.appendChild(img);
         }
         requestAnimationFrame(() => overlay.classList.add('visible'));
+    }
+
+    async function renameTabPlan() {
+        if (!_plan) return;
+        const current = _plan.name || '';
+        const next = prompt('Nuovo nome scheda:', current);
+        if (next == null) return;
+        const trimmed = next.trim();
+        if (!trimmed || trimmed === current) return;
+        try {
+            const { error } = await _queryWithTimeout(
+                supabaseClient.from('workout_plans').update({ name: trimmed }).eq('id', _plan.id)
+            );
+            if (error) throw error;
+            _plan.name = trimmed;
+            document.getElementById('tabPlanName').textContent = trimmed;
+            _toast('Scheda rinominata');
+        } catch (e) {
+            console.error('[Tablet] rename plan error:', e);
+            _toast('Errore rinomina: ' + (e.message || ''), 'error');
+        }
     }
 
     function showTabEditExercise(exId) {

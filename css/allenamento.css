@@ -367,10 +367,14 @@
 /* ── Plan selector ─────────────────────────────────────────────────────────── */
 .all-plan-selector {
     margin: 0 0 0.4rem;
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
 }
 
 .all-plan-selector select {
-    width: 100%;
+    flex: 1;
+    min-width: 0;
     padding: 0.65rem 2.4rem 0.65rem 0.9rem;
     background: var(--all-surface);
     border: 1.5px solid var(--all-border);
@@ -395,6 +399,44 @@
     border-color: var(--all-cyan);
     outline: none;
     box-shadow: var(--all-shadow-glow);
+}
+
+.all-plan-single {
+    flex: 1;
+    min-width: 0;
+    padding: 0.65rem 0.9rem;
+    background: var(--all-surface);
+    border: 1.5px solid var(--all-border);
+    border-radius: var(--all-radius-sm);
+    color: var(--all-slate);
+    font-size: 0.88rem;
+    font-weight: 700;
+    box-shadow: var(--all-shadow);
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+
+.all-plan-rename-btn {
+    flex-shrink: 0;
+    width: 38px;
+    height: 38px;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    background: var(--all-surface);
+    border: 1.5px solid var(--all-border);
+    border-radius: var(--all-radius-sm);
+    color: var(--all-cyan);
+    font-size: 1rem;
+    cursor: pointer;
+    box-shadow: var(--all-shadow);
+    transition: border-color var(--all-transition), color var(--all-transition);
+}
+
+.all-plan-rename-btn:hover {
+    border-color: var(--all-cyan);
+    color: var(--all-cyan-dark);
 }
 
 /* ── Plan card (glassmorphism hero) ───────────────────────────────────────── */
