@@ -1476,6 +1476,15 @@
                 return;
             }
 
+            // Pre-apri una finestra SINCRONA dentro lo user gesture: senza questo,
+            // window.open() chiamato dopo gli await finisce bloccato dal popup
+            // blocker (perché il browser non associa più la nuova finestra al click).
+            // Se il browser blocca anche il pre-open (preWin === null), ricadiamo
+            // su window.location.href più sotto.
+            const isPWA = window.matchMedia('(display-mode: standalone)').matches
+                       || window.navigator.standalone === true;
+            let preWin = isPWA ? window.open('about:blank', '_blank') : null;
+
             btn.disabled = true;
             btn.textContent = 'Caricamento...';
 
@@ -1518,24 +1527,26 @@
 
                 const result = await res.json().catch(() => ({}));
                 if (!res.ok || !result.url) {
+                    if (preWin) { try { preWin.close(); } catch (_) {} }
                     throw new Error(result.error || 'Errore nella creazione del pagamento');
                 }
 
-                // Open Stripe Checkout — in PWA standalone mode use window.open
-                // so the user stays in the app and the payment opens in the browser
-                const isPWA = window.matchMedia('(display-mode: standalone)').matches
-                           || window.navigator.standalone === true;
-                if (isPWA) {
+                if (isPWA && preWin) {
+                    // Finestra pre-aperta disponibile: rediriggila su Stripe, PWA resta attiva
                     window._topupPending = true;
-                    window.open(result.url, '_blank');
+                    try { preWin.location.href = result.url; } catch (_) { preWin.close(); preWin = null; }
+                }
+                if (isPWA && preWin) {
                     closeTopUpModal();
                     btn.disabled = false;
                     btn.textContent = 'Procedi al pagamento';
-                    showToast('Completa il pagamento nel browser. Il credito verrà aggiornato automaticamente.', 'success', 6000);
+                    showToast('Completa il pagamento nella finestra aperta. Il credito verrà aggiornato automaticamente.', 'success', 6000);
                 } else {
+                    // Non-PWA o popup bloccato: naviga nella stessa finestra.
                     window.location.href = result.url;
                 }
             } catch (e) {
+                if (preWin) { try { preWin.close(); } catch (_) {} }
                 console.error('[TopUp] Error:', e);
                 errEl.textContent = e.message || 'Errore. Riprova.';
                 errEl.style.display = 'block';
