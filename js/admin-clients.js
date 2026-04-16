@@ -786,8 +786,20 @@ function openEditClientPopup(index, whatsapp, email, name) {
                         <label class="edit-client-popup-flex1">Cert. Medico<input type="date" id="cedit-cert-${index}" value="${certScad}"></label>
                         <label class="edit-client-popup-flex1">Assicurazione<input type="date" id="cedit-assic-${index}" value="${assicScad}"></label>
                     </div>
-                    <label class="cedit-checkbox-label"><input type="checkbox" id="cedit-docfirmato-${index}" ${docFirmato ? 'checked' : ''}> Documento firmato</label>
-                    <label class="cedit-checkbox-label"><input type="checkbox" id="cedit-stripe-${index}" ${stripeEn ? 'checked' : ''}> 💳 Abilita Stripe</label>
+                    <div class="cedit-toggle-row">
+                        <label for="cedit-docfirmato-${index}" class="cedit-toggle-label">Documento firmato</label>
+                        <label class="cedit-toggle-switch">
+                            <input type="checkbox" id="cedit-docfirmato-${index}" ${docFirmato ? 'checked' : ''}>
+                            <span class="cedit-toggle-slider"></span>
+                        </label>
+                    </div>
+                    <div class="cedit-toggle-row">
+                        <label for="cedit-stripe-${index}" class="cedit-toggle-label">Abilita Stripe</label>
+                        <label class="cedit-toggle-switch">
+                            <input type="checkbox" id="cedit-stripe-${index}" ${stripeEn ? 'checked' : ''}>
+                            <span class="cedit-toggle-slider"></span>
+                        </label>
+                    </div>
                 </div>
             </div>
             <div class="edit-client-popup-actions">
