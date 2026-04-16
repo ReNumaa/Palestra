@@ -389,7 +389,6 @@
             _checkDebtAlert(user);
             _startPolling();
             _setupRealtime();
-            if (typeof _maybeShowTopUpBtn === 'function') _maybeShowTopUpBtn();
         }
 
         function _checkDebtAlert(user) {
@@ -399,20 +398,17 @@
             if (threshold <= 0) { el.style.display = 'none'; el.innerHTML = ''; return; }
             const debt = BookingStorage.getUnpaidPastDebt(user.whatsapp || '', user.email || '');
             if (debt > threshold) {
-                const canTopUp = user && user.id === TOPUP_ALLOWED_UID;
                 el.innerHTML = '';
                 el.style.cssText = 'display:block;margin:12px 0;padding:16px;background:#fdecea;border:1px solid #f5c6cb;border-radius:8px;color:#c0392b;font-weight:600;line-height:1.5;text-align:center';
                 const msg = document.createElement('div');
                 msg.textContent = '⚠️ ATTENZIONE: debito superato! Non potrai più prenotare finché non hai saldato.';
                 el.appendChild(msg);
-                if (canTopUp) {
-                    const btn = document.createElement('button');
-                    btn.type = 'button';
-                    btn.textContent = 'Ricarica credito';
-                    btn.style.cssText = 'margin-top:12px;padding:8px 20px;background:#c0392b;color:#fff;border:none;border-radius:6px;font-weight:600;cursor:pointer;';
-                    btn.onclick = () => openTopUpModal();
-                    el.appendChild(btn);
-                }
+                const btn = document.createElement('button');
+                btn.type = 'button';
+                btn.textContent = 'Ricarica credito';
+                btn.style.cssText = 'margin-top:12px;padding:8px 20px;background:#c0392b;color:#fff;border:none;border-radius:6px;font-weight:600;cursor:pointer;';
+                btn.onclick = () => openTopUpModal();
+                el.appendChild(btn);
             } else {
                 el.style.display = 'none';
                 el.innerHTML = '';
@@ -660,6 +656,11 @@
             document.getElementById('saldoCreditDebitDivider').style.display = 'none';
             document.getElementById('saldoDebitRow').style.display = showDebit ? '' : 'none';
             document.getElementById('saldoDebitBonusDivider').style.display = showDebit || displayCredit > 0 ? '' : '';
+
+            // Pulsante (+) ricarica: visibile solo a chi non ha più credito residuo
+            // (displayCredit <= 0 → saldo esaurito o debito). Allineato al saldo mostrato.
+            const topUpBtn = document.getElementById('btnTopUp');
+            if (topUpBtn) topUpBtn.style.display = displayCredit <= 0 ? '' : 'none';
         }
 
         // ── Pagination state ─────────────────────────────────────────────
@@ -1412,16 +1413,9 @@
     </script>
     <script>
         // ── Stripe Top-Up ────────────────────────────────────────────────
-        const TOPUP_ALLOWED_UID = 'cf5f39f3-1581-40be-80e9-15b56acee337';
+        // La visibilità del pulsante (+) è gestita da renderCreditBalance():
+        // appare solo se l'utente non ha più credito residuo disponibile.
         let _selectedTopUpAmount = 0;
-
-        // Show (+) button only for allowed user
-        function _maybeShowTopUpBtn() {
-            const user = getCurrentUser();
-            if (user && user.id === TOPUP_ALLOWED_UID) {
-                document.getElementById('btnTopUp').style.display = '';
-            }
-        }
 
         function openTopUpModal() {
             _selectedTopUpAmount = 0;
@@ -1561,12 +1555,11 @@
                 setTimeout(() => showToast('Pagamento annullato.', 'error', 3000), 1000);
             } else if (params.get('topup') === 'open') {
                 // Auto-apri la modale ricarica (deep link dal messaggio di blocco
-                // in booking.js). Aspetta che _maybeShowTopUpBtn abbia confermato
-                // che l'utente è abilitato al topup, altrimenti non fa nulla.
+                // in booking.js). Apre non appena l'utente loggato è disponibile.
                 window.history.replaceState({}, '', window.location.pathname);
                 const _tryOpen = (attempt = 0) => {
                     const user = typeof getCurrentUser === 'function' ? getCurrentUser() : null;
-                    if (user && user.id === TOPUP_ALLOWED_UID) {
+                    if (user) {
                         openTopUpModal();
                         return;
                     }

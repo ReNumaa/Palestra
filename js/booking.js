@@ -119,16 +119,11 @@ function openBookingModal(dateInfo, timeSlot, slotType, remainingSpots) {
                     const _msg = document.createElement('div');
                     _msg.textContent = `⚠️ Prenotazione bloccata: hai un debito di €${_pastDebt} che supera la soglia di €${_dthr}. Contatta Thomas.`;
                     _bl.appendChild(_msg);
-                    // Mostra il bottone "Ricarica" solo all'utente abilitato al topup Stripe
-                    // (stesso gate del bottone "+" in prenotazioni.html).
-                    const _TOPUP_ALLOWED_UID = 'cf5f39f3-1581-40be-80e9-15b56acee337';
-                    if (user && user.id === _TOPUP_ALLOWED_UID) {
-                        const _link = document.createElement('a');
-                        _link.href = 'prenotazioni.html?topup=open';
-                        _link.textContent = 'Ricarica credito';
-                        _link.style.cssText = 'display:inline-block;margin-top:12px;padding:8px 16px;background:#c0392b;color:#fff;text-decoration:none;border-radius:6px;font-weight:600;';
-                        _bl.appendChild(_link);
-                    }
+                    const _link = document.createElement('a');
+                    _link.href = 'prenotazioni.html?topup=open';
+                    _link.textContent = 'Ricarica credito';
+                    _link.style.cssText = 'display:inline-block;margin-top:12px;padding:8px 16px;background:#c0392b;color:#fff;text-decoration:none;border-radius:6px;font-weight:600;';
+                    _bl.appendChild(_link);
                     document.getElementById('bookingForm').parentNode.insertBefore(_bl, document.getElementById('bookingForm'));
                 }
             }
