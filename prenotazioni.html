@@ -61,6 +61,9 @@
                 <button class="preno-edit-btn preno-chart-btn" onclick="openWeeklyChartModal()"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="18" y1="20" x2="18" y2="10"/><line x1="12" y1="20" x2="12" y2="4"/><line x1="6" y1="20" x2="6" y2="14"/></svg><span class="preno-edit-label">Allenamenti</span></button>
             </div>
 
+            <!-- Alert debito superato (reso da _checkDebtAlert) -->
+            <div id="prenoDebtAlert" style="display:none"></div>
+
             <!-- Saldo -->
             <div class="preno-saldo-card">
                 <div class="preno-saldo-row" id="saldoCreditRow">
@@ -390,11 +393,29 @@
         }
 
         function _checkDebtAlert(user) {
+            const el = document.getElementById('prenoDebtAlert');
+            if (!el) return;
             const threshold = DebtThresholdStorage.get();
-            if (threshold <= 0) return;
+            if (threshold <= 0) { el.style.display = 'none'; el.innerHTML = ''; return; }
             const debt = BookingStorage.getUnpaidPastDebt(user.whatsapp || '', user.email || '');
             if (debt > threshold) {
-                showToast('⚠️ ATTENZIONE: debito superato! Non potrai più prenotare finché non hai saldato.', 'error', 8000);
+                const canTopUp = user && user.id === TOPUP_ALLOWED_UID;
+                el.innerHTML = '';
+                el.style.cssText = 'display:block;margin:12px 0;padding:16px;background:#fdecea;border:1px solid #f5c6cb;border-radius:8px;color:#c0392b;font-weight:600;line-height:1.5;text-align:center';
+                const msg = document.createElement('div');
+                msg.textContent = '⚠️ ATTENZIONE: debito superato! Non potrai più prenotare finché non hai saldato.';
+                el.appendChild(msg);
+                if (canTopUp) {
+                    const btn = document.createElement('button');
+                    btn.type = 'button';
+                    btn.textContent = 'Ricarica credito';
+                    btn.style.cssText = 'margin-top:12px;padding:8px 20px;background:#c0392b;color:#fff;border:none;border-radius:6px;font-weight:600;cursor:pointer;';
+                    btn.onclick = () => openTopUpModal();
+                    el.appendChild(btn);
+                }
+            } else {
+                el.style.display = 'none';
+                el.innerHTML = '';
             }
         }
 
