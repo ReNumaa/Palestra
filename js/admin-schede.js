@@ -406,57 +406,110 @@ let _schedeRendering = false;   // guard against concurrent calls
 let _schedeRenderQueued = false; // re-render after current finishes
 let _schedeLastSync = 0;        // timestamp of last successful sync
 const _SCHEDE_SYNC_INTERVAL = 10000; // skip re-sync if < 10s ago
+const _SCHEDE_EXDB_TIMEOUT_MS = 35000;   // safety net oltre il timeout interno 30s
+const _SCHEDE_SYNC_TIMEOUT_MS = 35000;   // idem per syncFromSupabase
+
+// Safety-timeout wrapper: garantisce che il render non resti appeso anche se
+// la query sottostante non onora il proprio timeout (race, fetch sospeso, ecc.).
+function _schedeWithTimeout(promise, ms, label) {
+    return Promise.race([
+        Promise.resolve(promise),
+        new Promise((_, reject) =>
+            setTimeout(() => reject(new Error(`[Schede] timeout:${label}`)), ms)
+        )
+    ]);
+}
+
+function _schedeRenderShell(container, { loading }) {
+    const loaderHtml = loading ? '<div class="schede-loading">Caricamento schede...</div>' : '';
+    container.innerHTML = `<div class="schede-subnav">
+        <button class="schede-subnav-pill ${_schedeSection === 'schede' ? 'active' : ''}" onclick="_schedeSwitchSection('schede')">Schede</button>
+        <button class="schede-subnav-pill ${_schedeSection === 'clienti' ? 'active' : ''}" onclick="_schedeSwitchSection('clienti')">Clienti</button>
+    </div><div id="schedeInner">${loaderHtml}</div>`;
+}
 
 async function renderSchedeTab() {
     // If already rendering, queue one re-render and bail
     if (_schedeRendering) {
         _schedeRenderQueued = true;
+        console.debug('[Schede] renderSchedeTab: queued (render gia in corso)');
         return;
     }
     _schedeRendering = true;
     _schedeRenderQueued = false;
-
-    const container = document.getElementById('schedeContainer');
-    if (!container) { _schedeRendering = false; return; }
-
-    // Only show loading spinner on first render (no cached data yet)
-    const hasData = WorkoutPlanStorage.getAllPlans().length > 0 || _schedeLastSync > 0;
-    if (!hasData) {
-        container.innerHTML = '<div class="schede-loading">Caricamento schede...</div>';
-    }
+    const _t0 = (typeof performance !== 'undefined' ? performance.now() : Date.now());
+    console.log('[Schede] renderSchedeTab: start');
 
     try {
-        await _loadExercisesDB();
+        const container = document.getElementById('schedeContainer');
+        if (!container) return;
 
-        // Sync workout_plans: bloccante SOLO al primo load (cache vuota).
-        // Se abbiamo gia' dati in cache, lancia il sync in background senza
-        // bloccare il render — i CRUD aggiornano _cache direttamente quindi
-        // la stale data e' al massimo di pochi secondi e si vede al prossimo render.
-        // Motivo: il re-sync mid-sessione a volte va in rpc_timeout (auth lock
-        // contention?) e bloccava il sub-tab switch Schede<->Clienti.
+        const cachedPlans = (typeof WorkoutPlanStorage !== 'undefined')
+            ? (WorkoutPlanStorage.getAllPlans() || []) : [];
+        const hasData = cachedPlans.length > 0 || _schedeLastSync > 0;
+
+        // Shell UI subito: subnav sempre visibile, loader solo se cache vuota.
+        // Cosi' se il sync si blocca l'utente vede comunque il tab e puo' navigare.
+        _schedeRenderShell(container, { loading: !hasData });
+
+        // ── Exercise DB (best-effort, non blocca mai il render oltre il timeout) ──
+        const _tEx = (typeof performance !== 'undefined' ? performance.now() : Date.now());
+        console.log('[Schede] _loadExercisesDB: start');
+        try {
+            await _schedeWithTimeout(_loadExercisesDB(), _SCHEDE_EXDB_TIMEOUT_MS, 'load_exercises_db');
+            const ms = Math.round(((typeof performance !== 'undefined' ? performance.now() : Date.now())) - _tEx);
+            console.log(`[Schede] _loadExercisesDB: done (${ms}ms, ${EXERCISES_DB.length} esercizi)`);
+        } catch (e) {
+            console.warn('[Schede] _loadExercisesDB: timeout/failed, proseguo senza catalogo', e);
+        }
+
+        // ── Sync workout_plans ───────────────────────────────────────────────
+        // Bloccante SOLO al primo load (cache vuota). Se abbiamo gia' dati,
+        // sync in background — i CRUD aggiornano _cache direttamente, la stale
+        // data e' al massimo di pochi secondi. Motivo: il re-sync mid-sessione
+        // a volte va in rpc_timeout (auth lock contention?) e bloccava il tab.
         const now = Date.now();
         if (now - _schedeLastSync > _SCHEDE_SYNC_INTERVAL) {
             if (hasData) {
-                // Background — segna ottimisticamente per evitare retry concorrenti
-                _schedeLastSync = now;
-                WorkoutPlanStorage.syncFromSupabase({ adminMode: true }).catch(e => {
+                _schedeLastSync = now; // ottimistico, evita retry concorrenti
+                console.log('[Schede] syncFromSupabase: background start');
+                const _tBg = (typeof performance !== 'undefined' ? performance.now() : Date.now());
+                WorkoutPlanStorage.syncFromSupabase({ adminMode: true }).then(() => {
+                    const ms = Math.round(((typeof performance !== 'undefined' ? performance.now() : Date.now())) - _tBg);
+                    console.log(`[Schede] syncFromSupabase: background done (${ms}ms)`);
+                }).catch(e => {
                     console.warn('[Schede] Background sync failed:', e);
                     _schedeLastSync = 0; // permetti retry alla prossima render
                 });
             } else {
-                await WorkoutPlanStorage.syncFromSupabase({ adminMode: true });
-                _schedeLastSync = now;
+                console.log('[Schede] syncFromSupabase: blocking start (cache vuota)');
+                const _tSync = (typeof performance !== 'undefined' ? performance.now() : Date.now());
+                try {
+                    await _schedeWithTimeout(
+                        WorkoutPlanStorage.syncFromSupabase({ adminMode: true }),
+                        _SCHEDE_SYNC_TIMEOUT_MS,
+                        'sync_workout_plans'
+                    );
+                    _schedeLastSync = now;
+                    const ms = Math.round(((typeof performance !== 'undefined' ? performance.now() : Date.now())) - _tSync);
+                    console.log(`[Schede] syncFromSupabase: blocking done (${ms}ms)`);
+                } catch (e) {
+                    console.error('[Schede] syncFromSupabase: timeout/failed — mostro fallback', e);
+                    const inner = document.getElementById('schedeInner');
+                    if (inner) {
+                        inner.innerHTML = `<div class="empty-slot">
+                            Impossibile caricare le schede (timeout).<br>
+                            <button class="btn-primary" onclick="renderSchedeTab()" style="margin-top:8px">Riprova</button>
+                        </div>`;
+                    }
+                    return; // esce dal try; finally rilascia il lock
+                }
             }
         }
 
-        // Sub-navigation pills
-        let html = `<div class="schede-subnav">
-            <button class="schede-subnav-pill ${_schedeSection === 'schede' ? 'active' : ''}" onclick="_schedeSwitchSection('schede')">Schede</button>
-            <button class="schede-subnav-pill ${_schedeSection === 'clienti' ? 'active' : ''}" onclick="_schedeSwitchSection('clienti')">Clienti</button>
-        </div><div id="schedeInner"></div>`;
-        container.innerHTML = html;
-
         const inner = document.getElementById('schedeInner');
+        if (!inner) return;
+
         if (_schedeView === 'edit') _renderPlanEditor(inner);
         else if (_schedeView === 'progress') await _renderProgressView(inner);
         else if (_schedeSection === 'clienti') {
@@ -467,11 +520,16 @@ async function renderSchedeTab() {
         }
     } catch (e) {
         console.error('[Schede] renderSchedeTab error:', e);
-        const errTarget = document.getElementById('schedeInner') || container;
-        errTarget.innerHTML = '<div class="empty-slot">Errore caricamento schede. Cambia tab e riprova.</div>';
+        const errTarget = document.getElementById('schedeInner') || document.getElementById('schedeContainer');
+        if (errTarget) errTarget.innerHTML = '<div class="empty-slot">Errore caricamento schede. Cambia tab e riprova.</div>';
     } finally {
+        const ms = Math.round(((typeof performance !== 'undefined' ? performance.now() : Date.now())) - _t0);
+        console.log(`[Schede] renderSchedeTab: end (${ms}ms) — release lock`);
         _schedeRendering = false;
-        if (_schedeRenderQueued) renderSchedeTab();
+        if (_schedeRenderQueued) {
+            console.debug('[Schede] renderSchedeTab: eseguo re-render in coda');
+            renderSchedeTab();
+        }
     }
 }
 
@@ -1243,7 +1301,19 @@ function _schedeSelectClient(userId, name) {
 }
 
 // ── Editor refresh helper ────────────────────────────────────────────────────
+// Riallinea _editingPlan con la cache corrente: syncFromSupabase (background
+// o realtime) sostituisce WorkoutPlanStorage._cache con nuovi oggetti, mentre
+// i CRUD mutano la cache fresca via getPlanById. Senza rebind, _editingPlan
+// resta un riferimento detached e l'editor renderizza (o mutea) dati stantii.
+function _schedeSyncEditingPlan() {
+    if (_currentPlanId) {
+        const fresh = WorkoutPlanStorage.getPlanById(_currentPlanId);
+        if (fresh) _editingPlan = fresh;
+    }
+}
+
 function _schedeRefreshEditor() {
+    _schedeSyncEditingPlan();
     const inner = document.getElementById('schedeInner') || document.getElementById('schedeContainer');
     if (inner) _renderPlanEditor(inner);
 }
@@ -1264,6 +1334,7 @@ function _schedeAddDay() {
 
 async function _schedeRemoveDay() {
     if (_editDayLabels.length <= 1) return;
+    _schedeSyncEditingPlan();
     if (_editingPlan) {
         const toDelete = (_editingPlan.workout_exercises || []).filter(e => e.day_label === _editActiveDay);
         for (const ex of toDelete) {
@@ -1278,6 +1349,7 @@ async function _schedeRemoveDay() {
 function _schedeRenameDay(newName) {
     if (!newName.trim()) return;
     const oldName = _editActiveDay;
+    _schedeSyncEditingPlan();
     if (_editingPlan) {
         (_editingPlan.workout_exercises || []).forEach(ex => {
             if (ex.day_label === oldName) {
@@ -1354,6 +1426,7 @@ async function _schedeAddSupersetRow() {
 }
 
 async function _schedeDeleteSuperset(groupId) {
+    _schedeSyncEditingPlan();
     if (!_editingPlan) return;
     const toDelete = (_editingPlan.workout_exercises || []).filter(e => e.superset_group === groupId);
     try {
@@ -1367,6 +1440,7 @@ async function _schedeDeleteSuperset(groupId) {
 }
 
 async function _schedeMoveExercise(exId, direction) {
+    _schedeSyncEditingPlan();
     if (!_editingPlan) return;
     const dayExercises = (_editingPlan.workout_exercises || []).filter(e => e.day_label === _editActiveDay);
     const idx = dayExercises.findIndex(e => e.id === exId);
