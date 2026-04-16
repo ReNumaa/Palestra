@@ -657,10 +657,14 @@
             document.getElementById('saldoDebitRow').style.display = showDebit ? '' : 'none';
             document.getElementById('saldoDebitBonusDivider').style.display = showDebit || displayCredit > 0 ? '' : '';
 
-            // Pulsante (+) ricarica: visibile solo a chi non ha più credito residuo
-            // (displayCredit <= 0 → saldo esaurito o debito). Allineato al saldo mostrato.
+            // Pulsante (+) ricarica:
+            //   - sempre visibile se l'utente ha stripe_enabled = true (opt-in admin)
+            //   - altrimenti visibile solo a chi non ha più credito residuo (displayCredit <= 0)
             const topUpBtn = document.getElementById('btnTopUp');
-            if (topUpBtn) topUpBtn.style.display = displayCredit <= 0 ? '' : 'none';
+            if (topUpBtn) {
+                const alwaysOn = user.stripe_enabled === true;
+                topUpBtn.style.display = (alwaysOn || displayCredit <= 0) ? '' : 'none';
+            }
         }
 
         // ── Pagination state ─────────────────────────────────────────────

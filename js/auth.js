@@ -41,7 +41,7 @@ function _authError(error) {
 async function _loadProfile(userId) {
     const { data: profile, error } = await supabaseClient
         .from('profiles')
-        .select('id, name, email, whatsapp, medical_cert_expiry, medical_cert_history, insurance_expiry, insurance_history, codice_fiscale, indirizzo_via, indirizzo_paese, indirizzo_cap, documento_firmato, privacy_prenotazioni, created_at')
+        .select('id, name, email, whatsapp, medical_cert_expiry, medical_cert_history, insurance_expiry, insurance_history, codice_fiscale, indirizzo_via, indirizzo_paese, indirizzo_cap, documento_firmato, privacy_prenotazioni, stripe_enabled, created_at')
         .eq('id', userId)
         .single();
 

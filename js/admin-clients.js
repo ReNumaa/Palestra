@@ -747,6 +747,7 @@ function openEditClientPopup(index, whatsapp, email, name) {
     const paese      = userRecord?.indirizzoPaese || '';
     const cap        = userRecord?.indirizzoCap || '';
     const docFirmato = userRecord?.documentoFirmato || false;
+    const stripeEn   = userRecord?.stripeEnabled || false;
 
     // Remove existing popup if any
     document.getElementById('editClientPopupOverlay')?.remove();
@@ -786,6 +787,7 @@ function openEditClientPopup(index, whatsapp, email, name) {
                         <label class="edit-client-popup-flex1">Assicurazione<input type="date" id="cedit-assic-${index}" value="${assicScad}"></label>
                     </div>
                     <label class="cedit-checkbox-label"><input type="checkbox" id="cedit-docfirmato-${index}" ${docFirmato ? 'checked' : ''}> Documento firmato</label>
+                    <label class="cedit-checkbox-label"><input type="checkbox" id="cedit-stripe-${index}" ${stripeEn ? 'checked' : ''}> 💳 Abilita Stripe</label>
                 </div>
             </div>
             <div class="edit-client-popup-actions">
@@ -875,6 +877,7 @@ async function _saveClientEditLocalProfile(index, oldWhatsapp, oldEmail, newName
         if (ef.paese !== undefined) users[userIdx].indirizzoPaese  = ef.paese || null;
         if (ef.cap !== undefined)   users[userIdx].indirizzoCap    = ef.cap || null;
         if (ef.documentoFirmato !== undefined) users[userIdx].documentoFirmato = !!ef.documentoFirmato;
+        if (ef.stripeEnabled !== undefined)    users[userIdx].stripeEnabled    = !!ef.stripeEnabled;
 
         _saveUsers(users);
 
@@ -888,6 +891,7 @@ async function _saveClientEditLocalProfile(index, oldWhatsapp, oldEmail, newName
         if (ef.paese !== undefined) _supaFields.indirizzo_paese  = ef.paese || null;
         if (ef.cap !== undefined)   _supaFields.indirizzo_cap    = ef.cap || null;
         if (ef.documentoFirmato !== undefined) _supaFields.documento_firmato = !!ef.documentoFirmato;
+        if (ef.stripeEnabled !== undefined)    _supaFields.stripe_enabled    = !!ef.stripeEnabled;
         // Usa i VECCHI valori per trovare il record nel DB (non i nuovi che non esistono ancora)
         const profileResult = await _updateSupabaseProfile(oldEmail, normOld, _supaFields);
         if (!profileResult.ok) {
@@ -933,6 +937,7 @@ async function saveClientEdit(index, oldWhatsapp, oldEmail) {
     const newPaese    = (document.getElementById(`cedit-paese-${index}`)?.value || '').trim();
     const newCap      = (document.getElementById(`cedit-cap-${index}`)?.value || '').trim();
     const newDocFirmato = document.getElementById(`cedit-docfirmato-${index}`)?.checked || false;
+    const newStripeEn   = document.getElementById(`cedit-stripe-${index}`)?.checked || false;
     if (!newName) { alert('Il nome è obbligatorio.'); return; }
 
     const normOld      = normalizePhone(oldWhatsapp);
@@ -965,7 +970,7 @@ async function saveClientEdit(index, oldWhatsapp, oldEmail) {
                 ManualDebtStorage.syncFromSupabase(),
             ]);
             // Continua con profilo locale + cert/assic (awaited per feedback errori)
-            await _saveClientEditLocalProfile(index, oldWhatsapp, oldEmail, newName, newWhatsapp, newEmail, newCert, newAssic, normOld, normNewPhone, { cf: newCf, via: newVia, paese: newPaese, cap: newCap, documentoFirmato: newDocFirmato });
+            await _saveClientEditLocalProfile(index, oldWhatsapp, oldEmail, newName, newWhatsapp, newEmail, newCert, newAssic, normOld, normNewPhone, { cf: newCf, via: newVia, paese: newPaese, cap: newCap, documentoFirmato: newDocFirmato, stripeEnabled: newStripeEn });
             closeEditClientPopup();
         } catch (e) {
             console.error('[saveClientEdit] exception:', e);
@@ -1008,7 +1013,7 @@ async function saveClientEdit(index, oldWhatsapp, oldEmail) {
     }
 
     // Profilo locale + cert/assic + sessione
-    await _saveClientEditLocalProfile(index, oldWhatsapp, oldEmail, newName, newWhatsapp, newEmail, newCert, newAssic, normOld, normNewPhone, { cf: newCf, via: newVia, paese: newPaese, cap: newCap, documentoFirmato: newDocFirmato });
+    await _saveClientEditLocalProfile(index, oldWhatsapp, oldEmail, newName, newWhatsapp, newEmail, newCert, newAssic, normOld, normNewPhone, { cf: newCf, via: newVia, paese: newPaese, cap: newCap, documentoFirmato: newDocFirmato, stripeEnabled: newStripeEn });
     closeEditClientPopup();
 }
 

@@ -55,6 +55,30 @@ Deno.serve(async (req) => {
             });
         }
 
+        // Gate: l'utente deve avere stripe_enabled = true sul proprio profilo.
+        // Evita che un utente non abilitato possa avviare un pagamento bypassando
+        // il frontend (es. chiamando direttamente la Edge Function).
+        const { data: profile, error: profileErr } = await supabase
+            .from("profiles")
+            .select("stripe_enabled")
+            .eq("id", user.id)
+            .maybeSingle();
+
+        if (profileErr) {
+            console.error("[create-checkout] profile lookup error:", profileErr);
+            return new Response(JSON.stringify({ error: "Errore interno" }), {
+                status: 500,
+                headers: { ...corsHeaders, "Content-Type": "application/json" },
+            });
+        }
+
+        if (!profile?.stripe_enabled) {
+            return new Response(JSON.stringify({ error: "Ricarica non abilitata per questo account. Contatta Thomas." }), {
+                status: 403,
+                headers: { ...corsHeaders, "Content-Type": "application/json" },
+            });
+        }
+
         // Create Stripe Checkout session
         const session = await stripe.checkout.sessions.create({
             payment_method_types: ["card"],
