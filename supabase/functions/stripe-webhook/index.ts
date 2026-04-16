@@ -77,6 +77,27 @@ Deno.serve(async (req) => {
 
         console.log(`[stripe-webhook] Result for ${userId}:`, data);
 
+        // Notifica push agli admin solo la prima volta (retry idempotenti già saltati dalla RPC)
+        const alreadyProcessed = (data as any)?.already_processed === true;
+        if (!alreadyProcessed) {
+            try {
+                await fetch(`${SUPABASE_URL}/functions/v1/notify-admin-topup`, {
+                    method: "POST",
+                    headers: {
+                        "Content-Type": "application/json",
+                        "Authorization": `Bearer ${SUPABASE_KEY}`,
+                    },
+                    body: JSON.stringify({
+                        user_id: userId,
+                        amount_eur: amountEur,
+                        stripe_session_id: session.id,
+                    }),
+                });
+            } catch (notifyErr) {
+                console.error("[stripe-webhook] notify-admin-topup error (non-fatal):", notifyErr);
+            }
+        }
+
         return new Response(JSON.stringify({ received: true, result: data }), {
             status: 200,
             headers: { "Content-Type": "application/json" },

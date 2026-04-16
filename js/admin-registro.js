@@ -677,6 +677,7 @@ const _MSG_TYPE_LABELS = {
     proximity_no_booking:  '📍 Senza prenot.',
     new_client:            '🆕 Nuovo iscritto',
     broadcast:             '📢 Broadcast',
+    topup:                 '💰 Ricarica',
 };
 
 async function loadMessaggi() {
