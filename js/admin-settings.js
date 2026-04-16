@@ -554,3 +554,72 @@ async function runHealthFix() {
     }
 }
 
+// ─── Riconcilia pagamenti Stripe (webhook fallito / mancante) ────────────────
+// dryRun=true  → solo elenco delle session Stripe pagate ma non accreditate
+// dryRun=false → chiama la RPC idempotente stripe_topup_credit per ciascuna
+async function runReconcileStripe(dryRun) {
+    const resultEl = document.getElementById('reconcileStripeResult');
+    const checkBtn = document.getElementById('reconcileStripeCheckBtn');
+    const applyBtn = document.getElementById('reconcileStripeApplyBtn');
+    const activeBtn = dryRun ? checkBtn : applyBtn;
+    const origLabel = activeBtn.textContent;
+
+    activeBtn.disabled = true;
+    activeBtn.textContent = '⏳ In corso...';
+    resultEl.style.display = 'none';
+
+    try {
+        const { data: { session } } = await supabaseClient.auth.getSession();
+        if (!session) throw new Error('Sessione non valida');
+
+        const res = await fetch(`${SUPABASE_URL}/functions/v1/reconcile-stripe`, {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                'Authorization': 'Bearer ' + session.access_token,
+                'apikey': SUPABASE_ANON_KEY,
+            },
+            body: JSON.stringify({ days: 7, dryRun }),
+        });
+        const data = await res.json().catch(() => ({}));
+        if (!res.ok || data.error) throw new Error(data.error || `HTTP ${res.status}`);
+
+        if (dryRun) {
+            const missing = data.missing || [];
+            if (missing.length === 0) {
+                resultEl.innerHTML = `<div style="color:#16a34a">✅ Nessuna ricarica Stripe da riconciliare. Controllate ${data.checked} sessioni degli ultimi 7 giorni.</div>`;
+                applyBtn.style.display = 'none';
+            } else {
+                const list = missing.map(m =>
+                    `<li><code>${_escHtml(m.session_id)}</code> — €${Number(m.amount_eur).toFixed(2)} — <code>${_escHtml(m.user_id)}</code> (${new Date(m.created_at).toLocaleString('it-IT')})</li>`
+                ).join('');
+                resultEl.innerHTML = `
+                    <div style="color:#dc2626; margin-bottom:.5rem">⚠️ Trovate <strong>${missing.length}</strong> ricariche Stripe pagate ma non accreditate.</div>
+                    <ul style="font-size:.85em; padding-left:1.2em">${list}</ul>
+                    <div style="margin-top:.5rem">Clicca "Accredita mancanti" per recuperarle.</div>`;
+                applyBtn.style.display = '';
+            }
+        } else {
+            const rec  = data.reconciled || [];
+            const errs = data.errors || [];
+            let html = `<div style="color:#16a34a">✅ Riconciliate <strong>${rec.length}</strong> ricariche Stripe.</div>`;
+            if (errs.length) {
+                const elist = errs.map(e => `<li><code>${_escHtml(e.session_id)}</code>: ${_escHtml(e.error)}</li>`).join('');
+                html += `<div style="color:#dc2626; margin-top:.5rem">Errori su ${errs.length}:</div><ul style="font-size:.85em; padding-left:1.2em">${elist}</ul>`;
+            }
+            resultEl.innerHTML = html;
+            applyBtn.style.display = 'none';
+            if (typeof CreditStorage?.syncFromSupabase === 'function') {
+                await CreditStorage.syncFromSupabase().catch(() => {});
+            }
+        }
+        resultEl.style.display = 'block';
+    } catch (e) {
+        resultEl.innerHTML = `<div style="color:#dc2626">Errore: ${_escHtml(e.message)}</div>`;
+        resultEl.style.display = 'block';
+    } finally {
+        activeBtn.disabled = false;
+        activeBtn.textContent = origLabel;
+    }
+}
+

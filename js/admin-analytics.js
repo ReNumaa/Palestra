@@ -2266,9 +2266,11 @@ async function downloadWeeklyReport() {
             UserStorage.syncUsersFromSupabase(),
         ]);
 
-        // Fetch bookings paid with carta or bonifico in the date range
-        const REPORT_METHODS = new Set(['carta', 'iban']);
-        const METHOD_LABEL_REPORT = { carta: 'Carta', iban: 'Bonifico' };
+        // Fetch bookings paid with carta / bonifico / stripe in the date range.
+        // Stripe fiscalmente e' una carta (MP08), quindi lo etichettiamo "Carta"
+        // nel report per il commercialista, ma lo includiamo negli incassi.
+        const REPORT_METHODS = new Set(['carta', 'iban', 'stripe']);
+        const METHOD_LABEL_REPORT = { carta: 'Carta', iban: 'Bonifico', stripe: 'Carta' };
         const allBookings = await BookingStorage.fetchForAdmin(fromStr, toStr);
 
         // ── Credit history: fonte primaria per pagamenti via admin_pay_bookings ──
@@ -2486,8 +2488,9 @@ async function downloadFiscalReport() {
             UserStorage.syncUsersFromSupabase(),
         ]);
 
-        const REPORT_METHODS = new Set(['carta', 'iban']);
-        const METHOD_LABEL_REPORT = { carta: 'Carta', iban: 'Bonifico' };
+        // Stripe fiscalmente e' una carta (MP08), stesso trattamento di "carta".
+        const REPORT_METHODS = new Set(['carta', 'iban', 'stripe']);
+        const METHOD_LABEL_REPORT = { carta: 'Carta', iban: 'Bonifico', stripe: 'Carta' };
 
         // Fetch ALL bookings (no date filter)
         const allBookings = await BookingStorage.fetchForAdmin(null, null);

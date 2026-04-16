@@ -1468,22 +1468,40 @@
                 const { data: { session } } = await supabaseClient.auth.getSession();
                 if (!session) throw new Error('Sessione non valida');
 
-                const res = await fetch(SUPABASE_URL + '/functions/v1/create-checkout', {
-                    method: 'POST',
-                    headers: {
-                        'Content-Type': 'application/json',
-                        'Authorization': 'Bearer ' + session.access_token,
-                        'apikey': SUPABASE_ANON_KEY,
-                    },
-                    body: JSON.stringify({
-                        amount: _selectedTopUpAmount,
-                        user_id: user.id,
-                        user_email: user.email,
-                        user_name: user.name,
-                    }),
+                const payload = JSON.stringify({
+                    amount: _selectedTopUpAmount,
+                    user_id: user.id,
+                    user_email: user.email,
+                    user_name: user.name,
                 });
+                const headers = {
+                    'Content-Type': 'application/json',
+                    'Authorization': 'Bearer ' + session.access_token,
+                    'apikey': SUPABASE_ANON_KEY,
+                };
 
-                const result = await res.json();
+                // Retry con backoff su errori di rete / 5xx.
+                // Non ritenta i 4xx (errori client: importo invalido, JWT scaduto, ecc.).
+                const MAX_ATTEMPTS = 3;
+                let res = null;
+                let lastErr = null;
+                for (let attempt = 1; attempt <= MAX_ATTEMPTS; attempt++) {
+                    try {
+                        res = await fetch(SUPABASE_URL + '/functions/v1/create-checkout', {
+                            method: 'POST', headers, body: payload,
+                        });
+                        if (res.ok) break;
+                        if (res.status >= 400 && res.status < 500) break; // errore client → non ritentare
+                    } catch (netErr) {
+                        lastErr = netErr;
+                    }
+                    if (attempt < MAX_ATTEMPTS) {
+                        await new Promise(r => setTimeout(r, 500 * Math.pow(2, attempt - 1)));
+                    }
+                }
+                if (!res) throw lastErr || new Error('Errore di rete');
+
+                const result = await res.json().catch(() => ({}));
                 if (!res.ok || !result.url) {
                     throw new Error(result.error || 'Errore nella creazione del pagamento');
                 }

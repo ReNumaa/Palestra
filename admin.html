@@ -489,10 +489,26 @@
                             <span class="sett-card-icon sett-card-icon--green">🧾</span>
                             <div>
                                 <h4 class="sett-card-title">Report fiscale completo</h4>
-                                <p class="sett-card-desc">Scarica XLSX con tutti i pagamenti carta e bonifico. Include prenotazioni, debiti e crediti.</p>
+                                <p class="sett-card-desc">Scarica XLSX con tutti i pagamenti carta, bonifico e Stripe. Include prenotazioni, debiti e crediti.</p>
                             </div>
                             <button class="sett-action-btn sett-action-btn--green" id="fiscalReportBtn" onclick="downloadFiscalReport()">🧾 Scarica</button>
                         </div>
+                    </div>
+
+                    <!-- Riconcilia pagamenti Stripe -->
+                    <div class="sett-card">
+                        <div class="sett-card-header sett-card-header--top">
+                            <span class="sett-card-icon sett-card-icon--blue">💳</span>
+                            <div>
+                                <h4 class="sett-card-title">Riconcilia pagamenti Stripe</h4>
+                                <p class="sett-card-desc">Cerca ricariche Stripe completate ma non ancora accreditate (es. webhook fallito). Safe: la procedura è idempotente.</p>
+                            </div>
+                        </div>
+                        <div class="sett-btn-row">
+                            <button class="sett-action-btn sett-action-btn--blue" id="reconcileStripeCheckBtn" onclick="runReconcileStripe(true)">🔍 Controlla</button>
+                            <button class="sett-action-btn sett-action-btn--green" id="reconcileStripeApplyBtn" onclick="runReconcileStripe(false)" style="display:none">✔️ Accredita mancanti</button>
+                        </div>
+                        <div id="reconcileStripeResult" style="display:none; margin-top:1rem;"></div>
                     </div>
 
                     <!-- Verifica integrità dati -->
@@ -630,6 +646,7 @@
                                             <option value="all">Tutti</option>
                                             <option value="contanti">💵 Contanti</option>
                                             <option value="carta">💳 Carta</option>
+                                            <option value="stripe">💳 Stripe</option>
                                             <option value="iban">🏦 Bonifico</option>
                                             <option value="credito">🔄 Credito</option>
                                             <option value="lezione-gratuita">🎁 Gratuita</option>
