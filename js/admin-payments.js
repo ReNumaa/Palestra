@@ -1036,9 +1036,20 @@ async function saveManualEntry() {
 
             console.log('[admin_add_credit]', data);
 
-            // Bonus ricarica: se abilitato e metodo idoneo, aggiungi lezione gratuita
+            // Bonus ricarica: se abilitato e metodo idoneo, aggiungi lezione gratuita.
+            // Gate debito: se il debito pre-ricarica supera debt_threshold, niente bonus
+            // (la cache locale è ancora pre-RPC, quindi getUnpaidPastDebt restituisce lo
+            // stato prima dell'autopay appena eseguito dal server).
             const bonusMethods = ['contanti', 'carta', 'iban'];
-            const rechargeBonus = bonusMethods.includes(method) ? RechargeBonusStorage.calcBonus(amount) : 0;
+            const _dThresh = (typeof DebtThresholdStorage !== 'undefined') ? DebtThresholdStorage.get() : 0;
+            const _preDebt = BookingStorage.getUnpaidPastDebt(whatsapp || '', email || '');
+            const _debtBlocksBonus = _dThresh > 0 && _preDebt > _dThresh;
+            const rechargeBonus = (bonusMethods.includes(method) && !_debtBlocksBonus)
+                ? RechargeBonusStorage.calcBonus(amount)
+                : 0;
+            if (_debtBlocksBonus && bonusMethods.includes(method) && RechargeBonusStorage.calcBonus(amount) > 0) {
+                console.log(`[recharge_bonus] saltato per ${name}: debito €${_preDebt} > soglia €${_dThresh}`);
+            }
             if (rechargeBonus > 0) {
                 const multiplier = Math.floor(amount / RechargeBonusStorage.getThreshold());
                 const bonusNote = `Bonus ricarica ${amount}€ (x${multiplier})`;

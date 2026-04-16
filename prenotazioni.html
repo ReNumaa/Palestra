@@ -1529,7 +1529,7 @@
             }
         }
 
-        // Check URL for top-up success/cancel
+        // Check URL for top-up success/cancel/open
         (function checkTopUpReturn() {
             const params = new URLSearchParams(window.location.search);
             if (params.get('topup') === 'success') {
@@ -1538,6 +1538,20 @@
             } else if (params.get('topup') === 'cancel') {
                 window.history.replaceState({}, '', window.location.pathname);
                 setTimeout(() => showToast('Pagamento annullato.', 'error', 3000), 1000);
+            } else if (params.get('topup') === 'open') {
+                // Auto-apri la modale ricarica (deep link dal messaggio di blocco
+                // in booking.js). Aspetta che _maybeShowTopUpBtn abbia confermato
+                // che l'utente è abilitato al topup, altrimenti non fa nulla.
+                window.history.replaceState({}, '', window.location.pathname);
+                const _tryOpen = (attempt = 0) => {
+                    const user = typeof getCurrentUser === 'function' ? getCurrentUser() : null;
+                    if (user && user.id === TOPUP_ALLOWED_UID) {
+                        openTopUpModal();
+                        return;
+                    }
+                    if (attempt < 20) setTimeout(() => _tryOpen(attempt + 1), 150);
+                };
+                setTimeout(_tryOpen, 300);
             }
         })();
     </script>
