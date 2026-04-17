@@ -1519,11 +1519,14 @@
                     throw new Error('Sessione scaduta, effettua di nuovo l\'accesso.');
                 }
 
-                // Diagnostica: decodifica claims JWT per vedere cosa stiamo davvero mandando.
+                // Diagnostica: decodifica header + claims JWT per vedere algoritmo e metadata.
                 try {
-                    const [, b64] = session.access_token.split('.');
-                    const claims = JSON.parse(atob(b64.replace(/-/g, '+').replace(/_/g, '/')));
+                    const [h64, b64] = session.access_token.split('.');
+                    const decode = (s) => JSON.parse(atob(s.replace(/-/g, '+').replace(/_/g, '/')));
+                    const header = decode(h64);
+                    const claims = decode(b64);
                     const nowSec = Math.floor(Date.now() / 1000);
+                    console.log('[TopUp] JWT header:', header);
                     console.log('[TopUp] JWT claims:', {
                         sub: claims.sub, email: claims.email, aud: claims.aud,
                         iss: claims.iss, role: claims.role,
