@@ -1493,13 +1493,13 @@
             btn.textContent = 'Caricamento...';
 
             try {
-                // Un unico punto per ottenere una sessione garantita-valida:
-                // ensureValidSession serializza i refresh e restituisce un access_token
-                // fresco (o null → errore chiaro all'utente). Il checkout non deve
-                // più gestire 401/refresh: è responsabilità dell'auth layer.
-                const session = await ensureValidSession();
+                // Forziamo un refresh vero prima del checkout: il fast-path di
+                // ensureValidSession (30s di margine) non basta perché il token
+                // in storage può essere stale/revocato anche con expires_at futuro.
+                // Meglio pagare un refresh in più che mandare un JWT invalido.
+                const session = await ensureValidSession({ force: true });
                 if (!session?.access_token) {
-                    throw new Error('Sessione scaduta. Chiudi e riapri l\'app, oppure fai logout e login.');
+                    throw new Error('Sessione scaduta, effettua di nuovo l\'accesso.');
                 }
 
                 const payload = JSON.stringify({
@@ -1514,31 +1514,18 @@
                     'apikey': SUPABASE_ANON_KEY,
                 };
 
-                // Retry con backoff su errori di rete / 5xx.
-                // Se arriva 401 al primo tentativo significa che il token in storage
-                // e' stale (revocato o invalidato nonostante expires_at sia nel
-                // futuro): forziamo un refresh vero e ritentiamo una volta.
-                // Altri 4xx (403 gate stripe_enabled, 400 importo invalido) non si
-                // ritentano.
+                // Retry con backoff solo su errori di rete / 5xx.
+                // Sul 401 NON ritentiamo: il token è stato appena rinfrescato,
+                // se è ancora invalido è un problema di sessione e serve login.
                 const MAX_ATTEMPTS = 3;
                 let res = null;
                 let lastErr = null;
-                let sessionForced = false;
                 for (let attempt = 1; attempt <= MAX_ATTEMPTS; attempt++) {
                     try {
                         res = await fetch(SUPABASE_URL + '/functions/v1/create-checkout', {
                             method: 'POST', headers, body: payload,
                         });
                         if (res.ok) break;
-                        if (res.status === 401 && !sessionForced) {
-                            sessionForced = true;
-                            const fresh = await ensureValidSession({ force: true });
-                            if (fresh?.access_token) {
-                                headers['Authorization'] = 'Bearer ' + fresh.access_token;
-                                continue; // retry immediato con token rinfrescato sul server
-                            }
-                            throw new Error('Sessione scaduta. Chiudi e riapri l\'app, oppure fai logout e login.');
-                        }
                         if (res.status >= 400 && res.status < 500) break;
                     } catch (netErr) {
                         lastErr = netErr;
@@ -1550,6 +1537,10 @@
                 if (!res) throw lastErr || new Error('Errore di rete');
 
                 const result = await res.json().catch(() => ({}));
+                if (res.status === 401) {
+                    if (preWin) { try { preWin.close(); } catch (_) {} }
+                    throw new Error('Sessione scaduta, effettua di nuovo l\'accesso.');
+                }
                 if (!res.ok || !result.url) {
                     if (preWin) { try { preWin.close(); } catch (_) {} }
                     throw new Error(result.error || 'Errore nella creazione del pagamento');
