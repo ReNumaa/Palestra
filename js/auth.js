@@ -73,66 +73,87 @@ async function _loadProfile(userId) {
 // Ritorna la session o null (refresh fallito/timeout/nessun refresh_token).
 let _refreshInFlight = null;
 
-// Strategia: preferisci getSession() (legge lo storage, non contende il lock
-// interno), usa refreshSession() solo come ultima risorsa. L'auto-refresh
-// interno di supabase-js lavora in parallelo — se è in corso, getSession()
-// vede il nuovo token non appena è scritto.
+// Strategia fail-closed:
+//   1. getSession() (storage, no lock contention) → se fresco, return
+//   2. Se c'è un refresh in-flight, attendi con CAP separato; se supera il cap,
+//      non rimanere in limbo → leggi storage e se non valido ritorna null.
+//   3. Avvia refresh manuale con timeout.
+//   4. Se timeout, polla getSession (auto-refresh interno può aver completato).
+//   5. Se ancora niente → sessione persa: signOut locale, evento auth:session-lost,
+//      ritorna null. Il chiamante chiede un relogin.
 async function ensureValidSession({ timeoutMs = 12000, force = false } = {}) {
-    if (_refreshInFlight) {
-        console.log('[Auth] ensureValidSession: attendo refresh già in corso');
-        return _refreshInFlight;
-    }
-
     const readSession = async () => {
         try {
             const { data: { session } } = await supabaseClient.auth.getSession();
             return session || null;
         } catch (_) { return null; }
     };
+    const isFresh = (s, minLeftSec = 30) => {
+        if (!s?.access_token || !s.expires_at) return false;
+        return s.expires_at - Math.floor(Date.now() / 1000) > minLeftSec;
+    };
 
-    // Step 1 — storage prima di tutto. Se il token è fresco, nessun refresh.
-    // Con force=true saltiamo questo step (il chiamante sospetta token stale).
+    // Step 1 — storage
     if (!force) {
-        const current = await readSession();
-        const nowSec = Math.floor(Date.now() / 1000);
-        if (current?.access_token && current.expires_at && current.expires_at - nowSec > 30) {
-            return current;
-        }
+        const s = await readSession();
+        if (isFresh(s)) return s;
     }
 
+    // Step 2 — in-flight: attendi con cap, poi fallback getSession
+    if (_refreshInFlight) {
+        console.log('[Auth] ensureValidSession: refresh già in corso, attendo (cap)');
+        const TIMEOUT = Symbol('wait-timeout');
+        const r = await Promise.race([
+            _refreshInFlight,
+            new Promise(resolve => setTimeout(() => resolve(TIMEOUT), timeoutMs)),
+        ]);
+        if (r !== TIMEOUT) return r;
+        console.warn('[Auth] ensureValidSession: attesa in-flight oltre cap, provo getSession');
+        const s = await readSession();
+        if (isFresh(s, 0)) return s;
+        return null; // caller fa fail-closed
+    }
+
+    // Step 3 — nuovo refresh manuale
     _refreshInFlight = (async () => {
         const t0 = performance.now();
-        console.log(`[Auth] ensureValidSession: refresh manuale avviato (force=${force})`);
+        console.log(`[Auth] ensureValidSession: refresh manuale avviato (force=${force}, timeout=${timeoutMs}ms)`);
         try {
-            const refreshPromise = supabaseClient.auth.refreshSession();
-            const timeoutPromise = new Promise((_, reject) =>
+            const refreshP = supabaseClient.auth.refreshSession();
+            const timeoutP = new Promise((_, reject) =>
                 setTimeout(() => reject(new Error('refresh timeout')), timeoutMs)
             );
-            const { data, error } = await Promise.race([refreshPromise, timeoutPromise]);
+            const { data, error } = await Promise.race([refreshP, timeoutP]);
             if (error) throw error;
             if (data?.session?.access_token) {
                 console.log(`[Auth] ensureValidSession: refresh OK in ${Math.round(performance.now() - t0)}ms`);
                 return data.session;
             }
-            console.warn('[Auth] ensureValidSession: refresh senza sessione');
+            console.warn('[Auth] ensureValidSession: refresh completato senza sessione');
         } catch (e) {
             console.warn(`[Auth] ensureValidSession: refresh fallito (${Math.round(performance.now() - t0)}ms): ${e.message}`);
         } finally {
             _refreshInFlight = null;
         }
 
-        // Step 3 — polling breve: l'auto-refresh interno può aver aggiornato lo
-        // storage dopo il nostro timeout (è più probabile se il lock era conteso).
+        // Step 4 — polling storage (auto-refresh interno può essere arrivato)
         for (let i = 1; i <= 3; i++) {
             await new Promise(r => setTimeout(r, 400));
             const s = await readSession();
-            const nowSec = Math.floor(Date.now() / 1000);
-            if (s?.access_token && s.expires_at && s.expires_at - nowSec > 0) {
+            if (isFresh(s, 0)) {
                 console.log(`[Auth] ensureValidSession: recuperato via getSession (poll ${i})`);
                 return s;
             }
         }
-        console.warn('[Auth] ensureValidSession: nessuna sessione valida dopo refresh+poll');
+
+        // Step 5 — FAIL-CLOSED: sessione persa, forza relogin
+        console.warn('[Auth] ensureValidSession: FAIL-CLOSED — signOut locale, relogin richiesto');
+        _isManualLogout = true; // previene loop di "SIGNED_OUT spurio → recovery"
+        try { await supabaseClient.auth.signOut({ scope: 'local' }); } catch (_) {}
+        window._currentUser = null;
+        sessionStorage.removeItem('adminAuth');
+        try { window.dispatchEvent(new CustomEvent('auth:session-lost')); } catch (_) {}
+        try { if (typeof updateNavAuth === 'function') updateNavAuth(); } catch (_) {}
         return null;
     })();
 
@@ -140,6 +161,26 @@ async function ensureValidSession({ timeoutMs = 12000, force = false } = {}) {
 }
 
 window.ensureValidSession = ensureValidSession;
+
+// Handler globale per fail-closed: mostra messaggio chiaro all'utente invece
+// di lasciare la pagina in stato ambiguo. Registrato una sola volta.
+if (!window._authSessionLostHandlerActive) {
+    window._authSessionLostHandlerActive = true;
+    window.addEventListener('auth:session-lost', () => {
+        if (window._authSessionLostNotified) return;
+        window._authSessionLostNotified = true;
+        try {
+            if (typeof showToast === 'function') {
+                showToast('Sessione scaduta. Effettua di nuovo l\'accesso.', 'error', 5000);
+            }
+        } catch (_) {}
+        // Redirect al login dopo breve delay (lascia leggere il toast).
+        setTimeout(() => {
+            const onLogin = location.pathname.endsWith('/login.html') || location.pathname === '/';
+            if (!onLogin) location.href = '/login.html';
+        }, 1500);
+    });
+}
 
 // ── Init: recupera la sessione e carica il profilo ────────────────────────────
 // Chiamata su ogni pagina prima di qualsiasi operazione auth.
@@ -209,6 +250,10 @@ async function initAuth() {
         _authListenerActive = true;
         supabaseClient.auth.onAuthStateChange(async (event, session) => {
             if (event === 'SIGNED_IN' || event === 'TOKEN_REFRESHED') {
+                // Reset del flag: se un precedente fail-closed l'aveva alzato,
+                // un login/refresh riuscito lo riabbassa così futuri SIGNED_OUT
+                // spuri potranno di nuovo tentare la recovery.
+                _isManualLogout = false;
                 if (session) {
                     await _loadProfile(session.user.id);
                     if (session.user.app_metadata?.role === 'admin') {
