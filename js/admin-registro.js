@@ -685,13 +685,13 @@ async function loadMessaggi() {
     try {
         const { data, error } = await _queryWithTimeout(supabaseClient
             .from('admin_messages')
-            .select('created_at,type,date,title,body,client_name')
+            .select('created_at,type,date,title,body,client_name,sent_count')
             .order('created_at', { ascending: false })
             .limit(500));
         if (error) {
             console.warn('[Messaggi] load error:', error.message);
             const tbody = document.getElementById('messaggiTableBody');
-            if (tbody) tbody.innerHTML = '<tr><td colspan="5" class="registro-empty">❌ Errore caricamento messaggi. <a href="#" onclick="loadMessaggi();return false">Riprova</a></td></tr>';
+            if (tbody) tbody.innerHTML = '<tr><td colspan="6" class="registro-empty">❌ Errore caricamento messaggi. <a href="#" onclick="loadMessaggi();return false">Riprova</a></td></tr>';
             return;
         }
         _messaggiCache = data || [];
@@ -699,17 +699,23 @@ async function loadMessaggi() {
     } catch (e) {
         console.warn('[Messaggi] load exception:', e);
         const tbody = document.getElementById('messaggiTableBody');
-        if (tbody) tbody.innerHTML = '<tr><td colspan="5" class="registro-empty">❌ Errore caricamento messaggi. <a href="#" onclick="loadMessaggi();return false">Riprova</a></td></tr>';
+        if (tbody) tbody.innerHTML = '<tr><td colspan="6" class="registro-empty">❌ Errore caricamento messaggi. <a href="#" onclick="loadMessaggi();return false">Riprova</a></td></tr>';
     }
 }
 
 function renderMessaggiTable() {
     const typeFilter = document.getElementById('msgFilterType')?.value || '';
+    const statusFilter = document.getElementById('msgFilterStatus')?.value || '';
     const dateFilter = document.getElementById('msgFilterDate')?.value || '';
 
     _messaggiFiltered = _messaggiCache.filter(m => {
         if (typeFilter && m.type !== typeFilter) return false;
         if (dateFilter && m.date !== dateFilter) return false;
+        if (statusFilter) {
+            const isSent = (m.sent_count || 0) > 0;
+            if (statusFilter === 'sent' && !isSent) return false;
+            if (statusFilter === 'failed' && isSent) return false;
+        }
         return true;
     });
 
@@ -725,19 +731,24 @@ function _renderMessaggiPage() {
     const page = _messaggiFiltered.slice(start, start + MESSAGGI_PAGE_SIZE);
 
     if (page.length === 0) {
-        tbody.innerHTML = '<tr><td colspan="5" class="registro-empty">Nessun messaggio trovato</td></tr>';
+        tbody.innerHTML = '<tr><td colspan="6" class="registro-empty">Nessun messaggio trovato</td></tr>';
     } else {
         tbody.innerHTML = page.map(m => {
             const dt = new Date(m.created_at);
             const dateStr = `${String(dt.getDate()).padStart(2,'0')}/${String(dt.getMonth()+1).padStart(2,'0')}/${dt.getFullYear()}`;
             const timeStr = `${String(dt.getHours()).padStart(2,'0')}:${String(dt.getMinutes()).padStart(2,'0')}`;
             const typeLabel = _MSG_TYPE_LABELS[m.type] || m.type;
+            const sent = m.sent_count || 0;
+            const isSent = sent > 0;
+            const statusLabel = isSent ? `✅ Inviata (${sent})` : '❌ Non inviata';
+            const statusStyle = isSent ? 'color:#22c55e' : 'color:#ef4444';
             return `<tr>
                 <td>${dateStr} ${timeStr}</td>
                 <td>${typeLabel}</td>
                 <td>${_escHtml(m.title)}</td>
                 <td>${_escHtml(m.body)}</td>
                 <td>${_escHtml(m.client_name || '')}</td>
+                <td style="${statusStyle};font-weight:600">${statusLabel}</td>
             </tr>`;
         }).join('');
     }

@@ -724,8 +724,13 @@
                                         <option value="new_client">🆕 Nuovi iscritti</option>
                                         <option value="topup">💰 Ricariche</option>
                                     </select>
+                                    <select id="msgFilterStatus" onchange="renderMessaggiTable()" class="reg-panel-select">
+                                        <option value="">Tutti gli stati</option>
+                                        <option value="sent">✅ Inviata</option>
+                                        <option value="failed">❌ Non inviata</option>
+                                    </select>
                                     <input type="date" id="msgFilterDate" onchange="renderMessaggiTable()" class="reg-panel-date">
-                                    <button class="rfilter-btn rfilter-btn--reset" onclick="document.getElementById('msgFilterType').value='';document.getElementById('msgFilterDate').value='';renderMessaggiTable()">↺ Reset</button>
+                                    <button class="rfilter-btn rfilter-btn--reset" onclick="document.getElementById('msgFilterType').value='';document.getElementById('msgFilterStatus').value='';document.getElementById('msgFilterDate').value='';renderMessaggiTable()">↺ Reset</button>
                                 </div>
                             </div>
                         </div>
@@ -738,10 +743,11 @@
                                         <th>Titolo</th>
                                         <th>Dettaglio</th>
                                         <th>Cliente</th>
+                                        <th>Stato</th>
                                     </tr>
                                 </thead>
                                 <tbody id="messaggiTableBody">
-                                    <tr><td colspan="5" class="registro-empty">Caricamento...</td></tr>
+                                    <tr><td colspan="6" class="registro-empty">Caricamento...</td></tr>
                                 </tbody>
                             </table>
                         </div>
