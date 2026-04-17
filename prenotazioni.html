@@ -1493,8 +1493,14 @@
             btn.textContent = 'Caricamento...';
 
             try {
-                const { data: { session } } = await supabaseClient.auth.getSession();
-                if (!session) throw new Error('Sessione non valida');
+                // Un unico punto per ottenere una sessione garantita-valida:
+                // ensureValidSession serializza i refresh e restituisce un access_token
+                // fresco (o null → errore chiaro all'utente). Il checkout non deve
+                // più gestire 401/refresh: è responsabilità dell'auth layer.
+                const session = await ensureValidSession();
+                if (!session?.access_token) {
+                    throw new Error('Sessione scaduta. Chiudi e riapri l\'app, oppure fai logout e login.');
+                }
 
                 const payload = JSON.stringify({
                     amount: _selectedTopUpAmount,
@@ -1508,37 +1514,18 @@
                     'apikey': SUPABASE_ANON_KEY,
                 };
 
-                // Retry con backoff su errori di rete / 5xx.
-                // Il 401 viene ritentato una sola volta dopo aver forzato il refresh
-                // della sessione: l'SDK Supabase a volte salta il refresh automatico
-                // quando il lock dell'auth scatta in timeout (Lock timeout 0ms).
+                // Retry con backoff solo su errori di rete / 5xx. I 4xx (inclusi 401
+                // residui, 403 gate stripe_enabled, 400 importo invalido) non si ritentano.
                 const MAX_ATTEMPTS = 3;
                 let res = null;
                 let lastErr = null;
-                let jwtRefreshed = false;
                 for (let attempt = 1; attempt <= MAX_ATTEMPTS; attempt++) {
                     try {
                         res = await fetch(SUPABASE_URL + '/functions/v1/create-checkout', {
                             method: 'POST', headers, body: payload,
                         });
                         if (res.ok) break;
-                        if (res.status === 401 && !jwtRefreshed) {
-                            jwtRefreshed = true;
-                            // refreshSession può appendersi a causa del lock dell'auth rotto
-                            // (vedi warning "Lock timeout (0ms)"): timeout 3s per non bloccare
-                            // l'utente sul pulsante "Caricamento...".
-                            const refreshed = await Promise.race([
-                                supabaseClient.auth.refreshSession().then(r => r.data),
-                                new Promise(resolve => setTimeout(() => resolve(null), 3000)),
-                            ]).catch(() => null);
-                            if (refreshed?.session?.access_token) {
-                                headers['Authorization'] = 'Bearer ' + refreshed.session.access_token;
-                                continue; // retry immediato con token fresco
-                            }
-                            // Refresh fallito/timeout: prepariamo un errore esplicito per il catch
-                            throw new Error('Sessione scaduta. Chiudi e riapri l\'app, oppure fai logout e login.');
-                        }
-                        if (res.status >= 400 && res.status < 500) break; // altri 4xx: non ritentare
+                        if (res.status >= 400 && res.status < 500) break;
                     } catch (netErr) {
                         lastErr = netErr;
                     }

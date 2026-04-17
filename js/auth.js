@@ -61,6 +61,51 @@ async function _loadProfile(userId) {
     return false;
 }
 
+// ── Refresh centralizzato della sessione ──────────────────────────────────────
+// Un solo refresh per volta nella tab: chi arriva mentre è in corso aspetta la
+// stessa Promise invece di lanciare refresh paralleli che lasciano la sessione
+// in stato incoerente (access_token stale in memoria mentre un altro handler
+// scrive il nuovo in storage → PostgREST risponde 401 al prossimo call).
+//
+// Se la sessione in cache è ancora fresca (>30s al limite), evitiamo del tutto
+// la network call.
+//
+// Ritorna la session o null (refresh fallito/timeout/nessun refresh_token).
+let _refreshInFlight = null;
+
+async function ensureValidSession({ timeoutMs = 5000 } = {}) {
+    if (_refreshInFlight) return _refreshInFlight;
+
+    // Fast path: access_token non scaduto → nessun refresh necessario
+    try {
+        const { data: { session } } = await supabaseClient.auth.getSession();
+        const nowSec = Math.floor(Date.now() / 1000);
+        if (session?.access_token && session.expires_at && session.expires_at - nowSec > 30) {
+            return session;
+        }
+    } catch (_) { /* cadiamo sul refresh */ }
+
+    _refreshInFlight = (async () => {
+        try {
+            const refreshPromise = supabaseClient.auth.refreshSession();
+            const timeoutPromise = new Promise((_, reject) =>
+                setTimeout(() => reject(new Error('refresh timeout')), timeoutMs)
+            );
+            const { data } = await Promise.race([refreshPromise, timeoutPromise]);
+            return data?.session || null;
+        } catch (e) {
+            console.warn('[Auth] ensureValidSession failed:', e.message);
+            return null;
+        } finally {
+            _refreshInFlight = null;
+        }
+    })();
+
+    return _refreshInFlight;
+}
+
+window.ensureValidSession = ensureValidSession;
+
 // ── Init: recupera la sessione e carica il profilo ────────────────────────────
 // Chiamata su ogni pagina prima di qualsiasi operazione auth.
 // Ritorna la sessione Supabase (o null).
@@ -86,11 +131,9 @@ async function initAuth() {
                 subscription.unsubscribe();
                 const { data } = await supabaseClient.auth.getSession();
                 if (data.session) { resolve(data.session); return; }
-                // Ultimo tentativo: forza refresh del token se c'è una sessione scaduta in storage
-                try {
-                    const { data: refreshed, error } = await supabaseClient.auth.refreshSession();
-                    resolve(error ? null : refreshed.session);
-                } catch { resolve(null); }
+                // Ultimo tentativo: forza refresh tramite ensureValidSession (serializzato)
+                const recovered = await ensureValidSession().catch(() => null);
+                resolve(recovered || null);
             }
         }, 6000);
     });
@@ -148,21 +191,17 @@ async function initAuth() {
                     // NON nullificare _currentUser — tenta il recupero della sessione
                     console.warn('[Auth] SIGNED_OUT spurio — tentativo di recupero sessione');
                     (async () => {
-                        try {
-                            const { data: refreshed } = await supabaseClient.auth.refreshSession();
-                            if (refreshed?.session) {
-                                await _loadProfile(refreshed.session.user.id);
-                                if (refreshed.session.user.app_metadata?.role === 'admin') {
-                                    sessionStorage.setItem('adminAuth', 'true');
-                                }
-                                console.log('[Auth] Sessione recuperata dopo SIGNED_OUT spurio');
-                            } else {
-                                // Refresh fallito definitivamente — sessione realmente persa
-                                window._currentUser = null;
-                                sessionStorage.removeItem('adminAuth');
+                        const recovered = await ensureValidSession();
+                        if (recovered) {
+                            await _loadProfile(recovered.user.id);
+                            if (recovered.user.app_metadata?.role === 'admin') {
+                                sessionStorage.setItem('adminAuth', 'true');
                             }
-                        } catch {
-                            // Rete assente — mantieni lo stato corrente, riproverà al visibilitychange
+                            console.log('[Auth] Sessione recuperata dopo SIGNED_OUT spurio');
+                        } else {
+                            // Refresh fallito definitivamente — sessione realmente persa
+                            window._currentUser = null;
+                            sessionStorage.removeItem('adminAuth');
                         }
                         updateNavAuth();
                     })();
@@ -182,27 +221,10 @@ async function initAuth() {
             if (document.hidden) { _lastHiddenAt = Date.now(); return; }
             // Ri-sincronizza solo se l'app è stata in background per almeno 30 secondi
             const bgSeconds = _lastHiddenAt ? (Date.now() - _lastHiddenAt) / 1000 : 0;
-            // Attendi che il lock Supabase si liberi prima di tentare getSession
+            // Attendi che il lock Supabase si liberi prima di tentare il refresh
             await new Promise(r => setTimeout(r, 500));
-            try {
-                const { data, error } = await supabaseClient.auth.getSession();
-                if (error) throw error;
-                if (data.session) {
-                    await _loadProfile(data.session.user.id);
-                } else {
-                    const { data: refreshed } = await supabaseClient.auth.refreshSession();
-                    if (refreshed.session) {
-                        await _loadProfile(refreshed.session.user.id);
-                    }
-                }
-            } catch (e) {
-                // Lock rotto o errore di rete — riprova con refreshSession
-                console.warn('[Auth] visibilitychange recovery:', e.message);
-                try {
-                    const { data: refreshed } = await supabaseClient.auth.refreshSession();
-                    if (refreshed.session) await _loadProfile(refreshed.session.user.id);
-                } catch { /* rete assente */ }
-            }
+            const session = await ensureValidSession();
+            if (session) await _loadProfile(session.user.id);
             updateNavAuth();
 
             // Ri-sincronizza dati dopo background prolungato (≥2min)
