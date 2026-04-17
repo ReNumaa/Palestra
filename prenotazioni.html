@@ -1563,10 +1563,11 @@
                     console.warn('[TopUp] current token rejected (401), forcing refresh');
                     const fresh = await ensureValidSession({ force: true, timeoutMs: 15000 });
                     if (!fresh?.access_token) {
-                        console.warn('[TopUp] fail-closed: refresh non ha recuperato la sessione');
+                        console.warn('[TopUp] recovery failed, session lost → fail-closed');
                         if (preWin) { try { preWin.close(); } catch (_) {} }
                         throw new Error('Sessione scaduta, effettua di nuovo l\'accesso.');
                     }
+                    console.log('[TopUp] refreshed session acquired');
                     headers['Authorization'] = 'Bearer ' + fresh.access_token;
                     console.log('[TopUp] retry with refreshed token');
                     res = await doPost();
@@ -1575,6 +1576,7 @@
                         if (preWin) { try { preWin.close(); } catch (_) {} }
                         throw new Error('Sessione scaduta, effettua di nuovo l\'accesso.');
                     }
+                    console.log('[TopUp] retry OK dopo refresh');
                 }
 
                 const result = await res.json().catch(() => ({}));

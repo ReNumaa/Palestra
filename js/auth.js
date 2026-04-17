@@ -96,7 +96,10 @@ async function ensureValidSession({ timeoutMs = 12000, force = false } = {}) {
     // Step 1 — storage
     if (!force) {
         const s = await readSession();
-        if (isFresh(s)) return s;
+        if (isFresh(s)) {
+            console.log(`[Auth] ensureValidSession: storage OK (expires in ${s.expires_at - Math.floor(Date.now()/1000)}s)`);
+            return s;
+        }
     }
 
     // Step 2 — in-flight: attendi con cap, poi fallback getSession
@@ -107,11 +110,20 @@ async function ensureValidSession({ timeoutMs = 12000, force = false } = {}) {
             _refreshInFlight,
             new Promise(resolve => setTimeout(() => resolve(TIMEOUT), timeoutMs)),
         ]);
-        if (r !== TIMEOUT) return r;
+        if (r !== TIMEOUT) {
+            console.log(r?.access_token
+                ? '[Auth] ensureValidSession: in-flight completato con sessione'
+                : '[Auth] ensureValidSession: in-flight completato senza sessione');
+            return r;
+        }
         console.warn('[Auth] ensureValidSession: attesa in-flight oltre cap, provo getSession');
         const s = await readSession();
-        if (isFresh(s, 0)) return s;
-        return null; // caller fa fail-closed
+        if (isFresh(s, 0)) {
+            console.log('[Auth] ensureValidSession: recuperato via getSession dopo cap');
+            return s;
+        }
+        console.warn('[Auth] ensureValidSession: nessuna sessione dopo cap → null');
+        return null;
     }
 
     // Step 3 — nuovo refresh manuale
