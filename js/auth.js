@@ -128,15 +128,14 @@ async function initAuth() {
                 resolve(session);
             }
         });
-        // Fallback: se INITIAL_SESSION non arriva entro 6s, usa getSession()
-        // (su cold start mobile con token scaduto il refresh può impiegare più tempo)
+        // Fallback: se INITIAL_SESSION non arriva entro 6s, risolviamo tramite
+        // ensureValidSession — unica fonte di verità, valida il token e
+        // all'occorrenza forza un refresh (evita di accettare sessioni stale da
+        // getSession diretto con expires_at futuro ma token revocato).
         setTimeout(async () => {
             if (!resolved) {
                 resolved = true;
                 subscription.unsubscribe();
-                const { data } = await supabaseClient.auth.getSession();
-                if (data.session) { resolve(data.session); return; }
-                // Ultimo tentativo: forza refresh tramite ensureValidSession (serializzato)
                 const recovered = await ensureValidSession().catch(() => null);
                 resolve(recovered || null);
             }
