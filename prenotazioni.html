@@ -1519,6 +1519,19 @@
                     throw new Error('Sessione scaduta, effettua di nuovo l\'accesso.');
                 }
 
+                // Diagnostica: decodifica claims JWT per vedere cosa stiamo davvero mandando.
+                try {
+                    const [, b64] = session.access_token.split('.');
+                    const claims = JSON.parse(atob(b64.replace(/-/g, '+').replace(/_/g, '/')));
+                    const nowSec = Math.floor(Date.now() / 1000);
+                    console.log('[TopUp] JWT claims:', {
+                        sub: claims.sub, email: claims.email, aud: claims.aud,
+                        iss: claims.iss, role: claims.role,
+                        exp_in: claims.exp ? claims.exp - nowSec : null,
+                        iat_ago: claims.iat ? nowSec - claims.iat : null,
+                    });
+                } catch (e) { console.warn('[TopUp] impossibile decodificare JWT:', e.message); }
+
                 const payload = JSON.stringify({
                     amount: _selectedTopUpAmount,
                     user_id: user.id,
@@ -1533,6 +1546,8 @@
 
                 // Retry con backoff solo su errori di rete / 5xx.
                 // I 4xx (incluso 401) escono dal loop e vengono gestiti sotto.
+                // Su 401 cloniamo la response per poter leggere il body di errore
+                // prima che il chiamante lo consumi.
                 const doPost = async () => {
                     const MAX_ATTEMPTS = 3;
                     let out = null, lastErr = null;
@@ -1542,6 +1557,14 @@
                                 method: 'POST', headers, body: payload,
                             });
                             if (out.ok) return out;
+                            if (out.status === 401) {
+                                try {
+                                    const errBody = await out.clone().json();
+                                    console.warn('[TopUp] 401 body:', errBody);
+                                } catch (_) {
+                                    try { console.warn('[TopUp] 401 body (text):', await out.clone().text()); } catch (_) {}
+                                }
+                            }
                             if (out.status >= 400 && out.status < 500) return out;
                         } catch (netErr) {
                             lastErr = netErr;
