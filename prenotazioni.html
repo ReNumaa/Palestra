@@ -76,7 +76,10 @@
                 <div class="preno-saldo-divider" id="saldoCreditDebitDivider" style="display:none"></div>
                 <div class="preno-saldo-row" id="saldoDebitRow" style="display:none">
                     <span class="preno-saldo-label"><span class="preno-saldo-icon preno-saldo-icon-debit"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M10.29 3.86 1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"/><line x1="12" y1="9" x2="12" y2="13"/><line x1="12" y1="17" x2="12.01" y2="17"/></svg></span>Da pagare</span>
-                    <span class="preno-saldo-value preno-saldo-debit" id="prenoDebitAmount">€0,00</span>
+                    <span class="preno-saldo-credit-wrap">
+                        <span class="preno-saldo-value preno-saldo-debit" id="prenoDebitAmount">€0,00</span>
+                        <button id="btnTopUpDebit" class="preno-topup-btn" style="display:none;" onclick="openTopUpModal()" title="Ricarica credito">+</button>
+                    </span>
                 </div>
                 <div class="preno-saldo-divider" id="saldoDebitBonusDivider" style="display:none"></div>
                 <div class="preno-saldo-row">
@@ -657,14 +660,16 @@
             document.getElementById('saldoDebitRow').style.display = showDebit ? '' : 'none';
             document.getElementById('saldoDebitBonusDivider').style.display = showDebit || displayCredit > 0 ? '' : '';
 
-            // Pulsante (+) ricarica:
+            // Pulsante (+) ricarica: due istanze, una per riga (credito / debito)
+            // perche' le righe sono mutuamente esclusive. Regole:
             //   - sempre visibile se l'utente ha stripe_enabled = true (opt-in admin)
-            //   - altrimenti visibile solo a chi non ha più credito residuo (displayCredit <= 0)
-            const topUpBtn = document.getElementById('btnTopUp');
-            if (topUpBtn) {
-                const alwaysOn = user.stripe_enabled === true;
-                topUpBtn.style.display = (alwaysOn || displayCredit <= 0) ? '' : 'none';
-            }
+            //   - altrimenti visibile a chi non ha credito residuo o ha debito
+            const alwaysOn = user.stripe_enabled === true;
+            const shouldShow = alwaysOn || displayCredit <= 0 || displayDebit > 0;
+            const btnCredit = document.getElementById('btnTopUp');
+            const btnDebit  = document.getElementById('btnTopUpDebit');
+            if (btnCredit) btnCredit.style.display = (shouldShow && !showDebit) ? '' : 'none';
+            if (btnDebit)  btnDebit.style.display  = (shouldShow && showDebit)  ? '' : 'none';
         }
 
         // ── Pagination state ─────────────────────────────────────────────
