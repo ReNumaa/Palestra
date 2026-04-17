@@ -73,7 +73,7 @@ async function _loadProfile(userId) {
 // Ritorna la session o null (refresh fallito/timeout/nessun refresh_token).
 let _refreshInFlight = null;
 
-async function ensureValidSession({ timeoutMs = 5000, force = false } = {}) {
+async function ensureValidSession({ timeoutMs = 12000, force = false } = {}) {
     if (_refreshInFlight) return _refreshInFlight;
 
     // Fast path: access_token non scaduto → nessun refresh necessario.
@@ -97,13 +97,20 @@ async function ensureValidSession({ timeoutMs = 5000, force = false } = {}) {
                 setTimeout(() => reject(new Error('refresh timeout')), timeoutMs)
             );
             const { data } = await Promise.race([refreshPromise, timeoutPromise]);
-            return data?.session || null;
+            if (data?.session?.access_token) return data.session;
         } catch (e) {
-            console.warn('[Auth] ensureValidSession failed:', e.message);
-            return null;
+            console.warn('[Auth] ensureValidSession refresh failed:', e.message);
         } finally {
             _refreshInFlight = null;
         }
+        // Fallback: il refresh può completarsi in background DOPO il timeout —
+        // getSession() legge lo storage e può trovare il token aggiornato anche
+        // se la Promise.race è già andata out.
+        try {
+            const { data: { session } } = await supabaseClient.auth.getSession();
+            if (session?.access_token) return session;
+        } catch (_) {}
+        return null;
     })();
 
     return _refreshInFlight;

@@ -1497,7 +1497,7 @@
                 // ensureValidSession (30s di margine) non basta perché il token
                 // in storage può essere stale/revocato anche con expires_at futuro.
                 // Meglio pagare un refresh in più che mandare un JWT invalido.
-                const session = await ensureValidSession({ force: true });
+                const session = await ensureValidSession({ force: true, timeoutMs: 15000 });
                 if (!session?.access_token) {
                     throw new Error('Sessione scaduta, effettua di nuovo l\'accesso.');
                 }
