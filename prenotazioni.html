@@ -1493,11 +1493,26 @@
             btn.textContent = 'Caricamento...';
 
             try {
-                // Forziamo un refresh vero prima del checkout: il fast-path di
-                // ensureValidSession (30s di margine) non basta perché il token
-                // in storage può essere stale/revocato anche con expires_at futuro.
-                // Meglio pagare un refresh in più che mandare un JWT invalido.
-                const session = await ensureValidSession({ force: true, timeoutMs: 15000 });
+                // Strategia pragmatica: se il token corrente è valido con ampio
+                // margine (>60s), usiamolo direttamente — niente refresh forzato.
+                // refreshSession() può impallarsi (PWA background, fetch stuck)
+                // e bloccare il checkout di un utente appena loggato.
+                // Forziamo il refresh SOLO se non c'è sessione o è prossima a
+                // scadere; se anche quello fallisce → relogin.
+                let session = null;
+                try {
+                    const { data: { session: cur } } = await supabaseClient.auth.getSession();
+                    const nowSec = Math.floor(Date.now() / 1000);
+                    if (cur?.access_token && cur.expires_at && cur.expires_at - nowSec > 60) {
+                        console.log('[TopUp] uso sessione corrente (expires in', cur.expires_at - nowSec, 's)');
+                        session = cur;
+                    }
+                } catch (_) {}
+
+                if (!session) {
+                    console.log('[TopUp] sessione assente o in scadenza, forzo refresh');
+                    session = await ensureValidSession({ force: true, timeoutMs: 15000 });
+                }
                 if (!session?.access_token) {
                     throw new Error('Sessione scaduta, effettua di nuovo l\'accesso.');
                 }
