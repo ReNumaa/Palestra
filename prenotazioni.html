@@ -1509,17 +1509,28 @@
                 };
 
                 // Retry con backoff su errori di rete / 5xx.
-                // Non ritenta i 4xx (errori client: importo invalido, JWT scaduto, ecc.).
+                // Il 401 viene ritentato una sola volta dopo aver forzato il refresh
+                // della sessione: l'SDK Supabase a volte salta il refresh automatico
+                // quando il lock dell'auth scatta in timeout (Lock timeout 0ms).
                 const MAX_ATTEMPTS = 3;
                 let res = null;
                 let lastErr = null;
+                let jwtRefreshed = false;
                 for (let attempt = 1; attempt <= MAX_ATTEMPTS; attempt++) {
                     try {
                         res = await fetch(SUPABASE_URL + '/functions/v1/create-checkout', {
                             method: 'POST', headers, body: payload,
                         });
                         if (res.ok) break;
-                        if (res.status >= 400 && res.status < 500) break; // errore client → non ritentare
+                        if (res.status === 401 && !jwtRefreshed) {
+                            jwtRefreshed = true;
+                            const { data: refreshed } = await supabaseClient.auth.refreshSession();
+                            if (refreshed?.session?.access_token) {
+                                headers['Authorization'] = 'Bearer ' + refreshed.session.access_token;
+                                continue; // retry immediato con token fresco
+                            }
+                        }
+                        if (res.status >= 400 && res.status < 500) break; // altri 4xx: non ritentare
                     } catch (netErr) {
                         lastErr = netErr;
                     }
