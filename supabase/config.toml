@@ -364,6 +364,38 @@ deno_version = 2
 # [edge_runtime.secrets]
 # secret_key = "env(SECRET_VALUE)"
 
+# Disabilita la verifica JWT del gateway per le function che fanno auth internamente.
+# Motivo: dopo il rollover a Signing Keys HS256 (2026-04-17), il gateway continua a
+# verificare con il legacy JWT secret e rifiuta token firmati con la nuova Current
+# (errore UNAUTHORIZED_LEGACY_JWT). Le function sotto validano il Bearer token via
+# supabase.auth.getUser(token), quindi non perdiamo sicurezza.
+[functions.create-checkout]
+verify_jwt = false
+
+[functions.stripe-webhook]
+verify_jwt = false
+
+[functions.reconcile-stripe]
+verify_jwt = false
+
+[functions.notify-admin-topup]
+verify_jwt = false
+
+[functions.notify-admin-booking]
+verify_jwt = false
+
+[functions.notify-admin-cancellation]
+verify_jwt = false
+
+[functions.notify-admin-new-client]
+verify_jwt = false
+
+[functions.notify-slot-available]
+verify_jwt = false
+
+[functions.send-admin-message]
+verify_jwt = false
+
 [analytics]
 enabled = true
 port = 54327
