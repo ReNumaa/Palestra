@@ -69,21 +69,8 @@ Deno.serve(async (req) => {
             return json({ error: "Importo minimo: €50", code: "amount_invalid" }, 400);
         }
 
-        // Gate: l'utente deve avere stripe_enabled = true sul proprio profilo.
-        const { data: profile, error: profileErr } = await supabase
-            .from("profiles")
-            .select("stripe_enabled")
-            .eq("id", user.id)
-            .maybeSingle();
-
-        if (profileErr) {
-            console.error("[create-checkout] profile lookup error:", profileErr);
-            return json({ error: "Errore interno", code: "profile_error" }, 500);
-        }
-
-        if (!profile?.stripe_enabled) {
-            return json({ error: "Ricarica non abilitata per questo account. Contatta Thomas.", code: "stripe_disabled" }, 403);
-        }
+        // stripe_enabled e' solo un flag UI (mostra il bottone ricarica a prescindere
+        // dal saldo). Chiunque sia autenticato puo' ricaricare: niente gate qui.
 
         let session;
         try {
