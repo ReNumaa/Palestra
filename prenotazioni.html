@@ -1524,11 +1524,19 @@
                         if (res.ok) break;
                         if (res.status === 401 && !jwtRefreshed) {
                             jwtRefreshed = true;
-                            const { data: refreshed } = await supabaseClient.auth.refreshSession();
+                            // refreshSession può appendersi a causa del lock dell'auth rotto
+                            // (vedi warning "Lock timeout (0ms)"): timeout 3s per non bloccare
+                            // l'utente sul pulsante "Caricamento...".
+                            const refreshed = await Promise.race([
+                                supabaseClient.auth.refreshSession().then(r => r.data),
+                                new Promise(resolve => setTimeout(() => resolve(null), 3000)),
+                            ]).catch(() => null);
                             if (refreshed?.session?.access_token) {
                                 headers['Authorization'] = 'Bearer ' + refreshed.session.access_token;
                                 continue; // retry immediato con token fresco
                             }
+                            // Refresh fallito/timeout: prepariamo un errore esplicito per il catch
+                            throw new Error('Sessione scaduta. Chiudi e riapri l\'app, oppure fai logout e login.');
                         }
                         if (res.status >= 400 && res.status < 500) break; // altri 4xx: non ritentare
                     } catch (netErr) {
