@@ -1493,19 +1493,21 @@
             btn.textContent = 'Caricamento...';
 
             try {
-                // Strategia pragmatica: se il token corrente è valido con ampio
-                // margine (>60s), usiamolo direttamente — niente refresh forzato.
-                // refreshSession() può impallarsi (PWA background, fetch stuck)
-                // e bloccare il checkout di un utente appena loggato.
-                // Forziamo il refresh SOLO se non c'è sessione o è prossima a
-                // scadere; se anche quello fallisce → relogin.
+                // Strategia pragmatica + recovery su 401:
+                // 1. path ottimistico: se il token corrente ha >60s → lo usiamo.
+                // 2. se Supabase lo rifiuta con 401 (token apparentemente valido
+                //    per getSession ma stale/revocato lato server), facciamo UN
+                //    SOLO tentativo di recovery via ensureValidSession force.
+                // 3. se anche il retry è 401 o il refresh fallisce → fail-closed.
                 let session = null;
+                let usedOptimistic = false;
                 try {
                     const { data: { session: cur } } = await supabaseClient.auth.getSession();
                     const nowSec = Math.floor(Date.now() / 1000);
                     if (cur?.access_token && cur.expires_at && cur.expires_at - nowSec > 60) {
                         console.log('[TopUp] uso sessione corrente (expires in', cur.expires_at - nowSec, 's)');
                         session = cur;
+                        usedOptimistic = true;
                     }
                 } catch (_) {}
 
@@ -1530,26 +1532,50 @@
                 };
 
                 // Retry con backoff solo su errori di rete / 5xx.
-                // Sul 401 NON ritentiamo: il token è stato appena rinfrescato,
-                // se è ancora invalido è un problema di sessione e serve login.
-                const MAX_ATTEMPTS = 3;
-                let res = null;
-                let lastErr = null;
-                for (let attempt = 1; attempt <= MAX_ATTEMPTS; attempt++) {
-                    try {
-                        res = await fetch(SUPABASE_URL + '/functions/v1/create-checkout', {
-                            method: 'POST', headers, body: payload,
-                        });
-                        if (res.ok) break;
-                        if (res.status >= 400 && res.status < 500) break;
-                    } catch (netErr) {
-                        lastErr = netErr;
+                // I 4xx (incluso 401) escono dal loop e vengono gestiti sotto.
+                const doPost = async () => {
+                    const MAX_ATTEMPTS = 3;
+                    let out = null, lastErr = null;
+                    for (let attempt = 1; attempt <= MAX_ATTEMPTS; attempt++) {
+                        try {
+                            out = await fetch(SUPABASE_URL + '/functions/v1/create-checkout', {
+                                method: 'POST', headers, body: payload,
+                            });
+                            if (out.ok) return out;
+                            if (out.status >= 400 && out.status < 500) return out;
+                        } catch (netErr) {
+                            lastErr = netErr;
+                        }
+                        if (attempt < MAX_ATTEMPTS) {
+                            await new Promise(r => setTimeout(r, 500 * Math.pow(2, attempt - 1)));
+                        }
                     }
-                    if (attempt < MAX_ATTEMPTS) {
-                        await new Promise(r => setTimeout(r, 500 * Math.pow(2, attempt - 1)));
+                    if (!out) throw lastErr || new Error('Errore di rete');
+                    return out;
+                };
+
+                let res = await doPost();
+
+                // Single-shot recovery su 401: solo se avevamo usato il path
+                // ottimistico. Se il 401 arriva con un token appena rinfrescato,
+                // è fail-closed (sessione davvero persa).
+                if (res.status === 401 && usedOptimistic) {
+                    console.warn('[TopUp] current token rejected (401), forcing refresh');
+                    const fresh = await ensureValidSession({ force: true, timeoutMs: 15000 });
+                    if (!fresh?.access_token) {
+                        console.warn('[TopUp] fail-closed: refresh non ha recuperato la sessione');
+                        if (preWin) { try { preWin.close(); } catch (_) {} }
+                        throw new Error('Sessione scaduta, effettua di nuovo l\'accesso.');
+                    }
+                    headers['Authorization'] = 'Bearer ' + fresh.access_token;
+                    console.log('[TopUp] retry with refreshed token');
+                    res = await doPost();
+                    if (res.status === 401) {
+                        console.warn('[TopUp] retry still unauthorized → fail-closed');
+                        if (preWin) { try { preWin.close(); } catch (_) {} }
+                        throw new Error('Sessione scaduta, effettua di nuovo l\'accesso.');
                     }
                 }
-                if (!res) throw lastErr || new Error('Errore di rete');
 
                 const result = await res.json().catch(() => ({}));
                 if (res.status === 401) {
