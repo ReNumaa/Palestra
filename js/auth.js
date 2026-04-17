@@ -73,43 +73,66 @@ async function _loadProfile(userId) {
 // Ritorna la session o null (refresh fallito/timeout/nessun refresh_token).
 let _refreshInFlight = null;
 
+// Strategia: preferisci getSession() (legge lo storage, non contende il lock
+// interno), usa refreshSession() solo come ultima risorsa. L'auto-refresh
+// interno di supabase-js lavora in parallelo — se è in corso, getSession()
+// vede il nuovo token non appena è scritto.
 async function ensureValidSession({ timeoutMs = 12000, force = false } = {}) {
-    if (_refreshInFlight) return _refreshInFlight;
+    if (_refreshInFlight) {
+        console.log('[Auth] ensureValidSession: attendo refresh già in corso');
+        return _refreshInFlight;
+    }
 
-    // Fast path: access_token non scaduto → nessun refresh necessario.
-    // `force: true` salta il fast path (usato dopo un 401, quando il token
-    // in storage potrebbe essere stale o revocato nonostante expires_at
-    // sia ancora nel futuro).
-    if (!force) {
+    const readSession = async () => {
         try {
             const { data: { session } } = await supabaseClient.auth.getSession();
-            const nowSec = Math.floor(Date.now() / 1000);
-            if (session?.access_token && session.expires_at && session.expires_at - nowSec > 30) {
-                return session;
-            }
-        } catch (_) { /* cadiamo sul refresh */ }
+            return session || null;
+        } catch (_) { return null; }
+    };
+
+    // Step 1 — storage prima di tutto. Se il token è fresco, nessun refresh.
+    // Con force=true saltiamo questo step (il chiamante sospetta token stale).
+    if (!force) {
+        const current = await readSession();
+        const nowSec = Math.floor(Date.now() / 1000);
+        if (current?.access_token && current.expires_at && current.expires_at - nowSec > 30) {
+            return current;
+        }
     }
 
     _refreshInFlight = (async () => {
+        const t0 = performance.now();
+        console.log(`[Auth] ensureValidSession: refresh manuale avviato (force=${force})`);
         try {
             const refreshPromise = supabaseClient.auth.refreshSession();
             const timeoutPromise = new Promise((_, reject) =>
                 setTimeout(() => reject(new Error('refresh timeout')), timeoutMs)
             );
-            const { data } = await Promise.race([refreshPromise, timeoutPromise]);
-            if (data?.session?.access_token) return data.session;
+            const { data, error } = await Promise.race([refreshPromise, timeoutPromise]);
+            if (error) throw error;
+            if (data?.session?.access_token) {
+                console.log(`[Auth] ensureValidSession: refresh OK in ${Math.round(performance.now() - t0)}ms`);
+                return data.session;
+            }
+            console.warn('[Auth] ensureValidSession: refresh senza sessione');
         } catch (e) {
-            console.warn('[Auth] ensureValidSession refresh failed:', e.message);
+            console.warn(`[Auth] ensureValidSession: refresh fallito (${Math.round(performance.now() - t0)}ms): ${e.message}`);
         } finally {
             _refreshInFlight = null;
         }
-        // Fallback: il refresh può completarsi in background DOPO il timeout —
-        // getSession() legge lo storage e può trovare il token aggiornato anche
-        // se la Promise.race è già andata out.
-        try {
-            const { data: { session } } = await supabaseClient.auth.getSession();
-            if (session?.access_token) return session;
-        } catch (_) {}
+
+        // Step 3 — polling breve: l'auto-refresh interno può aver aggiornato lo
+        // storage dopo il nostro timeout (è più probabile se il lock era conteso).
+        for (let i = 1; i <= 3; i++) {
+            await new Promise(r => setTimeout(r, 400));
+            const s = await readSession();
+            const nowSec = Math.floor(Date.now() / 1000);
+            if (s?.access_token && s.expires_at && s.expires_at - nowSec > 0) {
+                console.log(`[Auth] ensureValidSession: recuperato via getSession (poll ${i})`);
+                return s;
+            }
+        }
+        console.warn('[Auth] ensureValidSession: nessuna sessione valida dopo refresh+poll');
         return null;
     })();
 
