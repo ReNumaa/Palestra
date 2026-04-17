@@ -1514,17 +1514,31 @@
                     'apikey': SUPABASE_ANON_KEY,
                 };
 
-                // Retry con backoff solo su errori di rete / 5xx. I 4xx (inclusi 401
-                // residui, 403 gate stripe_enabled, 400 importo invalido) non si ritentano.
+                // Retry con backoff su errori di rete / 5xx.
+                // Se arriva 401 al primo tentativo significa che il token in storage
+                // e' stale (revocato o invalidato nonostante expires_at sia nel
+                // futuro): forziamo un refresh vero e ritentiamo una volta.
+                // Altri 4xx (403 gate stripe_enabled, 400 importo invalido) non si
+                // ritentano.
                 const MAX_ATTEMPTS = 3;
                 let res = null;
                 let lastErr = null;
+                let sessionForced = false;
                 for (let attempt = 1; attempt <= MAX_ATTEMPTS; attempt++) {
                     try {
                         res = await fetch(SUPABASE_URL + '/functions/v1/create-checkout', {
                             method: 'POST', headers, body: payload,
                         });
                         if (res.ok) break;
+                        if (res.status === 401 && !sessionForced) {
+                            sessionForced = true;
+                            const fresh = await ensureValidSession({ force: true });
+                            if (fresh?.access_token) {
+                                headers['Authorization'] = 'Bearer ' + fresh.access_token;
+                                continue; // retry immediato con token rinfrescato sul server
+                            }
+                            throw new Error('Sessione scaduta. Chiudi e riapri l\'app, oppure fai logout e login.');
+                        }
                         if (res.status >= 400 && res.status < 500) break;
                     } catch (netErr) {
                         lastErr = netErr;

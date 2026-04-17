@@ -73,17 +73,22 @@ async function _loadProfile(userId) {
 // Ritorna la session o null (refresh fallito/timeout/nessun refresh_token).
 let _refreshInFlight = null;
 
-async function ensureValidSession({ timeoutMs = 5000 } = {}) {
+async function ensureValidSession({ timeoutMs = 5000, force = false } = {}) {
     if (_refreshInFlight) return _refreshInFlight;
 
-    // Fast path: access_token non scaduto → nessun refresh necessario
-    try {
-        const { data: { session } } = await supabaseClient.auth.getSession();
-        const nowSec = Math.floor(Date.now() / 1000);
-        if (session?.access_token && session.expires_at && session.expires_at - nowSec > 30) {
-            return session;
-        }
-    } catch (_) { /* cadiamo sul refresh */ }
+    // Fast path: access_token non scaduto → nessun refresh necessario.
+    // `force: true` salta il fast path (usato dopo un 401, quando il token
+    // in storage potrebbe essere stale o revocato nonostante expires_at
+    // sia ancora nel futuro).
+    if (!force) {
+        try {
+            const { data: { session } } = await supabaseClient.auth.getSession();
+            const nowSec = Math.floor(Date.now() / 1000);
+            if (session?.access_token && session.expires_at && session.expires_at - nowSec > 30) {
+                return session;
+            }
+        } catch (_) { /* cadiamo sul refresh */ }
+    }
 
     _refreshInFlight = (async () => {
         try {
