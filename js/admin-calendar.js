@@ -294,6 +294,213 @@ function removeExtraSpotFromSlot(date, time, extraType) {
     if (window._currentAdminDate) renderAdminDayView(window._currentAdminDate);
 }
 
+// ── Slot condiviso (group-class con 2 persone a 15€) ───────────────────────
+// Stato picker separato da _clientPickerState
+let _sharedPickerState = { date: '', time: '', client: null, pickerId: '' };
+
+function openSharedSlotPicker(date, time, pickerId) {
+    const picker = document.getElementById(pickerId);
+    if (!picker) return;
+    _sharedPickerState.date = date;
+    _sharedPickerState.time = time;
+    _sharedPickerState.client = null;
+    _sharedPickerState.pickerId = pickerId;
+
+    picker.style.display = 'flex';
+    picker.innerHTML = `
+        <div style="width:100%;padding:8px 0 4px;display:flex;flex-direction:column;gap:8px">
+            <div style="display:flex;gap:8px;align-items:center">
+                <div style="flex:1;font-size:12px;color:#9f1239;font-weight:600">Aggiungi 2ª persona (slot condiviso · 15€ cad.)</div>
+                <button onclick="_closeSharedPicker()" style="background:none;border:none;color:#999;cursor:pointer;font-size:18px;padding:0 4px">✕</button>
+            </div>
+            <input id="sharedSearchInput" type="text" placeholder="Cerca cliente…" autocomplete="off"
+                style="padding:7px 10px;border:1px solid #ddd;border-radius:8px;font-size:13px">
+            <div id="sharedSearchResults" style="display:flex;flex-direction:column;gap:4px;max-height:180px;overflow-y:auto"></div>
+            <div id="sharedBookingConfirm" style="display:none"></div>
+        </div>
+    `;
+    document.getElementById('sharedSearchInput').addEventListener('input', function() {
+        _filterSharedClientList(this.value);
+    });
+}
+
+function _closeSharedPicker() {
+    const picker = document.getElementById(_sharedPickerState.pickerId);
+    if (picker) { picker.style.display = 'none'; picker.innerHTML = ''; }
+}
+
+function _filterSharedClientList(query) {
+    const resultsEl = document.getElementById('sharedSearchResults');
+    if (!resultsEl) return;
+    const q = query.toLowerCase().trim();
+    if (!q) { resultsEl.innerHTML = ''; return; }
+    const { date, time } = _sharedPickerState;
+    // Escludi il cliente già prenotato in questo slot per evitare doppie prenotazioni
+    const existingEmails = new Set(
+        BookingStorage.getBookingsForSlot(date, time)
+            .filter(b => b.status === 'confirmed' && (!b.slotType || b.slotType === SLOT_TYPES.GROUP_CLASS))
+            .map(b => (b.email || '').toLowerCase())
+    );
+    const clients = UserStorage.getAll().filter(c =>
+        (c.name.toLowerCase().includes(q) || (c.email || '').toLowerCase().includes(q))
+        && !existingEmails.has((c.email || '').toLowerCase())
+    );
+    if (!clients.length) {
+        resultsEl.innerHTML = `<div style="font-size:12px;color:#999;padding:4px 8px">Nessun cliente trovato</div>`;
+        return;
+    }
+    resultsEl.innerHTML = '';
+    clients.slice(0, 10).forEach(c => {
+        const row = document.createElement('div');
+        row.style.cssText = 'display:flex;justify-content:space-between;align-items:center;padding:6px 10px;border:1px solid #eee;border-radius:8px;cursor:pointer;background:#fff;font-size:13px';
+        row.innerHTML = `<div><div style="font-weight:600">${_escHtml(c.name)}</div></div><span style="font-size:11px;color:#aaa">›</span>`;
+        row.addEventListener('click', () => _selectSharedClient(c));
+        resultsEl.appendChild(row);
+    });
+}
+
+function _selectSharedClient(client) {
+    _sharedPickerState.client = client;
+    const confirmEl = document.getElementById('sharedBookingConfirm');
+    const resultsEl = document.getElementById('sharedSearchResults');
+    const inputEl   = document.getElementById('sharedSearchInput');
+    if (!confirmEl || !resultsEl) return;
+    resultsEl.style.display = 'none';
+    if (inputEl) inputEl.style.display = 'none';
+    confirmEl.style.display = 'block';
+
+    confirmEl.innerHTML = `
+        <div style="font-size:13px;margin-bottom:8px">
+            <strong>${_escHtml(client.name)}</strong>
+            <span style="color:#888;font-size:11px"> · ${_escHtml(client.email || client.whatsapp || '')}</span>
+        </div>
+        <div style="font-size:11px;color:#6b7280;margin-bottom:8px">
+            Verrà creata la prenotazione e verrà accreditato uno <strong>sconto di €15</strong> sia a ${_escHtml(client.name)} sia al cliente già prenotato.
+        </div>
+        <div style="display:flex;gap:8px;flex-wrap:wrap">
+            <button id="btnConfirmShared" class="extra-picker-btn" style="background:#ec4899;color:#fff">Conferma</button>
+            <button id="btnBackShared" class="extra-picker-btn" style="background:#f3f4f6;color:#374151;border:1px solid #e5e7eb">← Indietro</button>
+        </div>
+    `;
+    document.getElementById('btnBackShared').addEventListener('click', () => {
+        _sharedPickerState.client = null;
+        resultsEl.style.display = 'flex';
+        if (inputEl) { inputEl.style.display = ''; inputEl.value = ''; }
+        confirmEl.style.display = 'none';
+        _filterSharedClientList('');
+    });
+    document.getElementById('btnConfirmShared').addEventListener('click', bookSharedGroupClass);
+}
+
+async function bookSharedGroupClass() {
+    if (sessionStorage.getItem('adminAuth') !== 'true') {
+        showToast('Sessione admin scaduta. Ricarica la pagina e accedi di nuovo.', 'error');
+        return;
+    }
+    const { date, time, client } = _sharedPickerState;
+    if (!client) return;
+
+    // Recupera il/i cliente/i già prenotati su questo slot (group-class)
+    const existingBookings = BookingStorage.getBookingsForSlot(date, time)
+        .filter(b => b.status === 'confirmed' && (!b.slotType || b.slotType === SLOT_TYPES.GROUP_CLASS));
+    if (existingBookings.length === 0) {
+        showToast('Lo slot non ha ancora un cliente principale.', 'error');
+        return;
+    }
+    if (existingBookings.length >= 2) {
+        showToast('Lo slot ha già 2 persone.', 'error');
+        return;
+    }
+    const other = existingBookings[0];
+
+    // Recupera user_id del cliente (per reminders push)
+    let clientUserId = null;
+    if (typeof supabaseClient !== 'undefined' && client.email) {
+        try {
+            const { data: prof } = await _queryWithTimeout(supabaseClient
+                .from('profiles').select('id').eq('email', (client.email || '').toLowerCase()).maybeSingle());
+            clientUserId = prof?.id || null;
+        } catch {}
+    }
+
+    // Calcola dateDisplay
+    const [y, m, d] = date.split('-').map(Number);
+    const dt = new Date(y, m - 1, d);
+    const days = ['Domenica','Lunedì','Martedì','Mercoledì','Giovedì','Venerdì','Sabato'];
+    const months = ['gennaio','febbraio','marzo','aprile','maggio','giugno','luglio','agosto','settembre','ottobre','novembre','dicembre'];
+    const dateDisplay = `${days[dt.getDay()]} ${d} ${months[m - 1]}`;
+
+    const booking = {
+        id:          `${Date.now()}-${Math.random().toString(36).substr(2, 9)}`,
+        name:        client.name,
+        email:       client.email || '',
+        whatsapp:    client.whatsapp || '',
+        notes:       '[Slot condiviso]',
+        date,
+        time,
+        slotType:    SLOT_TYPES.GROUP_CLASS,
+        dateDisplay,
+        createdAt:   new Date().toISOString(),
+        status:      'confirmed',
+    };
+
+    // Chiamata RPC diretta con capacity=2 per bypassare il limite base (0 per group-class)
+    if (typeof supabaseClient === 'undefined') {
+        showToast('Offline — impossibile creare la prenotazione ora.', 'error');
+        return;
+    }
+    const { data, error } = await supabaseClient.rpc('book_slot_atomic', {
+        p_local_id:     booking.id,
+        p_user_id:      clientUserId || null,
+        p_date:         booking.date,
+        p_time:         booking.time,
+        p_slot_type:    booking.slotType,
+        p_max_capacity: 2,
+        p_name:         booking.name,
+        p_email:        booking.email,
+        p_whatsapp:     booking.whatsapp,
+        p_notes:        booking.notes,
+        p_created_at:   booking.createdAt,
+        p_date_display: booking.dateDisplay || ''
+    });
+    if (error || !data || !data.success) {
+        const msg = (data && data.error) || (error && error.message) || 'Errore sconosciuto';
+        showToast('⚠️ Prenotazione non riuscita: ' + msg, 'error');
+        return;
+    }
+    booking._sbId = data.booking_id || null;
+    BookingStorage._cache.push(booking);
+    BookingStorage.updateStats(booking);
+
+    // Marca anche il booking esistente come parte di uno slot condiviso, se non lo è già
+    if (typeof other._sbId !== 'undefined' && other._sbId && !(other.notes || '').includes('[Slot condiviso]')) {
+        try {
+            const newNotes = ((other.notes || '').trim() + ' [Slot condiviso]').trim();
+            await supabaseClient.from('bookings').update({ notes: newNotes }).eq('id', other._sbId);
+            other.notes = newNotes;
+        } catch (e) {
+            console.warn('[bookSharedGroupClass] impossibile aggiornare nota booking esistente:', e);
+        }
+    }
+
+    // Accredita 15€ di sconto a entrambi (nota tracciabile)
+    const noteNew   = `Sconto slot condiviso con ${other.name} — ${date} ${time}`;
+    const noteOther = `Sconto slot condiviso con ${client.name} — ${date} ${time}`;
+    try {
+        await CreditStorage.addCredit(client.whatsapp, client.email, client.name, 15, noteNew, null, false, false, booking._sbId || booking.id, '');
+        await CreditStorage.addCredit(other.whatsapp, other.email, other.name, 15, noteOther, null, false, false, other._sbId || other.id, '');
+    } catch (e) {
+        console.warn('[bookSharedGroupClass] errore accredito sconto:', e);
+        showToast('⚠️ Prenotazione creata ma accredito sconto fallito: controllare manualmente.', 'error', 6000);
+    }
+
+    BookingStorage.fulfillPendingCancellations(date, time);
+    showToast(`Slot condiviso: ${client.name} + ${other.name} · 15€ cad.`, 'success');
+    invalidateStatsCache();
+    _closeSharedPicker();
+    if (window._currentAdminDate) renderAdminDayView(window._currentAdminDate);
+}
+
 // Helper: icona notifiche push (solo se disattivate)
 function _pushIcon(userRecord) {
     if (userRecord?.pushEnabled) return '';
@@ -474,13 +681,36 @@ function createAdminSlotCard(dateInfo, scheduledSlot) {
         : '';
     const pickerId = 'xpick-' + date + '-' + timeSlot.replace(/[: -]/g, '');
 
+    // ── Slot condiviso (group-class con 2 persone) ──────────────────────────
+    const groupClassActiveCount = mainType === SLOT_TYPES.GROUP_CLASS
+        ? allBookings.filter(b =>
+              (b.status === 'confirmed' || b.status === 'cancellation_requested')
+              && (!b.slotType || b.slotType === SLOT_TYPES.GROUP_CLASS)
+          ).length
+        : 0;
+    const isSharedSlot    = mainType === SLOT_TYPES.GROUP_CLASS && groupClassActiveCount >= 2;
+    const canAddSecond    = mainType === SLOT_TYPES.GROUP_CLASS && groupClassActiveCount === 1;
+    const sharedPickerId  = 'xshare-' + date + '-' + timeSlot.replace(/[: -]/g, '');
+    const sharedBadgeHTML = isSharedSlot
+        ? `<div class="admin-slot-capacity" style="background:#fce7f3;color:#9f1239;border:1px solid #fbcfe8">Slot condiviso · 15€ cad.</div>`
+        : '';
+    const shareBtnHTML = canAddSecond
+        ? `<button class="btn-add-extra" style="background:#ec4899;color:#fff;border-color:#ec4899" onclick="openSharedSlotPicker('${dE}','${tE}','${sharedPickerId}')" title="Aggiungi 2ª persona (slot condiviso, 15€ cad.)">👥＋</button>`
+        : '';
+    const sharedPickerHTML = canAddSecond
+        ? `<div id="${sharedPickerId}" class="extra-picker" style="display:none;"></div>`
+        : '';
+
     const headerHTML = `
         <div class="admin-slot-header">
             <div class="admin-slot-time">🕐 ${timeSlot}</div>
             <div class="admin-slot-type">${SLOT_NAMES[mainType]}</div>
+            ${sharedBadgeHTML}
             ${capStr ? `<div class="admin-slot-capacity">${capStr}</div>` : ''}
+            ${shareBtnHTML}
             <button class="btn-add-extra" onclick="toggleExtraPicker('${dE}','${tE}')" title="Aggiungi posto extra">＋</button>
         </div>
+        ${sharedPickerHTML}
         <div id="${pickerId}" class="extra-picker" style="display:none;">
             <span class="extra-picker-label">Aggiungi 1 posto:</span>
             <button class="extra-picker-btn personal-training" onclick="addExtraSpotToSlot('${dE}','${tE}','personal-training')">Autonomia</button>
@@ -543,6 +773,24 @@ function deleteBooking(bookingId, bookingName) {
     const booking = bookings[index];
     const price = SLOT_PRICES[booking.slotType] || 0;
     const hasBonus = BonusStorage.getBonus(booking.whatsapp, booking.email, booking.userId) > 0;
+
+    // Avviso: se il booking fa parte di uno slot group-class condiviso,
+    // ricorda all'admin che l'altro cliente conserva il credito di 15€ già dato.
+    const isShared = booking.slotType === SLOT_TYPES.GROUP_CLASS
+        && (booking.notes || '').includes('[Slot condiviso]');
+    if (isShared) {
+        const otherGC = bookings.find(b =>
+            b.id !== booking.id
+            && b.date === booking.date
+            && b.time === booking.time
+            && b.slotType === SLOT_TYPES.GROUP_CLASS
+            && (b.status === 'confirmed' || b.status === 'cancellation_requested')
+        );
+        const otherName = otherGC ? otherGC.name : 'l\'altro cliente';
+        if (!confirm(`⚠️ Slot condiviso con ${otherName}.\n\nProseguendo, ${otherName} resterà da solo sullo slot ma conserverà il credito di 15€ già accreditato come sconto. Se serve, storna manualmente quel credito.\n\nVuoi continuare con l'annullamento di ${bookingName}?`)) {
+            return;
+        }
+    }
 
     // Calcola distanza dalla lezione
     const _tp = _parseSlotTime(booking.time);
