@@ -16,26 +16,28 @@ function _runSerialized(name, fn) {
     return run;
 }
 
+// Stuck-lock detection: su PWA mobile navigator.locks può restare appeso quando
+// l'OS sospende la webview in background. Dopo 2 timeout entro 30s assumiamo il
+// lock API rotto e saltiamo direttamente al fallback JS per 60s → niente più
+// "ogni chiamata attende 3s di timeout a vuoto".
+let _locksBrokenUntil  = 0;
+let _recentLockTimeouts = [];
+const LOCK_ACQUIRE_MS       = 500;     // era 3000 → troppo alto, blocca l'UI
+const LOCKS_BROKEN_WINDOW_MS = 30000;
+const LOCKS_BROKEN_PENALTY_MS = 60000;
+
 const supabaseClient = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY, {
     auth: {
-        // Previeni deadlock in PWA / desktop idle: navigator.locks può restare
-        // bloccato quando l'OS sospende l'app o la tab durante un token refresh
-        // (la fetch interna a Supabase rimane in pausa, lock mai rilasciato).
-        //
         // Contratto supabase-js:
         //   acquireTimeout === 0 → "non-blocking": se il lock è già preso,
         //     NON aspettare, salta l'operazione. Usato dall'auto-refresh tick
         //     per evitare di accodare tick ridondanti.
         //   acquireTimeout > 0 o assente → blocking con cap.
-        //
-        // Bug precedente: convertivamo il 0 in setTimeout(,0) → AbortError
-        // immediato → cadevamo sul mutex JS che METTEVA IN CODA invece di
-        // saltare. Risultato: tick non-blocking si impilavano e il refresh
-        // manuale di ensureValidSession() finiva dietro una coda infinita.
         lock: async (name, acquireTimeout, fn) => {
             const nonBlocking = acquireTimeout === 0;
+            const locksUsable = navigator?.locks && Date.now() > _locksBrokenUntil;
 
-            if (navigator?.locks) {
+            if (locksUsable) {
                 if (nonBlocking) {
                     // ifAvailable: la callback riceve null se il lock è occupato
                     return navigator.locks.request(name, { ifAvailable: true }, (lock) => {
@@ -43,20 +45,29 @@ const supabaseClient = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_
                         return fn();
                     });
                 }
-                const timeout = Math.min(acquireTimeout ?? 1000, 3000);
+                const timeout = Math.min(acquireTimeout ?? LOCK_ACQUIRE_MS, LOCK_ACQUIRE_MS);
                 const ac = new AbortController();
                 const timer = setTimeout(() => ac.abort(), timeout);
                 try {
                     return await navigator.locks.request(name, { signal: ac.signal }, fn);
                 } catch (e) {
                     if (e.name !== 'AbortError') throw e;
-                    console.warn(`[Supabase Auth] Lock timeout (${timeout}ms) — fallback mutex JS`);
+                    const now = Date.now();
+                    _recentLockTimeouts = _recentLockTimeouts.filter(t => now - t < LOCKS_BROKEN_WINDOW_MS);
+                    _recentLockTimeouts.push(now);
+                    if (_recentLockTimeouts.length >= 2) {
+                        _locksBrokenUntil = now + LOCKS_BROKEN_PENALTY_MS;
+                        _recentLockTimeouts = [];
+                        console.warn(`[Supabase Auth] navigator.locks appeso — disabilito per ${LOCKS_BROKEN_PENALTY_MS/1000}s (uso fallback JS)`);
+                    } else {
+                        console.warn(`[Supabase Auth] Lock timeout (${timeout}ms) — fallback mutex JS`);
+                    }
                 } finally {
                     clearTimeout(timer);
                 }
             }
 
-            // Fallback senza navigator.locks: rispetta comunque il non-blocking.
+            // Fallback senza navigator.locks (o locks temporaneamente disabilitati).
             if (nonBlocking && _authLockChains.has(name)) return;
             return _runSerialized(name, fn);
         }

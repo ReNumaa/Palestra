@@ -344,7 +344,16 @@ async function bookForClient(slotType) {
             p_date_display: booking.dateDisplay || ''
         };
         console.log('[bookForClient shared] RPC book_slot_atomic args:', rpcArgs);
-        const { data, error } = await supabaseClient.rpc('book_slot_atomic', rpcArgs);
+        let data, error;
+        try {
+            const res = await _rpcWithTimeout(supabaseClient.rpc('book_slot_atomic', rpcArgs));
+            data  = res.data;
+            error = res.error;
+        } catch (e) {
+            console.error('[bookForClient shared] RPC timeout/throw:', e);
+            showToast('⚠️ Server non risponde (timeout). Riprova o ricarica la pagina.', 'error', 6000);
+            return;
+        }
         console.log('[bookForClient shared] RPC result:', { data, error });
         if (error || !data || !data.success) {
             const msg = (data && data.error) || (error && error.message) || 'Errore sconosciuto';
@@ -361,10 +370,14 @@ async function bookForClient(slotType) {
         try {
             const updates = [];
             if (booking._sbId) {
-                updates.push(supabaseClient.from('bookings').update({ custom_price: 15 }).eq('id', booking._sbId));
+                updates.push(_queryWithTimeout(
+                    supabaseClient.from('bookings').update({ custom_price: 15 }).eq('id', booking._sbId)
+                ));
             }
             if (other._sbId) {
-                updates.push(supabaseClient.from('bookings').update({ custom_price: 15 }).eq('id', other._sbId));
+                updates.push(_queryWithTimeout(
+                    supabaseClient.from('bookings').update({ custom_price: 15 }).eq('id', other._sbId)
+                ));
             }
             await Promise.all(updates);
             // Allinea cache locale
