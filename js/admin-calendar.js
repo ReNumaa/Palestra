@@ -258,13 +258,19 @@ function _selectClientForBooking(client) {
 }
 
 async function bookForClient(slotType) {
+    console.log('[bookForClient] start', { slotType, state: _clientPickerState });
     // Guard: sessione admin deve essere attiva (il backend verifica is_admin() sulle RPC)
     if (sessionStorage.getItem('adminAuth') !== 'true') {
+        console.warn('[bookForClient] admin session expired');
         showToast('Sessione admin scaduta. Ricarica la pagina e accedi di nuovo.', 'error');
         return;
     }
     const { date, time, client } = _clientPickerState;
-    if (!client) return;
+    if (!client) {
+        console.warn('[bookForClient] no client in picker state');
+        showToast('Seleziona prima un cliente dalla lista.', 'error');
+        return;
+    }
 
     // Cerca user_id del cliente in Supabase (per reminders push)
     let clientUserId = null;
@@ -298,14 +304,19 @@ async function bookForClient(slotType) {
     // Creiamo il 2° booking bypassando addExtraSpot (la base di group-class resta 0)
     // e impostiamo custom_price=15 su entrambi. Con nessuno prenotato il flusso è
     // quello standard (group-class a 30€).
+    // IMPORTANTE: includiamo anche 'cancellation_requested' perché la RPC
+    // book_slot_atomic li conta nella capacità (count < p_max_capacity).
     const existingGC = slotType === SLOT_TYPES.GROUP_CLASS
         ? BookingStorage.getBookingsForSlot(date, time)
-              .filter(b => b.status === 'confirmed' && b.slotType === SLOT_TYPES.GROUP_CLASS)
+              .filter(b => (b.status === 'confirmed' || b.status === 'cancellation_requested')
+                         && b.slotType === SLOT_TYPES.GROUP_CLASS)
         : [];
     const isSharedFlow = slotType === SLOT_TYPES.GROUP_CLASS && existingGC.length >= 1;
+    console.log('[bookForClient] existingGC.length =', existingGC.length, 'isSharedFlow =', isSharedFlow);
 
     if (isSharedFlow) {
         if (existingGC.length >= 2) {
+            console.warn('[bookForClient] slot già pieno con 2 persone');
             showToast('Slot pieno: già 2 persone prenotate.', 'error');
             return;
         }
@@ -318,7 +329,7 @@ async function bookForClient(slotType) {
         booking.createdAt = new Date().toISOString();
         booking.status    = 'confirmed';
 
-        const { data, error } = await supabaseClient.rpc('book_slot_atomic', {
+        const rpcArgs = {
             p_local_id:     booking.id,
             p_user_id:      clientUserId || null,
             p_date:         booking.date,
@@ -331,9 +342,13 @@ async function bookForClient(slotType) {
             p_notes:        booking.notes || '',
             p_created_at:   booking.createdAt,
             p_date_display: booking.dateDisplay || ''
-        });
+        };
+        console.log('[bookForClient shared] RPC book_slot_atomic args:', rpcArgs);
+        const { data, error } = await supabaseClient.rpc('book_slot_atomic', rpcArgs);
+        console.log('[bookForClient shared] RPC result:', { data, error });
         if (error || !data || !data.success) {
             const msg = (data && data.error) || (error && error.message) || 'Errore sconosciuto';
+            console.error('[bookForClient shared] RPC failure:', msg);
             showToast('⚠️ Prenotazione non riuscita: ' + msg, 'error');
             return;
         }
