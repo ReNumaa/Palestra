@@ -305,9 +305,10 @@ function updateStatsCards(filteredBookings, allBookings) {
             if (prevRange && d >= prevRange.from && d <= prevRange.to) _moraPrevRevenue += h.amount;
         });
     }
-    // Fonte 2: more trattenute da booking annullati con penalità
+    // Fonte 2: more trattenute da booking annullati con penalità (solo se pagati al momento della cancellazione).
+    // Se non era pagato, la mora e' gia' tracciata in Fonte 1 come debito manuale: evita doppio conteggio.
     allBookings.forEach(b => {
-        if (b.status !== 'cancelled' || !b.cancelledWithPenalty) return;
+        if (b.status !== 'cancelled' || !b.cancelledWithPenalty || !b.cancelledPaidAt) return;
         const bd = b.cancelledAt ? new Date(b.cancelledAt) : new Date(b.date + 'T00:00:00');
         const moraAmt = Math.round((SLOT_PRICES[b.slotType] || 0) * 0.5 * 100) / 100;
         if (moraAmt <= 0) return;
@@ -667,10 +668,10 @@ function renderFatturatoDetail(panel) {
             });
         }
     }
-    // Fonte 2 — more trattenute da booking annullati con penalità (entrambe le modalità):
-    // il 50% non rimborsato è denaro reale già incassato (pagato con contanti, carta, o credito).
+    // Fonte 2 — more trattenute da booking annullati con penalità (solo se pagati al momento della cancellazione):
+    // il 50% non rimborsato è denaro reale già incassato. Per i non pagati, la mora e' gia' in Fonte 1.
     (_statsBookings ?? _excludeAdminBookings(BookingStorage.getAllBookings())).forEach(b => {
-        if (b.status !== 'cancelled' || !b.cancelledWithPenalty) return;
+        if (b.status !== 'cancelled' || !b.cancelledWithPenalty || !b.cancelledPaidAt) return;
         const moraAmount = Math.round((SLOT_PRICES[b.slotType] || 0) * 0.5 * 100) / 100;
         if (moraAmount > 0) {
             _moraEntries.push({ date: b.cancelledAt || (b.date + 'T00:00:00'), amount: moraAmount });
@@ -1549,9 +1550,10 @@ function renderClientiDetail(panel) {
             moraUsers[uKey].total += h.amount;
         });
     }
-    // Fonte 2: booking annullati con mora trattenuta (50% trattenuto, anche se pagato con credito)
+    // Fonte 2: booking annullati con mora trattenuta (solo se pagati: il 50% era gia' stato incassato).
+    // Se non pagato, la stessa mora e' gia' in Fonte 1 come debito manuale: evita doppio conteggio.
     allBookings.forEach(b => {
-        if (b.status !== 'cancelled' || !b.cancelledWithPenalty) return;
+        if (b.status !== 'cancelled' || !b.cancelledWithPenalty || !b.cancelledPaidAt) return;
         const bd = b.cancelledAt ? new Date(b.cancelledAt) : new Date(b.date + 'T00:00:00');
         if (bd < periodFrom || bd > periodTo) return;
         const moraAmount = Math.round((SLOT_PRICES[b.slotType] || 0) * 0.5 * 100) / 100;
