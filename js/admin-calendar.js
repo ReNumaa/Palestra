@@ -225,9 +225,10 @@ function _selectClientForBooking(client) {
 
     const forced = _clientPickerState.forcedSlotType;
     if (forced === SLOT_TYPES.GROUP_CLASS) {
-        // Flusso "Slot prenotato": un solo bottone Conferma
+        // Flusso "Slot prenotato": un solo bottone Conferma (rosso come il badge)
         const btnOK = document.createElement('button');
-        btnOK.className = 'extra-picker-btn group-class';
+        btnOK.className = 'extra-picker-btn';
+        btnOK.style.cssText = 'background:#ef4444;color:#fff;border-color:#ef4444';
         btnOK.textContent = 'Conferma Slot prenotato';
         btnOK.addEventListener('click', () => bookForClient(SLOT_TYPES.GROUP_CLASS));
         btnRow.appendChild(btnOK);
@@ -584,7 +585,7 @@ function createAdminSlotCard(dateInfo, scheduledSlot) {
         ? `<div class="admin-slot-capacity" style="background:#fce7f3;color:#9f1239;border:1px solid #fbcfe8">Slot condiviso · 15€ cad.</div>`
         : '';
     const slotPrenBtnHTML = canAddSlotPren
-        ? `<button class="extra-picker-btn group-class" onclick="openClientBookingPickerForSlotPrenotato('${dE}','${tE}','${pickerId}')">Slot prenotato</button>`
+        ? `<button class="extra-picker-btn" style="background:#ef4444;color:#fff;border-color:#ef4444" onclick="openClientBookingPickerForSlotPrenotato('${dE}','${tE}','${pickerId}')">Slot prenotato</button>`
         : '';
 
     const headerHTML = `
