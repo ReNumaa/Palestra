@@ -774,21 +774,76 @@ function deleteBooking(bookingId, bookingName) {
     const price = SLOT_PRICES[booking.slotType] || 0;
     const hasBonus = BonusStorage.getBonus(booking.whatsapp, booking.email, booking.userId) > 0;
 
-    // Avviso: se il booking fa parte di uno slot group-class condiviso,
-    // ricorda all'admin che l'altro cliente conserva il credito di 15€ già dato.
+    // Se il booking fa parte di uno slot group-class condiviso, recuperiamo
+    // l'altro partecipante: dopo il cancel stornaremo i 15€ di sconto a entrambi
+    // (se saldo insufficiente il residuo diventa debito manuale) e rimuoveremo
+    // la nota "[Slot condiviso]" dal rimasto.
     const isShared = booking.slotType === SLOT_TYPES.GROUP_CLASS
         && (booking.notes || '').includes('[Slot condiviso]');
+    const otherGC = isShared
+        ? bookings.find(b =>
+              b.id !== booking.id
+              && b.date === booking.date
+              && b.time === booking.time
+              && b.slotType === SLOT_TYPES.GROUP_CLASS
+              && (b.status === 'confirmed' || b.status === 'cancellation_requested')
+          )
+        : null;
     if (isShared) {
-        const otherGC = bookings.find(b =>
-            b.id !== booking.id
-            && b.date === booking.date
-            && b.time === booking.time
-            && b.slotType === SLOT_TYPES.GROUP_CLASS
-            && (b.status === 'confirmed' || b.status === 'cancellation_requested')
-        );
         const otherName = otherGC ? otherGC.name : 'l\'altro cliente';
-        if (!confirm(`⚠️ Slot condiviso con ${otherName}.\n\nProseguendo, ${otherName} resterà da solo sullo slot ma conserverà il credito di 15€ già accreditato come sconto. Se serve, storna manualmente quel credito.\n\nVuoi continuare con l'annullamento di ${bookingName}?`)) {
+        if (!confirm(`Slot condiviso con ${otherName}.\n\nAnnullando ${bookingName} verrà automaticamente stornato lo sconto di 15€ a entrambi i clienti (${otherName} tornerà a pagare 30€ pieni per la lezione). Se un cliente ha già usato quei 15€, verrà creato un debito manuale compensativo.\n\nContinuare?`)) {
             return;
+        }
+    }
+
+    // Helper: storna lo sconto 15€ su un contatto. Se il saldo è insufficiente,
+    // scala quanto disponibile e crea un debito manuale per la differenza.
+    async function _revokeSharedDiscount(contact, roleLabel) {
+        if (!contact || !contact.email) return;
+        const note = `Revoca sconto slot condiviso (${roleLabel}) — ${booking.date} ${booking.time}`;
+        const balance = CreditStorage.getBalance(contact.whatsapp, contact.email) || 0;
+        const toRevoke = 15;
+        try {
+            if (balance >= toRevoke) {
+                await CreditStorage.addCredit(contact.whatsapp, contact.email, contact.name,
+                    -toRevoke, note, null, false, false, null, '');
+            } else {
+                if (balance > 0) {
+                    await CreditStorage.addCredit(contact.whatsapp, contact.email, contact.name,
+                        -balance, note, null, false, false, null, '');
+                }
+                const residuo = Math.round((toRevoke - balance) * 100) / 100;
+                if (residuo > 0 && typeof ManualDebtStorage !== 'undefined') {
+                    await ManualDebtStorage.addDebt(contact.whatsapp, contact.email, contact.name, residuo, note);
+                }
+            }
+        } catch (e) {
+            console.warn('[_revokeSharedDiscount] errore su', contact.email, e);
+        }
+    }
+
+    // Helper: rimuove la nota "[Slot condiviso]" dal booking rimasto (locale + Supabase)
+    async function _clearSharedNote(other) {
+        if (!other) return;
+        const newNotes = (other.notes || '').replace(/\s*\[Slot condiviso\]\s*/g, ' ').trim();
+        const cacheIdx = BookingStorage._cache.findIndex(b => b.id === other.id);
+        if (cacheIdx !== -1) BookingStorage._cache[cacheIdx].notes = newNotes;
+        if (other._sbId && typeof supabaseClient !== 'undefined') {
+            try {
+                await supabaseClient.from('bookings').update({ notes: newNotes }).eq('id', other._sbId);
+            } catch (e) {
+                console.warn('[_clearSharedNote] update Supabase fallito:', e);
+            }
+        }
+    }
+
+    // Cleanup post-cancel di uno slot condiviso: storna sconto a entrambi + pulisce nota.
+    async function _handleSharedSlotCancellation() {
+        if (!isShared) return;
+        await _revokeSharedDiscount(booking, 'booking annullato');
+        if (otherGC) {
+            await _revokeSharedDiscount(otherGC, 'cliente rimasto');
+            await _clearSharedNote(otherGC);
         }
     }
 
@@ -848,6 +903,15 @@ function deleteBooking(bookingId, bookingName) {
             useBonus ? BonusStorage.syncFromSupabase() : Promise.resolve(),
         ]);
 
+        // Storno automatico sconto slot condiviso (se applicabile)
+        if (isShared) {
+            await _handleSharedSlotCancellation();
+            await Promise.all([
+                CreditStorage.syncFromSupabase(),
+                typeof ManualDebtStorage !== 'undefined' ? ManualDebtStorage.syncFromSupabase() : Promise.resolve(),
+            ]);
+        }
+
         if (typeof notifySlotAvailable === 'function') notifySlotAvailable(booking);
         invalidateStatsCache();
         if (selectedAdminDay) renderAdminDayView(selectedAdminDay);
@@ -898,6 +962,14 @@ function deleteBooking(bookingId, bookingName) {
             creditApplied: 0,
         };
         BookingStorage.replaceAllBookings(bookings);
+
+        // Storno automatico sconto slot condiviso (fire-and-forget in modalità locale)
+        if (isShared) {
+            _handleSharedSlotCancellation().catch(err =>
+                console.warn('[deleteBooking local] storno slot condiviso fallito:', err)
+            );
+        }
+
         if (typeof notifySlotAvailable === 'function') notifySlotAvailable(booking);
         invalidateStatsCache();
         if (selectedAdminDay) renderAdminDayView(selectedAdminDay);
