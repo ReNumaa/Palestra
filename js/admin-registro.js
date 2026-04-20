@@ -60,7 +60,7 @@ function buildRegistroEntries() {
             ...base,
             eventType:     'booking_created',
             timestamp:     createdAt,
-            amount:        SLOT_PRICES[b.slotType] || 0,
+            amount:        getBookingPrice(b),
             paymentMethod: b.paymentMethod || (b.status === 'cancelled' ? b.cancelledPaymentMethod : null) || null,
             bookingStatus: b.status,
             bookingPaid:   b.paid || (b.status === 'cancelled' && !!b.cancelledPaidAt),
@@ -76,7 +76,7 @@ function buildRegistroEntries() {
                 ...base,
                 eventType:     'booking_paid',
                 timestamp:     new Date(paidAtTs),
-                amount:        SLOT_PRICES[b.slotType] || 0,
+                amount:        getBookingPrice(b),
                 paymentMethod: paidMeth,
                 bookingStatus: b.status,
                 bookingPaid:   true,
@@ -118,7 +118,7 @@ function buildRegistroEntries() {
             // Evento: mora trattenuta (annullamento con penalità su booking già pagato)
             // Il rimborso parziale +50% è già nel credit history; qui mostriamo il -50% trattenuto.
             if (b.cancelledWithPenalty && b.cancelledPaidAt) {
-                const moraAmount = Math.round((SLOT_PRICES[b.slotType] || 0) * 0.5 * 100) / 100;
+                const moraAmount = Math.round((getBookingPrice(b)) * 0.5 * 100) / 100;
                 if (moraAmount > 0) {
                     entries.push({
                         ...base,

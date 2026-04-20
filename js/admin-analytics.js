@@ -310,14 +310,14 @@ function updateStatsCards(filteredBookings, allBookings) {
     allBookings.forEach(b => {
         if (b.status !== 'cancelled' || !b.cancelledWithPenalty || !b.cancelledPaidAt) return;
         const bd = b.cancelledAt ? new Date(b.cancelledAt) : new Date(b.date + 'T00:00:00');
-        const moraAmt = Math.round((SLOT_PRICES[b.slotType] || 0) * 0.5 * 100) / 100;
+        const moraAmt = Math.round(getBookingPrice(b) * 0.5 * 100) / 100;
         if (moraAmt <= 0) return;
         if (bd >= filterFrom && bd <= filterTo) _moraRevenue += moraAmt;
         if (prevRange && bd >= prevRange.from && bd <= prevRange.to) _moraPrevRevenue += moraAmt;
     });
     const revenue = filteredBookings
         .filter(b => b.paymentMethod !== 'lezione-gratuita')
-        .reduce((t, b) => t + (SLOT_PRICES[b.slotType] || 0), 0) + _moraRevenue;
+        .reduce((t, b) => t + getBookingPrice(b), 0) + _moraRevenue;
     sensitiveSet('monthlyRevenue', `€${revenue}`);
     const prevRevBookings = prevRange ? allBookings.filter(b => {
         const d = new Date(b.date + 'T00:00:00');
@@ -328,7 +328,7 @@ function updateStatsCards(filteredBookings, allBookings) {
         const d = new Date(b.date + 'T00:00:00');
         return d >= prevRange.from && d <= prevRange.to;
     }) : [];
-    const prevRev = prevRevBookings.reduce((t, b) => t + (SLOT_PRICES[b.slotType] || 0), 0) + _moraPrevRevenue;
+    const prevRev = prevRevBookings.reduce((t, b) => t + getBookingPrice(b), 0) + _moraPrevRevenue;
     calcChange(revenue, prevRev, document.getElementById('revenueChange'));
     sensitiveSet('revenueChange', document.getElementById('revenueChange').textContent);
 
@@ -608,7 +608,7 @@ function toggleStatDetail(type) {
 function renderFatturatoDetail(panel) {
     const isReale = _fatturatoMode === 'reale';
     const REAL_METHODS = new Set(['contanti', 'carta', 'iban']);
-    const revFn = (s, b) => s + (SLOT_PRICES[b.slotType] || 0);
+    const revFn = (s, b) => s + getBookingPrice(b);
     const { from, to } = getFilterDateRange(currentFilter);
     const now   = new Date();
     const today = new Date(now); today.setHours(0, 0, 0, 0);
@@ -672,7 +672,7 @@ function renderFatturatoDetail(panel) {
     // il 50% non rimborsato è denaro reale già incassato. Per i non pagati, la mora e' gia' in Fonte 1.
     (_statsBookings ?? _excludeAdminBookings(BookingStorage.getAllBookings())).forEach(b => {
         if (b.status !== 'cancelled' || !b.cancelledWithPenalty || !b.cancelledPaidAt) return;
-        const moraAmount = Math.round((SLOT_PRICES[b.slotType] || 0) * 0.5 * 100) / 100;
+        const moraAmount = Math.round(getBookingPrice(b) * 0.5 * 100) / 100;
         if (moraAmount > 0) {
             _moraEntries.push({ date: b.cancelledAt || (b.date + 'T00:00:00'), amount: moraAmount });
         }
@@ -845,8 +845,8 @@ function renderFatturatoDetail(panel) {
     const futureRevByDate = {};
     allBookings.forEach(b => {
         const d = new Date(b.date + 'T00:00:00');
-        if (d >= from && d < pastCutoff)  revByDate[b.date]       = (revByDate[b.date] || 0)       + (SLOT_PRICES[b.slotType] || 0);
-        if (d >= pastCutoff && d >= from && d <= to) futureRevByDate[b.date] = (futureRevByDate[b.date] || 0) + (SLOT_PRICES[b.slotType] || 0);
+        if (d >= from && d < pastCutoff)  revByDate[b.date]       = (revByDate[b.date] || 0)       + getBookingPrice(b);
+        if (d >= pastCutoff && d >= from && d <= to) futureRevByDate[b.date] = (futureRevByDate[b.date] || 0) + getBookingPrice(b);
     });
     // Aggiungi crediti alle mappe per data (solo in modalità Reale)
     _creditEntries.forEach(h => {
@@ -940,9 +940,9 @@ function renderFatturatoDetail(panel) {
         return {
             label,
             pastCount:    pastB.length,
-            pastRev:      pastB.reduce((s, b) => s + (SLOT_PRICES[b.slotType] || 0), 0),
+            pastRev:      pastB.reduce((s, b) => s + getBookingPrice(b), 0),
             futureCount:  futureB.length,
-            futureRev:    futureB.reduce((s, b) => s + (SLOT_PRICES[b.slotType] || 0), 0),
+            futureRev:    futureB.reduce((s, b) => s + getBookingPrice(b), 0),
         };
     }).filter(t => t.pastCount + t.futureCount > 0);
 
@@ -1043,7 +1043,7 @@ function renderFatturatoDetail(panel) {
             return d >= from && d <= to;
         });
         freeLessonCount = _freeLessons.length;
-        freeLessonValue = _freeLessons.reduce((s, b) => s + (SLOT_PRICES[b.slotType] || 0), 0);
+        freeLessonValue = _freeLessons.reduce((s, b) => s + getBookingPrice(b), 0);
     }
 
     // ── Render ────────────────────────────────────────────────────────────────
@@ -1511,7 +1511,7 @@ function renderClientiDetail(panel) {
         if (rpcKey && _rpcKeys.has(rpcKey)) return;
         const clientKey = b.email || b.whatsapp || b.name;
         if (!clientCashMap[clientKey]) clientCashMap[clientKey] = { name: b.name, cash: 0 };
-        clientCashMap[clientKey].cash += SLOT_PRICES[b.slotType] || 0;
+        clientCashMap[clientKey].cash += getBookingPrice(b);
     });
 
     const topCash = Object.values(clientCashMap)
@@ -1528,7 +1528,7 @@ function renderClientiDetail(panel) {
         const key = b.email || b.whatsapp || b.name;
         if (!bonusUsers[key]) bonusUsers[key] = { name: b.name, count: 0, saved: 0 };
         bonusUsers[key].count++;
-        bonusUsers[key].saved += SLOT_PRICES[b.slotType] || 0;
+        bonusUsers[key].saved += getBookingPrice(b);
     });
     const bonusUsersList = Object.values(bonusUsers).sort((a, b) => b.count - a.count);
     const bonusTotalSaved = bonusUsersList.reduce((s, c) => s + c.saved, 0);
@@ -1556,7 +1556,7 @@ function renderClientiDetail(panel) {
         if (b.status !== 'cancelled' || !b.cancelledWithPenalty || !b.cancelledPaidAt) return;
         const bd = b.cancelledAt ? new Date(b.cancelledAt) : new Date(b.date + 'T00:00:00');
         if (bd < periodFrom || bd > periodTo) return;
-        const moraAmount = Math.round((SLOT_PRICES[b.slotType] || 0) * 0.5 * 100) / 100;
+        const moraAmount = Math.round(getBookingPrice(b) * 0.5 * 100) / 100;
         if (moraAmount <= 0) return;
         const uKey = b.email || b.whatsapp || b.name;
         if (!moraUsers[uKey]) moraUsers[uKey] = { name: b.name, count: 0, total: 0 };
@@ -2398,7 +2398,7 @@ async function downloadWeeklyReport() {
                 sortKey: b.paidAt || b.date,
                 tipo: SLOT_LABEL[b.slotType] || b.slotType || '',
                 metodo: METHOD_LABEL_REPORT[b.paymentMethod] || b.paymentMethod,
-                importo: SLOT_PRICES[b.slotType] || 0
+                importo: getBookingPrice(b)
             });
         });
 
@@ -2605,7 +2605,7 @@ async function downloadFiscalReport() {
                 sortKey: b.paidAt || b.date,
                 tipo: SLOT_LABEL[b.slotType] || b.slotType || '',
                 metodo: METHOD_LABEL_REPORT[b.paymentMethod] || b.paymentMethod,
-                importo: SLOT_PRICES[b.slotType] || 0
+                importo: getBookingPrice(b)
             });
         });
 

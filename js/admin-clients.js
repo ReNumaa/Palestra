@@ -451,9 +451,9 @@ function createClientCard(client, index) {
 
     const activeBookings = client.bookings.filter(b => b.status !== 'cancelled');
     const totalBookings = activeBookings.length;
-    const totalPaid   = activeBookings.filter(b => b.paid && b.paymentMethod !== 'lezione-gratuita').reduce((s, b) => s + (SLOT_PRICES[b.slotType] || 0), 0);
-    const totalFree   = activeBookings.filter(b => b.paid && b.paymentMethod === 'lezione-gratuita').reduce((s, b) => s + (SLOT_PRICES[b.slotType] || 0), 0);
-    const totalUnpaid = activeBookings.filter(b => !b.paid && bookingHasPassed(b) && b.status !== 'cancellation_requested').reduce((s, b) => s + (SLOT_PRICES[b.slotType] || 0) - (b.creditApplied || 0), 0);
+    const totalPaid   = activeBookings.filter(b => b.paid && b.paymentMethod !== 'lezione-gratuita').reduce((s, b) => s + getBookingPrice(b), 0);
+    const totalFree   = activeBookings.filter(b => b.paid && b.paymentMethod === 'lezione-gratuita').reduce((s, b) => s + getBookingPrice(b), 0);
+    const totalUnpaid = activeBookings.filter(b => !b.paid && bookingHasPassed(b) && b.status !== 'cancellation_requested').reduce((s, b) => s + getBookingPrice(b) - (b.creditApplied || 0), 0);
     const credit      = CreditStorage.getBalance(client.whatsapp, client.email);
     const manualDebt  = ManualDebtStorage.getBalance(client.whatsapp, client.email) || 0;
     const netBalance  = Math.round((credit - manualDebt - totalUnpaid) * 100) / 100;
@@ -514,7 +514,7 @@ function createClientCard(client, index) {
             : isCancelPending
                 ? `<span class="payment-status" style="background:#fef3c7;color:#92400e">⏳ Annullamento</span>`
                 : isPartialCredit
-                    ? `<span class="payment-status" style="background:#ede9fe;color:#5b21b6">💳 Parziale (€${(SLOT_PRICES[b.slotType] || 0) - b.creditApplied} da pagare)</span>`
+                    ? `<span class="payment-status" style="background:#ede9fe;color:#5b21b6">💳 Parziale (€${getBookingPrice(b) - b.creditApplied} da pagare)</span>`
                     : `<span class="payment-status ${b.paid ? 'paid' : 'unpaid'}">${b.paid ? '✓ Pagato' : 'Non pagato'}</span>`;
         return `<tr id="brow-${b.id}" class="${rowClass}"${bIdx >= 5 ? ' style="display:none"' : ''}>
             <td>${dateStr}</td>
@@ -548,7 +548,7 @@ function createClientCard(client, index) {
     BookingStorage.getAllBookings()
         .filter(b => matchCli(b.whatsapp, b.email) && b.paid)
         .forEach(b => {
-            const price = SLOT_PRICES[b.slotType] || 0;
+            const price = getBookingPrice(b);
             if (!price) return;
             const [by, bm, bd] = b.date.split('-');
             const isFree = b.paymentMethod === 'lezione-gratuita';
@@ -1183,7 +1183,7 @@ async function saveBookingRowEdit(bookingId, clientIndex) {
 
     const oldPaid   = booking.paid;
     const oldMethod = booking.paymentMethod || '';
-    const price     = SLOT_PRICES[booking.slotType];
+    const price     = getBookingPrice(booking);
 
     if (typeof supabaseClient !== 'undefined' && booking._sbId) {
         // ── Percorso Supabase: RPC atomica ────────────────────────────────────

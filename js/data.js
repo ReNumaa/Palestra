@@ -99,6 +99,17 @@ const SLOT_PRICES = {
     'cleaning': 0
 };
 
+// Prezzo effettivo di un booking: rispetta custom_price (slot condiviso 15€/p),
+// altrimenti il listino standard SLOT_PRICES. Usare SEMPRE questo helper al posto
+// di SLOT_PRICES[b.slotType] quando si calcola il prezzo di uno specifico booking.
+function getBookingPrice(booking) {
+    if (!booking) return 0;
+    if (booking.customPrice != null && !Number.isNaN(Number(booking.customPrice))) {
+        return Number(booking.customPrice);
+    }
+    return SLOT_PRICES[booking.slotType] || 0;
+}
+
 // Email degli admin — esclusi dalle statistiche
 const ADMIN_EMAILS = new Set([
     'thomasbresciani1992@gmail.com',
@@ -320,7 +331,7 @@ class BookingStorage {
             // Admin: finestra operativa (6 mesi passati + 3 futuri) per contenere localStorage.
             // Utente: ultime 4 settimane + prossimi 3 mesi (storico vecchio non serve).
             // Query complete (senza limite) per stats/export avvengono tramite fetchForAdmin().
-            const bookingSelect = 'id,local_id,user_id,date,time,slot_type,date_display,name,email,whatsapp,notes,status,paid,payment_method,paid_at,credit_applied,created_at,cancellation_requested_at,cancelled_at,cancelled_with_bonus,updated_at,cancelled_payment_method,cancelled_paid_at,cancelled_with_penalty,cancelled_refund_pct,created_by,cancelled_by,arrived_at';
+            const bookingSelect = 'id,local_id,user_id,date,time,slot_type,date_display,name,email,whatsapp,notes,status,paid,payment_method,paid_at,credit_applied,custom_price,created_at,cancellation_requested_at,cancelled_at,cancelled_with_bonus,updated_at,cancelled_payment_method,cancelled_paid_at,cancelled_with_penalty,cancelled_refund_pct,created_by,cancelled_by,arrived_at';
             // ownOnly: filtra per user_id server-side (es. prenotazioni.html — anche admin vedono solo i propri)
             const pastD   = new Date(); pastD.setDate(pastD.getDate() - 60);
             const futureD = new Date(); futureD.setDate(futureD.getDate() + 90);
@@ -418,6 +429,7 @@ class BookingStorage {
             paymentMethod:            row.payment_method || null,
             paidAt:                   row.paid_at || null,
             creditApplied:            row.credit_applied || 0,
+            customPrice:              row.custom_price != null ? Number(row.custom_price) : null,
             createdAt:                row.created_at,
             cancellationRequestedAt:  row.cancellation_requested_at || null,
             cancelledAt:              row.cancelled_at || null,
@@ -467,7 +479,7 @@ class BookingStorage {
     static async fetchForAdmin(startStr, endStr) {
         if (typeof supabaseClient === 'undefined') return null;
         try {
-            const adminCols = 'id,date,time,slot_type,name,email,whatsapp,notes,status,paid,payment_method,paid_at,credit_applied,created_at,cancelled_at,cancelled_with_bonus,cancelled_with_penalty,cancelled_paid_at,cancelled_payment_method,cancelled_refund_pct';
+            const adminCols = 'id,date,time,slot_type,name,email,whatsapp,notes,status,paid,payment_method,paid_at,credit_applied,custom_price,created_at,cancelled_at,cancelled_with_bonus,cancelled_with_penalty,cancelled_paid_at,cancelled_payment_method,cancelled_refund_pct';
             // Paginazione: il server limita a 1000 righe per request
             const PAGE = 1000;
             let all = [], pageFrom = 0, done = false;
@@ -703,7 +715,7 @@ class BookingStorage {
         booking.creditApplied = 0;
         this.replaceAllBookings(all);
         const creditToRefund = wasPaid
-            ? (savedCreditApplied > 0 ? savedCreditApplied : (SLOT_PRICES[slotType] || 0))
+            ? (savedCreditApplied > 0 ? savedCreditApplied : getBookingPrice(booking))
             : 0;
         if (creditToRefund > 0) {
             await CreditStorage.addCredit(
@@ -738,7 +750,7 @@ class BookingStorage {
         booking.creditApplied = 0;
         this.replaceAllBookings(all);
         const creditToRefund = wasPaid
-            ? (savedCreditApplied2 > 0 ? savedCreditApplied2 : (SLOT_PRICES[slotType] || 0))
+            ? (savedCreditApplied2 > 0 ? savedCreditApplied2 : getBookingPrice(booking))
             : 0;
         if (creditToRefund > 0) {
             await CreditStorage.addCredit(
@@ -798,7 +810,7 @@ class BookingStorage {
             }
         }
         const creditToRefund = wasPaid
-            ? (savedCreditApplied3 > 0 ? savedCreditApplied3 : (SLOT_PRICES[slotType] || 0))
+            ? (savedCreditApplied3 > 0 ? savedCreditApplied3 : getBookingPrice(booking))
             : 0;
         if (creditToRefund > 0) {
             await CreditStorage.addCredit(
@@ -854,7 +866,7 @@ class BookingStorage {
             }
         }
         // Mora 50%: comportamento in base allo stato di pagamento
-        const mora = Math.round((SLOT_PRICES[slotType] || 0) * 0.5 * 100) / 100;
+        const mora = Math.round(getBookingPrice(booking) * 0.5 * 100) / 100;
         if (mora > 0) {
             if (wasPaid) {
                 // Era stata pagata: rimborsa solo il 50% (il restante 50% è la mora)
@@ -914,7 +926,7 @@ class BookingStorage {
         all[idx].creditApplied = 0;
         this.replaceAllBookings(all);
         // Rimborso credito: prezzo pieno per qualsiasi metodo di pagamento (contanti, carta, iban, credito)
-        const creditToRefund = wasPaid ? (SLOT_PRICES[slotType] || 0) : 0;
+        const creditToRefund = wasPaid ? getBookingPrice(toCancel) : 0;
         if (creditToRefund > 0) {
             await CreditStorage.addCredit(
                 toCancel.whatsapp,
@@ -969,7 +981,7 @@ class BookingStorage {
             const [yr, mo, dy] = b.date.split('-').map(Number);
             const startDt = new Date(yr, mo - 1, dy, _tp2.startH, _tp2.startM, 0);
             if (now >= startDt) {
-                total += (SLOT_PRICES[b.slotType] || 0) - (b.creditApplied || 0);
+                total += getBookingPrice(b) - (b.creditApplied || 0);
             }
         });
         total += ManualDebtStorage.getBalance(whatsapp, email);
@@ -980,7 +992,7 @@ class BookingStorage {
     static updateStats(booking) {
         const stats = this.getStats();
         stats.totalBookings = (stats.totalBookings || 0) + 1;
-        stats.totalRevenue = (stats.totalRevenue || 0) + SLOT_PRICES[booking.slotType];
+        stats.totalRevenue = (stats.totalRevenue || 0) + getBookingPrice(booking);
 
         // Update type distribution
         if (!stats.typeDistribution) stats.typeDistribution = {};
@@ -1201,7 +1213,7 @@ class BookingStorage {
             const stats = { totalBookings: 0, totalRevenue: 0, typeDistribution: {}, dailyBookings: {} };
             demoBookings.forEach(b => {
                 stats.totalBookings++;
-                stats.totalRevenue += SLOT_PRICES[b.slotType];
+                stats.totalRevenue += getBookingPrice(b);
                 stats.typeDistribution[b.slotType] = (stats.typeDistribution[b.slotType] || 0) + 1;
                 stats.dailyBookings[b.date] = (stats.dailyBookings[b.date] || 0) + 1;
             });
@@ -1789,7 +1801,7 @@ class CreditStorage {
             })
             .sort((a, b) => a.date.localeCompare(b.date) || a.time.localeCompare(b.time))
             .forEach(b => {
-                const price = SLOT_PRICES[b.slotType];
+                const price = getBookingPrice(b);
                 const alreadyApplied = b.creditApplied || 0;
                 const remaining = price - alreadyApplied;
                 if (balance >= remaining) {

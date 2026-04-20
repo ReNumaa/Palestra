@@ -657,7 +657,7 @@ async function exportData() {
             fmtDateTime(b.paidAt || b.date + 'T12:00:00'),
             b.name, b.email, b.whatsapp,
             SLOT_LABEL[b.slotType] || b.slotType,
-            SLOT_PRICES[b.slotType] || 0,
+            getBookingPrice(b),
             METHOD_LABEL[b.paymentMethod] || '',
             b.paidAt || b.date, ''
         ]);

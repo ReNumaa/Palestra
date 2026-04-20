@@ -720,7 +720,7 @@ function clearSlotClient(timeSlot) {
 
     const booking = allBookings[index];
     const bookingName = booking.name || slot.client?.name || '';
-    const price = SLOT_PRICES[booking.slotType] || 0;
+    const price = getBookingPrice(booking);
     const hasBonus = BonusStorage.getBonus(booking.whatsapp, booking.email, booking.userId) > 0;
 
     // Helper to finalize: clear slot override + render

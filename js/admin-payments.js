@@ -435,7 +435,7 @@ function getDebtors() {
                 _registerKey(matchedKey, normPhone, booking.email);
             }
 
-            const price = SLOT_PRICES[booking.slotType];
+            const price = getBookingPrice(booking);
             debtorsMap[matchedKey].unpaidBookings.push({ ...booking, price });
             debtorsMap[matchedKey].totalAmount += price;
         }
@@ -596,7 +596,7 @@ async function payAllDebtsInline(whatsapp, email, name, btn) {
             b.paid = true;
             b.paymentMethod = method;
             b.paidAt = now;
-            totalPaid += SLOT_PRICES[b.slotType] || 0;
+            totalPaid += getBookingPrice(b);
         }
     });
 
@@ -862,7 +862,7 @@ function getUnpaidAmountForContact(whatsapp, email) {
         const phoneMatch = normWhatsapp && normalizePhone(booking.whatsapp) === normWhatsapp;
         const emailMatch = email && booking.email && booking.email.toLowerCase() === email.toLowerCase();
         if ((phoneMatch || emailMatch) && !booking.paid && bookingHasPassed(booking) && booking.status !== 'cancelled') {
-            totalUnpaid += (SLOT_PRICES[booking.slotType] || 0) - (booking.creditApplied || 0);
+            totalUnpaid += (getBookingPrice(booking)) - (booking.creditApplied || 0);
         }
     });
 
@@ -1180,7 +1180,7 @@ function renderDebtPopupList(unpaid, debtInfo = null) {
             const { booking } = it;
             const [y, m, d] = booking.date.split('-').map(Number);
             const dateDisplay = `${d}/${m}/${y}`;
-            const fullPrice   = SLOT_PRICES[booking.slotType];
+            const fullPrice   = getBookingPrice(booking);
             const creditApplied = booking.creditApplied || 0;
             const price = fullPrice - creditApplied;
             if (bookingHasPassed(booking)) el.classList.add('debt-popup-item--past');
