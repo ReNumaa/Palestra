@@ -607,7 +607,7 @@ function toggleStatDetail(type) {
 
 function renderFatturatoDetail(panel) {
     const isReale = _fatturatoMode === 'reale';
-    const REAL_METHODS = new Set(['contanti', 'carta', 'iban']);
+    const REAL_METHODS = new Set(['contanti', 'carta', 'iban', 'stripe']);
     const revFn = (s, b) => s + getBookingPrice(b);
     const { from, to } = getFilterDateRange(currentFilter);
     const now   = new Date();
@@ -1004,6 +1004,7 @@ function renderFatturatoDetail(panel) {
             { key: 'contanti',         label: 'Contanti',  color: '#22c55e' },
             { key: 'carta',            label: 'Carta',     color: '#3b82f6' },
             { key: 'iban',             label: 'Bonifico',  color: '#f59e0b' },
+            { key: 'stripe',           label: 'Stripe',    color: '#635bff' },
         ];
         // Crediti nel periodo raggruppati per metodo reale di pagamento
         const creditByMethod = {};
