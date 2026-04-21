@@ -514,24 +514,31 @@ Deno.serve(async (req) => {
             return json({ error: "Invalid year_month format, expected YYYY-MM" }, 400);
         }
 
-        // ── Autorizzazione: admin o self-service cliente ──────────────
-        // Admin: può generare per qualsiasi user_id.
-        // Cliente (non admin): può generare SOLO per se stesso.
-        const isSelfService = !isAdmin && user_id === callerUserId;
-        if (!isAdmin && !isSelfService) {
+        // ⚠️ TEMPORANEO: la feature è in fase di test/refinement. Durante questa
+        // fase, SOLO gli admin possono generare report (anche per se stessi).
+        // Rimuovere questo blocco e ripristinare la logica self-service cliente
+        // commentata sotto quando la feature è pronta per tutti gli utenti.
+        if (!isAdmin) {
             return json({
-                error: "Forbidden: puoi generare solo il tuo report",
-                code: "NOT_AUTHORIZED_FOR_USER",
+                error: "La generazione report è attualmente disponibile solo per gli admin.",
+                code: "ADMIN_ONLY_TEMPORARY",
             }, 403);
         }
 
-        // Solo admin può usare skip_consent_check
-        if (!isAdmin && skip_consent_check) {
-            return json({
-                error: "skip_consent_check riservato all'admin",
-                code: "ADMIN_ONLY_FLAG",
-            }, 403);
-        }
+        // ── Autorizzazione originale (DISABILITATA durante la fase WIP) ───
+        // const isSelfService = !isAdmin && user_id === callerUserId;
+        // if (!isAdmin && !isSelfService) {
+        //     return json({
+        //         error: "Forbidden: puoi generare solo il tuo report",
+        //         code: "NOT_AUTHORIZED_FOR_USER",
+        //     }, 403);
+        // }
+        // if (!isAdmin && skip_consent_check) {
+        //     return json({
+        //         error: "skip_consent_check riservato all'admin",
+        //         code: "ADMIN_ONLY_FLAG",
+        //     }, 403);
+        // }
 
         // Self-service: valida che year_month sia un mese già concluso.
         // ⚠️ TEMPORANEAMENTE DISABILITATO per consentire test sul mese corrente (Aprile).
@@ -561,11 +568,12 @@ Deno.serve(async (req) => {
         }
 
         // ── GDPR: verifica consenso AI ────────────────────────────────
+        // Durante la fase WIP solo admin chiama questa funzione, quindi il
+        // messaggio è sempre quello "lato admin". Quando riabiliteremo il
+        // self-service cliente, il ramo isSelfService andrà ripristinato.
         if (!profile.report_ai_consent && !skip_consent_check) {
             return json({
-                error: isSelfService
-                    ? "Per generare il report devi prima dare il consenso al trattamento AI dei tuoi dati"
-                    : `L'utente ${profile.name ?? user_id} non ha dato il consenso AI`,
+                error: `L'utente ${profile.name ?? user_id} non ha dato il consenso AI`,
                 code: "CONSENT_REQUIRED",
                 user_name: profile.name,
             }, 403);

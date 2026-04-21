@@ -166,6 +166,29 @@ async function renderReport() {
         return;
     }
 
+    // ⚠️ TEMPORANEO: la feature Report è disponibile solo agli admin durante
+    // la fase di test/refinement. Ai clienti non-admin mostriamo un placeholder
+    // "Work in progress". Rimuovere questo blocco quando la feature è pronta.
+    const isAdmin = (user.app_metadata)?.role === 'admin';
+    if (!isAdmin) {
+        container.innerHTML = `
+            <div class="all-report-section">
+                <div class="all-report-header">
+                    <h2 class="all-report-title">📊 Report Mensili</h2>
+                </div>
+                <div class="all-report-wip">
+                    <div class="all-report-wip-icon">🚧</div>
+                    <div class="all-report-wip-title">Work in progress</div>
+                    <div class="all-report-wip-desc">
+                        Stiamo ultimando la feature Report AI. Sarà disponibile prossimamente
+                        per tutti gli utenti.
+                    </div>
+                </div>
+            </div>
+        `;
+        return;
+    }
+
     const reports = await _fetchReports();
     const availableMonth = _getAvailableMonthForGeneration();
     const availableMonthLabel = _formatYearMonth(availableMonth);

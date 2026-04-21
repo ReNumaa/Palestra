@@ -2768,6 +2768,44 @@ body.all-modal-open .all-modal-overlay {
 }
 
 /* ══════════════════════════════════════════════════════════════════════════
+   Placeholder "Work in progress" (mostrato ai non-admin durante la fase WIP)
+   ══════════════════════════════════════════════════════════════════════════ */
+
+.all-report-wip {
+    background: linear-gradient(135deg, #fdfcff 0%, #faf5ff 100%);
+    border: 1px solid rgba(124, 58, 237, 0.12);
+    border-radius: 20px;
+    padding: 2.5rem 1.5rem;
+    text-align: center;
+    margin-top: 1rem;
+    box-shadow:
+        0 1px 2px rgba(30, 27, 46, 0.04),
+        0 8px 24px rgba(124, 58, 237, 0.06);
+}
+
+.all-report-wip-icon {
+    font-size: 3rem;
+    line-height: 1;
+    margin-bottom: 0.9rem;
+}
+
+.all-report-wip-title {
+    font-size: 1.2rem;
+    font-weight: 700;
+    color: #1e1b2e;
+    margin-bottom: 0.5rem;
+    letter-spacing: -0.005em;
+}
+
+.all-report-wip-desc {
+    font-size: 0.92rem;
+    color: #6b6673;
+    line-height: 1.6;
+    max-width: 42ch;
+    margin: 0 auto;
+}
+
+/* ══════════════════════════════════════════════════════════════════════════
    CTA: card "Genera report" con 3 bottoni tono
    ══════════════════════════════════════════════════════════════════════════ */
 
