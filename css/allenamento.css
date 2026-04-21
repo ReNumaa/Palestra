@@ -1815,7 +1815,7 @@
 .all-ex-edit-btn:hover { color: var(--all-cyan); opacity: 1; }
 
 .all-edit-overlay {
-    position: fixed; inset: 0; z-index: 9999;
+    position: fixed; inset: 0; z-index: 10001;
     background: rgba(0,0,0,0.6); backdrop-filter: blur(4px);
     -webkit-backdrop-filter: blur(4px);
     display: flex; align-items: center; justify-content: center;

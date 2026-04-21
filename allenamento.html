@@ -13,7 +13,7 @@
     <link rel="icon" type="image/jpeg" href="images/logo-tb---nero.jpg">
     <link rel="stylesheet" href="css/style.css?v=8">
     <link rel="stylesheet" href="css/login.css?v=4">
-    <link rel="stylesheet" href="css/allenamento.css?v=26">
+    <link rel="stylesheet" href="css/allenamento.css?v=27">
 </head>
 <body class="allenamento-body">
     <nav class="navbar">
@@ -282,6 +282,16 @@
             requestAnimationFrame(() => overlay.classList.add('visible'));
         }
 
+        // Chiude il modal edit e ripristina lo scroll del body SOLO se non ci
+        // sono altri overlay dettaglio aperti sotto (altrimenti il detail resta
+        // aperto ma la pagina tornerebbe scrollabile).
+        function closeEditExOverlay() {
+            const ov = document.getElementById('editExOverlay');
+            if (ov) ov.remove();
+            const stillOpen = document.getElementById('exDetailFullOverlay') || document.getElementById('ssDetailFullOverlay');
+            if (!stillOpen) document.body.style.overflow = '';
+        }
+
         function showEditExercise(exId) {
             const ex = (_allPlan?.workout_exercises || []).find(e => e.id === exId);
             if (!ex) return;
@@ -294,7 +304,7 @@
             const overlay = document.createElement('div');
             overlay.id = 'editExOverlay';
             overlay.className = 'all-edit-overlay';
-            overlay.onclick = (e) => { if (e.target === overlay) { overlay.remove(); document.body.style.overflow = ''; } };
+            overlay.onclick = (e) => { if (e.target === overlay) closeEditExOverlay(); };
 
             let setsHtml = '';
             if (!isCardio) {
@@ -332,7 +342,7 @@
             <div class="all-edit-panel">
                 <div class="all-edit-header">
                     <h3>Modifica esercizio</h3>
-                    <button class="all-edit-close" onclick="document.getElementById('editExOverlay').remove();document.body.style.overflow=''">&times;</button>
+                    <button class="all-edit-close" onclick="closeEditExOverlay()">&times;</button>
                 </div>
                 <div class="all-edit-body">
                     <div class="all-edit-ex-name">${_escHtml(_dbExEdit ? _dbExEdit.nome_it : ex.exercise_name)}</div>
@@ -341,7 +351,7 @@
                     <textarea id="editExNotes" class="all-edit-textarea" rows="3" placeholder="Aggiungi note...">${_escHtml(ex.notes || '')}</textarea>
                     <div class="all-edit-actions">
                         <button class="all-edit-save" onclick="saveEditExercise('${exId}', ${isCardio})">Salva modifiche</button>
-                        <button class="all-edit-cancel" onclick="document.getElementById('editExOverlay').remove();document.body.style.overflow=''">Annulla</button>
+                        <button class="all-edit-cancel" onclick="closeEditExOverlay()">Annulla</button>
                     </div>
                 </div>
             </div>`;
@@ -386,16 +396,21 @@
                 const ex = (_allPlan?.workout_exercises || []).find(e => e.id === exId);
                 if (ex) Object.assign(ex, updates);
 
-                document.getElementById('editExOverlay')?.remove();
-                document.body.style.overflow = '';
+                closeEditExOverlay();
                 renderScheda();
+                // Se l'utente era dentro un overlay dettaglio, ricarica quello
+                // con i dati aggiornati (target, serie, ecc.)
+                if (document.getElementById('exDetailFullOverlay')) {
+                    openExerciseDetail(exId);
+                } else if (document.getElementById('ssDetailFullOverlay') && ex?.superset_group) {
+                    openSupersetDetail(ex.superset_group);
+                }
             } catch (err) {
                 console.error('Errore salvataggio:', err);
                 if (saveGen !== _bgGeneration) {
                     // Siamo andati in background durante il save: il flush gestisce.
                     // Chiudi overlay silenziosamente, il refresh dati arriverà dal flush.
-                    document.getElementById('editExOverlay')?.remove();
-                    document.body.style.overflow = '';
+                    closeEditExOverlay();
                 } else {
                     if (btn) { btn.disabled = false; btn.textContent = 'Salva modifiche'; }
                     alert('Errore nel salvataggio');
