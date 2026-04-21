@@ -52,6 +52,7 @@
                 <button class="all-nav-pill active" id="pillScheda" role="tab" aria-selected="true" aria-controls="allContent" onclick="switchAllView('scheda')">Scheda</button>
                 <button class="all-nav-pill" id="pillStorico" role="tab" aria-selected="false" aria-controls="allContent" onclick="switchAllView('storico')">Storico</button>
                 <button class="all-nav-pill" id="pillProgressi" role="tab" aria-selected="false" aria-controls="allContent" onclick="switchAllView('progressi')">Progressi</button>
+                <button class="all-nav-pill" id="pillReport" role="tab" aria-selected="false" aria-controls="allContent" onclick="switchAllView('report')">Report</button>
                 <button class="all-nav-pill" id="pillTablet" role="tab" aria-selected="false" aria-controls="allContent" onclick="switchAllView('tablet')">Tablet</button>
                 <button class="all-nav-pill all-nav-pill--icon" id="pillPdf" role="tab" aria-selected="false" aria-controls="allContent" onclick="switchAllView('pdf')" aria-label="Scarica PDF">
                     <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" width="18" height="18"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
@@ -420,8 +421,8 @@
 
         function switchAllView(view) {
             _allView = view;
-            const pills = ['pillScheda', 'pillStorico', 'pillProgressi', 'pillTablet', 'pillPdf'];
-            const views = ['scheda', 'storico', 'progressi', 'tablet', 'pdf'];
+            const pills = ['pillScheda', 'pillStorico', 'pillProgressi', 'pillReport', 'pillTablet', 'pillPdf'];
+            const views = ['scheda', 'storico', 'progressi', 'report', 'tablet', 'pdf'];
             pills.forEach((id, i) => {
                 const el = document.getElementById(id);
                 if (el) {
@@ -435,6 +436,7 @@
             if (view === 'scheda') renderScheda();
             else if (view === 'storico') renderStorico();
             else if (view === 'progressi') renderProgressi();
+            else if (view === 'report') renderReport();
             else if (view === 'tablet') renderTabletQR();
             else if (view === 'pdf') renderPdfDownload();
         }
@@ -3353,6 +3355,7 @@
             });
         }
     </script>
+    <script src="js/allenamento-report.js?v=1"></script>
     <script src="js/sw-update.js"></script>
     <script src="js/pwa-install.js"></script>
 </body>

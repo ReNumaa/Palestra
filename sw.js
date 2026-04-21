@@ -1,4 +1,4 @@
-const CACHE_NAME = 'palestra-v439';
+const CACHE_NAME = 'palestra-v440';
 
 const APP_SHELL = [
     '/',
@@ -37,6 +37,7 @@ const APP_SHELL = [
     '/js/admin-clients.js',
     '/js/admin-importa.js',
     '/js/admin-schede.js',
+    '/js/allenamento-report.js',
     '/allenamento.html',
     '/css/allenamento.css',
     '/tablet.html',
