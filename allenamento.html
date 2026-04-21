@@ -50,7 +50,6 @@
             <!-- Navigation pills -->
             <div class="all-nav" role="tablist" aria-label="Sezioni allenamento">
                 <button class="all-nav-pill active" id="pillScheda" role="tab" aria-selected="true" aria-controls="allContent" onclick="switchAllView('scheda')">Scheda</button>
-                <button class="all-nav-pill" id="pillStorico" role="tab" aria-selected="false" aria-controls="allContent" onclick="switchAllView('storico')">Storico</button>
                 <button class="all-nav-pill" id="pillProgressi" role="tab" aria-selected="false" aria-controls="allContent" onclick="switchAllView('progressi')">Progressi</button>
                 <button class="all-nav-pill" id="pillReport" role="tab" aria-selected="false" aria-controls="allContent" onclick="switchAllView('report')">Report</button>
                 <button class="all-nav-pill" id="pillTablet" role="tab" aria-selected="false" aria-controls="allContent" onclick="switchAllView('tablet')">Tablet</button>
@@ -421,13 +420,16 @@
 
         function switchAllView(view) {
             _allView = view;
-            const pills = ['pillScheda', 'pillStorico', 'pillProgressi', 'pillReport', 'pillTablet', 'pillPdf'];
-            const views = ['scheda', 'storico', 'progressi', 'report', 'tablet', 'pdf'];
+            const pills = ['pillScheda', 'pillProgressi', 'pillReport', 'pillTablet', 'pillPdf'];
+            const views = ['scheda', 'progressi', 'report', 'tablet', 'pdf'];
             pills.forEach((id, i) => {
                 const el = document.getElementById(id);
                 if (el) {
-                    el.classList.toggle('active', view === views[i]);
-                    el.setAttribute('aria-selected', view === views[i]);
+                    // 'storico' è una sotto-vista di 'progressi' (accessibile dal bottone
+                    // dentro Progressi). Quando siamo in storico, teniamo pillProgressi attiva.
+                    const isActive = view === views[i] || (view === 'storico' && views[i] === 'progressi');
+                    el.classList.toggle('active', isActive);
+                    el.setAttribute('aria-selected', isActive);
                 }
             });
             // Hide/show FAB only for scheda view
@@ -1676,6 +1678,15 @@
                 }
 
                 let html = '';
+
+                // Shortcut verso lo Storico (vista separata, accessibile solo da qui)
+                html += `<div class="all-progressi-nav">
+                    <button class="all-progressi-storico-btn" onclick="switchAllView('storico')" aria-label="Vedi storico allenamenti">
+                        <span class="all-progressi-storico-icon">📂</span>
+                        <span class="all-progressi-storico-label">Vedi Storico allenamenti</span>
+                        <span class="all-progressi-storico-arrow">→</span>
+                    </button>
+                </div>`;
 
                 // Filters bar
                 html += `<div class="all-filters">

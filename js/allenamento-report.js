@@ -223,6 +223,10 @@ function openReportDetail(reportId) {
 
     document.getElementById('reportModalOverlay')?.remove();
     document.body.insertAdjacentHTML('beforeend', modalHtml);
+    // Il CSS ha opacity:0 di default — la classe .visible fa partire la transizione
+    requestAnimationFrame(() => {
+        document.getElementById('reportModalOverlay')?.classList.add('visible');
+    });
 }
 
 function closeReportModal() {
@@ -293,6 +297,9 @@ function _showConsentModal(yearMonth, currentTone) {
 
     document.getElementById('consentModalOverlay')?.remove();
     document.body.insertAdjacentHTML('beforeend', modalHtml);
+    requestAnimationFrame(() => {
+        document.getElementById('consentModalOverlay')?.classList.add('visible');
+    });
 }
 
 function closeConsentModal() {
@@ -351,6 +358,9 @@ function _showToneSelectModal(yearMonth, currentTone) {
 
     document.getElementById('toneModalOverlay')?.remove();
     document.body.insertAdjacentHTML('beforeend', modalHtml);
+    requestAnimationFrame(() => {
+        document.getElementById('toneModalOverlay')?.classList.add('visible');
+    });
 }
 
 function closeToneModal() {
@@ -375,6 +385,9 @@ async function _startGeneration(yearMonth) {
         </div>
     `;
     document.body.insertAdjacentHTML('beforeend', loadingHtml);
+    requestAnimationFrame(() => {
+        document.getElementById('generatingOverlay')?.classList.add('visible');
+    });
 
     try {
         const { data: { session } } = await supabaseClient.auth.getSession();
