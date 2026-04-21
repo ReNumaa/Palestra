@@ -91,9 +91,9 @@ Produci un report completo (300-400 parole) che:
 Ogni progresso/stallo/regressione citato deve usare i numeri esatti dal DELTA.`,
 };
 
-const BASE_SYSTEM = `Sei l'assistente AI di PalestrIA, un SaaS di personal training.
-Il tuo compito: scrivere un report mensile personalizzato per un cliente della
-palestra, basato ESCLUSIVAMENTE sui dati forniti nel blocco [DATI].
+const BASE_SYSTEM = `Sei l'assistente AI di Thomas Bresciani Personal Training.
+Il tuo compito: scrivere un report mensile personalizzato per un cliente,
+basato ESCLUSIVAMENTE sui dati forniti nel blocco [DATI].
 
 REGOLE ASSOLUTE (mai violare):
 1. Ogni affermazione concreta deve essere ancorata a un numero o un fatto presente

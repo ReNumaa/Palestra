@@ -2685,6 +2685,22 @@
 }
 
 /* ══════════════════════════════════════════════════════════════════════════
+   SCROLL LOCK quando un modal è aperto
+   Evita che la pagina sotto scrolli sia con mouse wheel che con touch swipe.
+   ══════════════════════════════════════════════════════════════════════════ */
+
+body.all-modal-open {
+    overflow: hidden;
+    /* Previene scroll del body anche su iOS Safari */
+    touch-action: none;
+}
+
+body.all-modal-open .all-modal-overlay {
+    /* Il modal resta scrollabile/interagibile */
+    touch-action: auto;
+}
+
+/* ══════════════════════════════════════════════════════════════════════════
    REPORT MENSILE AI — vista cliente
    ══════════════════════════════════════════════════════════════════════════ */
 
@@ -2849,6 +2865,9 @@
     max-height: 90vh;
     overflow-y: auto;
     padding: 1.5rem 1.3rem;
+    /* Blocca scroll chaining: quando si arriva a fine report, non scrolla il body sotto */
+    overscroll-behavior: contain;
+    -webkit-overflow-scrolling: touch;
 }
 
 .all-report-modal-meta {

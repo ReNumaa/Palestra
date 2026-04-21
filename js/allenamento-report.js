@@ -12,6 +12,22 @@ let _reportLoading = false;
 const REPORT_FN_URL = 'https://ppymuuyoveyyoswcimck.supabase.co/functions/v1/generate-monthly-report';
 
 // ═════════════════════════════════════════════════════════════════════
+// HELPER: scroll lock del body quando un modal è aperto
+// Evita che la pagina sotto al modal scrolli quando l'utente fa swipe.
+// ═════════════════════════════════════════════════════════════════════
+
+function _lockBodyScroll() {
+    document.body.classList.add('all-modal-open');
+}
+
+function _unlockBodyScrollIfNoModals() {
+    // Rimuovi la classe solo se non ci sono più modal aperti (modal multipli overlappati)
+    if (!document.querySelector('.all-modal-overlay')) {
+        document.body.classList.remove('all-modal-open');
+    }
+}
+
+// ═════════════════════════════════════════════════════════════════════
 // HELPER: calcolo mese, formattazione
 // ═════════════════════════════════════════════════════════════════════
 
@@ -223,6 +239,7 @@ function openReportDetail(reportId) {
 
     document.getElementById('reportModalOverlay')?.remove();
     document.body.insertAdjacentHTML('beforeend', modalHtml);
+    _lockBodyScroll();
     // Il CSS ha opacity:0 di default — la classe .visible fa partire la transizione
     requestAnimationFrame(() => {
         document.getElementById('reportModalOverlay')?.classList.add('visible');
@@ -231,6 +248,7 @@ function openReportDetail(reportId) {
 
 function closeReportModal() {
     document.getElementById('reportModalOverlay')?.remove();
+    _unlockBodyScrollIfNoModals();
 }
 
 // ═════════════════════════════════════════════════════════════════════
@@ -272,7 +290,7 @@ function _showConsentModal(yearMonth, currentTone) {
                 <button class="all-modal-close" onclick="closeConsentModal()" aria-label="Chiudi">&times;</button>
                 <h3 class="all-modal-title">Consenso al trattamento AI</h3>
                 <p class="all-report-consent-intro">
-                    Per generare il report di <strong>${monthLabel}</strong>, PalestrIA analizza i tuoi dati tramite intelligenza artificiale.
+                    Per generare il report di <strong>${monthLabel}</strong>, l'app analizza i tuoi dati tramite intelligenza artificiale.
                 </p>
                 <div class="all-report-consent-details">
                     <p><strong>Dati analizzati:</strong></p>
@@ -281,7 +299,7 @@ function _showConsentModal(yearMonth, currentTone) {
                         <li>Log di allenamento (esercizi, carichi, ripetizioni)</li>
                     </ul>
                     <p><strong>Provider AI:</strong> Anthropic (Claude). Nessun altro terzo riceve i tuoi dati.</p>
-                    <p><strong>Conservazione:</strong> il report resta nel tuo profilo PalestrIA. Puoi cancellarlo o revocare il consenso in qualsiasi momento.</p>
+                    <p><strong>Conservazione:</strong> il report resta nel tuo profilo. Puoi cancellarlo o revocare il consenso in qualsiasi momento.</p>
                 </div>
                 <label class="all-report-consent-checkbox">
                     <input type="checkbox" id="consentCheckbox">
@@ -297,6 +315,7 @@ function _showConsentModal(yearMonth, currentTone) {
 
     document.getElementById('consentModalOverlay')?.remove();
     document.body.insertAdjacentHTML('beforeend', modalHtml);
+    _lockBodyScroll();
     requestAnimationFrame(() => {
         document.getElementById('consentModalOverlay')?.classList.add('visible');
     });
@@ -304,6 +323,7 @@ function _showConsentModal(yearMonth, currentTone) {
 
 function closeConsentModal() {
     document.getElementById('consentModalOverlay')?.remove();
+    _unlockBodyScrollIfNoModals();
 }
 
 async function _acceptConsentAndContinue(yearMonth, currentTone) {
@@ -358,6 +378,7 @@ function _showToneSelectModal(yearMonth, currentTone) {
 
     document.getElementById('toneModalOverlay')?.remove();
     document.body.insertAdjacentHTML('beforeend', modalHtml);
+    _lockBodyScroll();
     requestAnimationFrame(() => {
         document.getElementById('toneModalOverlay')?.classList.add('visible');
     });
@@ -365,6 +386,7 @@ function _showToneSelectModal(yearMonth, currentTone) {
 
 function closeToneModal() {
     document.getElementById('toneModalOverlay')?.remove();
+    _unlockBodyScrollIfNoModals();
 }
 
 // ── Chiamata Edge Function ──
@@ -385,6 +407,7 @@ async function _startGeneration(yearMonth) {
         </div>
     `;
     document.body.insertAdjacentHTML('beforeend', loadingHtml);
+    _lockBodyScroll();
     requestAnimationFrame(() => {
         document.getElementById('generatingOverlay')?.classList.add('visible');
     });
@@ -408,6 +431,7 @@ async function _startGeneration(yearMonth) {
 
         const data = await res.json();
         document.getElementById('generatingOverlay')?.remove();
+        _unlockBodyScrollIfNoModals();
 
         if (!res.ok || !data.success) {
             const msg = data.error || `Errore HTTP ${res.status}`;
@@ -423,6 +447,7 @@ async function _startGeneration(yearMonth) {
         }
     } catch (e) {
         document.getElementById('generatingOverlay')?.remove();
+        _unlockBodyScrollIfNoModals();
         alert('Errore: ' + (e.message || 'richiesta fallita'));
     }
 }
