@@ -120,6 +120,27 @@ INTERPRETAZIONE DEI DATI (critica):
 - Se previous.bookings.total < 3 → evita conclusioni sul delta aderenza: baseline
   troppo piccola per essere significativa.
 
+CONTESTUALIZZAZIONE DALLA SCHEDA (critica):
+Nel blocco DATI troverai "SCHEDE USATE NEL MESE" con il nome delle schede che
+hanno prodotto i log. Il nome della scheda rivela spesso il contesto. Adatta
+TONO e ASPETTATIVE di conseguenza:
+- Scheda con parole come "recupero", "post infortunio", "rehab", "riabilitazione",
+  "mobilità", "physio" → cliente in FASE RIABILITATIVA. NON parlare di
+  progressione carichi come obiettivo primario. Valorizza costanza, precisione
+  tecnica, mobilità, stabilità. Evita competitività. Obiettivi mese prossimo
+  focalizzati su recupero funzionale, non su prestazione.
+- Scheda con "preparazione gara", "peak", "specifica", "agonismo" → fase
+  PERFORMANCE. Parla di progressione, picchi, affinamento tecnico, aspettative
+  più alte.
+- Scheda con "base", "introduzione", "principiante" → fase di APPRENDIMENTO.
+  Valorizza consistency, nessuna pressione su carichi.
+- Scheda generica (es. "Full Body A", "Scheda Forza", nessun nome contestuale) →
+  tono e aspettative standard come da REPORT TYPE.
+Se sono presenti MULTIPLE schede, il contesto è quello della scheda con più
+sessioni. Se plan_notes contengono indicazioni aggiuntive, tienine conto.
+NON citare letteralmente i nomi delle schede nel report (sono nomi tecnici).
+Usa il contesto per adattare IL REGISTRO, non fare riferimenti espliciti.
+
 FORMATTAZIONE:
 - Markdown pulito
 - Paragrafi scorrevoli, non liste puntate (tranne che per dati specifici se
@@ -194,6 +215,25 @@ function buildUserMessage(scorecard: any, userName: string): string {
     if (gapLogging) {
         lines.push(`⚠️ GAP LOGGING: ${cb.completed} sessioni completate ma solo ` +
             `${c.sessions_logged_count} loggate (menzionare come opportunità)`);
+    }
+    lines.push("");
+
+    // Contesto scheda: determinante per adattare tono e aspettative del report.
+    lines.push("== SCHEDE USATE NEL MESE ==");
+    const plansUsed = c.plans_used ?? [];
+    if (plansUsed.length === 0) {
+        lines.push("(nessuna scheda tracciata — log possibile di esercizi slegati)");
+    } else {
+        for (const pl of plansUsed) {
+            lines.push(
+                `- "${pl.plan_name ?? '(senza nome)'}" ` +
+                `(${pl.sessions_in_plan} sessioni nel mese${pl.active ? ', attiva' : ', inattiva'})`
+            );
+            if (pl.plan_notes && String(pl.plan_notes).trim().length > 0) {
+                lines.push(`    Note scheda: ${pl.plan_notes}`);
+            }
+        }
+        lines.push("→ Usa il nome/note della scheda per contestualizzare il tono del report (vedi regole CONTESTUALIZZAZIONE DALLA SCHEDA). NON citare i nomi letterali nel testo.");
     }
     lines.push("");
 

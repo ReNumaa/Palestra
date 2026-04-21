@@ -101,9 +101,17 @@ async function _fetchReports() {
     _reportLoading = true;
     try {
         if (typeof supabaseClient === 'undefined') return [];
+        // Filtro ESPLICITO per user_id: questa vista è per il cliente ("i MIEI report").
+        // Non ci affidiamo solo alla RLS perché se l'utente è admin la policy
+        // monthly_reports_admin_all gli mostrerebbe TUTTI i report di tutti gli utenti.
+        const { data: authRes } = await supabaseClient.auth.getUser();
+        const userId = authRes?.user?.id;
+        if (!userId) { _reportCache = []; return _reportCache; }
+
         const { data, error } = await supabaseClient
             .from('monthly_reports')
-            .select('id, year_month, tone, narrative, scorecard, cost_usd, generated_at, model_used, status')
+            .select('id, user_id, year_month, tone, narrative, scorecard, cost_usd, generated_at, model_used, status')
+            .eq('user_id', userId)
             .eq('status', 'generated')
             .order('year_month', { ascending: false });
         if (error) {

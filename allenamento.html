@@ -1371,7 +1371,13 @@
                 const q = (_storicoSearch || '').trim().toLowerCase();
                 if (q) names = names.filter(n => n.toLowerCase().includes(q));
 
-                let html = `<div class="all-storico-search-wrap">
+                let html = `<div class="all-storico-back-wrap">
+                    <button class="all-storico-back-btn" onclick="switchAllView('progressi')" aria-label="Torna ai progressi">
+                        <span class="all-storico-back-arrow">←</span>
+                        <span>Torna ai Progressi</span>
+                    </button>
+                </div>
+                <div class="all-storico-search-wrap">
                     <input type="text" id="storicoSearch" class="all-storico-search" placeholder="Cerca esercizio..." value="${_escHtml(_storicoSearch)}" oninput="_storicoSearch=this.value;_renderStoricoList()">
                 </div>
                 <div class="all-storico-list" id="storicoList">${_buildStoricoListHtml(names, byName, exById)}</div>`;
