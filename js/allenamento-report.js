@@ -188,7 +188,6 @@ async function renderReport() {
     html += `
         <div class="all-report-header">
             <h2 class="all-report-title">📊 I tuoi Report Mensili</h2>
-            <p class="all-report-subtitle">Un riassunto AI basato sui tuoi dati di allenamento e presenza.</p>
         </div>
     `;
 
