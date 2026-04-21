@@ -2958,6 +2958,61 @@ body.all-modal-open .all-modal-overlay {
     font-style: italic;
 }
 
+/* Sezione "Rigenera in altro tono" nel modal dettaglio */
+.all-report-regen-section {
+    margin-top: 1.5rem;
+    padding-top: 1rem;
+    border-top: 1px solid rgba(0,0,0,0.08);
+}
+
+.all-report-regen-title {
+    font-size: 0.85rem;
+    font-weight: 600;
+    color: rgba(0,0,0,0.7);
+    margin-bottom: 0.6rem;
+}
+
+.all-report-regen-buttons {
+    display: flex;
+    gap: 0.5rem;
+    flex-wrap: wrap;
+}
+
+.all-report-regen-btn {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.4rem;
+    background: #fff;
+    border: 1.5px solid rgba(99,102,241,0.3);
+    border-radius: 9px;
+    padding: 0.55rem 0.9rem;
+    font-size: 0.88rem;
+    font-weight: 600;
+    cursor: pointer;
+    color: #5b5fc7;
+    transition: background 0.15s ease, border-color 0.15s ease, transform 0.15s ease;
+}
+
+.all-report-regen-btn:hover {
+    background: rgba(99,102,241,0.08);
+    border-color: #6366f1;
+    transform: translateY(-1px);
+}
+
+.all-report-regen-btn:active {
+    transform: translateY(0);
+}
+
+.all-report-regen-section--limit .all-report-regen-limit {
+    font-size: 0.85rem;
+    color: rgba(220, 38, 38, 0.8);
+    background: rgba(220, 38, 38, 0.06);
+    border: 1px solid rgba(220, 38, 38, 0.2);
+    border-radius: 9px;
+    padding: 0.7rem 0.9rem;
+    line-height: 1.4;
+}
+
 /* Modal GDPR consent */
 .all-report-consent-box {
     max-width: 520px;

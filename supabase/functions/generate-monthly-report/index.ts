@@ -453,20 +453,21 @@ Deno.serve(async (req) => {
             }, 403);
         }
 
-        // Self-service: valida che year_month sia un mese GIÀ CONCLUSO
-        // (il cliente non può richiedere il mese corrente o futuro)
-        if (isSelfService) {
-            const now = new Date();
-            const currentYM = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, "0")}`;
-            if (year_month >= currentYM) {
-                return json({
-                    error: "Puoi generare solo report di mesi già conclusi",
-                    code: "MONTH_NOT_AVAILABLE",
-                    current_month: currentYM,
-                    requested_month: year_month,
-                }, 400);
-            }
-        }
+        // Self-service: valida che year_month sia un mese già concluso.
+        // ⚠️ TEMPORANEAMENTE DISABILITATO per consentire test sul mese corrente (Aprile).
+        // Da RIATTIVARE quando i test sono completi.
+        // if (isSelfService) {
+        //     const now = new Date();
+        //     const currentYM = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, "0")}`;
+        //     if (year_month >= currentYM) {
+        //         return json({
+        //             error: "Puoi generare solo report di mesi già conclusi",
+        //             code: "MONTH_NOT_AVAILABLE",
+        //             current_month: currentYM,
+        //             requested_month: year_month,
+        //         }, 400);
+        //     }
+        // }
 
         // ── Carica profilo utente target ──────────────────────────────
         const { data: profile, error: profErr } = await supabase
@@ -496,16 +497,18 @@ Deno.serve(async (req) => {
             return json({ error: `Invalid tone: ${tone}` }, 400);
         }
 
-        // ── Idempotenza: se esiste già e non è force_regenerate ──────
+        // ── Idempotenza: se esiste già e non è force_regenerate, ritorna il più recente
         if (!force_regenerate) {
-            const { data: existing } = await supabase
+            const { data: existingList } = await supabase
                 .from("monthly_reports")
                 .select("id, status, narrative, scorecard, cost_usd, tone, generated_at, model_used")
                 .eq("user_id", user_id)
                 .eq("year_month", year_month)
                 .eq("status", "generated")
-                .maybeSingle();
+                .order("generated_at", { ascending: false })
+                .limit(1);
 
+            const existing = existingList?.[0];
             if (existing) {
                 return json({
                     success: true,
@@ -519,6 +522,27 @@ Deno.serve(async (req) => {
                     model_used: existing.model_used,
                     message: "Report già generato per questo mese. Usa force_regenerate=true per rigenerare.",
                 });
+            }
+        }
+
+        // ── Rate limit: max 3 report con status='generated' per (user, year_month)
+        // Non conta i 'failed' (potrebbero essere stati errori AI non attribuibili all'utente).
+        // Admin può comunque bypassare (utile per testing / supporto).
+        if (force_regenerate && !isAdmin) {
+            const { count: existingCount } = await supabase
+                .from("monthly_reports")
+                .select("id", { count: "exact", head: true })
+                .eq("user_id", user_id)
+                .eq("year_month", year_month)
+                .eq("status", "generated");
+
+            if ((existingCount ?? 0) >= 3) {
+                return json({
+                    error: "Hai raggiunto il limite massimo di 3 generazioni per questo mese.",
+                    code: "REGEN_LIMIT_REACHED",
+                    limit: 3,
+                    current_count: existingCount,
+                }, 429);
             }
         }
 
@@ -550,8 +574,9 @@ Deno.serve(async (req) => {
             const errMsg = e instanceof Error ? e.message : String(e);
             console.error("Anthropic call failed:", errMsg);
 
-            // Salva comunque una riga 'failed' per tracciabilità
-            await supabase.from("monthly_reports").upsert({
+            // Salva comunque una riga 'failed' per tracciabilità (INSERT, non upsert:
+            // i tentativi falliti non sovrascrivono i report precedenti.)
+            await supabase.from("monthly_reports").insert({
                 user_id,
                 year_month,
                 tone,
@@ -559,7 +584,7 @@ Deno.serve(async (req) => {
                 status: "failed",
                 error_message: errMsg,
                 generated_at: null,
-            }, { onConflict: "user_id,year_month" });
+            });
 
             return json({
                 error: `AI call failed: ${errMsg}`,
@@ -567,10 +592,10 @@ Deno.serve(async (req) => {
             }, 502);
         }
 
-        // ── Salva risultato in DB ────────────────────────────────────
+        // ── Salva risultato in DB (INSERT per permettere multiple generazioni)
         const { data: saved, error: saveErr } = await supabase
             .from("monthly_reports")
-            .upsert({
+            .insert({
                 user_id,
                 year_month,
                 tone,
@@ -583,7 +608,7 @@ Deno.serve(async (req) => {
                 cost_usd: aiResult.cost_usd,
                 generated_at: new Date().toISOString(),
                 error_message: null,
-            }, { onConflict: "user_id,year_month" })
+            })
             .select()
             .single();
 

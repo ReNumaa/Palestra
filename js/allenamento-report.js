@@ -32,11 +32,16 @@ function _unlockBodyScrollIfNoModals() {
 // ═════════════════════════════════════════════════════════════════════
 
 function _getAvailableMonthForGeneration() {
-    // Il cliente può generare il mese N-1 (mese precedente già concluso)
+    // ⚠️ TEMPORANEAMENTE: restituisce il mese CORRENTE per permettere test su Aprile.
+    // RIATTIVARE comportamento "mese precedente" prima del rilascio in produzione,
+    // e riattivare anche il controllo corrispondente nell'Edge Function.
     const now = new Date();
-    const prev = new Date(now.getFullYear(), now.getMonth() - 1, 1);
-    return `${prev.getFullYear()}-${String(prev.getMonth() + 1).padStart(2, '0')}`;
+    return `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}`;
 }
+
+// Limite massimo di rigenerazioni per (utente, mese). Deve coincidere con il
+// valore nell'Edge Function.
+const MAX_GENERATIONS_PER_MONTH = 3;
 
 function _formatYearMonth(ym) {
     if (!ym) return '';
@@ -154,7 +159,8 @@ async function renderReport() {
 
     const availableMonth = _getAvailableMonthForGeneration();
     const availableMonthLabel = _formatYearMonth(availableMonth);
-    const alreadyGenerated = reports.some(r => r.year_month === availableMonth);
+    const availableMonthReports = reports.filter(r => r.year_month === availableMonth);
+    const alreadyGenerated = availableMonthReports.length > 0;
 
     let html = '<div class="all-report-section">';
 
@@ -162,7 +168,7 @@ async function renderReport() {
     html += `
         <div class="all-report-header">
             <h2 class="all-report-title">📊 I tuoi Report Mensili</h2>
-            <p class="all-report-subtitle">Un riassunto AI basato sui tuoi dati di allenamento e presenza. Generato a fine mese.</p>
+            <p class="all-report-subtitle">Un riassunto AI basato sui tuoi dati di allenamento e presenza.</p>
         </div>
     `;
 
@@ -173,18 +179,22 @@ async function renderReport() {
                 <div class="all-report-cta-icon">✨</div>
                 <div class="all-report-cta-body">
                     <div class="all-report-cta-title">Report di ${availableMonthLabel} disponibile</div>
-                    <div class="all-report-cta-desc">Genera il tuo report AI personalizzato basato sulle tue sessioni del mese scorso.</div>
+                    <div class="all-report-cta-desc">Genera il tuo report AI personalizzato basato sulle tue sessioni di allenamento.</div>
                     <button class="all-report-cta-btn" onclick="openGenerateReport('${availableMonth}')">Genera ora</button>
                 </div>
             </div>
         `;
     } else {
+        const count = availableMonthReports.length;
+        const remaining = MAX_GENERATIONS_PER_MONTH - count;
         html += `
             <div class="all-report-cta all-report-cta--done">
                 <div class="all-report-cta-icon">✅</div>
                 <div class="all-report-cta-body">
-                    <div class="all-report-cta-title">Report di ${availableMonthLabel} già generato</div>
-                    <div class="all-report-cta-desc">Lo trovi qui sotto nella lista.</div>
+                    <div class="all-report-cta-title">Report di ${availableMonthLabel} generato (${count}/${MAX_GENERATIONS_PER_MONTH})</div>
+                    <div class="all-report-cta-desc">${remaining > 0
+                        ? `Puoi rigenerarlo ${remaining} volte in più aprendo un report e scegliendo un altro tono.`
+                        : 'Hai raggiunto il limite di generazioni per questo mese.'}</div>
                 </div>
             </div>
         `;
@@ -232,6 +242,44 @@ function openReportDetail(reportId) {
     if (!report) return;
 
     const bodyHtml = _markdownToHtml(report.narrative);
+
+    // Conta quante generazioni esistono già per questo (user, year_month)
+    const monthCount = (_reportCache || []).filter(r => r.year_month === report.year_month).length;
+    const remaining = MAX_GENERATIONS_PER_MONTH - monthCount;
+
+    // Bottoni "Rigenera in [altro tono]" per i toni diversi da quello corrente
+    const allTones = [
+        { value: 'serious',      label: 'Serio',        icon: '🎯' },
+        { value: 'motivational', label: 'Motivazionale', icon: '💪' },
+        { value: 'ironic',       label: 'Ironico',      icon: '😏' },
+    ];
+    const otherTones = allTones.filter(t => t.value !== report.tone);
+
+    let regenHtml = '';
+    if (remaining > 0) {
+        regenHtml = `
+            <div class="all-report-regen-section">
+                <div class="all-report-regen-title">Rigenera in un altro tono (${remaining} rimaste)</div>
+                <div class="all-report-regen-buttons">
+                    ${otherTones.map(t => `
+                        <button class="all-report-regen-btn" onclick="_regenerateInTone('${report.year_month}', '${t.value}')">
+                            <span>${t.icon}</span>
+                            <span>${t.label}</span>
+                        </button>
+                    `).join('')}
+                </div>
+            </div>
+        `;
+    } else {
+        regenHtml = `
+            <div class="all-report-regen-section all-report-regen-section--limit">
+                <div class="all-report-regen-limit">
+                    ⚠️ Hai raggiunto il limite di ${MAX_GENERATIONS_PER_MONTH} generazioni per questo mese.
+                </div>
+            </div>
+        `;
+    }
+
     const modalHtml = `
         <div class="all-modal-overlay all-report-modal" id="reportModalOverlay" onclick="if(event.target===this) closeReportModal()">
             <div class="all-modal-box all-report-modal-box">
@@ -241,6 +289,7 @@ function openReportDetail(reportId) {
                     <span class="all-report-modal-tone">${_formatTone(report.tone)}</span>
                 </div>
                 <div class="all-report-modal-body">${bodyHtml}</div>
+                ${regenHtml}
             </div>
         </div>
     `;
@@ -248,10 +297,16 @@ function openReportDetail(reportId) {
     document.getElementById('reportModalOverlay')?.remove();
     document.body.insertAdjacentHTML('beforeend', modalHtml);
     _lockBodyScroll();
-    // Il CSS ha opacity:0 di default — la classe .visible fa partire la transizione
     requestAnimationFrame(() => {
         document.getElementById('reportModalOverlay')?.classList.add('visible');
     });
+}
+
+// Helper: rigenera il report dello stesso mese ma con tono diverso.
+// Chiude il modal corrente e lancia _startGeneration con force_regenerate.
+async function _regenerateInTone(yearMonth, tone) {
+    closeReportModal();
+    _startGenerationInternal(yearMonth, tone, /* force */ true);
 }
 
 function closeReportModal() {
@@ -397,19 +452,22 @@ function closeToneModal() {
     _unlockBodyScrollIfNoModals();
 }
 
-// ── Chiamata Edge Function ──
+// ── Chiamata Edge Function (entry point dal modal tone selection) ──
 async function _startGeneration(yearMonth) {
     const selected = document.querySelector('input[name="reportTone"]:checked');
     const tone = selected ? selected.value : 'motivational';
-
     closeToneModal();
+    _startGenerationInternal(yearMonth, tone, /* force */ false);
+}
 
+// ── Chiamata Edge Function interna (usata anche da _regenerateInTone) ──
+async function _startGenerationInternal(yearMonth, tone, force) {
     // Loading overlay
     const loadingHtml = `
         <div class="all-modal-overlay" id="generatingOverlay">
             <div class="all-modal-box all-report-loading-box">
                 <div class="all-report-loading-spinner"></div>
-                <h3 class="all-report-loading-title">Generazione in corso...</h3>
+                <h3 class="all-report-loading-title">${force ? 'Rigenerazione' : 'Generazione'} in corso...</h3>
                 <p class="all-report-loading-desc">Sto analizzando i tuoi dati e scrivendo il report.</p>
             </div>
         </div>
@@ -434,6 +492,7 @@ async function _startGeneration(yearMonth) {
                 user_id: session.user.id,
                 year_month: yearMonth,
                 tone: tone,
+                force_regenerate: !!force,
             }),
         });
 
@@ -442,8 +501,12 @@ async function _startGeneration(yearMonth) {
         _unlockBodyScrollIfNoModals();
 
         if (!res.ok || !data.success) {
-            const msg = data.error || `Errore HTTP ${res.status}`;
-            alert('Errore nella generazione:\n' + msg);
+            if (data.code === 'REGEN_LIMIT_REACHED') {
+                alert(`Hai raggiunto il limite di ${data.limit} generazioni per questo mese. Non puoi rigenerare ulteriormente.`);
+            } else {
+                const msg = data.error || `Errore HTTP ${res.status}`;
+                alert('Errore nella generazione:\n' + msg);
+            }
             return;
         }
 
