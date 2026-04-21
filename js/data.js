@@ -77,6 +77,36 @@ function _queryWithTimeout(promise, ms = 12000) {
     return _rpcWithTimeout(promise, ms);
 }
 
+// Fetch paginato: supera il limite default PostgREST (~1000 righe per query)
+// scaricando a batch di 1000 finché la tabella non esaurisce.
+// Ritorna { data, error } identico a una query supabase-js → drop-in replacement.
+//
+// Usage:
+//   const { data, error } = await fetchAllPaginated(() =>
+//       supabaseClient.from('tabella').select('col1, col2').order('created_at'));
+//
+// Il queryBuilder è una CALLBACK che crea una query fresca ad ogni iterazione
+// (il .range() muta la query, quindi serve una query nuova per ogni pagina).
+async function fetchAllPaginated(queryBuilder, options = {}) {
+    const { timeoutMs = 30000, maxRows = 500000 } = options;
+    if (typeof queryBuilder !== 'function') {
+        return { data: null, error: { message: 'fetchAllPaginated: queryBuilder must be a function' } };
+    }
+    const all = [];
+    const BATCH = 1000;
+    const MAX_PAGES = Math.max(1, Math.ceil(maxRows / BATCH));
+    for (let page = 0; page < MAX_PAGES; page++) {
+        const from = page * BATCH;
+        const q = queryBuilder().range(from, from + BATCH - 1);
+        const { data, error } = await _queryWithTimeout(q, timeoutMs);
+        if (error) return { data: null, error };
+        if (!data || data.length === 0) break;
+        all.push(...data);
+        if (data.length < BATCH) break; // ultima pagina
+    }
+    return { data: all, error: null };
+}
+
 // Mock data storage - In production, this would be a database
 const SLOT_TYPES = {
     PERSONAL: 'personal-training',
@@ -1341,11 +1371,11 @@ class BookingStorage {
 
             const _results = await Promise.allSettled([
                 _queryWithTimeout(supabaseClient.from('app_settings').select('value').eq('key', 'data_cleared_at').maybeSingle()),
-                _queryWithTimeout(supabaseClient.from('credits').select('id, name, whatsapp, email, balance, free_balance')),
+                fetchAllPaginated(() => supabaseClient.from('credits').select('id, name, whatsapp, email, balance, free_balance')),
                 _queryWithTimeout(_fetchCreditHistoryAll, 30000), // timeout più alto per paginazione multipla
-                _queryWithTimeout(supabaseClient.from('manual_debts').select('name, whatsapp, email, balance, history')),
-                _queryWithTimeout(supabaseClient.from('bonuses').select('name, whatsapp, email, bonus, last_reset_month')),
-                _queryWithTimeout(supabaseClient.from('schedule_overrides').select('date, time, slot_type, extras, client_name, client_email, client_whatsapp, booking_id').order('date').order('time')),
+                fetchAllPaginated(() => supabaseClient.from('manual_debts').select('name, whatsapp, email, balance, history')),
+                fetchAllPaginated(() => supabaseClient.from('bonuses').select('name, whatsapp, email, bonus, last_reset_month')),
+                fetchAllPaginated(() => supabaseClient.from('schedule_overrides').select('date, time, slot_type, extras, client_name, client_email, client_whatsapp, booking_id').order('date').order('time')),
                 _queryWithTimeout(supabaseClient.from('settings').select('key, value')),
             ]);
             const _syncLabels = ['app_settings', 'credits', 'credit_history', 'manual_debts', 'bonuses', 'schedule_overrides', 'settings'];
@@ -1579,8 +1609,9 @@ class CreditStorage {
     static async syncFromSupabase() {
         if (typeof supabaseClient === 'undefined') return;
         try {
-            // 1. Credits (1 riga per utente, ben sotto il limite PostgREST)
-            const { data: creditsData, error: e1 } = await _queryWithTimeout(
+            // 1. Credits (1 riga per utente — paginato per sicurezza su istanze multi-tenant
+            //    o palestre con molti utenti)
+            const { data: creditsData, error: e1 } = await fetchAllPaginated(() =>
                 supabaseClient.from('credits').select('id, name, whatsapp, email, balance, free_balance')
             );
             if (e1) { console.error('[Supabase] CreditStorage.sync error:', e1.message); return; }
@@ -1927,7 +1958,7 @@ class ManualDebtStorage {
     static async syncFromSupabase() {
         if (typeof supabaseClient === 'undefined') return;
         try {
-            const { data, error } = await _queryWithTimeout(supabaseClient
+            const { data, error } = await fetchAllPaginated(() => supabaseClient
                 .from('manual_debts').select('name, whatsapp, email, balance, history'));
             if (error) { console.error('[Supabase] ManualDebtStorage.sync error:', error.message); return; }
             if (!data?.length) return;
