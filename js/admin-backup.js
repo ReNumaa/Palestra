@@ -9,6 +9,28 @@ const BACKUP_KEYS = [
     'dataLastCleared', 'gym_week_templates', 'gym_active_week_template'
 ];
 
+// Helper: fetch paginato per superare il limite default PostgREST (~1000 righe).
+// Interfaccia identica a supabase query: restituisce { data, error }.
+// Usato dal backup per scaricare in modo completo tabelle che possono superare 1000 righe
+// (credit_history, bookings, admin_audit_log, client_notifications, ecc.).
+async function _fetchAllPaginated(tableName, selectCols = '*', orderBy = null, timeoutMs = 30000) {
+    if (typeof supabaseClient === 'undefined') return { data: null, error: { message: 'no client' } };
+    const all = [];
+    const BATCH = 1000;
+    const MAX_PAGES = 500; // cap di sicurezza: 500k righe per tabella
+    for (let page = 0; page < MAX_PAGES; page++) {
+        const from = page * BATCH;
+        let q = supabaseClient.from(tableName).select(selectCols).range(from, from + BATCH - 1);
+        if (orderBy) q = q.order(orderBy.col, { ascending: orderBy.ascending !== false });
+        const { data, error } = await _queryWithTimeout(q, timeoutMs);
+        if (error) return { data: null, error };
+        if (!data || data.length === 0) break;
+        all.push(...data);
+        if (data.length < BATCH) break;
+    }
+    return { data: all, error: null };
+}
+
 // Converte il formato backup Nextcloud/cron (tabelle Supabase raw) nel formato admin
 function _convertCronToAdminFormat(cron) {
     const data = {};
@@ -150,21 +172,24 @@ async function exportBackup(format = 'json') {
     let _skippedTables = [];
     if (typeof supabaseClient !== 'undefined') {
         try {
+            // Tutte le query di backup usano _fetchAllPaginated per scaricare in modo
+            // completo: altrimenti con tabelle >1000 righe il backup sarebbe silenziosamente
+            // troncato. profiles resta via RPC (è già gestita server-side).
             const _exportQueries = [
-                { key: 'bookings',             q: _queryWithTimeout(supabaseClient.from('bookings').select('*').order('created_at', { ascending: true }), 20000) },
-                { key: 'credits',              q: _queryWithTimeout(supabaseClient.from('credits').select('*').order('created_at', { ascending: true }), 20000) },
-                { key: 'credit_history',       q: _queryWithTimeout(supabaseClient.from('credit_history').select('*').order('created_at', { ascending: true }), 20000) },
-                { key: 'manual_debts',         q: _queryWithTimeout(supabaseClient.from('manual_debts').select('*').order('created_at', { ascending: true }), 20000) },
-                { key: 'bonuses',              q: _queryWithTimeout(supabaseClient.from('bonuses').select('*').order('created_at', { ascending: true }), 20000) },
-                { key: 'schedule_overrides',   q: _queryWithTimeout(supabaseClient.from('schedule_overrides').select('*').order('date', { ascending: true }), 20000) },
+                { key: 'bookings',             q: _fetchAllPaginated('bookings',             '*', { col: 'created_at', ascending: true }, 30000) },
+                { key: 'credits',              q: _fetchAllPaginated('credits',              '*', { col: 'created_at', ascending: true }, 20000) },
+                { key: 'credit_history',       q: _fetchAllPaginated('credit_history',       '*', { col: 'created_at', ascending: true }, 30000) },
+                { key: 'manual_debts',         q: _fetchAllPaginated('manual_debts',         '*', { col: 'created_at', ascending: true }, 20000) },
+                { key: 'bonuses',              q: _fetchAllPaginated('bonuses',              '*', { col: 'created_at', ascending: true }, 20000) },
+                { key: 'schedule_overrides',   q: _fetchAllPaginated('schedule_overrides',   '*', { col: 'date', ascending: true }, 20000) },
                 { key: 'profiles',             q: _rpcWithTimeout(supabaseClient.rpc('get_all_profiles'), 20000) },
-                { key: 'settings',             q: _queryWithTimeout(supabaseClient.from('settings').select('*'), 20000) },
-                { key: 'push_subscriptions',   q: _queryWithTimeout(supabaseClient.from('push_subscriptions').select('*'), 20000) },
-                { key: 'admin_audit_log',      q: _queryWithTimeout(supabaseClient.from('admin_audit_log').select('*').order('created_at', { ascending: true }), 20000) },
-                { key: 'credit_link_clicks',   q: _queryWithTimeout(supabaseClient.from('credit_link_clicks').select('*'), 20000) },
-                { key: 'app_settings',         q: _queryWithTimeout(supabaseClient.from('app_settings').select('*'), 20000) },
-                { key: 'admin_messages',       q: _queryWithTimeout(supabaseClient.from('admin_messages').select('*').order('created_at', { ascending: true }), 20000) },
-                { key: 'client_notifications', q: _queryWithTimeout(supabaseClient.from('client_notifications').select('*').order('created_at', { ascending: true }), 20000) },
+                { key: 'settings',             q: _fetchAllPaginated('settings',             '*', null, 20000) },
+                { key: 'push_subscriptions',   q: _fetchAllPaginated('push_subscriptions',   '*', null, 20000) },
+                { key: 'admin_audit_log',      q: _fetchAllPaginated('admin_audit_log',      '*', { col: 'created_at', ascending: true }, 30000) },
+                { key: 'credit_link_clicks',   q: _fetchAllPaginated('credit_link_clicks',   '*', null, 20000) },
+                { key: 'app_settings',         q: _fetchAllPaginated('app_settings',         '*', null, 20000) },
+                { key: 'admin_messages',       q: _fetchAllPaginated('admin_messages',       '*', { col: 'created_at', ascending: true }, 20000) },
+                { key: 'client_notifications', q: _fetchAllPaginated('client_notifications', '*', { col: 'created_at', ascending: true }, 30000) },
             ];
             const _exportResults = await Promise.allSettled(_exportQueries.map(e => e.q));
             _exportQueries.forEach((e, i) => {

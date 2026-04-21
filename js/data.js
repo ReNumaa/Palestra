@@ -1319,10 +1319,30 @@ class BookingStorage {
         try {
             // Promise.allSettled: ogni query è indipendente — se una fallisce le altre vanno avanti
             // Ogni query è wrappata in _queryWithTimeout per evitare hang infiniti
+            // credit_history paginato: supera il limite default PostgREST (~1000 righe),
+            // altrimenti con tante entries le più recenti vengono silenziosamente troncate.
+            const _fetchCreditHistoryAll = (async () => {
+                const all = [];
+                const BATCH = 1000;
+                const MAX_PAGES = 100; // cap di sicurezza: 100k righe
+                for (let page = 0; page < MAX_PAGES; page++) {
+                    const from = page * BATCH;
+                    const { data, error } = await supabaseClient.from('credit_history')
+                        .select('credit_id, amount, note, created_at, method')
+                        .order('created_at', { ascending: true })
+                        .range(from, from + BATCH - 1);
+                    if (error) return { data: null, error };
+                    if (!data || data.length === 0) break;
+                    all.push(...data);
+                    if (data.length < BATCH) break;
+                }
+                return { data: all, error: null };
+            })();
+
             const _results = await Promise.allSettled([
                 _queryWithTimeout(supabaseClient.from('app_settings').select('value').eq('key', 'data_cleared_at').maybeSingle()),
                 _queryWithTimeout(supabaseClient.from('credits').select('id, name, whatsapp, email, balance, free_balance')),
-                _queryWithTimeout(supabaseClient.from('credit_history').select('credit_id, amount, note, created_at, method').order('created_at', { ascending: true })),
+                _queryWithTimeout(_fetchCreditHistoryAll, 30000), // timeout più alto per paginazione multipla
                 _queryWithTimeout(supabaseClient.from('manual_debts').select('name, whatsapp, email, balance, history')),
                 _queryWithTimeout(supabaseClient.from('bonuses').select('name, whatsapp, email, bonus, last_reset_month')),
                 _queryWithTimeout(supabaseClient.from('schedule_overrides').select('date, time, slot_type, extras, client_name, client_email, client_whatsapp, booking_id').order('date').order('time')),
@@ -1559,15 +1579,37 @@ class CreditStorage {
     static async syncFromSupabase() {
         if (typeof supabaseClient === 'undefined') return;
         try {
-            const [{ data: creditsData, error: e1 }, { data: histData }] = await _queryWithTimeout(Promise.all([
-                supabaseClient.from('credits').select('id, name, whatsapp, email, balance, free_balance'),
-                supabaseClient.from('credit_history').select('credit_id, amount, note, created_at, display_amount, booking_ref, hidden, method').eq('hidden', false).order('created_at', { ascending: true }),
-            ]));
+            // 1. Credits (1 riga per utente, ben sotto il limite PostgREST)
+            const { data: creditsData, error: e1 } = await _queryWithTimeout(
+                supabaseClient.from('credits').select('id, name, whatsapp, email, balance, free_balance')
+            );
             if (e1) { console.error('[Supabase] CreditStorage.sync error:', e1.message); return; }
             if (!creditsData?.length) return;
 
+            // 2. credit_history: paginazione esplicita per superare il limite PostgREST
+            //    (default ~1000 righe/query). Senza questo, con >1000 entries totali, le
+            //    righe più recenti venivano silenziosamente troncate.
+            const allHist = [];
+            const BATCH = 1000;
+            const MAX_PAGES = 100; // cap di sicurezza: 100k righe
+            for (let page = 0; page < MAX_PAGES; page++) {
+                const from = page * BATCH;
+                const { data, error } = await supabaseClient.from('credit_history')
+                    .select('credit_id, amount, note, created_at, display_amount, booking_ref, hidden, method')
+                    .eq('hidden', false)
+                    .order('created_at', { ascending: true })
+                    .range(from, from + BATCH - 1);
+                if (error) {
+                    console.error('[Supabase] CreditStorage.sync credit_history page error:', error.message);
+                    break;
+                }
+                if (!data || data.length === 0) break;
+                allHist.push(...data);
+                if (data.length < BATCH) break; // ultima pagina
+            }
+
             const histMap = {};
-            for (const h of histData || []) {
+            for (const h of allHist) {
                 if (!histMap[h.credit_id]) histMap[h.credit_id] = [];
                 histMap[h.credit_id].push({
                     date: h.created_at,
@@ -1584,7 +1626,7 @@ class CreditStorage {
                 result[key] = { name: c.name, whatsapp: c.whatsapp || '', email: c.email, balance: c.balance, freeBalance: c.free_balance || 0, history: histMap[c.id] || [] };
             }
             this._cache = result;
-            console.log('[Supabase] CreditStorage.sync: dati caricati');
+            console.log(`[Supabase] CreditStorage.sync: dati caricati (${allHist.length} history entries)`);
         } catch (e) { console.error('[Supabase] CreditStorage.sync exception:', e); }
     }
 
