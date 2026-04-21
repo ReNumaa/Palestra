@@ -16,13 +16,24 @@ const REPORT_FN_URL = 'https://ppymuuyoveyyoswcimck.supabase.co/functions/v1/gen
 // Evita che la pagina sotto al modal scrolli quando l'utente fa swipe.
 // ═════════════════════════════════════════════════════════════════════
 
+// ID dei modal creati da QUESTO modulo. Usati per capire se il body deve
+// restare lockato (altri modal statici di allenamento.html hanno class
+// .all-modal-overlay ma display:none, quindi querySelector generico è
+// inaffidabile per contarli).
+const _REPORT_MODAL_IDS = [
+    'reportModalOverlay',
+    'consentModalOverlay',
+    'toneModalOverlay',
+    'generatingOverlay',
+];
+
 function _lockBodyScroll() {
     document.body.classList.add('all-modal-open');
 }
 
 function _unlockBodyScrollIfNoModals() {
-    // Rimuovi la classe solo se non ci sono più modal aperti (modal multipli overlappati)
-    if (!document.querySelector('.all-modal-overlay')) {
+    const stillOpen = _REPORT_MODAL_IDS.some(id => document.getElementById(id));
+    if (!stillOpen) {
         document.body.classList.remove('all-modal-open');
     }
 }
@@ -134,6 +145,13 @@ async function _fetchReports() {
 // RENDER VISTA PRINCIPALE (tab "Report")
 // ═════════════════════════════════════════════════════════════════════
 
+// Definizione canonica dei 3 toni supportati (usata in tutte le UI)
+const _TONES = [
+    { value: 'serious',      label: 'Serio',        icon: '🎯', desc: 'Analitico e professionale' },
+    { value: 'motivational', label: 'Motivazionale', icon: '💪', desc: 'Caloroso ed energico' },
+    { value: 'ironic',       label: 'Ironico',      icon: '😏', desc: 'Umorismo dry' },
+];
+
 async function renderReport() {
     const container = document.getElementById('allContent');
     if (!container) return;
@@ -148,19 +166,21 @@ async function renderReport() {
         return;
     }
 
-    // Carica report in parallelo al profilo
-    const [reports, profileRes] = await Promise.all([
-        _fetchReports(),
-        supabaseClient.from('profiles')
-            .select('report_ai_consent, report_tone_preference')
-            .eq('id', user.id)
-            .maybeSingle(),
-    ]);
-
+    const reports = await _fetchReports();
     const availableMonth = _getAvailableMonthForGeneration();
     const availableMonthLabel = _formatYearMonth(availableMonth);
     const availableMonthReports = reports.filter(r => r.year_month === availableMonth);
-    const alreadyGenerated = availableMonthReports.length > 0;
+
+    // Quali toni sono già stati generati per il mese disponibile
+    const tonesGenerated = new Set(availableMonthReports.map(r => r.tone));
+    const allToneGenerated = _TONES.every(t => tonesGenerated.has(t.value));
+
+    // Raggruppa tutti i report per mese (per la lista archivio)
+    const reportsByMonth = reports.reduce((acc, r) => {
+        (acc[r.year_month] = acc[r.year_month] || []).push(r);
+        return acc;
+    }, {});
+    const sortedMonths = Object.keys(reportsByMonth).sort().reverse();
 
     let html = '<div class="all-report-section">';
 
@@ -172,59 +192,65 @@ async function renderReport() {
         </div>
     `;
 
-    // CTA generazione
-    if (!alreadyGenerated) {
-        html += `
-            <div class="all-report-cta">
-                <div class="all-report-cta-icon">✨</div>
-                <div class="all-report-cta-body">
-                    <div class="all-report-cta-title">Report di ${availableMonthLabel} disponibile</div>
-                    <div class="all-report-cta-desc">Genera il tuo report AI personalizzato basato sulle tue sessioni di allenamento.</div>
-                    <button class="all-report-cta-btn" onclick="openGenerateReport('${availableMonth}')">Genera ora</button>
-                </div>
+    // CTA con 3 bottoni tono (uno per ogni tono, disabilitato se già generato)
+    html += `
+        <div class="all-report-generate-card">
+            <div class="all-report-generate-title">Genera report di ${availableMonthLabel}</div>
+            <div class="all-report-generate-desc">Scegli un tono e lancia la generazione. Ogni tono può essere usato una sola volta.</div>
+            <div class="all-report-tone-grid">
+                ${_TONES.map(t => {
+                    const disabled = tonesGenerated.has(t.value);
+                    return `
+                        <button class="all-report-tone-card ${disabled ? 'all-report-tone-card--done' : ''}"
+                                ${disabled ? 'disabled aria-disabled="true"' : ''}
+                                onclick="${disabled ? '' : `_generateTone('${availableMonth}', '${t.value}')`}">
+                            <div class="all-report-tone-card-icon">${t.icon}</div>
+                            <div class="all-report-tone-card-label">${t.label}</div>
+                            <div class="all-report-tone-card-desc">${disabled ? '✓ Generato' : t.desc}</div>
+                        </button>
+                    `;
+                }).join('')}
             </div>
-        `;
-    } else {
-        const count = availableMonthReports.length;
-        const remaining = MAX_GENERATIONS_PER_MONTH - count;
-        html += `
-            <div class="all-report-cta all-report-cta--done">
-                <div class="all-report-cta-icon">✅</div>
-                <div class="all-report-cta-body">
-                    <div class="all-report-cta-title">Report di ${availableMonthLabel} generato (${count}/${MAX_GENERATIONS_PER_MONTH})</div>
-                    <div class="all-report-cta-desc">${remaining > 0
-                        ? `Puoi rigenerarlo ${remaining} volte in più aprendo un report e scegliendo un altro tono.`
-                        : 'Hai raggiunto il limite di generazioni per questo mese.'}</div>
-                </div>
-            </div>
-        `;
-    }
+            ${allToneGenerated
+                ? `<div class="all-report-generate-limit">Hai usato tutti e 3 i toni per ${availableMonthLabel}.</div>`
+                : ''}
+        </div>
+    `;
 
-    // Lista
+    // Lista report raggruppata per mese
     html += '<div class="all-report-list">';
     if (reports.length === 0) {
         html += `
             <div class="all-empty-state">
-                <p>Non hai ancora report generati. Appena finisce un mese, tornerai qui per generare il tuo primo.</p>
+                <p>Non hai ancora report generati. Scegli un tono sopra per generare il primo.</p>
             </div>
         `;
     } else {
         html += '<h3 class="all-report-list-title">Archivio</h3>';
-        reports.forEach(r => {
-            const stripped = (r.narrative || '').replace(/[#*`]/g, '').replace(/\n+/g, ' ').trim();
-            const preview = stripped.length > 140 ? stripped.substring(0, 140) + '...' : stripped;
-            const dateStr = r.generated_at ? new Date(r.generated_at).toLocaleDateString('it-IT') : '';
-            html += `
-                <div class="all-report-card" onclick="openReportDetail('${r.id}')" role="button" tabindex="0">
-                    <div class="all-report-card-header">
-                        <div class="all-report-card-month">${_formatYearMonth(r.year_month)}</div>
-                        <div class="all-report-card-tone">${_formatTone(r.tone)}</div>
-                    </div>
-                    <div class="all-report-card-preview">${_escapeHtml(preview)}</div>
-                    <div class="all-report-card-footer">Generato il ${dateStr}</div>
-                </div>
-            `;
-        });
+        for (const ym of sortedMonths) {
+            const monthReports = reportsByMonth[ym];
+            const monthLabel = _formatYearMonth(ym);
+            html += `<div class="all-report-month-group">
+                <div class="all-report-month-group-title">${monthLabel}</div>
+                <div class="all-report-month-group-list">`;
+            // Ordina i report del mese: prima il più recente
+            monthReports.sort((a, b) =>
+                (new Date(b.generated_at).getTime() || 0) - (new Date(a.generated_at).getTime() || 0)
+            );
+            for (const r of monthReports) {
+                const toneInfo = _TONES.find(t => t.value === r.tone);
+                const dateStr = r.generated_at ? new Date(r.generated_at).toLocaleDateString('it-IT') : '';
+                html += `
+                    <button class="all-report-variant" onclick="openReportDetail('${r.id}')">
+                        <span class="all-report-variant-icon">${toneInfo?.icon ?? '📝'}</span>
+                        <span class="all-report-variant-label">${toneInfo?.label ?? r.tone}</span>
+                        <span class="all-report-variant-date">${dateStr}</span>
+                        <span class="all-report-variant-arrow">›</span>
+                    </button>
+                `;
+            }
+            html += '</div></div>';
+        }
     }
     html += '</div>'; // .all-report-list
 
@@ -242,43 +268,8 @@ function openReportDetail(reportId) {
     if (!report) return;
 
     const bodyHtml = _markdownToHtml(report.narrative);
-
-    // Conta quante generazioni esistono già per questo (user, year_month)
-    const monthCount = (_reportCache || []).filter(r => r.year_month === report.year_month).length;
-    const remaining = MAX_GENERATIONS_PER_MONTH - monthCount;
-
-    // Bottoni "Rigenera in [altro tono]" per i toni diversi da quello corrente
-    const allTones = [
-        { value: 'serious',      label: 'Serio',        icon: '🎯' },
-        { value: 'motivational', label: 'Motivazionale', icon: '💪' },
-        { value: 'ironic',       label: 'Ironico',      icon: '😏' },
-    ];
-    const otherTones = allTones.filter(t => t.value !== report.tone);
-
-    let regenHtml = '';
-    if (remaining > 0) {
-        regenHtml = `
-            <div class="all-report-regen-section">
-                <div class="all-report-regen-title">Rigenera in un altro tono (${remaining} rimaste)</div>
-                <div class="all-report-regen-buttons">
-                    ${otherTones.map(t => `
-                        <button class="all-report-regen-btn" onclick="_regenerateInTone('${report.year_month}', '${t.value}')">
-                            <span>${t.icon}</span>
-                            <span>${t.label}</span>
-                        </button>
-                    `).join('')}
-                </div>
-            </div>
-        `;
-    } else {
-        regenHtml = `
-            <div class="all-report-regen-section all-report-regen-section--limit">
-                <div class="all-report-regen-limit">
-                    ⚠️ Hai raggiunto il limite di ${MAX_GENERATIONS_PER_MONTH} generazioni per questo mese.
-                </div>
-            </div>
-        `;
-    }
+    const toneInfo = _TONES.find(t => t.value === report.tone);
+    const toneLabel = toneInfo ? `${toneInfo.icon} ${toneInfo.label}` : _formatTone(report.tone);
 
     const modalHtml = `
         <div class="all-modal-overlay all-report-modal" id="reportModalOverlay" onclick="if(event.target===this) closeReportModal()">
@@ -286,10 +277,9 @@ function openReportDetail(reportId) {
                 <button class="all-modal-close" onclick="closeReportModal()" aria-label="Chiudi">&times;</button>
                 <div class="all-report-modal-meta">
                     <span class="all-report-modal-month">${_formatYearMonth(report.year_month)}</span>
-                    <span class="all-report-modal-tone">${_formatTone(report.tone)}</span>
+                    <span class="all-report-modal-tone">${toneLabel}</span>
                 </div>
                 <div class="all-report-modal-body">${bodyHtml}</div>
-                ${regenHtml}
             </div>
         </div>
     `;
@@ -302,13 +292,6 @@ function openReportDetail(reportId) {
     });
 }
 
-// Helper: rigenera il report dello stesso mese ma con tono diverso.
-// Chiude il modal corrente e lancia _startGeneration con force_regenerate.
-async function _regenerateInTone(yearMonth, tone) {
-    closeReportModal();
-    _startGenerationInternal(yearMonth, tone, /* force */ true);
-}
-
 function closeReportModal() {
     document.getElementById('reportModalOverlay')?.remove();
     _unlockBodyScrollIfNoModals();
@@ -316,32 +299,32 @@ function closeReportModal() {
 
 // ═════════════════════════════════════════════════════════════════════
 // FLUSSO: GENERAZIONE NUOVO REPORT
-// 1. Check consenso GDPR → se manca, chiedi opt-in
-// 2. Show tone selector
-// 3. Chiama Edge Function
-// 4. Ricarica lista + apri dettaglio nuovo report
+// Entry point chiamato da uno dei 3 bottoni tono della CTA principale.
+// 1. Check consenso GDPR → se manca, mostra modal di consenso (dopo accept ricomincia da qui)
+// 2. Chiama Edge Function direttamente (niente modal selezione tono: il tono è già nel click)
 // ═════════════════════════════════════════════════════════════════════
 
-async function openGenerateReport(yearMonth) {
+async function _generateTone(yearMonth, tone) {
     const { data: authRes } = await supabaseClient.auth.getUser();
     const user = authRes?.user;
     if (!user) { alert('Non sei loggato'); return; }
 
     const { data: profile } = await supabaseClient.from('profiles')
-        .select('report_ai_consent, report_tone_preference')
+        .select('report_ai_consent')
         .eq('id', user.id)
         .maybeSingle();
 
     if (!profile) { alert('Profilo non trovato'); return; }
 
-    const currentTone = profile.report_tone_preference || 'motivational';
-
     if (!profile.report_ai_consent) {
-        _showConsentModal(yearMonth, currentTone);
+        _showConsentModal(yearMonth, tone);
         return;
     }
 
-    _showToneSelectModal(yearMonth, currentTone);
+    // Tono già scelto cliccando il bottone → genera direttamente.
+    // force_regenerate=true perché nell'UI nuova ogni click è una richiesta esplicita
+    // (il rate limit lato server impedisce abusi: max 3 con status='generated').
+    _startGenerationInternal(yearMonth, tone, /* force */ true);
 }
 
 // ── Modal consenso GDPR ──
@@ -389,7 +372,7 @@ function closeConsentModal() {
     _unlockBodyScrollIfNoModals();
 }
 
-async function _acceptConsentAndContinue(yearMonth, currentTone) {
+async function _acceptConsentAndContinue(yearMonth, tone) {
     const checkbox = document.getElementById('consentCheckbox');
     if (!checkbox?.checked) {
         alert('Devi spuntare la casella per procedere.');
@@ -403,64 +386,11 @@ async function _acceptConsentAndContinue(yearMonth, currentTone) {
     }
 
     closeConsentModal();
-    _showToneSelectModal(yearMonth, currentTone);
+    // Consenso appena dato: genera subito il tono già scelto dal bottone
+    _startGenerationInternal(yearMonth, tone, /* force */ true);
 }
 
-// ── Modal selezione tono + conferma ──
-function _showToneSelectModal(yearMonth, currentTone) {
-    const monthLabel = _formatYearMonth(yearMonth);
-    const radio = (value, title, desc, icon) => `
-        <label class="all-tone-option">
-            <input type="radio" name="reportTone" value="${value}" ${currentTone === value ? 'checked' : ''}>
-            <div class="all-tone-option-body">
-                <div class="all-tone-title">${icon} ${title}</div>
-                <div class="all-tone-desc">${desc}</div>
-            </div>
-        </label>
-    `;
-
-    const modalHtml = `
-        <div class="all-modal-overlay" id="toneModalOverlay" onclick="if(event.target===this) closeToneModal()">
-            <div class="all-modal-box all-report-tone-box">
-                <button class="all-modal-close" onclick="closeToneModal()" aria-label="Chiudi">&times;</button>
-                <h3 class="all-modal-title">Genera Report ${monthLabel}</h3>
-                <p class="all-report-tone-intro">Scegli il tono del tuo report:</p>
-                <div class="all-tone-options">
-                    ${radio('serious', 'Serio', 'Analitico, professionale, misurato', '🎯')}
-                    ${radio('motivational', 'Motivazionale', 'Caloroso, orientato al risultato', '💪')}
-                    ${radio('ironic', 'Ironico', 'Umorismo dry e self-aware', '😏')}
-                </div>
-                <div class="all-modal-actions">
-                    <button class="all-modal-btn all-modal-btn--secondary" onclick="closeToneModal()">Annulla</button>
-                    <button class="all-modal-btn" onclick="_startGeneration('${yearMonth}')">Genera</button>
-                </div>
-                <p class="all-report-tone-hint">La generazione richiede 5-10 secondi.</p>
-            </div>
-        </div>
-    `;
-
-    document.getElementById('toneModalOverlay')?.remove();
-    document.body.insertAdjacentHTML('beforeend', modalHtml);
-    _lockBodyScroll();
-    requestAnimationFrame(() => {
-        document.getElementById('toneModalOverlay')?.classList.add('visible');
-    });
-}
-
-function closeToneModal() {
-    document.getElementById('toneModalOverlay')?.remove();
-    _unlockBodyScrollIfNoModals();
-}
-
-// ── Chiamata Edge Function (entry point dal modal tone selection) ──
-async function _startGeneration(yearMonth) {
-    const selected = document.querySelector('input[name="reportTone"]:checked');
-    const tone = selected ? selected.value : 'motivational';
-    closeToneModal();
-    _startGenerationInternal(yearMonth, tone, /* force */ false);
-}
-
-// ── Chiamata Edge Function interna (usata anche da _regenerateInTone) ──
+// ── Chiamata Edge Function interna ──
 async function _startGenerationInternal(yearMonth, tone, force) {
     // Loading overlay
     const loadingHtml = `
