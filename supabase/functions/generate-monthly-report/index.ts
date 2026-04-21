@@ -52,19 +52,19 @@ uno forzato. Il cliente deve sorridere e sentirsi rispettato.`,
 
 const TYPE_INSTRUCTIONS: Record<string, string> = {
     no_data: `REPORT TYPE: NO DATA.
-L'utente ha ZERO sessioni di allenamento loggate nel mese.
+L'utente ha ZERO allenamenti registrati nel mese.
 Produci un messaggio BREVE (80-120 parole) che:
 - Riconosca il mese senza giudizio (niente colpe, niente "dove sei stato?")
-- Proponga di ripartire con 1 sola sessione nella settimana entrante
+- Proponga di ripartire con 1 solo allenamento nella settimana entrante
 - Chiuda in modo rispettoso
 NON scrivere un vero report. NON menzionare esercizi che non esistono.`,
 
     encouragement: `REPORT TYPE: ENCOURAGEMENT (pochi dati).
-L'utente ha 1-2 sessioni loggate — sotto la soglia minima per un report pieno.
+L'utente ha 1-2 allenamenti registrati — sotto la soglia minima per un report pieno.
 Produci un report BREVE (150-220 parole) che:
-- Valorizzi le sessioni fatte e gli esercizi eseguiti (citali per nome)
+- Valorizzi gli allenamenti fatti e gli esercizi eseguiti (citali per nome)
 - Non faccia confronti statistici (base troppo piccola, sarebbero fuorvianti)
-- Incoraggi a raggiungere almeno 3 sessioni il mese successivo
+- Incoraggi a raggiungere almeno 3 allenamenti il mese successivo
 - Chiuda con un obiettivo minimo e raggiungibile`,
 
     first_month: `REPORT TYPE: FIRST MONTH.
@@ -85,7 +85,7 @@ Il cliente ha dati sia nel mese corrente che nel precedente.
 Produci un report completo (300-400 parole) che:
 - Apra citando 2-3 progressi concreti dal blocco DELTA (con numeri esatti)
 - Identifichi 1-2 pattern interessanti (ratio volume tra gruppi muscolari, aderenza)
-- Segnali 1 area di attenzione (stallo, regressione, gap logging, esercizio saltato)
+- Segnali 1 area di attenzione (stallo, regressione, gap di registrazione, esercizio saltato)
 - Menzioni il cambio di aderenza SOLO se previous.bookings.total >= 3 (altrimenti la baseline è troppo piccola)
 - Chiuda con 1-2 obiettivi concreti e misurabili per il mese successivo
 Ogni progresso/stallo/regressione citato deve usare i numeri esatti dal DELTA.`,
@@ -106,17 +106,20 @@ REGOLE ASSOLUTE (mai violare):
 6. Apri SEMPRE rivolgendoti al cliente per nome (il nome è nei dati).
 
 INTERPRETAZIONE DEI DATI (critica):
+- TERMINOLOGIA PER IL CLIENTE: nel testo del report usa "allenamenti registrati"
+  (NON "sessioni loggate"). Il campo JSON si chiama sessions_logged ma al cliente
+  va presentato come "allenamenti registrati" / "allenamenti segnati".
 - Se un esercizio ha max_weight = null o = 0 → è a CORPO LIBERO (o peso non
   tracciato). NON dire "carico fermo a 0kg". Parla invece di volume (total_sets),
-  ripetizioni (total_reps_sum), costanza (sessions_logged).
+  ripetizioni (total_reps_sum), costanza (numero di allenamenti in cui l'hai fatto).
 - Se un esercizio ha sessions_logged = 1 → è un TEST SINGOLO, NON una progressione.
-  Non scrivere "stai progredendo su X". Al massimo "hai provato X in una sessione".
+  Non scrivere "stai progredendo su X". Al massimo "hai provato X in un allenamento".
 - Se delta.trend = "new" → l'esercizio è NUOVO, non era nel mese precedente.
   Non è progressione, è inserimento.
 - Se delta.trend = "stable" con weight_change = 0 → è STALLO, non regressione.
-- Se current.bookings.completed > current.sessions_logged_count → c'è un GAP di
-  logging. Menzionalo come OPPORTUNITÀ ("loggare più sessioni darebbe più insight"),
-  MAI come rimprovero.
+- Se current.bookings.completed > current.sessions_logged_count → c'è un GAP tra
+  prenotazioni completate e allenamenti registrati. Menzionalo come OPPORTUNITÀ
+  ("registrare gli allenamenti darebbe più insight"), MAI come rimprovero.
 - Se previous.bookings.total < 3 → evita conclusioni sul delta aderenza: baseline
   troppo piccola per essere significativa.
 
@@ -209,12 +212,12 @@ function buildUserMessage(scorecard: any, userName: string): string {
     }
     lines.push("");
 
-    lines.push("== SESSIONI ALLENAMENTO LOGGATE ==");
-    lines.push(`Mese corrente: ${c.sessions_logged_count ?? 0} giorni con log`);
-    lines.push(`Mese precedente: ${p.sessions_logged_count ?? 0} giorni con log`);
+    lines.push("== ALLENAMENTI REGISTRATI ==");
+    lines.push(`Mese corrente: ${c.sessions_logged_count ?? 0} allenamenti registrati`);
+    lines.push(`Mese precedente: ${p.sessions_logged_count ?? 0} allenamenti registrati`);
     if (gapLogging) {
-        lines.push(`⚠️ GAP LOGGING: ${cb.completed} sessioni completate ma solo ` +
-            `${c.sessions_logged_count} loggate (menzionare come opportunità)`);
+        lines.push(`⚠️ GAP REGISTRAZIONE: ${cb.completed} prenotazioni completate ma solo ` +
+            `${c.sessions_logged_count} allenamenti registrati (menzionare come opportunità)`);
     }
     lines.push("");
 
@@ -227,7 +230,7 @@ function buildUserMessage(scorecard: any, userName: string): string {
         for (const pl of plansUsed) {
             lines.push(
                 `- "${pl.plan_name ?? '(senza nome)'}" ` +
-                `(${pl.sessions_in_plan} sessioni nel mese${pl.active ? ', attiva' : ', inattiva'})`
+                `(${pl.sessions_in_plan} allenamenti registrati nel mese${pl.active ? ', attiva' : ', inattiva'})`
             );
             if (pl.plan_notes && String(pl.plan_notes).trim().length > 0) {
                 lines.push(`    Note scheda: ${pl.plan_notes}`);
@@ -250,7 +253,7 @@ function buildUserMessage(scorecard: any, userName: string): string {
                 : `max ${ex.max_weight}kg`;
             lines.push(
                 `- ${name} [${ex.muscle_group ?? "n/a"}] — ` +
-                `${ex.sessions_logged} sessioni, ${weightLabel}, ` +
+                `${ex.sessions_logged} allenamenti, ${weightLabel}, ` +
                 `${ex.total_sets} set, ${ex.total_reps_sum} reps`
             );
             if (!isBodyweight && ex.first_weight !== null && ex.last_weight !== null
@@ -258,7 +261,7 @@ function buildUserMessage(scorecard: any, userName: string): string {
                 lines.push(`    Nel mese: ${ex.first_weight}kg → ${ex.last_weight}kg`);
             }
             if (ex.sessions_logged === 1) {
-                lines.push(`    ⚠️ SOLO 1 SESSIONE — test singolo, non progressione`);
+                lines.push(`    ⚠️ SOLO 1 ALLENAMENTO — test singolo, non progressione`);
             }
         }
     }
@@ -277,7 +280,7 @@ function buildUserMessage(scorecard: any, userName: string): string {
 
     lines.push("== DELTA vs MESE PRECEDENTE ==");
     lines.push(`Aderenza delta: ${d.adherence_pct_change ?? 0} punti percentuali`);
-    lines.push(`Sessioni loggate delta: ${d.sessions_change ?? 0}`);
+    lines.push(`Allenamenti registrati delta: ${d.sessions_change ?? 0}`);
     lines.push("");
 
     lines.push("Esercizi (delta per nome):");
