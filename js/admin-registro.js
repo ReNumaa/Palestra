@@ -683,11 +683,16 @@ const _MSG_TYPE_LABELS = {
 async function loadMessaggi() {
     if (typeof supabaseClient === 'undefined') return;
     try {
-        const { data, error } = await _queryWithTimeout(supabaseClient
+        // typeFilter applicato server-side: con volumi alti di booking/cancellation,
+        // i 500 più recenti mascheravano i tipi rari (new_client, topup, broadcast)
+        const typeFilter = document.getElementById('msgFilterType')?.value || '';
+        let q = supabaseClient
             .from('admin_messages')
             .select('created_at,type,date,title,body,client_name,sent_count')
             .order('created_at', { ascending: false })
-            .limit(500));
+            .limit(500);
+        if (typeFilter) q = q.eq('type', typeFilter);
+        const { data, error } = await _queryWithTimeout(q);
         if (error) {
             console.warn('[Messaggi] load error:', error.message);
             const tbody = document.getElementById('messaggiTableBody');
