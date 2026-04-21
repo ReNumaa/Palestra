@@ -13,7 +13,7 @@
     <link rel="icon" type="image/jpeg" href="images/logo-tb---nero.jpg">
     <link rel="stylesheet" href="css/style.css?v=8">
     <link rel="stylesheet" href="css/login.css?v=4">
-    <link rel="stylesheet" href="css/allenamento.css?v=25">
+    <link rel="stylesheet" href="css/allenamento.css?v=26">
 </head>
 <body class="allenamento-body">
     <nav class="navbar">
@@ -50,6 +50,7 @@
             <!-- Navigation pills -->
             <div class="all-nav" role="tablist" aria-label="Sezioni allenamento">
                 <button class="all-nav-pill active" id="pillScheda" role="tab" aria-selected="true" aria-controls="allContent" onclick="switchAllView('scheda')">Scheda</button>
+                <button class="all-nav-pill" id="pillStorico" role="tab" aria-selected="false" aria-controls="allContent" onclick="switchAllView('storico')">Storico</button>
                 <button class="all-nav-pill" id="pillProgressi" role="tab" aria-selected="false" aria-controls="allContent" onclick="switchAllView('progressi')">Progressi</button>
                 <button class="all-nav-pill" id="pillTablet" role="tab" aria-selected="false" aria-controls="allContent" onclick="switchAllView('tablet')">Tablet</button>
                 <button class="all-nav-pill all-nav-pill--icon" id="pillPdf" role="tab" aria-selected="false" aria-controls="allContent" onclick="switchAllView('pdf')" aria-label="Scarica PDF">
@@ -404,8 +405,8 @@
 
         function switchAllView(view) {
             _allView = view;
-            const pills = ['pillScheda', 'pillProgressi', 'pillTablet', 'pillPdf'];
-            const views = ['scheda', 'progressi', 'tablet', 'pdf'];
+            const pills = ['pillScheda', 'pillStorico', 'pillProgressi', 'pillTablet', 'pillPdf'];
+            const views = ['scheda', 'storico', 'progressi', 'tablet', 'pdf'];
             pills.forEach((id, i) => {
                 const el = document.getElementById(id);
                 if (el) {
@@ -417,6 +418,7 @@
             const fab = document.getElementById('allFabCreate');
             if (fab) fab.style.display = view === 'scheda' ? '' : 'none';
             if (view === 'scheda') renderScheda();
+            else if (view === 'storico') renderStorico();
             else if (view === 'progressi') renderProgressi();
             else if (view === 'tablet') renderTabletQR();
             else if (view === 'pdf') renderPdfDownload();
@@ -491,6 +493,7 @@
                 // Re-renderizza la view correntemente attiva (non sempre 'scheda':
                 // dopo un resume da background l'utente potrebbe essere su Progressi/Tablet/PDF)
                 if (_allView === 'progressi') renderProgressi();
+                else if (_allView === 'storico') renderStorico();
                 else if (_allView === 'tablet') renderTabletQR();
                 else if (_allView === 'pdf') renderPdfDownload();
                 else renderScheda();
@@ -547,6 +550,9 @@
         function _allHasOpenOverlay() {
             if (document.getElementById('editExOverlay')) return true;
             if (document.getElementById('exDetailOverlay')) return true;
+            if (document.getElementById('exDetailFullOverlay')) return true;
+            if (document.getElementById('ssDetailFullOverlay')) return true;
+            if (document.getElementById('storicoEditOverlay')) return true;
             if (document.getElementById('allFabSheetOverlay')) return true;
             const cpm = document.getElementById('createPlanModal');
             if (cpm && cpm.style.display && cpm.style.display !== 'none') return true;
@@ -697,6 +703,7 @@
             document.getElementById('allContent').innerHTML = '<div class="all-loading">Caricamento...</div>';
             await _loadLogsForPlan(plan);
             if (_allView === 'scheda') renderScheda();
+            else if (_allView === 'storico') renderStorico();
             else renderProgressi();
         }
 
@@ -868,11 +875,11 @@
                             <span>Elimina</span>
                         </div>
                         <div class="all-ex-swipe-content">
-                        <div class="all-ss-header" onclick="toggleSsCard('${ssId}')">
+                        <div class="all-ss-header" onclick="openSupersetDetail('${ssId}')">
                             <div class="all-ss-thumbs">
                                 <span class="all-ss-badge">SS</span>
-                                ${thumb1 ? `<img src="${thumb1}" class="all-ss-thumb" alt="" loading="lazy" onclick="event.stopPropagation();showExDetail('${_escHtml(slug1)}')">` : ''}
-                                ${thumb2 ? `<img src="${thumb2}" class="all-ss-thumb" alt="" loading="lazy" onclick="event.stopPropagation();showExDetail('${_escHtml(slug2)}')">` : ''}
+                                ${thumb1 ? `<img src="${thumb1}" class="all-ss-thumb" alt="" loading="lazy">` : ''}
+                                ${thumb2 ? `<img src="${thumb2}" class="all-ss-thumb" alt="" loading="lazy">` : ''}
                             </div>
                             <div class="all-ss-info">
                                 <div class="all-ss-names">
@@ -881,60 +888,10 @@
                                 </div>
                                 <div class="all-ss-target">${t1} + ${t2}${restDisp ? ' \u00b7 ' + restDisp : ''}</div>
                             </div>
-                            <div class="all-ss-status">${allDone ? '<span class="all-ex-check">&#10003;</span>' : '<span class="all-ss-chevron">&#9662;</span>'}</div>
+                            <div class="all-ss-status">${allDone ? '<span class="all-ex-check">&#10003;</span>' : '<span class="all-ss-chevron">&#8250;</span>'}</div>
                         </div>
-                        <div class="all-ss-body">`;
-
-                    pair.forEach((ssEx, idx) => {
-                        const _c = (ssEx.muscle_group || '').toLowerCase() === 'cardio';
-                        const sHasLogs = todayLogs.some(l => l.exercise_id === ssEx.id);
-                        const sPrev = _prevSessionLogs(ssEx.id);
-                        const sDb = _findExForCard(ssEx);
-                        const sThumb = sDb ? sDb.immagine_url_small : '';
-                        const sSlug = sDb ? sDb.slug : '';
-
-                        html += `<div class="all-ss-divider">Esercizio ${idx + 1}</div>`;
-                        html += `<div class="all-ss-ex-header">
-                            ${sThumb ? `<img src="${sThumb}" alt="" loading="lazy" onclick="showExDetail('${_escHtml(sSlug)}')">` : ''}
-                            <div class="all-ss-ex-header-info">
-                                <div class="all-ss-ex-header-name">${_escHtml(sDb ? sDb.nome_it : ssEx.exercise_name)}<button class="all-ex-edit-btn" onclick="showEditExercise('${ssEx.id}')" title="Modifica">&#9998;</button></div>
-                                <div class="all-ss-ex-header-target">${ssEx.sets} \u00d7 ${ssEx.reps}${ssEx.weight_kg != null ? ' @ ' + ssEx.weight_kg + ' kg' : ''}${ssEx.rest_seconds ? ' \u00b7 ' + ssEx.rest_seconds + 's pausa' : ' \u00b7 no pausa'}</div>
-                            </div>
-                        </div>`;
-                        if (sPrev.length) {
-                            html += `<div class="all-prev-session"><span class="all-prev-label">Precedente \u2014 ${_fmtDateAll(sPrev[0].log_date)}</span><div class="all-prev-sets">`;
-                            for (const pl of sPrev) html += _c ? `<span class="all-prev-set">${pl.reps_done||'\u2014'} min</span>` : `<span class="all-prev-set">${pl.set_number}. ${pl.reps_done||'\u2014'}\u00d7${pl.weight_done!=null?pl.weight_done+'kg':'\u2014'}</span>`;
-                            html += `</div></div>`;
-                        }
-                        const sRestVal = ssEx.rest_seconds ?? '';
-                        html += `<div class="all-log-section" data-ex-id="${ssEx.id}">
-                            <div class="all-log-grid${_c?' all-log-grid-cardio':''}"><div class="all-log-grid-header">${_c?'<span>Min</span>':'<span>Serie</span><span>Ripetizioni</span><span>Kg</span><span>Riposo</span>'}</div>`;
-                        if (_c) {
-                            const ex0 = todayLogs.find(l=>l.exercise_id===ssEx.id&&l.set_number===1);
-                            const p0 = sPrev.find(l=>l.set_number===1);
-                            html += `<div class="all-log-row all-log-row-cardio"><input type="number" inputmode="numeric" min="0" value="${ex0?.reps_done??p0?.reps_done??(parseInt(ssEx.reps)||'')}" class="all-log-input" data-field="reps" data-set="1"></div>`;
-                        } else {
-                            const tMax = todayLogs.filter(l=>l.exercise_id===ssEx.id).reduce((m,l)=>Math.max(m,l.set_number),0);
-                            const pMax = sPrev.reduce((m,l)=>Math.max(m,l.set_number),0);
-                            const rows = Math.max(ssEx.sets, tMax, pMax);
-                            for (let s=1;s<=rows;s++) {
-                                const e0=todayLogs.find(l=>l.exercise_id===ssEx.id&&l.set_number===s);
-                                const p0=sPrev.find(l=>l.set_number===s);
-                                const ext=s>ssEx.sets;
-                                html += `<div class="all-log-row"><span class="all-log-set">${s}</span>
-                                    <input type="number" inputmode="numeric" min="0" value="${e0?.reps_done??p0?.reps_done??(ext?'':(parseInt(ssEx.reps)||''))}" class="all-log-input" data-field="reps" data-set="${s}">
-                                    <input type="number" inputmode="decimal" min="0" step="0.5" value="${e0?.weight_done??p0?.weight_done??(ext?'':(ssEx.weight_kg??''))}" class="all-log-input" data-field="weight" data-set="${s}">
-                                    <input type="number" inputmode="numeric" min="0" value="${e0?.rest_done??p0?.rest_done??(ext?'':sRestVal)}" class="all-log-input" data-field="rest" data-set="${s}">
-                                </div>`;
-                            }
-                        }
-                        html += `</div>${_c?'':'<button class="all-log-add-set" onclick="addExtraSet(\''+ssEx.id+'\', this)">+ Serie</button>'}
-                            <div class="all-log-actions">
-                                <button class="all-log-save" onclick="saveLog('${ssEx.id}', this)">Salva</button>
-                                ${sHasLogs?`<button class="all-log-delete" onclick="deleteTodayLog('${ssEx.id}', this)">Elimina log</button>`:''}
-                            </div></div>`;
-                    });
-                    html += `</div></div></div>`;
+                        </div>
+                    </div>`;
                     continue;
                 }
                 if (ex.superset_group && _ssRendered.has(ex.superset_group)) continue;
@@ -950,81 +907,19 @@
                 const thumbSrc = dbEx ? dbEx.immagine_url_small : '';
                 const exSlug = dbEx ? dbEx.slug : '';
 
-                html += `<div class="all-ex-card ${hasLogs ? 'all-ex-done' : ''}" id="ex-${ex.id}" data-ex-id="${ex.id}" data-sort="${ex.sort_order}">
+                html += `<div class="all-ex-card ${hasLogs ? 'all-ex-done' : ''}" id="ex-${ex.id}" data-ex-id="${ex.id}" data-sort="${ex.sort_order}" data-ex-slug="${_escHtml(exSlug)}">
                     <div class="all-ex-delete-action" onclick="deleteExerciseFromPlan('${ex.id}')">
                         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="22" height="22"><polyline points="3 6 5 6 21 6"/><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/></svg>
                         <span>Elimina</span>
                     </div>
                     <div class="all-ex-swipe-content">
-                    <div class="all-ex-header" onclick="toggleExCard('${ex.id}')">
-                        ${thumbSrc ? `<img src="${thumbSrc}" class="all-ex-thumb" alt="" loading="lazy" onclick="event.stopPropagation();showExDetail('${_escHtml(exSlug)}')">` : ''}
+                    <div class="all-ex-header" onclick="openExerciseDetail('${ex.id}')">
+                        ${thumbSrc ? `<img src="${thumbSrc}" class="all-ex-thumb" alt="" loading="lazy">` : ''}
                         <div class="all-ex-info">
                             <div class="all-ex-name">${_escHtml(dbEx ? dbEx.nome_it : ex.exercise_name)}<button class="all-ex-edit-btn" onclick="event.stopPropagation();showEditExercise('${ex.id}')" title="Modifica esercizio">&#9998;</button></div>
                             <div class="all-ex-target">${target}</div>
                         </div>
-                        <div class="all-ex-status">${hasLogs ? '<span class="all-ex-check">&#10003;</span>' : '<span class="all-ex-chevron">&#9662;</span>'}</div>
-                    </div>
-                    <div class="all-ex-body">
-                        ${ex.notes ? `<div class="all-ex-note">${_escHtml(ex.notes)}</div>` : ''}`;
-
-                if (prevLogs.length) {
-                    const prevDate = prevLogs[0].log_date;
-                    html += `<div class="all-prev-session">
-                        <span class="all-prev-label">Sessione precedente \u2014 ${_fmtDateAll(prevDate)}</span>
-                        <div class="all-prev-sets">`;
-                    for (const pl of prevLogs) {
-                        html += _cardio
-                            ? `<span class="all-prev-set">${pl.reps_done || '\u2014'} min</span>`
-                            : `<span class="all-prev-set">${pl.set_number}. ${pl.reps_done || '\u2014'}\u00d7${pl.weight_done != null ? pl.weight_done + 'kg' : '\u2014'}</span>`;
-                    }
-                    html += `</div></div>`;
-                }
-
-                const restUnit = ex.rest_seconds && ex.rest_seconds <= 3 ? 'min' : 's';
-                const restVal = ex.rest_seconds ?? '';
-
-                html += `<div class="all-log-section" data-ex-id="${ex.id}">
-                            <div class="all-log-header">Registra per oggi \u2014 ${_fmtDateAll(today)}</div>
-                            <div class="all-log-grid${_cardio ? ' all-log-grid-cardio' : ''}">
-                                <div class="all-log-grid-header">
-                                    ${_cardio ? '<span>Min</span>' : `<span>Serie</span><span>Ripetizioni</span><span>Kg</span><span>Riposo</span>`}
-                                </div>`;
-
-                if (_cardio) {
-                    const existing = todayLogs.find(l => l.exercise_id === ex.id && l.set_number === 1);
-                    const prev = prevLogs.find(l => l.set_number === 1);
-                    const mVal = existing?.reps_done ?? prev?.reps_done ?? (parseInt(ex.reps) || '');
-                    html += `<div class="all-log-row all-log-row-cardio">
-                        <input type="number" inputmode="numeric" min="0" value="${mVal}" class="all-log-input" data-field="reps" data-set="1" aria-label="Minuti">
-                    </div>`;
-                } else {
-                    const todayMaxSet = todayLogs.filter(l => l.exercise_id === ex.id).reduce((m, l) => Math.max(m, l.set_number), 0);
-                    const prevMaxSet = prevLogs.reduce((m, l) => Math.max(m, l.set_number), 0);
-                    const totalRows = Math.max(ex.sets, todayMaxSet);
-
-                    for (let s = 1; s <= totalRows; s++) {
-                        const existing = todayLogs.find(l => l.exercise_id === ex.id && l.set_number === s);
-                        const prev = prevLogs.find(l => l.set_number === s);
-                        const isExtra = s > ex.sets;
-                        const rVal = existing?.reps_done ?? prev?.reps_done ?? (isExtra ? '' : (parseInt(ex.reps) || ''));
-                        const wVal = existing?.weight_done ?? prev?.weight_done ?? (isExtra ? '' : (ex.weight_kg ?? ''));
-                        const rstVal = existing?.rest_done ?? prev?.rest_done ?? (isExtra ? '' : restVal);
-                        html += `<div class="all-log-row">
-                            <span class="all-log-set">${s}</span>
-                            <input type="number" inputmode="numeric" min="0" value="${rVal}" class="all-log-input" data-field="reps" data-set="${s}" aria-label="Ripetizioni serie ${s}">
-                            <input type="number" inputmode="decimal" min="0" step="0.5" value="${wVal}" class="all-log-input" data-field="weight" data-set="${s}" aria-label="Peso serie ${s}">
-                            <input type="number" inputmode="numeric" min="0" value="${rstVal}" class="all-log-input" data-field="rest" data-set="${s}" aria-label="Riposo serie ${s}">
-                        </div>`;
-                    }
-                }
-
-                html += `</div>
-                            ${_cardio ? '' : '<button class="all-log-add-set" onclick="addExtraSet(\'' + ex.id + '\', this)">+ Serie</button>'}
-                            <div class="all-log-actions">
-                                <button class="all-log-save" onclick="saveLog('${ex.id}', this)">Salva</button>
-                                ${hasLogs ? `<button class="all-log-delete" onclick="deleteTodayLog('${ex.id}', this)">Elimina log di oggi</button>` : ''}
-                            </div>
-                        </div>
+                        <div class="all-ex-status">${hasLogs ? '<span class="all-ex-check">&#10003;</span>' : '<span class="all-ex-chevron">&#8250;</span>'}</div>
                     </div>
                     </div>
                 </div>`;
@@ -1039,14 +934,191 @@
             if (activeTab) activeTab.scrollIntoView({ behavior: 'smooth', inline: 'center', block: 'nearest' });
         }
 
-        function toggleExCard(exId) {
-            const card = document.getElementById('ex-' + exId);
-            if (card) card.classList.toggle('open');
+        // ── Helper: log section HTML (inputs Serie/Reps/Kg/Riposo) ──
+        function _buildLogSectionHtml(ex, todayLogs, prevLogs) {
+            const isCardio = (ex.muscle_group || '').toLowerCase() === 'cardio';
+            const today = _localDateStr();
+            const restVal = ex.rest_seconds ?? '';
+
+            let html = `<div class="all-log-section" data-ex-id="${ex.id}">
+                <div class="all-log-header">Registra per oggi — ${_fmtDateAll(today)}</div>
+                <div class="all-log-grid${isCardio ? ' all-log-grid-cardio' : ''}">
+                    <div class="all-log-grid-header">
+                        ${isCardio ? '<span>Min</span>' : '<span>Serie</span><span>Ripetizioni</span><span>Kg</span><span>Riposo</span>'}
+                    </div>`;
+
+            if (isCardio) {
+                const existing = todayLogs.find(l => l.exercise_id === ex.id && l.set_number === 1);
+                const prev = prevLogs.find(l => l.set_number === 1);
+                const mVal = existing?.reps_done ?? prev?.reps_done ?? (parseInt(ex.reps) || '');
+                html += `<div class="all-log-row all-log-row-cardio">
+                    <input type="number" inputmode="numeric" min="0" value="${mVal}" class="all-log-input" data-field="reps" data-set="1" aria-label="Minuti">
+                </div>`;
+            } else {
+                const todayMax = todayLogs.filter(l => l.exercise_id === ex.id).reduce((m, l) => Math.max(m, l.set_number), 0);
+                const totalRows = Math.max(ex.sets, todayMax);
+                for (let s = 1; s <= totalRows; s++) {
+                    const existing = todayLogs.find(l => l.exercise_id === ex.id && l.set_number === s);
+                    const prev = prevLogs.find(l => l.set_number === s);
+                    const isExtra = s > ex.sets;
+                    const rVal = existing?.reps_done ?? prev?.reps_done ?? (isExtra ? '' : (parseInt(ex.reps) || ''));
+                    const wVal = existing?.weight_done ?? prev?.weight_done ?? (isExtra ? '' : (ex.weight_kg ?? ''));
+                    const rstVal = existing?.rest_done ?? prev?.rest_done ?? (isExtra ? '' : restVal);
+                    html += `<div class="all-log-row">
+                        <span class="all-log-set">${s}</span>
+                        <input type="number" inputmode="numeric" min="0" value="${rVal}" class="all-log-input" data-field="reps" data-set="${s}" aria-label="Ripetizioni serie ${s}">
+                        <input type="number" inputmode="decimal" min="0" step="0.5" value="${wVal}" class="all-log-input" data-field="weight" data-set="${s}" aria-label="Peso serie ${s}">
+                        <input type="number" inputmode="numeric" min="0" value="${rstVal}" class="all-log-input" data-field="rest" data-set="${s}" aria-label="Riposo serie ${s}">
+                    </div>`;
+                }
+            }
+
+            const hasLogs = todayLogs.some(l => l.exercise_id === ex.id);
+            html += `</div>
+                ${isCardio ? '' : `<button class="all-log-add-set" onclick="addExtraSet('${ex.id}', this)">+ Serie</button>`}
+                <div class="all-log-actions">
+                    <button class="all-log-save" onclick="saveLog('${ex.id}', this)">Salva</button>
+                    ${hasLogs ? `<button class="all-log-delete" onclick="deleteTodayLog('${ex.id}', this)">Elimina log di oggi</button>` : ''}
+                </div>
+            </div>`;
+            return html;
         }
 
-        function toggleSsCard(ssId) {
-            const card = document.getElementById('ss-' + ssId);
-            if (card) card.classList.toggle('open');
+        function _buildPrevSessionHtml(ex, prevLogs) {
+            if (!prevLogs.length) return '';
+            const isCardio = (ex.muscle_group || '').toLowerCase() === 'cardio';
+            const prevDate = prevLogs[0].log_date;
+            let html = `<div class="all-prev-session">
+                <span class="all-prev-label">Sessione precedente — ${_fmtDateAll(prevDate)}</span>
+                <div class="all-prev-sets">`;
+            for (const pl of prevLogs) {
+                html += isCardio
+                    ? `<span class="all-prev-set">${pl.reps_done || '—'} min</span>`
+                    : `<span class="all-prev-set">${pl.set_number}. ${pl.reps_done || '—'}×${pl.weight_done != null ? pl.weight_done + 'kg' : '—'}</span>`;
+            }
+            html += `</div></div>`;
+            return html;
+        }
+
+        function _buildDetailMediaHtml(dbEx) {
+            if (!dbEx) return '<div class="all-detail-media-placeholder"></div>';
+            if (dbEx.video_url) {
+                return `<video class="all-detail-media-video" src="${_escHtml(dbEx.video_url)}" autoplay loop muted playsinline preload="auto" controls></video>`;
+            }
+            if (dbEx.immagine_url_small) {
+                return `<img class="all-detail-media-img" src="${_escHtml(dbEx.immagine_url_small)}" alt="${_escHtml(dbEx.nome_it || '')}">`;
+            }
+            return '<div class="all-detail-media-placeholder"></div>';
+        }
+
+        // ── Overlay fullscreen dettaglio esercizio singolo ─────────────────
+        function openExerciseDetail(exId) {
+            const ex = (_allPlan?.workout_exercises || []).find(e => e.id === exId);
+            if (!ex) return;
+            const dbEx = _findExForCard(ex);
+            const today = _localDateStr();
+            const todayLogs = _allLogs.filter(l => l.log_date === today);
+            const prevLogs = _prevSessionLogs(ex.id);
+            const isCardio = (ex.muscle_group || '').toLowerCase() === 'cardio';
+            const name = dbEx ? dbEx.nome_it : ex.exercise_name;
+            const target = isCardio
+                ? `${ex.reps} min`
+                : `${ex.sets} × ${ex.reps}${ex.weight_kg != null ? ' @ ' + ex.weight_kg + ' kg' : ''}${ex.rest_seconds ? ' · ' + (ex.rest_seconds <= 3 ? ex.rest_seconds + ' min' : ex.rest_seconds + 's') + ' pausa' : ''}`;
+
+            const old = document.getElementById('exDetailFullOverlay');
+            if (old) old.remove();
+
+            const overlay = document.createElement('div');
+            overlay.id = 'exDetailFullOverlay';
+            overlay.className = 'all-detail-overlay';
+            overlay.innerHTML = `
+                <div class="all-detail-panel">
+                    <div class="all-detail-header">
+                        <button class="all-detail-back" onclick="closeExerciseDetail()" aria-label="Indietro">
+                            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" width="22" height="22"><polyline points="15 18 9 12 15 6"/></svg>
+                        </button>
+                        <div class="all-detail-title">${_escHtml(name)}</div>
+                    </div>
+                    <div class="all-detail-scroll">
+                        <div class="all-detail-media">${_buildDetailMediaHtml(dbEx)}</div>
+                        <div class="all-detail-target-row">
+                            <span class="all-detail-target-label">LOG DI OGGI</span>
+                            <span class="all-detail-target-sep">·</span>
+                            <span class="all-detail-target-value">${target}</span>
+                        </div>
+                        ${ex.notes ? `<div class="all-ex-note">${_escHtml(ex.notes)}</div>` : ''}
+                        ${_buildPrevSessionHtml(ex, prevLogs)}
+                        ${_buildLogSectionHtml(ex, todayLogs, prevLogs)}
+                    </div>
+                </div>`;
+            document.body.appendChild(overlay);
+            document.body.style.overflow = 'hidden';
+            requestAnimationFrame(() => overlay.classList.add('visible'));
+        }
+
+        function closeExerciseDetail() {
+            const ov = document.getElementById('exDetailFullOverlay');
+            if (ov) ov.remove();
+            document.body.style.overflow = '';
+        }
+
+        // ── Overlay fullscreen dettaglio superset ──────────────────────────
+        function openSupersetDetail(ssId) {
+            const pair = (_allPlan?.workout_exercises || []).filter(e => e.superset_group === ssId);
+            if (!pair.length) return;
+            pair.sort((a, b) => a.sort_order - b.sort_order);
+            const today = _localDateStr();
+            const todayLogs = _allLogs.filter(l => l.log_date === today);
+
+            const old = document.getElementById('ssDetailFullOverlay');
+            if (old) old.remove();
+
+            let body = '';
+            pair.forEach((ssEx, idx) => {
+                const sDb = _findExForCard(ssEx);
+                const sPrev = _prevSessionLogs(ssEx.id);
+                const sName = sDb ? sDb.nome_it : ssEx.exercise_name;
+                const isCardio = (ssEx.muscle_group || '').toLowerCase() === 'cardio';
+                const sTarget = isCardio
+                    ? `${ssEx.reps} min`
+                    : `${ssEx.sets} × ${ssEx.reps}${ssEx.weight_kg != null ? ' @ ' + ssEx.weight_kg + ' kg' : ''}${ssEx.rest_seconds ? ' · ' + ssEx.rest_seconds + 's pausa' : ''}`;
+                body += `<div class="all-detail-ss-block">
+                    <div class="all-detail-ss-divider">Esercizio ${idx + 1}</div>
+                    <div class="all-detail-ss-name">${_escHtml(sName)}<button class="all-ex-edit-btn" onclick="showEditExercise('${ssEx.id}')" title="Modifica">&#9998;</button></div>
+                    <div class="all-detail-media">${_buildDetailMediaHtml(sDb)}</div>
+                    <div class="all-detail-target-row">
+                        <span class="all-detail-target-label">LOG DI OGGI</span>
+                        <span class="all-detail-target-sep">·</span>
+                        <span class="all-detail-target-value">${sTarget}</span>
+                    </div>
+                    ${ssEx.notes ? `<div class="all-ex-note">${_escHtml(ssEx.notes)}</div>` : ''}
+                    ${_buildPrevSessionHtml(ssEx, sPrev)}
+                    ${_buildLogSectionHtml(ssEx, todayLogs, sPrev)}
+                </div>`;
+            });
+
+            const overlay = document.createElement('div');
+            overlay.id = 'ssDetailFullOverlay';
+            overlay.className = 'all-detail-overlay';
+            overlay.innerHTML = `
+                <div class="all-detail-panel">
+                    <div class="all-detail-header">
+                        <button class="all-detail-back" onclick="closeSupersetDetail()" aria-label="Indietro">
+                            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" width="22" height="22"><polyline points="15 18 9 12 15 6"/></svg>
+                        </button>
+                        <div class="all-detail-title"><span class="all-ss-badge">SS</span> Superset</div>
+                    </div>
+                    <div class="all-detail-scroll">${body}</div>
+                </div>`;
+            document.body.appendChild(overlay);
+            document.body.style.overflow = 'hidden';
+            requestAnimationFrame(() => overlay.classList.add('visible'));
+        }
+
+        function closeSupersetDetail() {
+            const ov = document.getElementById('ssDetailFullOverlay');
+            if (ov) ov.remove();
+            document.body.style.overflow = '';
         }
 
         async function saveLog(exerciseId, btn) {
@@ -1093,14 +1165,17 @@
                 const cachedLogs = WorkoutLogStorage.getByExercise(exerciseId).filter(l => l.log_date === today);
                 _allLogs = _allLogs.filter(l => !(l.exercise_id === exerciseId && l.log_date === today));
                 _allLogs.push(...cachedLogs);
-                // Update UI: checkmark + done state
+                // Update UI: checkmark + done state sulla card in lista
                 const card = document.getElementById('ex-' + exerciseId);
                 if (card) {
                     card.classList.add('all-ex-done');
                     const statusEl = card.querySelector('.all-ex-status');
                     if (statusEl) statusEl.innerHTML = '<span class="all-ex-check">&#10003;</span>';
-                    // Show delete button if not present
-                    const actions = card.querySelector('.all-log-actions');
+                }
+                // Mostra "Elimina log di oggi" in tutte le log-section visibili (overlay inclusi)
+                const logSections = document.querySelectorAll(`.all-log-section[data-ex-id="${exerciseId}"]`);
+                logSections.forEach(sec => {
+                    const actions = sec.querySelector('.all-log-actions');
                     if (actions && !actions.querySelector('.all-log-delete')) {
                         const delBtn = document.createElement('button');
                         delBtn.className = 'all-log-delete';
@@ -1108,7 +1183,7 @@
                         delBtn.onclick = function() { deleteTodayLog(exerciseId, delBtn); };
                         actions.appendChild(delBtn);
                     }
-                }
+                });
                 // Update superset card if this exercise belongs to one
                 const dayExercises = (_allPlan?.workout_exercises || []).filter(e => e.day_label === _activeDay);
                 const todayLogs = _allLogs.filter(l => l.log_date === today);
@@ -1193,11 +1268,281 @@
                 }
                 _allLogs = _allLogs.filter(l => !(l.exercise_id === exerciseId && l.log_date === today));
                 if (typeof showToast === 'function') showToast('Log eliminato', 'success');
+                // Se sono in un overlay dettaglio, chiudilo per tornare alla scheda
+                closeExerciseDetail();
+                closeSupersetDetail();
                 renderScheda();
             } catch (e) {
                 console.error('[Allenamento] delete error:', e);
                 btn.disabled = false;
                 btn.textContent = 'Elimina log di oggi';
+                if (typeof showToast === 'function') showToast('Errore eliminazione', 'error');
+            }
+        }
+
+        // ── Render Storico ────────────────────────────────────────────────
+        // Raggruppa log per NOME esercizio. Espandibile per vedere/modificare
+        // i log per data. Permette di modificare singoli set o eliminare
+        // intere giornate.
+        let _storicoExpanded = new Set();
+        let _storicoSearch = '';
+
+        async function renderStorico() {
+            const container = document.getElementById('allContent');
+            const user = getCurrentUser();
+            if (!user) return;
+
+            container.innerHTML = '<div class="all-loading">Caricamento storico...</div>';
+
+            try {
+                // Raccogli tutti gli esercizi da tutti i piani dell'utente
+                let allPlans = _allPlans;
+                if (!allPlans || !allPlans.length) {
+                    const { data, error } = await _queryWithTimeout(supabaseClient
+                        .from('workout_plans')
+                        .select('id, workout_exercises(id, exercise_name, exercise_slug, muscle_group, sets, reps, weight_kg, rest_seconds)')
+                        .eq('user_id', user.id), 15000);
+                    if (error) throw error;
+                    allPlans = data || [];
+                }
+
+                const allExercises = (allPlans || []).flatMap(p => p.workout_exercises || []);
+                const allExIds = allExercises.map(e => e.id);
+                if (!allExIds.length) {
+                    container.innerHTML = '<div class="all-empty">Nessun esercizio nelle tue schede.</div>';
+                    return;
+                }
+
+                const { data: logs, error: logsErr } = await _queryWithTimeout(supabaseClient
+                    .from('workout_logs')
+                    .select('*')
+                    .in('exercise_id', allExIds)
+                    .eq('user_id', user.id)
+                    .order('log_date', { ascending: false })
+                    .order('set_number', { ascending: true }), 15000);
+                if (logsErr) throw logsErr;
+
+                if (!logs?.length) {
+                    _storicoLogsCache = [];
+                    container.innerHTML = '<div class="all-empty">Nessun log registrato ancora.</div>';
+                    return;
+                }
+
+                _storicoLogsCache = logs;
+
+                // Mappa exercise_id → dati esercizio (primo match)
+                const exById = {};
+                for (const ex of allExercises) {
+                    if (!exById[ex.id]) exById[ex.id] = ex;
+                }
+
+                // Raggruppa log per NOME esercizio (fonde log di stesso esercizio da schede diverse)
+                const idToName = {};
+                for (const ex of allExercises) idToName[ex.id] = ex.exercise_name;
+
+                const byName = {};
+                for (const l of logs) {
+                    const name = idToName[l.exercise_id] || 'Sconosciuto';
+                    if (!byName[name]) byName[name] = [];
+                    byName[name].push(l);
+                }
+
+                // Filtro ricerca
+                let names = Object.keys(byName).sort();
+                const q = (_storicoSearch || '').trim().toLowerCase();
+                if (q) names = names.filter(n => n.toLowerCase().includes(q));
+
+                let html = `<div class="all-storico-search-wrap">
+                    <input type="text" id="storicoSearch" class="all-storico-search" placeholder="Cerca esercizio..." value="${_escHtml(_storicoSearch)}" oninput="_storicoSearch=this.value;_renderStoricoList()">
+                </div>
+                <div class="all-storico-list" id="storicoList">${_buildStoricoListHtml(names, byName, exById)}</div>`;
+
+                container.innerHTML = html;
+                // Ripristina focus al campo ricerca dopo render
+                const s = document.getElementById('storicoSearch');
+                if (s && q) { s.focus(); s.setSelectionRange(s.value.length, s.value.length); }
+            } catch (e) {
+                console.warn('[Allenamento] storico load failed:', e);
+                container.innerHTML = '<div class="all-empty">Errore caricamento storico.</div>';
+            }
+        }
+
+        // Re-render solo la lista storico (preserva input ricerca)
+        function _renderStoricoList() {
+            const listEl = document.getElementById('storicoList');
+            if (!listEl) return;
+            // Recupera dati già caricati dalla vista corrente
+            const allExercises = (_allPlans || []).flatMap(p => p.workout_exercises || []);
+            const exById = {};
+            for (const ex of allExercises) if (!exById[ex.id]) exById[ex.id] = ex;
+            const idToName = {};
+            for (const ex of allExercises) idToName[ex.id] = ex.exercise_name;
+            const byName = {};
+            for (const l of _storicoLogsCache) {
+                const name = idToName[l.exercise_id] || 'Sconosciuto';
+                if (!byName[name]) byName[name] = [];
+                byName[name].push(l);
+            }
+            let names = Object.keys(byName).sort();
+            const q = (_storicoSearch || '').trim().toLowerCase();
+            if (q) names = names.filter(n => n.toLowerCase().includes(q));
+            listEl.innerHTML = _buildStoricoListHtml(names, byName, exById);
+        }
+
+        let _storicoLogsCache = [];
+
+        function _buildStoricoListHtml(names, byName, exById) {
+            if (!names.length) {
+                return '<div class="all-empty">Nessun risultato.</div>';
+            }
+            let html = '';
+            for (const name of names) {
+                const logs = byName[name] || [];
+                const nLogs = logs.length;
+                const dates = new Set(logs.map(l => l.log_date));
+                const nSessions = dates.size;
+                const isOpen = _storicoExpanded.has(name);
+                const dbEx = _findEx(name);
+                const thumb = dbEx ? dbEx.immagine_url_small : '';
+
+                html += `<div class="all-storico-card ${isOpen ? 'open' : ''}">
+                    <div class="all-storico-header" onclick="toggleStoricoCard('${_escHtml(name)}')">
+                        ${thumb ? `<img src="${thumb}" class="all-storico-thumb" alt="" loading="lazy">` : '<div class="all-storico-thumb all-storico-thumb-placeholder"></div>'}
+                        <div class="all-storico-info">
+                            <div class="all-storico-name">${_escHtml(name)}</div>
+                            <div class="all-storico-meta">${nLogs} log · ${nSessions} ${nSessions === 1 ? 'sessione' : 'sessioni'}</div>
+                        </div>
+                        <span class="all-storico-chevron">${isOpen ? '&#9662;' : '&#8250;'}</span>
+                    </div>`;
+
+                if (isOpen) {
+                    // Raggruppa logs per data
+                    const byDate = {};
+                    for (const l of logs) {
+                        if (!byDate[l.log_date]) byDate[l.log_date] = [];
+                        byDate[l.log_date].push(l);
+                    }
+                    const sortedDates = Object.keys(byDate).sort().reverse();
+                    html += '<div class="all-storico-sessions">';
+                    for (const d of sortedDates) {
+                        const dayLogs = byDate[d].sort((a, b) => a.set_number - b.set_number);
+                        // Potrebbero esserci log dello stesso nome ma exercise_id diversi (scheda diversa/giorno)
+                        const byExId = {};
+                        for (const l of dayLogs) {
+                            if (!byExId[l.exercise_id]) byExId[l.exercise_id] = [];
+                            byExId[l.exercise_id].push(l);
+                        }
+                        for (const exId in byExId) {
+                            const exLogs = byExId[exId];
+                            const ex = exById[exId];
+                            const isCardio = ex && (ex.muscle_group || '').toLowerCase() === 'cardio';
+                            html += `<div class="all-storico-session" data-date="${d}" data-ex-id="${exId}">
+                                <div class="all-storico-session-header">
+                                    <span class="all-storico-session-date">${_fmtDateAll(d)}</span>
+                                    <button class="all-storico-session-delete" onclick="deleteStoricoDay('${exId}','${d}')" title="Elimina giornata">
+                                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" width="16" height="16"><polyline points="3 6 5 6 21 6"/><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6"/></svg>
+                                    </button>
+                                </div>
+                                <div class="all-storico-session-grid ${isCardio ? 'cardio' : ''}">
+                                    <div class="all-storico-grid-header">
+                                        ${isCardio ? '<span>Set</span><span>Min</span><span></span>' : '<span>Set</span><span>Reps</span><span>Kg</span><span>Riposo</span><span></span>'}
+                                    </div>`;
+                            for (const l of exLogs) {
+                                html += `<div class="all-storico-row" data-log-id="${l.id}">
+                                    <span class="all-storico-set">${l.set_number}</span>
+                                    <input type="number" inputmode="numeric" min="0" value="${l.reps_done ?? ''}" class="all-storico-input" data-field="reps_done">`;
+                                if (!isCardio) {
+                                    html += `<input type="number" inputmode="decimal" min="0" step="0.5" value="${l.weight_done ?? ''}" class="all-storico-input" data-field="weight_done">
+                                    <input type="number" inputmode="numeric" min="0" value="${l.rest_done ?? ''}" class="all-storico-input" data-field="rest_done">`;
+                                }
+                                html += `<button class="all-storico-row-actions" onclick="saveStoricoLog('${l.id}', this)" title="Salva">
+                                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" width="16" height="16"><polyline points="20 6 9 17 4 12"/></svg>
+                                </button>
+                                <button class="all-storico-row-delete" onclick="deleteStoricoLog('${l.id}', this)" title="Elimina set">
+                                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" width="16" height="16"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
+                                </button>
+                                </div>`;
+                            }
+                            html += '</div></div>';
+                        }
+                    }
+                    html += '</div>';
+                }
+
+                html += '</div>';
+            }
+            return html;
+        }
+
+        function toggleStoricoCard(name) {
+            if (_storicoExpanded.has(name)) _storicoExpanded.delete(name);
+            else _storicoExpanded.add(name);
+            _renderStoricoList();
+        }
+
+        async function saveStoricoLog(logId, btn) {
+            const row = btn.closest('.all-storico-row');
+            if (!row) return;
+            const repsEl = row.querySelector('input[data-field="reps_done"]');
+            const weightEl = row.querySelector('input[data-field="weight_done"]');
+            const restEl = row.querySelector('input[data-field="rest_done"]');
+            const updates = {
+                reps_done: repsEl?.value ? parseInt(repsEl.value) : null,
+                weight_done: weightEl?.value ? parseFloat(weightEl.value) : null,
+                rest_done: restEl?.value ? parseInt(restEl.value) : null,
+            };
+            btn.disabled = true;
+            try {
+                const { error } = await _queryWithTimeout(supabaseClient
+                    .from('workout_logs')
+                    .update(updates)
+                    .eq('id', logId), 15000);
+                if (error) throw error;
+                // Aggiorna cache locale
+                const idx = _storicoLogsCache.findIndex(l => l.id === logId);
+                if (idx >= 0) Object.assign(_storicoLogsCache[idx], updates);
+                const idx2 = _allLogs.findIndex(l => l.id === logId);
+                if (idx2 >= 0) Object.assign(_allLogs[idx2], updates);
+                btn.classList.add('saved');
+                setTimeout(() => btn.classList.remove('saved'), 1500);
+                btn.disabled = false;
+                if (typeof showToast === 'function') showToast('Modifica salvata', 'success');
+            } catch (e) {
+                console.error('[Storico] save error:', e);
+                btn.disabled = false;
+                if (typeof showToast === 'function') showToast('Errore salvataggio', 'error');
+            }
+        }
+
+        async function deleteStoricoLog(logId, btn) {
+            if (!confirm('Eliminare questo set?')) return;
+            btn.disabled = true;
+            try {
+                await WorkoutLogStorage.deleteLog(logId);
+                _storicoLogsCache = _storicoLogsCache.filter(l => l.id !== logId);
+                _allLogs = _allLogs.filter(l => l.id !== logId);
+                if (typeof showToast === 'function') showToast('Set eliminato', 'success');
+                _renderStoricoList();
+            } catch (e) {
+                console.error('[Storico] delete set error:', e);
+                btn.disabled = false;
+                if (typeof showToast === 'function') showToast('Errore eliminazione', 'error');
+            }
+        }
+
+        async function deleteStoricoDay(exerciseId, logDate) {
+            if (!confirm(`Eliminare tutti i set del ${_fmtDateAll(logDate)}?`)) return;
+            try {
+                const toDel = _storicoLogsCache.filter(l => l.exercise_id === exerciseId && l.log_date === logDate);
+                for (const l of toDel) {
+                    await WorkoutLogStorage.deleteLog(l.id);
+                }
+                _storicoLogsCache = _storicoLogsCache.filter(l => !(l.exercise_id === exerciseId && l.log_date === logDate));
+                _allLogs = _allLogs.filter(l => !(l.exercise_id === exerciseId && l.log_date === logDate));
+                if (typeof showToast === 'function') showToast('Giornata eliminata', 'success');
+                _renderStoricoList();
+            } catch (e) {
+                console.error('[Storico] delete day error:', e);
                 if (typeof showToast === 'function') showToast('Errore eliminazione', 'error');
             }
         }
@@ -1782,8 +2127,8 @@
             const ssId = card.dataset.ssId;
             const header = card.querySelector('.all-ex-header') || card.querySelector('.all-ss-header');
             if (header) {
-                if (ssId) header.setAttribute('onclick', `toggleSsCard('${ssId}')`);
-                else if (exId) header.setAttribute('onclick', `toggleExCard('${exId}')`);
+                if (ssId) header.setAttribute('onclick', `openSupersetDetail('${ssId}')`);
+                else if (exId) header.setAttribute('onclick', `openExerciseDetail('${exId}')`);
             }
 
             _dragState = null;
