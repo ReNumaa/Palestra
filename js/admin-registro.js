@@ -710,7 +710,12 @@ function renderMessaggiTable() {
 
     _messaggiFiltered = _messaggiCache.filter(m => {
         if (typeFilter && m.type !== typeFilter) return false;
-        if (dateFilter && m.date !== dateFilter) return false;
+        if (dateFilter) {
+            // Usa la data di created_at (locale) — m.date è NULL per new_client/topup/broadcast
+            const d = new Date(m.created_at);
+            const createdDate = `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`;
+            if (createdDate !== dateFilter) return false;
+        }
         if (statusFilter) {
             const isSent = (m.sent_count || 0) > 0;
             if (statusFilter === 'sent' && !isSent) return false;
