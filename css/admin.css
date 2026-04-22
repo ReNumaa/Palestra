@@ -720,6 +720,21 @@ canvas {
     color: #334155;
 }
 
+/* Evidenzia il giorno di oggi: rosso tenue se non selezionato, rosso acceso se selezionato */
+.admin-day-card.is-today:not(.active) {
+    background: rgba(239, 68, 68, 0.12);
+    color: #b91c1c;
+}
+.admin-day-card.is-today:hover:not(.active) {
+    background: rgba(239, 68, 68, 0.2);
+    color: #991b1b;
+}
+.admin-day-card.is-today.active {
+    background: linear-gradient(135deg, #ef4444, #dc2626);
+    color: white;
+    box-shadow: 0 2px 8px rgba(239, 68, 68, 0.4);
+}
+
 
 .admin-day-view {
     display: flex;

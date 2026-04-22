@@ -4,11 +4,13 @@ function setupAdminCalendar() {
 
     document.getElementById('adminPrevWeek').addEventListener('click', () => {
         adminWeekOffset--;
+        if (adminWeekOffset === 0) selectedAdminDay = null;
         renderAdminCalendar();
     });
 
     document.getElementById('adminNextWeek').addEventListener('click', () => {
         adminWeekOffset++;
+        if (adminWeekOffset === 0) selectedAdminDay = null;
         renderAdminCalendar();
     });
 
@@ -86,6 +88,7 @@ function renderAdminCalendar() {
 function renderAdminDaySelector(weekDates) {
     const selector = document.getElementById('adminDaySelector');
     selector.innerHTML = '';
+    const todayFormatted = formatAdminDate(new Date());
 
     weekDates.forEach(dateInfo => {
         const bookings = BookingStorage.getAllBookings();
@@ -93,6 +96,10 @@ function renderAdminDaySelector(weekDates) {
 
         const dayCard = document.createElement('div');
         dayCard.className = 'admin-day-card';
+
+        if (dateInfo.formatted === todayFormatted) {
+            dayCard.classList.add('is-today');
+        }
 
         if (selectedAdminDay && selectedAdminDay.formatted === dateInfo.formatted) {
             dayCard.classList.add('active');
