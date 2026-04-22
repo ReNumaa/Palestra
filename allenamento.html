@@ -775,7 +775,13 @@
         }
 
         function _suggestDay(days) {
-            // Suggerisci il giorno fatto più tempo fa, o mai fatto
+            // Priorità: se un giorno è stato loggato oggi, resta su quello fino a fine giornata
+            // (altrimenti rotazione "più recente fra i fatti" lo scarterebbe a favore degli altri)
+            const today = _localDateStr();
+            for (const day of days) {
+                if (_dayLastDone(day) === today) return day;
+            }
+            // Altrimenti: giorno fatto più tempo fa, o mai fatto
             let best = null;
             let bestDate = 'zzzz'; // sempre dopo qualsiasi data
             for (const day of days) {
@@ -844,7 +850,7 @@
                 html += `<button class="all-day-tab ${isActive ? 'active' : ''} ${doneToday ? 'done' : ''}" role="tab" aria-selected="${isActive}" aria-label="${_escHtml(day)}${doneToday ? ', completato' : ''}" data-day="${_escHtml(day)}" onclick="switchDay('${_escHtml(day)}')">
                     <span class="all-day-tab-name">${_escHtml(day)}${doneToday ? ' &#10003;' : ''}</span>
                     <span class="all-day-tab-last">ultimo: ${lastStr}</span>
-                    ${nextStr ? `<span class="all-day-tab-next">prossimo: ${nextStr}</span>` : ''}
+                    <span class="all-day-tab-next">prossimo: ${nextStr || 'niente'}</span>
                 </button>`;
             }
             // Tasto + per aggiungere giorno
@@ -948,9 +954,15 @@
             container.innerHTML = html;
             _initSwipeAndDrag();
             _initDayTabLongPress();
-            // Scroll al tab attivo se fuori vista
-            const activeTab = container.querySelector('.all-day-tab.active');
-            if (activeTab) activeTab.scrollIntoView({ behavior: 'smooth', inline: 'center', block: 'nearest' });
+            // Centra il tab attivo solo orizzontalmente dentro la barra: mai
+            // scrollIntoView, che muoverebbe anche la finestra riportandola in
+            // cima quando si aggiunge un esercizio con la pagina scrollata.
+            const tabsEl = container.querySelector('.all-day-tabs');
+            const activeTab = tabsEl ? tabsEl.querySelector('.all-day-tab.active') : null;
+            if (tabsEl && activeTab) {
+                const target = activeTab.offsetLeft - (tabsEl.clientWidth - activeTab.offsetWidth) / 2;
+                tabsEl.scrollTo({ left: Math.max(0, target), behavior: 'smooth' });
+            }
         }
 
         // ── Helper: log section HTML (inputs Serie/Reps/Kg/Riposo) ──
