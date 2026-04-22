@@ -1002,7 +1002,7 @@ function renderFatturatoDetail(panel) {
         });
         const PAY_METHODS = [
             { key: 'contanti',         label: 'Contanti',            color: '#22c55e' },
-            { key: 'contanti-report',  label: 'Contanti con Report', color: '#16a34a' },
+            { key: 'contanti-report',  label: 'Contanti con Report', color: '#ef4444' },
             { key: 'carta',            label: 'Carta',               color: '#3b82f6' },
             { key: 'iban',             label: 'Bonifico',            color: '#f59e0b' },
             { key: 'stripe',           label: 'Stripe',              color: '#635bff' },
