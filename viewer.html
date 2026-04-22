@@ -301,6 +301,7 @@
                 <select id="crMethod">
                     <option value="" disabled selected>Seleziona</option>
                     <option value="contanti">Contanti</option>
+                    <option value="contanti-report">Contanti con Report</option>
                     <option value="carta">Carta</option>
                     <option value="iban">Bonifico</option>
                     <option value="lezione-gratuita">Lezione gratuita</option>
@@ -340,7 +341,7 @@
     <script>
     const SLOT_PRICES = { 'personal-training': 5, 'small-group': 10, 'group-class': 30 };
     const SLOT_NAMES = { 'personal-training': 'Autonomia', 'small-group': 'Lezione di Gruppo', 'group-class': 'Slot prenotato' };
-    const METHOD_LABELS = { credito: 'Credito', contanti: 'Contanti', carta: 'Carta', iban: 'Bonifico', 'lezione-gratuita': 'Gratuita' };
+    const METHOD_LABELS = { credito: 'Credito', contanti: 'Contanti', 'contanti-report': 'Contanti con Report', carta: 'Carta', iban: 'Bonifico', 'lezione-gratuita': 'Gratuita' };
     const DAY_NAMES = ['Domenica','Lunedì','Martedì','Mercoledì','Giovedì','Venerdì','Sabato'];
 
     const DEFAULT_WEEKLY_SCHEDULE = {

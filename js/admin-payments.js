@@ -198,6 +198,7 @@ function openEditEntryPopup(type, email, entryDate, amount, note, method) {
                 <select id="editEntryMethod">
                     <option value="">-- Nessuno --</option>
                     <option value="contanti" ${method==='contanti'?'selected':''}>💵 Contanti</option>
+                    <option value="contanti-report" ${method==='contanti-report'?'selected':''}>🧾 Contanti con Report</option>
                     <option value="carta" ${method==='carta'?'selected':''}>💳 Carta</option>
                     <option value="iban" ${method==='iban'?'selected':''}>🏦 Bonifico</option>
                 </select>` : ''}
@@ -581,7 +582,7 @@ async function payAllDebtsInline(whatsapp, email, name, btn) {
     const methodSelect = footer.querySelector('.debtor-method-select');
     const method = methodSelect ? methodSelect.value : '';
     if (!method) { showToast('Seleziona un metodo di pagamento', 'error'); return; }
-    const methodLabels = { contanti: '💵 Contanti', carta: '💳 Carta', iban: '🏦 Bonifico' };
+    const methodLabels = { contanti: '💵 Contanti', 'contanti-report': '🧾 Contanti con Report', carta: '💳 Carta', iban: '🏦 Bonifico' };
 
     const normW = normalizePhone(whatsapp);
     const bookings = BookingStorage.getAllBookings();
@@ -620,7 +621,7 @@ async function payAllDebtsInline(whatsapp, email, name, btn) {
     }
     const cashCollected = Math.round((totalPaid - creditToUse) * 100) / 100;
     if (cashCollected > 0) {
-        const methodLabel = { contanti: 'Contanti', carta: 'Carta', iban: 'Bonifico' }[method] || method;
+        const methodLabel = { contanti: 'Contanti', 'contanti-report': 'Contanti con Report', carta: 'Carta', iban: 'Bonifico' }[method] || method;
         await CreditStorage.addCredit(whatsapp, email, name, 0,
             `${methodLabel} ricevuto`, cashCollected, false, false, null, method);
     }
@@ -971,8 +972,8 @@ async function saveManualEntry() {
     if (!method && _manualEntryType !== 'debt') { showToast('Seleziona un metodo di pagamento', 'error'); return; }
     const { name, whatsapp, email } = _manualEntryContact;
 
-    // Controllo dati per carta/bonifico
-    if (method === 'carta' || method === 'iban') {
+    // Controllo dati per metodi reportabili (carta/iban/stripe/contanti-report)
+    if (['carta', 'iban', 'stripe', 'contanti-report'].includes(method)) {
         try { await ensureClientDataForCardPayment(email, whatsapp, name, method); }
         catch { return; }
     }
@@ -1040,7 +1041,7 @@ async function saveManualEntry() {
             // Gate debito: se il debito pre-ricarica supera debt_threshold, niente bonus
             // (la cache locale è ancora pre-RPC, quindi getUnpaidPastDebt restituisce lo
             // stato prima dell'autopay appena eseguito dal server).
-            const bonusMethods = ['contanti', 'carta', 'iban'];
+            const bonusMethods = ['contanti', 'contanti-report', 'carta', 'iban'];
             const _dThresh = (typeof DebtThresholdStorage !== 'undefined') ? DebtThresholdStorage.get() : 0;
             const _preDebt = BookingStorage.getUnpaidPastDebt(whatsapp || '', email || '');
             const _debtBlocksBonus = _dThresh > 0 && _preDebt > _dThresh;
@@ -1350,8 +1351,8 @@ async function paySelectedDebts() {
     // Nessuna lezione selezionata e nessun importo: niente da fare
     if (checked.length === 0 && amountPaid <= 0) return;
 
-    // Controllo dati per carta/bonifico
-    if (paymentMethod === 'carta' || paymentMethod === 'iban') {
+    // Controllo dati per metodi reportabili (carta/iban/stripe/contanti-report)
+    if (['carta', 'iban', 'stripe', 'contanti-report'].includes(paymentMethod)) {
         const contact = currentDebtContact;
         if (contact) {
             try { await ensureClientDataForCardPayment(contact.email, contact.whatsapp, contact.name, paymentMethod); }
@@ -1387,7 +1388,7 @@ async function paySelectedDebts() {
             await ManualDebtStorage.addDebt(contact.whatsapp, contact.email, contact.name, -manualDebtOffset, 'Saldo debito manuale', paymentMethod);
         }
         if (!isFreeLesson && amountPaid > 0 && contact) {
-            const methodLabel = { contanti: 'Contanti', carta: 'Carta', iban: 'Bonifico' }[paymentMethod] || paymentMethod;
+            const methodLabel = { contanti: 'Contanti', 'contanti-report': 'Contanti con Report', carta: 'Carta', iban: 'Bonifico' }[paymentMethod] || paymentMethod;
             if (creditDelta > 0) {
                 const creditNote = dueTotal > 0 ? `Pagamento in acconto di €${amountPaid}` : `Credito aggiunto`;
                 await CreditStorage.addCredit(contact.whatsapp, contact.email, contact.name, creditDelta, creditNote, amountPaid, false, false, null, paymentMethod);

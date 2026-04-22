@@ -477,7 +477,7 @@
                             <span class="sett-card-icon sett-card-icon--blue">📊</span>
                             <div>
                                 <h4 class="sett-card-title">Report settimanale pagamenti</h4>
-                                <p class="sett-card-desc">Genera il report XLSX dei pagamenti carta e bonifico della settimana precedente (lun–dom).</p>
+                                <p class="sett-card-desc">Genera il report XLSX dei pagamenti fiscali (carta, bonifico, stripe, contanti con report) della settimana precedente (lun–dom).</p>
                             </div>
                             <button class="sett-action-btn sett-action-btn--blue" onclick="downloadWeeklyReport()">📥 Rigenera</button>
                         </div>
@@ -645,6 +645,7 @@
                                         <select id="registroFilterMethod" onchange="applyRegistroFilters()">
                                             <option value="all">Tutti</option>
                                             <option value="contanti">💵 Contanti</option>
+                                            <option value="contanti-report">🧾 Contanti con Report</option>
                                             <option value="carta">💳 Carta</option>
                                             <option value="stripe">💳 Stripe</option>
                                             <option value="iban">🏦 Bonifico</option>
@@ -988,6 +989,7 @@
                 <select class="debt-method-select" id="debtMethodSelect" onchange="onPaymentMethodChange(this)">
                     <option value="" disabled selected>Seleziona…</option>
                     <option value="contanti">💵 Contanti</option>
+                    <option value="contanti-report">🧾 Contanti con Report</option>
                     <option value="carta">💳 Carta</option>
                     <option value="iban">🏦 Bonifico</option>
                     <option value="lezione-gratuita">🎁 Gratuita</option>
@@ -1056,6 +1058,7 @@
                 <select class="debt-method-select" id="manualMethodSelect">
                     <option value="" disabled selected>Seleziona…</option>
                     <option value="contanti">💵 Contanti</option>
+                    <option value="contanti-report">🧾 Contanti con Report</option>
                     <option value="carta">💳 Carta</option>
                     <option value="iban">🏦 Bonifico</option>
                     <option value="lezione-gratuita">🎁 Lezione Gratuita</option>

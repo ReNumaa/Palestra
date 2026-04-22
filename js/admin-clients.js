@@ -490,7 +490,7 @@ function createClientCard(client, index) {
     if (displayDebt   > 0) statsHTML += `<span class="cstat unpaid">€${displayDebt} da pagare</span>`;
     if (displayCredit > 0) statsHTML += `<span class="cstat credit">💳 +€${displayCredit}</span>`;
 
-    const methodLabel = m => ({ contanti: '💵 Contanti', carta: '💳 Carta', iban: '🏦 Bonifico', credito: '✨ Credito', stripe: '💳 Stripe', 'lezione-gratuita': '🎁 Gratuita' }[m] || '—');
+    const methodLabel = m => ({ contanti: '💵 Contanti', 'contanti-report': '🧾 Contanti con Report', carta: '💳 Carta', iban: '🏦 Bonifico', credito: '✨ Credito', stripe: '💳 Stripe', 'lezione-gratuita': '🎁 Gratuita' }[m] || '—');
     const fmtPaidAt = iso => {
         if (!iso) return '<span style="color:#ccc">—</span>';
         const d = new Date(iso);
@@ -541,7 +541,7 @@ function createClientCard(client, index) {
     const matchCli = (w, e) =>
         (normCPhone && normalizePhone(w) === normCPhone) ||
         (client.email && e && e.toLowerCase() === client.email.toLowerCase());
-    const txMethodMap = { contanti: '💵 Contanti', carta: '💳 Carta', iban: '🏦 Bonifico', credito: '💳 Credito', stripe: '💳 Stripe', 'lezione-gratuita': '🎁 Gratuita' };
+    const txMethodMap = { contanti: '💵 Contanti', 'contanti-report': '🧾 Contanti con Report', carta: '💳 Carta', iban: '🏦 Bonifico', credito: '💳 Credito', stripe: '💳 Stripe', 'lezione-gratuita': '🎁 Gratuita' };
     const txEntries = [];
 
     // 1. Paid bookings
@@ -1113,11 +1113,12 @@ function startEditBookingRow(bookingId, clientIndex) {
     row.classList.add('editing');
 
     const methods = [
-        { v: 'contanti',         l: '💵 Contanti'  },
-        { v: 'carta',            l: '💳 Carta'     },
-        { v: 'iban',             l: '🏦 Bonifico'      },
-        { v: 'credito',          l: '✨ Credito'   },
-        { v: 'lezione-gratuita', l: '🎁 Gratuita'  }
+        { v: 'contanti',         l: '💵 Contanti'             },
+        { v: 'contanti-report',  l: '🧾 Contanti con Report' },
+        { v: 'carta',            l: '💳 Carta'                },
+        { v: 'iban',             l: '🏦 Bonifico'             },
+        { v: 'credito',          l: '✨ Credito'              },
+        { v: 'lezione-gratuita', l: '🎁 Gratuita'             }
     ];
     const methodOpts = methods.map(m =>
         `<option value="${m.v}" ${booking.paymentMethod === m.v ? 'selected' : ''}>${m.l}</option>`
@@ -1175,8 +1176,8 @@ async function saveBookingRowEdit(bookingId, clientIndex) {
     const booking  = bookings.find(b => b.id === bookingId);
     if (!booking) { if (_saveBtn) _saveBtn.disabled = false; return; }
 
-    // Controllo dati per carta/bonifico (solo se il metodo sta cambiando a carta/iban)
-    if ((newMethod === 'carta' || newMethod === 'iban') && newPaid) {
+    // Controllo dati per metodi reportabili (carta/iban/stripe/contanti-report)
+    if (['carta', 'iban', 'stripe', 'contanti-report'].includes(newMethod) && newPaid) {
         try { await ensureClientDataForCardPayment(booking.email, booking.whatsapp, booking.name, newMethod); }
         catch (e) { console.error('[Clients] ensureClientDataForCardPayment failed:', e); if (_saveBtn) _saveBtn.disabled = false; return; }
     }
@@ -1223,7 +1224,7 @@ async function saveBookingRowEdit(bookingId, clientIndex) {
     }
 
     // ── Fallback: logica client-side ──────────────────────────────────────────
-    const _editPayML = { contanti: 'Contanti', carta: 'Carta', iban: 'Bonifico' };
+    const _editPayML = { contanti: 'Contanti', 'contanti-report': 'Contanti con Report', carta: 'Carta', iban: 'Bonifico', stripe: 'Stripe' };
 
     // Helper: offset refunded credit against any manual debt
     const _applyRefundToDebt = () => {

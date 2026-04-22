@@ -607,7 +607,7 @@ function toggleStatDetail(type) {
 
 function renderFatturatoDetail(panel) {
     const isReale = _fatturatoMode === 'reale';
-    const REAL_METHODS = new Set(['contanti', 'carta', 'iban', 'stripe']);
+    const REAL_METHODS = new Set(['contanti', 'contanti-report', 'carta', 'iban', 'stripe']);
     const revFn = (s, b) => s + getBookingPrice(b);
     const { from, to } = getFilterDateRange(currentFilter);
     const now   = new Date();
@@ -1001,10 +1001,11 @@ function renderFatturatoDetail(panel) {
             return d >= from && d <= to;
         });
         const PAY_METHODS = [
-            { key: 'contanti',         label: 'Contanti',  color: '#22c55e' },
-            { key: 'carta',            label: 'Carta',     color: '#3b82f6' },
-            { key: 'iban',             label: 'Bonifico',  color: '#f59e0b' },
-            { key: 'stripe',           label: 'Stripe',    color: '#635bff' },
+            { key: 'contanti',         label: 'Contanti',            color: '#22c55e' },
+            { key: 'contanti-report',  label: 'Contanti con Report', color: '#16a34a' },
+            { key: 'carta',            label: 'Carta',               color: '#3b82f6' },
+            { key: 'iban',             label: 'Bonifico',            color: '#f59e0b' },
+            { key: 'stripe',           label: 'Stripe',              color: '#635bff' },
         ];
         // Crediti nel periodo raggruppati per metodo reale di pagamento
         const creditByMethod = {};
@@ -1479,7 +1480,7 @@ function renderClientiDetail(panel) {
     const mostLoyal    = [...activeClients].filter(c => c.cancelled === 0).sort((a, b) => b.total - a.total).slice(0, 5);
 
     // ── Classifica soldi realmente versati per cliente ────────────────────────
-    const CASH_METHODS = new Set(['contanti', 'carta', 'iban']);
+    const CASH_METHODS = new Set(['contanti', 'contanti-report', 'carta', 'iban']);
     const clientCashMap = {};
     const _rpcKeys = new Set();
 
@@ -1767,7 +1768,8 @@ let _missingDataWhatsapp = '';
 
 function ensureClientDataForCardPayment(email, whatsapp, name) {
     const method = arguments[3]; // payment method passed as 4th arg
-    if (method !== 'carta' && method !== 'iban') return Promise.resolve();
+    const REQUIRE_DATA = new Set(['carta', 'iban', 'stripe', 'contanti-report']);
+    if (!REQUIRE_DATA.has(method)) return Promise.resolve();
 
     const user = _getUserRecord(email, whatsapp);
     const hasCF   = !!user?.codiceFiscale;
@@ -2236,7 +2238,7 @@ function checkWeeklyReportBanner() {
     if (today === 1 && !dismissed) {
         const { label } = _getPreviousWeekRange();
         const periodEl = document.getElementById('weeklyReportPeriod');
-        if (periodEl) periodEl.textContent = `Pagamenti carta e bonifico: ${label}`;
+        if (periodEl) periodEl.textContent = `Pagamenti report fiscale: ${label}`;
         banner.style.display = 'block';
     } else {
         banner.style.display = 'none';
@@ -2269,9 +2271,9 @@ async function downloadWeeklyReport() {
             UserStorage.syncUsersFromSupabase(),
         ]);
 
-        // Fetch bookings paid with carta / bonifico / stripe in the date range.
-        const REPORT_METHODS = new Set(['carta', 'iban', 'stripe']);
-        const METHOD_LABEL_REPORT = { carta: 'Carta', iban: 'Bonifico', stripe: 'Stripe' };
+        // Fetch bookings paid with carta / bonifico / stripe / contanti-report in the date range.
+        const REPORT_METHODS = new Set(['carta', 'iban', 'stripe', 'contanti-report']);
+        const METHOD_LABEL_REPORT = { carta: 'Carta', iban: 'Bonifico', stripe: 'Stripe', 'contanti-report': 'Contanti con Report' };
         const allBookings = await BookingStorage.fetchForAdmin(fromStr, toStr);
 
         // ── Credit history: fonte primaria per pagamenti via admin_pay_bookings ──
@@ -2451,17 +2453,17 @@ async function downloadWeeklyReport() {
         ws['!cols'] = [
             { wch: 18 }, { wch: 20 }, { wch: 20 }, { wch: 35 }, { wch: 22 }, { wch: 22 }, { wch: 18 }, { wch: 12 }
         ];
-        XLSX.utils.book_append_sheet(wb, ws, 'Pagamenti Carta e Bonifico');
+        XLSX.utils.book_append_sheet(wb, ws, 'Pagamenti Report Fiscale');
 
         const fromFmt = fromStr.split('-').reverse().join('-');
         const toFmt   = toStr.split('-').reverse().join('-');
-        XLSX.writeFile(wb, `TB_Report_Carta_Bonifico_${fromFmt}_${toFmt}.xlsx`);
+        XLSX.writeFile(wb, `TB_Report_Fiscale_${fromFmt}_${toFmt}.xlsx`);
 
         // Dismiss the banner after successful download
         dismissWeeklyReport();
 
         if (typeof showToast === 'function') {
-            showToast(`Report scaricato: ${rows.length} pagamenti carta/bonifico`, 'success');
+            showToast(`Report scaricato: ${rows.length} pagamenti fiscali`, 'success');
         }
     } catch (err) {
         console.error('[WeeklyReport] Error:', err);
@@ -2489,8 +2491,8 @@ async function downloadFiscalReport() {
             UserStorage.syncUsersFromSupabase(),
         ]);
 
-        const REPORT_METHODS = new Set(['carta', 'iban', 'stripe']);
-        const METHOD_LABEL_REPORT = { carta: 'Carta', iban: 'Bonifico', stripe: 'Stripe' };
+        const REPORT_METHODS = new Set(['carta', 'iban', 'stripe', 'contanti-report']);
+        const METHOD_LABEL_REPORT = { carta: 'Carta', iban: 'Bonifico', stripe: 'Stripe', 'contanti-report': 'Contanti con Report' };
 
         // Fetch ALL bookings (no date filter)
         const allBookings = await BookingStorage.fetchForAdmin(null, null);
@@ -2656,7 +2658,7 @@ async function downloadFiscalReport() {
         ws['!cols'] = [
             { wch: 18 }, { wch: 20 }, { wch: 20 }, { wch: 35 }, { wch: 22 }, { wch: 22 }, { wch: 18 }, { wch: 12 }
         ];
-        XLSX.utils.book_append_sheet(wb, ws, 'Pagamenti Carta e Bonifico');
+        XLSX.utils.book_append_sheet(wb, ws, 'Pagamenti Report Fiscale');
 
         const today = new Date();
         const pad = n => String(n).padStart(2, '0');
@@ -2664,7 +2666,7 @@ async function downloadFiscalReport() {
         XLSX.writeFile(wb, `TB_Report_Fiscale_${dateFmt}.xlsx`);
 
         if (typeof showToast === 'function') {
-            showToast(`Report fiscale scaricato: ${rows.length} pagamenti carta/bonifico`, 'success');
+            showToast(`Report fiscale scaricato: ${rows.length} pagamenti fiscali`, 'success');
         }
     } catch (err) {
         console.error('[FiscalReport] Error:', err);

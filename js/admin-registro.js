@@ -380,8 +380,8 @@ function renderRegistroTable() {
         cancellation_mora:        { icon: '💸', cls: 'rtype-mora',       label: 'Mora' },
         bonus_used:               { icon: '🎟️', cls: 'rtype-bonus',      label: 'Bonus Utilizzato' },
     };
-    const METHOD_ICON  = { contanti: '💵', carta: '💳', iban: '🏦', credito: '🔄', stripe: '💳', 'lezione-gratuita': '🎁' };
-    const METHOD_LABEL = { contanti: 'Contanti', carta: 'Carta', iban: 'Bonifico', credito: 'Credito', stripe: 'Stripe', 'lezione-gratuita': 'Gratuita' };
+    const METHOD_ICON  = { contanti: '💵', 'contanti-report': '🧾', carta: '💳', iban: '🏦', credito: '🔄', stripe: '💳', 'lezione-gratuita': '🎁' };
+    const METHOD_LABEL = { contanti: 'Contanti', 'contanti-report': 'Contanti con Report', carta: 'Carta', iban: 'Bonifico', credito: 'Credito', stripe: 'Stripe', 'lezione-gratuita': 'Gratuita' };
 
     const statusHTML = (e) => {
         if (e.bookingStatus === 'cancelled')              return `<span class="rstatus-badge rstatus-cancelled">Annullato</span>`;
@@ -601,8 +601,8 @@ function exportRegistro() {
         bonus_used:               'Bonus Utilizzato',
     };
     const METHOD_LABEL = {
-        contanti: 'Contanti', carta: 'Carta', iban: 'Bonifico',
-        credito: 'Credito', 'lezione-gratuita': 'Gratuita',
+        contanti: 'Contanti', 'contanti-report': 'Contanti con Report', carta: 'Carta', iban: 'Bonifico',
+        credito: 'Credito', stripe: 'Stripe', 'lezione-gratuita': 'Gratuita',
     };
     const statusLabel = e => {
         if (e.bookingStatus === 'cancelled')              return 'Annullato';
