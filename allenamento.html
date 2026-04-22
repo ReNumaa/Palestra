@@ -824,16 +824,24 @@
             if (_nextBookings.length) {
                 const tom = new Date(); tom.setDate(tom.getDate() + 1);
                 const tomStr = tom.toISOString().slice(0, 10);
-                // Ordine rotazione: giorni ordinati per ultimo fatto (mai → più vecchio → più recente)
+                // Se un giorno è già stato loggato oggi, "consuma" la prenotazione di oggi:
+                // la salto dalla mappa (non finisce sugli altri tab) e quel giorno va in fondo
+                // alla rotazione (le prossime prenotazioni vanno ai giorni non ancora fatti).
+                const dayLoggedToday = days.find(d => _dayLastDone(d) === today);
+                const upcomingBookings = dayLoggedToday
+                    ? _nextBookings.filter(b => b.date !== today)
+                    : _nextBookings;
                 const rotation = [...days].sort((a, b) => {
+                    if (a === dayLoggedToday && b !== dayLoggedToday) return 1;
+                    if (b === dayLoggedToday && a !== dayLoggedToday) return -1;
                     const la = _dayLastDone(a), lb = _dayLastDone(b);
                     if (!la && !lb) return 0;
                     if (!la) return -1;
                     if (!lb) return 1;
                     return la < lb ? -1 : la > lb ? 1 : 0;
                 });
-                for (let i = 0; i < Math.min(_nextBookings.length, rotation.length); i++) {
-                    const nb = _nextBookings[i].date;
+                for (let i = 0; i < Math.min(upcomingBookings.length, rotation.length); i++) {
+                    const nb = upcomingBookings[i].date;
                     dayNextMap[rotation[i]] = nb === today ? 'oggi' : nb === tomStr ? 'domani' : _fmtDateAll(nb);
                 }
             }
