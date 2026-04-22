@@ -1066,7 +1066,7 @@ function renderFatturatoDetail(panel) {
                 <div class="stat-detail-kpi-value">€${scheduleEstimate}</div>
                 <div class="stat-detail-kpi-label">Stima futura</div>
             </div>` : `<div class="stat-detail-kpi stat-detail-kpi--actual">
-                <div class="stat-detail-kpi-value">€${payMethodStats.filter(m => ['Carta','Bonifico'].includes(m.label)).reduce((s, m) => s + m.rev, 0)}</div>
+                <div class="stat-detail-kpi-value">€${payMethodStats.filter(m => ['Carta','Bonifico','Stripe','Contanti con Report'].includes(m.label)).reduce((s, m) => s + m.rev, 0)}</div>
                 <div class="stat-detail-kpi-label">Fatturato reale</div>
             </div>`}
             <div class="stat-detail-kpi">
