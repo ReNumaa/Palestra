@@ -9,16 +9,59 @@ let EXERCISE_CATEGORIES = [];   // unique sorted categories
 let _exercisesDBLoaded = false;
 let _loadExercisesDBPromise = null; // singleton: evita query concorrenti
 
+// localStorage cache: imported_exercises cambia raramente (solo da tab Importa).
+// TTL 6h — se admin apre/chiude admin.html più volte nella sessione lavorativa,
+// non rifacciamo mai la query da 30s. Invalidazione esplicita su import/remove.
+const _EXDB_LS_KEY = 'schede_exercises_db_v1';
+const _EXDB_LS_TTL_MS = 6 * 60 * 60 * 1000;
+
+function _populateExercisesFromRaw(rawData) {
+    EXERCISES_DB = rawData.map(e => ({
+        nome_it: e.nome_it,
+        nome_en: e.nome_en || '',
+        categoria: e.categoria,
+        slug: e.slug,
+        immagine_url: e.immagine || '',
+        immagine_url_small: e.immagine_thumbnail || e.immagine || '',
+        video_url: e.video || '',
+        popolarita: e.popolarita || 0
+    }));
+    EXERCISES_BY_CAT = {};
+    for (const ex of EXERCISES_DB) {
+        if (!EXERCISES_BY_CAT[ex.categoria]) EXERCISES_BY_CAT[ex.categoria] = [];
+        EXERCISES_BY_CAT[ex.categoria].push(ex);
+    }
+    EXERCISE_CATEGORIES = Object.keys(EXERCISES_BY_CAT).sort();
+}
+
 async function _loadExercisesDB() {
     if (_exercisesDBLoaded) return;
     if (_loadExercisesDBPromise) return _loadExercisesDBPromise;
     _loadExercisesDBPromise = (async () => {
         try {
-            // Riusa la cache di Importa se gia' caricata (stessa tabella, evita query duplicata)
-            let rawData;
+            // 1. Prima cache in-memory dalla tab Importa (se già caricata)
+            let rawData = null;
             if (typeof _importaImportedLoaded !== 'undefined' && _importaImportedLoaded) {
                 rawData = _importaImported;
-            } else {
+            }
+            // 2. Poi cache localStorage (evita 30s di query su admin.html quando
+            //    la rete è satura dagli altri sync iniziali)
+            let fromLocalStorage = false;
+            if (!rawData) {
+                try {
+                    const raw = localStorage.getItem(_EXDB_LS_KEY);
+                    if (raw) {
+                        const parsed = JSON.parse(raw);
+                        if (parsed && parsed.ts && Date.now() - parsed.ts < _EXDB_LS_TTL_MS && Array.isArray(parsed.data)) {
+                            rawData = parsed.data;
+                            fromLocalStorage = true;
+                            console.log(`[Schede] _loadExercisesDB: da localStorage (${rawData.length} esercizi, ${Math.round((Date.now()-parsed.ts)/60000)}min fa)`);
+                        }
+                    }
+                } catch (e) { /* cache corrotta: ignora */ }
+            }
+            // 3. Infine fetch da Supabase
+            if (!rawData) {
                 const { data, error } = await _queryWithTimeout(supabaseClient
                     .from('imported_exercises')
                     .select('slug, nome_it, nome_original, nome_en, categoria, immagine, immagine_thumbnail, video, popolarita')
@@ -26,30 +69,16 @@ async function _loadExercisesDB() {
                     .order('nome_it'), 30000);
                 if (error) throw error;
                 rawData = data || [];
-                // Popola anche la cache di Importa se il modulo e' caricato
-                if (typeof _importaImportedLoaded !== 'undefined' && !_importaImportedLoaded) {
-                    _importaImported = rawData;
-                    _importaImportedSlugs = new Set(rawData.map(e => e.slug));
-                    _importaImportedLoaded = true;
-                }
+                try { localStorage.setItem(_EXDB_LS_KEY, JSON.stringify({ ts: Date.now(), data: rawData })); } catch (e) { /* quota: ignora */ }
             }
-            // Normalize field names for backward compat with picker
-            EXERCISES_DB = rawData.map(e => ({
-                nome_it: e.nome_it,
-                nome_en: e.nome_en || '',
-                categoria: e.categoria,
-                slug: e.slug,
-                immagine_url: e.immagine || '',
-                immagine_url_small: e.immagine_thumbnail || e.immagine || '',
-                video_url: e.video || '',
-                popolarita: e.popolarita || 0
-            }));
-            EXERCISES_BY_CAT = {};
-            for (const ex of EXERCISES_DB) {
-                if (!EXERCISES_BY_CAT[ex.categoria]) EXERCISES_BY_CAT[ex.categoria] = [];
-                EXERCISES_BY_CAT[ex.categoria].push(ex);
+            // Propaga anche alla cache di Importa se non è ancora popolata: così
+            // aprire la tab Importa dopo aver aperto Schede non rifà la query.
+            if (typeof _importaImportedLoaded !== 'undefined' && !_importaImportedLoaded) {
+                _importaImported = rawData;
+                _importaImportedSlugs = new Set(rawData.map(e => e.slug));
+                _importaImportedLoaded = true;
             }
-            EXERCISE_CATEGORIES = Object.keys(EXERCISES_BY_CAT).sort();
+            _populateExercisesFromRaw(rawData);
             _exercisesDBLoaded = true;
         } catch (e) { console.error('[Schede] Failed to load exercises DB:', e); }
     })();
@@ -59,6 +88,7 @@ async function _loadExercisesDB() {
 // Refresh after import/remove in Importa tab
 async function _refreshSchedeFromImported() {
     _exercisesDBLoaded = false;
+    try { localStorage.removeItem(_EXDB_LS_KEY); } catch (e) { /* noop */ }
     await _loadExercisesDB();
 }
 
@@ -445,6 +475,12 @@ async function renderSchedeTab() {
         const container = document.getElementById('schedeContainer');
         if (!container) return;
 
+        // Idrata da localStorage se cache in-memory vuota (primo render del tab
+        // dopo reload). Così renderizziamo subito l'ultima lista nota invece di
+        // mostrare il loader per 30s mentre la query va in timeout.
+        if (typeof WorkoutPlanStorage !== 'undefined' && typeof WorkoutPlanStorage._loadFromLocalStorage === 'function') {
+            WorkoutPlanStorage._loadFromLocalStorage(true);
+        }
         const cachedPlans = (typeof WorkoutPlanStorage !== 'undefined')
             ? (WorkoutPlanStorage.getAllPlans() || []) : [];
         const hasData = cachedPlans.length > 0 || _schedeLastSync > 0;
@@ -453,15 +489,24 @@ async function renderSchedeTab() {
         // Cosi' se il sync si blocca l'utente vede comunque il tab e puo' navigare.
         _schedeRenderShell(container, { loading: !hasData });
 
-        // ── Exercise DB (best-effort, non blocca mai il render oltre il timeout) ──
-        const _tEx = (typeof performance !== 'undefined' ? performance.now() : Date.now());
-        console.log('[Schede] _loadExercisesDB: start');
-        try {
-            await _schedeWithTimeout(_loadExercisesDB(), _SCHEDE_EXDB_TIMEOUT_MS, 'load_exercises_db');
-            const ms = Math.round(((typeof performance !== 'undefined' ? performance.now() : Date.now())) - _tEx);
-            console.log(`[Schede] _loadExercisesDB: done (${ms}ms, ${EXERCISES_DB.length} esercizi)`);
-        } catch (e) {
-            console.warn('[Schede] _loadExercisesDB: timeout/failed, proseguo senza catalogo', e);
+        // ── Exercise DB: serve SOLO per editor e picker. Le view list/actual/
+        // clienti/progress NON lo usano (renderano solo WorkoutPlanStorage), quindi
+        // non blocchiamo il render. In edit mode invece è necessario (picker esercizi).
+        // Fire-and-forget per le altre view → la query si scalda in background.
+        if (_schedeView === 'edit') {
+            const _tEx = (typeof performance !== 'undefined' ? performance.now() : Date.now());
+            console.log('[Schede] _loadExercisesDB: start (edit mode — blocking)');
+            try {
+                await _schedeWithTimeout(_loadExercisesDB(), _SCHEDE_EXDB_TIMEOUT_MS, 'load_exercises_db');
+                const ms = Math.round(((typeof performance !== 'undefined' ? performance.now() : Date.now())) - _tEx);
+                console.log(`[Schede] _loadExercisesDB: done (${ms}ms, ${EXERCISES_DB.length} esercizi)`);
+            } catch (e) {
+                console.warn('[Schede] _loadExercisesDB: timeout/failed, proseguo senza catalogo', e);
+            }
+        } else if (!_exercisesDBLoaded && !_loadExercisesDBPromise) {
+            // Background: prealloca cache per quando l'utente aprirà un editor
+            console.log('[Schede] _loadExercisesDB: background (non-blocking)');
+            _loadExercisesDB().catch(e => console.warn('[Schede] background _loadExercisesDB failed', e));
         }
 
         // ── Sync workout_plans ───────────────────────────────────────────────

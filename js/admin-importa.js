@@ -55,6 +55,25 @@ async function _loadImportaCatalog() {
 // Timeout 30s come safety net per il primo load.
 async function _loadImportaImported() {
     if (_importaImportedLoaded) return;
+    // Riusa la cache localStorage di admin-schede (stessa tabella): se aperta
+    // meno di 6h fa, evita la query da 30s su admin.html quando la rete è satura.
+    // Chiave condivisa con _EXDB_LS_KEY in admin-schede.js.
+    const LS_KEY = 'schede_exercises_db_v1';
+    const LS_TTL_MS = 6 * 60 * 60 * 1000;
+    try {
+        const raw = localStorage.getItem(LS_KEY);
+        if (raw) {
+            const parsed = JSON.parse(raw);
+            if (parsed && parsed.ts && Date.now() - parsed.ts < LS_TTL_MS && Array.isArray(parsed.data)) {
+                _importaImported = parsed.data;
+                _importaImportedSlugs = new Set(_importaImported.map(e => e.slug));
+                _importaImportedLoaded = true;
+                console.log(`[Importa] _loadImportaImported: da localStorage (${_importaImported.length} esercizi, ${Math.round((Date.now()-parsed.ts)/60000)}min fa)`);
+                return;
+            }
+        }
+    } catch (e) { /* cache corrotta: ignora e rifetcha */ }
+
     const { data, error } = await _queryWithTimeout(supabaseClient
         .from('imported_exercises')
         .select('slug, nome_it, nome_original, nome_en, categoria, immagine, immagine_thumbnail, video, popolarita')
@@ -64,6 +83,7 @@ async function _loadImportaImported() {
     _importaImported = data || [];
     _importaImportedSlugs = new Set(_importaImported.map(e => e.slug));
     _importaImportedLoaded = true;
+    try { localStorage.setItem(LS_KEY, JSON.stringify({ ts: Date.now(), data: _importaImported })); } catch (e) { /* quota: ignora */ }
 }
 
 // ── Main render ─────────────────────────────────────────────────────────────
@@ -348,8 +368,9 @@ async function _importaAdd(slug) {
         );
         if (error) throw error;
 
-        // Invalida cache e ricarica
+        // Invalida cache e ricarica (anche localStorage: la stiamo modificando)
         _importaImportedLoaded = false;
+        try { localStorage.removeItem('schede_exercises_db_v1'); } catch (e) { /* noop */ }
         await _loadImportaImported();
         // Also refresh schede DB if loaded
         if (typeof _refreshSchedeFromImported === 'function') await _refreshSchedeFromImported();
@@ -379,6 +400,7 @@ async function _importaRemove(slug) {
         if (error) throw error;
 
         _importaImportedLoaded = false;
+        try { localStorage.removeItem('schede_exercises_db_v1'); } catch (e) { /* noop */ }
         await _loadImportaImported();
         if (typeof _refreshSchedeFromImported === 'function') await _refreshSchedeFromImported();
 
@@ -410,6 +432,7 @@ async function _importaRename(slug) {
         if (error) throw error;
 
         _importaImportedLoaded = false;
+        try { localStorage.removeItem('schede_exercises_db_v1'); } catch (e) { /* noop */ }
         await _loadImportaImported();
         if (typeof _refreshSchedeFromImported === 'function') await _refreshSchedeFromImported();
 

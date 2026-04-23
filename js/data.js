@@ -2520,6 +2520,30 @@ function hasPushEnabled(userId) {
 class WorkoutPlanStorage {
     static _cache = [];           // array of plan objects with nested exercises
 
+    // localStorage cache: per admin su admin.html la query con join workout_exercises
+    // è pesante (30s timeout in condizioni di rete satura). TTL 30min → renderSchedeTab
+    // trova subito i dati in cache e mostra la lista senza aspettare, poi aggiorna
+    // in background. I CRUD mutano _cache direttamente e lasciano che il prossimo
+    // sync ripersista; la realtime channel fa refresh entro 600ms comunque.
+    static _LS_TTL_MS = 30 * 60 * 1000;
+    static _lsKey(adminMode) { return `workout_plans_cache_${adminMode ? 'admin' : 'client'}_v1`; }
+    static _loadFromLocalStorage(adminMode) {
+        if (this._cache.length > 0) return false;
+        try {
+            const raw = localStorage.getItem(this._lsKey(adminMode));
+            if (!raw) return false;
+            const parsed = JSON.parse(raw);
+            if (!parsed || !parsed.ts || Date.now() - parsed.ts > this._LS_TTL_MS) return false;
+            if (!Array.isArray(parsed.data)) return false;
+            this._cache = parsed.data;
+            console.log(`[Supabase] WorkoutPlanStorage: cache localStorage (${this._cache.length} piani, ${Math.round((Date.now()-parsed.ts)/60000)}min fa)`);
+            return true;
+        } catch { return false; }
+    }
+    static _saveToLocalStorage(adminMode) {
+        try { localStorage.setItem(this._lsKey(adminMode), JSON.stringify({ ts: Date.now(), data: this._cache })); } catch { /* quota: ignora */ }
+    }
+
     static getAllPlans() { return this._cache; }
 
     static getPlansByUser(userId) {
@@ -2538,6 +2562,9 @@ class WorkoutPlanStorage {
     // Client: fetch only own active plan(s)
     static async syncFromSupabase({ adminMode = false } = {}) {
         if (typeof supabaseClient === 'undefined') return;
+        // Idrata da localStorage se cache in-memory vuota: così renderSchedeTab
+        // trova subito dati e può renderizzare la lista senza aspettare la query.
+        this._loadFromLocalStorage(adminMode);
         try {
             let query = supabaseClient
                 .from('workout_plans')
@@ -2563,6 +2590,7 @@ class WorkoutPlanStorage {
                 }
             }
             this._cache = data || [];
+            this._saveToLocalStorage(adminMode);
             console.log(`[Supabase] WorkoutPlanStorage.sync: ${this._cache.length} piani caricati`);
         } catch (e) { console.error('[Supabase] WorkoutPlanStorage.sync exception:', e); }
     }

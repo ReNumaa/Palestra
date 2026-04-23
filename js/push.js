@@ -16,62 +16,79 @@ function urlBase64ToUint8Array(base64String) {
     return Uint8Array.from([...raw].map(c => c.charCodeAt(0)));
 }
 
+// Guard per dedup: evita chiamate concorrenti a pushManager.subscribe (che su Chrome
+// con rete saturata causano "Registration failed - push service error").
+let _pushInFlight = null;
+let _pushRegisteredThisSession = false;
+
 async function registerPushSubscription() {
     if (!('PushManager' in window) || !navigator.serviceWorker) return null;
-    const reg = await navigator.serviceWorker.ready;
-    const appKey = urlBase64ToUint8Array(VAPID_PUBLIC_KEY);
+    // Se una registrazione è già in corso, condividi lo stesso promise
+    if (_pushInFlight) return _pushInFlight;
+    // Se in questa sessione è già andata a buon fine, evita riregistrazioni
+    // (la subscription esiste già lato browser ed è salvata su Supabase)
+    if (_pushRegisteredThisSession) return null;
 
-    async function _subscribe() {
-        let sub = await reg.pushManager.getSubscription();
-        if (sub) {
-            // Controlla se la chiave VAPID corrisponde — se no, cancella e ricrea
-            const existingKey = sub.options?.applicationServerKey;
-            if (existingKey) {
-                const a = new Uint8Array(existingKey);
-                const b = appKey;
-                const mismatch = a.length !== b.length || a.some((v, i) => v !== b[i]);
-                if (mismatch) {
-                    console.log('[Push] Chiave VAPID cambiata — cancello subscription vecchia');
+    _pushInFlight = (async () => {
+        const reg = await navigator.serviceWorker.ready;
+        const appKey = urlBase64ToUint8Array(VAPID_PUBLIC_KEY);
+
+        async function _subscribe() {
+            let sub = await reg.pushManager.getSubscription();
+            if (sub) {
+                const existingKey = sub.options?.applicationServerKey;
+                if (existingKey) {
+                    const a = new Uint8Array(existingKey);
+                    const b = appKey;
+                    const mismatch = a.length !== b.length || a.some((v, i) => v !== b[i]);
+                    if (mismatch) {
+                        console.log('[Push] Chiave VAPID cambiata — cancello subscription vecchia');
+                        await sub.unsubscribe();
+                        sub = null;
+                    }
+                }
+                if (sub && localStorage.getItem('push_permission_was_denied') === '1') {
+                    console.log('[Push] Permesso era stato revocato — forzo rinnovo subscription');
+                    localStorage.removeItem('push_permission_was_denied');
                     await sub.unsubscribe();
                     sub = null;
                 }
             }
-            // Confronta con backup locale: se l'endpoint è diverso, la subscription
-            // è stata rigenerata dal browser (es. dopo toggle notifiche).
-            // In quel caso è già nuova e va bene. Se invece è uguale ma le notifiche
-            // erano state disattivate e riattivate, l'endpoint potrebbe essere morto.
-            // Controlliamo se il permesso era stato revocato in precedenza.
-            if (sub && localStorage.getItem('push_permission_was_denied') === '1') {
-                console.log('[Push] Permesso era stato revocato — forzo rinnovo subscription');
-                localStorage.removeItem('push_permission_was_denied');
-                await sub.unsubscribe();
-                sub = null;
+            if (!sub) {
+                sub = await reg.pushManager.subscribe({ userVisibleOnly: true, applicationServerKey: appKey });
+            }
+            return sub;
+        }
+
+        try {
+            const sub = await _subscribe();
+            await savePushSubscription(sub);
+            _pushRegisteredThisSession = true;
+            return sub;
+        } catch (e) {
+            // Push service error: può accadere se la rete è saturata (admin.html fa parecchi RPC).
+            // Il retry immediato sul push service di Chrome fallisce spesso con lo stesso errore —
+            // aspetta 8s + jitter prima di riprovare per lasciar ripartire il servizio.
+            console.warn('[Push] Primo tentativo fallito, riprovo fra 8s:', e.message);
+            await new Promise(r => setTimeout(r, 8000 + Math.random() * 2000));
+            try {
+                const old = await reg.pushManager.getSubscription();
+                if (old) await old.unsubscribe();
+                const sub = await reg.pushManager.subscribe({ userVisibleOnly: true, applicationServerKey: appKey });
+                await savePushSubscription(sub);
+                _pushRegisteredThisSession = true;
+                return sub;
+            } catch (e2) {
+                console.warn('[Push] Subscription fallita (ritento al prossimo page load):', e2.message);
+                return null;
             }
         }
-        // Se non esiste subscription, ne crea una nuova
-        if (!sub) {
-            sub = await reg.pushManager.subscribe({ userVisibleOnly: true, applicationServerKey: appKey });
-        }
-        return sub;
-    }
+    })();
 
     try {
-        const sub = await _subscribe();
-        await savePushSubscription(sub);
-        return sub;
-    } catch (e) {
-        // Fallback: forza cancellazione e ricrea (es. push service error)
-        try {
-            console.warn('[Push] Primo tentativo fallito, forzo unsubscribe e riprovo:', e.message);
-            const old = await reg.pushManager.getSubscription();
-            if (old) await old.unsubscribe();
-            const sub = await reg.pushManager.subscribe({ userVisibleOnly: true, applicationServerKey: appKey });
-            await savePushSubscription(sub);
-            return sub;
-        } catch (e2) {
-            console.warn('[Push] Subscription fallita definitivamente:', e2);
-            return null;
-        }
+        return await _pushInFlight;
+    } finally {
+        _pushInFlight = null;
     }
 }
 
@@ -312,10 +329,18 @@ async function notifyAdminNewClient(name) {
     }
 }
 
-// Ad ogni apertura: traccia stato permesso e registra subscription
+// Ad ogni apertura: traccia stato permesso e registra subscription.
+// Defer la registrazione: su admin.html la prima Promise.all di sync satura la rete
+// e pushManager.subscribe fallisce con "push service error". Aspettando idle il
+// browser ha finito il grosso del traffico.
 if ('Notification' in window) {
     if (Notification.permission === 'granted') {
-        navigator.serviceWorker?.ready.then(() => registerPushSubscription());
+        const _scheduleRegister = () => navigator.serviceWorker?.ready.then(() => registerPushSubscription());
+        if ('requestIdleCallback' in window) {
+            requestIdleCallback(_scheduleRegister, { timeout: 4000 });
+        } else {
+            setTimeout(_scheduleRegister, 3000);
+        }
     } else if (Notification.permission === 'denied') {
         // Segna che il permesso è stato revocato — quando verrà riattivato,
         // forzeremo il rinnovo della subscription (l'endpoint vecchio è morto)
