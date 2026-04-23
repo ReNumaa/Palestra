@@ -292,7 +292,7 @@ function updateStatsCards(filteredBookings, allBookings) {
     const prevRange = getPreviousFilterDateRange(currentFilter);
 
     function calcChange(current, prev, el) {
-        if (prevRange && currentFilter !== 'custom' && prev > 0) {
+        if (prevRange && currentFilter !== 'custom' && currentFilter !== 'today' && prev > 0) {
             const pct = Math.round(((current - prev) / prev) * 100);
             el.textContent = `${pct >= 0 ? '+' : ''}${pct}% vs periodo prec.`;
             el.className = pct >= 0 ? 'stat-change positive' : 'stat-change negative';
