@@ -3,7 +3,7 @@ let selectedAdminDay = null;
 let _adminInitialScrollDone = false;
 
 // Analytics filter state
-let currentFilter = 'this-month';
+let currentFilter = 'today';
 let customFilterFrom = null;
 let customFilterTo = null;
 // Cache in memoria per le stats — bypassa il limite di 5MB di localStorage.
@@ -19,6 +19,11 @@ function invalidateStatsCache() { _statsCacheRange = null; }
 function getFilterDateRange(filter) {
     const now = new Date();
     switch (filter) {
+        case 'today':
+            return {
+                from: new Date(now.getFullYear(), now.getMonth(), now.getDate()),
+                to: new Date(now.getFullYear(), now.getMonth(), now.getDate(), 23, 59, 59, 999)
+            };
         case 'this-month':
             return {
                 from: new Date(now.getFullYear(), now.getMonth(), 1),
@@ -63,6 +68,13 @@ function getFilterDateRange(filter) {
 function getPreviousFilterDateRange(filter) {
     const now = new Date();
     switch (filter) {
+        case 'today': {
+            const y = new Date(now.getFullYear(), now.getMonth(), now.getDate() - 1);
+            return {
+                from: y,
+                to: new Date(y.getFullYear(), y.getMonth(), y.getDate(), 23, 59, 59, 999)
+            };
+        }
         case 'this-month': {
             const lm = now.getMonth() === 0 ? 11 : now.getMonth() - 1;
             const ly = now.getMonth() === 0 ? now.getFullYear() - 1 : now.getFullYear();
@@ -100,6 +112,7 @@ function getFilterLabel(filter) {
     const now = new Date();
     const months = ['Gennaio','Febbraio','Marzo','Aprile','Maggio','Giugno','Luglio','Agosto','Settembre','Ottobre','Novembre','Dicembre'];
     switch (filter) {
+        case 'today': return `${String(now.getDate()).padStart(2,'0')}/${String(now.getMonth()+1).padStart(2,'0')}/${now.getFullYear()}`;
         case 'this-month': return `${months[now.getMonth()]} ${now.getFullYear()}`;
         case 'next-month': {
             const nm = (now.getMonth() + 1) % 12;
