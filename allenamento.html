@@ -950,11 +950,10 @@
                                 ${thumb2 ? `<img src="${thumb2}" class="all-ss-thumb" alt="" loading="lazy">` : ''}
                             </div>
                             <div class="all-ss-info">
-                                <div class="all-ss-names">
-                                    <span class="all-ss-ex-name">${_escHtml(db1 ? db1.nome_it : ex1.exercise_name)}</span>
-                                    ${ex2 ? `<span class="all-ss-ex-name">${_escHtml(db2 ? db2.nome_it : ex2.exercise_name)}</span>` : ''}
-                                </div>
-                                <div class="all-ss-target">${t1} + ${t2}${restDisp ? ' \u00b7 ' + restDisp : ''}</div>
+                                <ul class="all-ss-names">
+                                    <li class="all-ss-ex-name">${_escHtml(db1 ? db1.nome_it : ex1.exercise_name)}</li>
+                                    ${ex2 ? `<li class="all-ss-ex-name">${_escHtml(db2 ? db2.nome_it : ex2.exercise_name)}</li>` : ''}
+                                </ul>
                             </div>
                             <div class="all-ss-status">${allDone ? '<span class="all-ex-check">&#10003;</span>' : '<span class="all-ss-chevron">&#8250;</span>'}</div>
                         </div>

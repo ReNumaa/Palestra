@@ -2019,6 +2019,9 @@
     display: flex;
     flex-direction: column;
     gap: 0.1rem;
+    margin: 0;
+    padding: 0;
+    list-style: none;
 }
 .all-ss-ex-name {
     font-size: 0.82rem;
@@ -2031,6 +2034,13 @@
     white-space: nowrap;
     overflow: hidden;
     text-overflow: ellipsis;
+}
+.all-ss-ex-name::before {
+    content: '•';
+    color: var(--all-muted);
+    font-weight: 700;
+    flex-shrink: 0;
+    margin-right: 0.1rem;
 }
 .all-ss-ex-name .all-ex-info-btn,
 .all-ss-ex-name .all-ex-edit-btn {
