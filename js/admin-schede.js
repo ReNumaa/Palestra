@@ -1193,14 +1193,27 @@ function _renderExercisesForDay() {
         }
     }
 
+    // Build logical "blocks" list: each block is either a single exercise or
+    // a whole super serie group. Up/Down arrows move exercises at block level
+    // (a normal exercise hops OVER a full SS block, not one member at a time).
+    const blocks = _schedeBuildDayBlocks(exercises);
+    const totalBlocks = blocks.length;
+
     let html = '';
-    exercises.forEach((ex, i) => {
+    exercises.forEach((ex) => {
         // ── Superset block ──────────────────────────────────────
         if (ex.superset_group && !ssRendered.has(ex.superset_group)) {
             ssRendered.add(ex.superset_group);
             const pair = ssMap[ex.superset_group] || [ex];
+            const bIdx = blocks.findIndex(b => b.type === 'superset' && b.groupId === ex.superset_group);
+            const ssUp = bIdx > 0;
+            const ssDown = bIdx >= 0 && bIdx < totalBlocks - 1;
             html += `<div class="schede-ss-block">
                 <span class="schede-ss-badge">SUPER SERIE</span>
+                <div class="schede-ss-move">
+                    ${ssUp ? `<button onclick="_schedeMoveSuperset('${ex.superset_group}', -1)" title="Su">▲</button>` : ''}
+                    ${ssDown ? `<button onclick="_schedeMoveSuperset('${ex.superset_group}', 1)" title="Giù">▼</button>` : ''}
+                </div>
                 <button class="schede-ss-delete" onclick="_schedeDeleteSuperset('${ex.superset_group}')" title="Elimina super serie">✕ SS</button>`;
             pair.forEach(ssEx => {
                 const dbEx = _findExerciseForCard(ssEx);
@@ -1239,11 +1252,14 @@ function _renderExercisesForDay() {
         const dbEx = _findExerciseForCard(ex);
         const catLabel = dbEx ? dbEx.categoria : (ex.muscle_group || '');
         const _isCardio = (ex.muscle_group || '').toLowerCase() === 'cardio';
+        const bIdxN = blocks.findIndex(b => b.type === 'single' && b.ids[0] === ex.id);
+        const nUp = bIdxN > 0;
+        const nDown = bIdxN >= 0 && bIdxN < totalBlocks - 1;
         html += `
         <div class="schede-exercise-row" data-ex-id="${ex.id}">
             <div class="schede-ex-drag">
-                ${i > 0 ? `<button onclick="_schedeMoveExercise('${ex.id}', -1)" title="Su">▲</button>` : '<span></span>'}
-                ${i < exercises.length - 1 ? `<button onclick="_schedeMoveExercise('${ex.id}', 1)" title="Gi\u00f9">▼</button>` : '<span></span>'}
+                ${nUp ? `<button onclick="_schedeMoveExercise('${ex.id}', -1)" title="Su">▲</button>` : '<span></span>'}
+                ${nDown ? `<button onclick="_schedeMoveExercise('${ex.id}', 1)" title="Gi\u00f9">▼</button>` : '<span></span>'}
             </div>
             <div class="schede-ex-fields">
                 <div class="schede-ex-top-row">
@@ -1439,16 +1455,53 @@ async function _schedeDeleteSuperset(groupId) {
     }
 }
 
+// Groups a day's exercises into "blocks": a single exercise or an entire
+// super serie. Block ordering follows the first occurrence of each group
+// in sort_order. Used by the block-level move arrows.
+function _schedeBuildDayBlocks(dayExercises) {
+    const blocks = [];
+    const seen = new Set();
+    for (const ex of dayExercises) {
+        if (ex.superset_group) {
+            if (seen.has(ex.superset_group)) continue;
+            seen.add(ex.superset_group);
+            const members = dayExercises.filter(e => e.superset_group === ex.superset_group);
+            blocks.push({ type: 'superset', groupId: ex.superset_group, ids: members.map(m => m.id) });
+        } else {
+            blocks.push({ type: 'single', ids: [ex.id] });
+        }
+    }
+    return blocks;
+}
+
+async function _schedeMoveSuperset(groupId, direction) {
+    _schedeSyncEditingPlan();
+    if (!_editingPlan) return;
+    const dayExercises = (_editingPlan.workout_exercises || []).filter(e => e.day_label === _editActiveDay);
+    const blocks = _schedeBuildDayBlocks(dayExercises);
+    const idx = blocks.findIndex(b => b.type === 'superset' && b.groupId === groupId);
+    if (idx < 0) return;
+    const newIdx = idx + direction;
+    if (newIdx < 0 || newIdx >= blocks.length) return;
+    [blocks[idx], blocks[newIdx]] = [blocks[newIdx], blocks[idx]];
+    const orderedIds = blocks.flatMap(b => b.ids);
+    try {
+        await WorkoutPlanStorage.reorderExercises(_editingPlan.id, orderedIds);
+        _schedeRefreshEditor();
+    } catch (_) {}
+}
+
 async function _schedeMoveExercise(exId, direction) {
     _schedeSyncEditingPlan();
     if (!_editingPlan) return;
     const dayExercises = (_editingPlan.workout_exercises || []).filter(e => e.day_label === _editActiveDay);
-    const idx = dayExercises.findIndex(e => e.id === exId);
+    const blocks = _schedeBuildDayBlocks(dayExercises);
+    const idx = blocks.findIndex(b => b.type === 'single' && b.ids[0] === exId);
     if (idx < 0) return;
     const newIdx = idx + direction;
-    if (newIdx < 0 || newIdx >= dayExercises.length) return;
-    [dayExercises[idx], dayExercises[newIdx]] = [dayExercises[newIdx], dayExercises[idx]];
-    const orderedIds = dayExercises.map(e => e.id);
+    if (newIdx < 0 || newIdx >= blocks.length) return;
+    [blocks[idx], blocks[newIdx]] = [blocks[newIdx], blocks[idx]];
+    const orderedIds = blocks.flatMap(b => b.ids);
     try {
         await WorkoutPlanStorage.reorderExercises(_editingPlan.id, orderedIds);
         _schedeRefreshEditor();

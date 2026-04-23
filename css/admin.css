@@ -6507,6 +6507,25 @@ canvas {
     line-height: 1.4;
 }
 .schede-ss-delete:hover { background: #dc2626; }
+.schede-ss-move {
+    position: absolute;
+    top: -11px; right: 58px;
+    display: flex;
+    gap: 0.2rem;
+    line-height: 1;
+}
+.schede-ss-move button {
+    background: linear-gradient(135deg, #f1f5f9, #e8ecf1);
+    border: 1px solid #e2e8f0;
+    border-radius: 4px;
+    padding: 0.05rem 0.35rem;
+    font-size: 0.7rem;
+    color: #64748b;
+    cursor: pointer;
+    line-height: 1.4;
+    transition: all 0.15s;
+}
+.schede-ss-move button:hover { color: #00AEEF; background: #e0f2fe; box-shadow: 0 1px 4px rgba(0,174,239,0.15); }
 .schede-ss-block .schede-exercise-row { margin-bottom: 0.3rem; }
 .schede-ss-block .schede-exercise-row:last-of-type { margin-bottom: 0; }
 .schede-ss-block .schede-ex-delete { display: none; }
