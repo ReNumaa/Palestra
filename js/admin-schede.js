@@ -430,6 +430,8 @@ let _editingPlan = null;
 let _editDayLabels = [];
 let _editActiveDay = '';
 let _schedeClientUserId = null;  // for client-detail view
+let _schedeClientDetailTab = 'schede'; // 'progressi' | 'schede' | 'report' (tab attivo nella client-detail)
+let _schedeClientDetailLogsCache = { userId: null, logs: null }; // cache workout_logs per evitare refetch a ogni switch tab
 
 // ── Entry point ──────────────────────────────────────────────────────────────
 let _schedeRendering = false;   // guard against concurrent calls
@@ -888,8 +890,8 @@ function _schedeActualPopupKeyHandler(e) {
 
 function _schedeActualPickCarichi(userId) {
     _schedeActualCloseClientPopup();
-    // Riuso la view client-detail: contiene grafici + log per tutti gli esercizi del cliente.
     _schedeClientUserId = userId;
+    _schedeClientDetailTab = 'progressi';
     _schedeSection = 'clienti';
     _schedeView = 'client-detail';
     renderSchedeTab();
@@ -903,8 +905,8 @@ function _schedeActualPickScheda(userId) {
         // Apri direttamente l'editor della scheda attiva
         _schedeEditPlan(activePlans[0].id);
     } else {
-        // Piu' schede attive: porta su client-detail per scegliere quale modificare
         _schedeClientUserId = userId;
+        _schedeClientDetailTab = 'schede';
         _schedeSection = 'clienti';
         _schedeView = 'client-detail';
         renderSchedeTab();
@@ -946,8 +948,6 @@ const _SCHEDE_REPORT_TONES = {
 
 // Cache: userId → array di report (caricati al primo open)
 const _schedeReportsCache = {};
-// Flag pending scroll dopo il render della client-detail (usato da Actual → Report)
-let _schedeClientDetailScrollTo = null;
 
 function _schedeFormatYearMonth(ym) {
     if (!ym) return '';
@@ -995,14 +995,12 @@ async function _schedeFetchClientReports(userId, { force = false } = {}) {
     }
 }
 
-// Chiamato da Actual → Report: apre client-detail e schedula uno scroll
-// automatico alla sezione Report dopo il render.
 function _schedeActualPickReport(userId) {
     _schedeActualCloseClientPopup();
     _schedeClientUserId = userId;
+    _schedeClientDetailTab = 'report';
     _schedeSection = 'clienti';
     _schedeView = 'client-detail';
-    _schedeClientDetailScrollTo = 'reports';
     renderSchedeTab();
 }
 
@@ -1250,7 +1248,14 @@ async function _schedeQuickAssign() {
 
 function _schedeOpenClientDetail(userId) {
     _schedeClientUserId = userId;
+    _schedeClientDetailTab = 'schede'; // default da Clienti
     _schedeView = 'client-detail';
+    renderSchedeTab();
+}
+
+function _schedeClientSwitchTab(tab) {
+    if (_schedeClientDetailTab === tab) return;
+    _schedeClientDetailTab = tab;
     renderSchedeTab();
 }
 
@@ -1262,36 +1267,77 @@ async function _renderClientDetail(container) {
     const allUsers = _schedeGetRegisteredUsers();
     const clientName = allUsers.find(u => u.userId === userId)?.name || 'Cliente';
     const plans = WorkoutPlanStorage.getAllPlans().filter(p => p.user_id === userId);
+    const tab = _schedeClientDetailTab || 'schede';
 
-    let html = `<div class="schede-editor-topbar">
+    // Shell: topbar + tab nav + tab-content placeholder
+    const shell = `<div class="schede-editor-topbar">
         <button class="schede-back-btn" onclick="_schedeView='clients';renderSchedeTab()">← Clienti</button>
         <h3>${_escHtml(clientName)}</h3>
-    </div>`;
+    </div>
+    <div class="schede-client-tabs" role="tablist">
+        <button class="schede-client-tab ${tab === 'progressi' ? 'active' : ''}" role="tab" onclick="_schedeClientSwitchTab('progressi')">
+            <span class="schede-client-tab-icon">📈</span>Progressi
+        </button>
+        <button class="schede-client-tab ${tab === 'schede' ? 'active' : ''}" role="tab" onclick="_schedeClientSwitchTab('schede')">
+            <span class="schede-client-tab-icon">🏋</span>Schede
+            <span class="schede-client-tab-count">${plans.length}</span>
+        </button>
+        <button class="schede-client-tab ${tab === 'report' ? 'active' : ''}" role="tab" onclick="_schedeClientSwitchTab('report')">
+            <span class="schede-client-tab-icon">📅</span>Report
+        </button>
+    </div>
+    <div id="schedeClientTabContent" class="schede-client-tab-content"></div>`;
+    container.innerHTML = shell;
 
-    // Fetch ALL logs for this client's exercises (before rendering cards, to compute date ranges)
+    const tabContainer = document.getElementById('schedeClientTabContent');
+    if (!tabContainer) return;
+
+    if (tab === 'report') {
+        await _schedeClientRenderReport(tabContainer, userId);
+    } else if (tab === 'progressi') {
+        await _schedeClientRenderProgressi(tabContainer, userId, plans);
+    } else {
+        await _schedeClientRenderSchede(tabContainer, userId, plans);
+    }
+}
+
+// ── Fetch workout_logs con cache per userId (condiviso tra tab Progressi e Schede) ──
+async function _schedeClientDetailLoadLogs(userId, plans) {
+    if (_schedeClientDetailLogsCache.userId === userId && _schedeClientDetailLogsCache.logs !== null) {
+        return _schedeClientDetailLogsCache.logs;
+    }
     const allExercises = plans.flatMap(p => p.workout_exercises || []);
     const allExIds = allExercises.map(e => e.id);
+    if (!allExIds.length) {
+        _schedeClientDetailLogsCache = { userId, logs: [] };
+        return [];
+    }
+    try {
+        const { data, error } = await _queryWithTimeout(supabaseClient
+            .from('workout_logs')
+            .select('exercise_id, log_date, weight_done, reps_done')
+            .in('exercise_id', allExIds)
+            .order('log_date', { ascending: true }));
+        if (error) throw error;
+        _schedeClientDetailLogsCache = { userId, logs: data || [] };
+        return _schedeClientDetailLogsCache.logs;
+    } catch (e) {
+        console.error('[Schede] logs fetch error:', e);
+        return null; // null = errore, distinto da [] = vuoto
+    }
+}
 
-    container.innerHTML = html + '<div class="schede-loading">Caricamento...</div>';
+// ── Tab Schede ───────────────────────────────────────────────────────────────
+async function _schedeClientRenderSchede(container, userId, plans) {
+    container.innerHTML = '<div class="schede-loading">Caricamento schede...</div>';
+    const logs = await _schedeClientDetailLoadLogs(userId, plans);
 
-    let logs = [];
-    if (allExIds.length) {
-        try {
-            const { data, error } = await _queryWithTimeout(supabaseClient
-                .from('workout_logs')
-                .select('exercise_id, log_date, weight_done, reps_done')
-                .in('exercise_id', allExIds)
-                .order('log_date', { ascending: true }));
-            if (error) throw error;
-            logs = data || [];
-        } catch (e) {
-            console.error('[Schede] _renderClientDetail log fetch error:', e);
-            container.innerHTML = html + '<div class="empty-slot">Errore caricamento log. Riprova.</div>';
-            return;
-        }
+    if (logs === null) {
+        container.innerHTML = '<div class="empty-slot">Errore caricamento. Riprova.</div>';
+        return;
     }
 
-    // Build exercise_id → log_date map per plan for date range
+    // Mappa plan.id → date range (primo-ultimo log)
     const _exIdToPlan = {};
     for (const plan of plans) {
         for (const ex of (plan.workout_exercises || [])) _exIdToPlan[ex.id] = plan.id;
@@ -1304,8 +1350,12 @@ async function _renderClientDetail(container) {
         _planLogDates[pid].push(l.log_date);
     }
 
-    // Show plans for this client
-    html += '<h4 class="schede-section-title">Schede assegnate</h4>';
+    let html = '<h4 class="schede-section-title">Schede assegnate</h4>';
+    if (plans.length === 0) {
+        html += '<div class="empty-slot">Nessuna scheda assegnata a questo cliente.</div>';
+        container.innerHTML = html;
+        return;
+    }
     for (const plan of plans) {
         const badge = plan.active ? '<span class="schede-badge-active">Attiva</span>' : '<span class="schede-badge-inactive">Inattiva</span>';
         const exCount = (plan.workout_exercises || []).length;
@@ -1327,18 +1377,24 @@ async function _renderClientDetail(container) {
             </div>
         </div>`;
     }
+    container.innerHTML = html;
+}
 
-    if (!allExIds.length || !logs.length) {
-        html += '<div class="empty-slot">Nessun log registrato da questo cliente.</div>';
-        html += '<div id="schedeReportsSection" class="schede-reports-section"></div>';
-        container.innerHTML = html;
-        _schedeRenderReportsSection(userId).then(() => _schedeClientDetailMaybeScroll());
+// ── Tab Progressi ────────────────────────────────────────────────────────────
+async function _schedeClientRenderProgressi(container, userId, plans) {
+    container.innerHTML = '<div class="schede-loading">Caricamento progressi...</div>';
+    const logs = await _schedeClientDetailLoadLogs(userId, plans);
+
+    if (logs === null) {
+        container.innerHTML = '<div class="empty-slot">Errore caricamento log. Riprova.</div>';
+        return;
+    }
+    if (!logs.length) {
+        container.innerHTML = '<div class="empty-slot">Nessun log registrato da questo cliente.</div>';
         return;
     }
 
-    html += '<h4 class="schede-section-title" style="margin-top:1.2rem;">Progressi</h4>';
-
-    // Map exercise_id → { name, muscle_group }
+    const allExercises = plans.flatMap(p => p.workout_exercises || []);
     const idToName = {};
     const nameToMuscle = {};
     for (const ex of allExercises) {
@@ -1346,7 +1402,6 @@ async function _renderClientDetail(container) {
         if (ex.muscle_group && !nameToMuscle[ex.exercise_name]) nameToMuscle[ex.exercise_name] = ex.muscle_group;
     }
 
-    // Group logs by exercise name
     const logsByName = {};
     for (const l of logs) {
         const name = idToName[l.exercise_id] || 'Sconosciuto';
@@ -1354,10 +1409,9 @@ async function _renderClientDetail(container) {
         logsByName[name].push(l);
     }
 
-    // Stats
     const totalSessions = new Set(logs.map(l => l.exercise_id + '|' + l.log_date)).size;
     const totalVolume = logs.reduce((s, l) => s + ((l.weight_done || 0) * (l.reps_done || 0)), 0);
-    html += `<div class="schede-stats-grid">
+    let html = `<div class="schede-stats-grid">
         <div class="schede-stat-card">
             <div class="schede-stat-icon">📊</div>
             <div class="schede-stat-value">${totalSessions}</div>
@@ -1375,9 +1429,9 @@ async function _renderClientDetail(container) {
         </div>
     </div>`;
 
-    // Charts per exercise name
     const exerciseNames = Object.keys(logsByName).sort();
     let chartIdx = 0;
+    const pendingCharts = [];
     for (const exName of exerciseNames) {
         const exLogs = logsByName[exName];
         const sessionMap = {};
@@ -1413,26 +1467,24 @@ async function _renderClientDetail(container) {
                 <span>${sessions.length} sessioni</span>
             </div>
         </div>`;
-
-        setTimeout(((cid, lbl, val) => () => {
-            const canvas = document.getElementById(cid);
-            if (!canvas) return;
-            _drawAdminChart(canvas, lbl, val);
-        })(canvasId, labels, values), 50);
+        pendingCharts.push({ canvasId, labels, values });
     }
 
-    html += '<div id="schedeReportsSection" class="schede-reports-section"></div>';
     container.innerHTML = html;
-    _schedeRenderReportsSection(userId).then(() => _schedeClientDetailMaybeScroll());
+
+    // Draw charts dopo aver scritto il DOM
+    for (const { canvasId, labels, values } of pendingCharts) {
+        setTimeout(() => {
+            const canvas = document.getElementById(canvasId);
+            if (canvas) _drawAdminChart(canvas, labels, values);
+        }, 50);
+    }
 }
 
-// Se Actual → Report ha richiesto uno scroll alla sezione Report, eseguilo
-// dopo che _schedeRenderReportsSection ha scritto l'anchor nel DOM.
-function _schedeClientDetailMaybeScroll() {
-    if (_schedeClientDetailScrollTo !== 'reports') return;
-    _schedeClientDetailScrollTo = null;
-    const anchor = document.getElementById('schedeReportsAnchor');
-    if (anchor) anchor.scrollIntoView({ behavior: 'smooth', block: 'start' });
+// ── Tab Report ───────────────────────────────────────────────────────────────
+async function _schedeClientRenderReport(container, userId) {
+    container.innerHTML = '<div id="schedeReportsSection" class="schede-reports-section"></div>';
+    await _schedeRenderReportsSection(userId);
 }
 
 // Premium line chart for admin dashboard

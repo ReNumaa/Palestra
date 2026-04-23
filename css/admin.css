@@ -6126,6 +6126,56 @@ canvas {
     .schede-actual-popup-add-label { font-size: 0.72rem; }
 }
 
+/* ── Client detail tabs (Progressi / Schede / Report) ──────────────────────── */
+.schede-client-tabs {
+    display: flex; gap: 0.3rem;
+    padding: 4px;
+    margin: 0 0 1rem;
+    background: linear-gradient(135deg, #f1f5f9, #e8ecf1);
+    border: 1px solid #e2e8f0;
+    border-radius: 14px;
+    box-shadow: 0 1px 4px rgba(0,0,0,0.04);
+    overflow-x: auto;
+}
+.schede-client-tab {
+    flex: 1; min-width: 0;
+    display: inline-flex; align-items: center; justify-content: center; gap: 0.4rem;
+    padding: 0.6rem 0.9rem;
+    border: none; background: transparent;
+    color: #64748b; font-size: 0.9rem; font-weight: 700;
+    border-radius: 11px; cursor: pointer;
+    transition: all 0.25s cubic-bezier(0.4, 0, 0.2, 1);
+    letter-spacing: 0.01em; white-space: nowrap;
+}
+.schede-client-tab.active {
+    background: linear-gradient(135deg, #00AEEF, #0090cc);
+    color: #fff;
+    box-shadow: 0 2px 8px rgba(0,174,239,0.3);
+}
+.schede-client-tab:hover:not(.active) {
+    color: #334155; background: rgba(255,255,255,0.7);
+}
+.schede-client-tab-icon { font-size: 1rem; line-height: 1; }
+.schede-client-tab-count {
+    display: inline-block;
+    padding: 0.05rem 0.45rem; border-radius: 999px;
+    background: rgba(148,163,184,0.25);
+    color: inherit;
+    font-size: 0.7rem; font-weight: 700;
+    min-width: 18px; text-align: center;
+}
+.schede-client-tab.active .schede-client-tab-count {
+    background: rgba(255,255,255,0.28);
+    color: #fff;
+}
+.schede-client-tab-content { min-height: 160px; }
+
+@media (max-width: 600px) {
+    .schede-client-tab { padding: 0.55rem 0.6rem; font-size: 0.82rem; gap: 0.3rem; }
+    .schede-client-tab-icon { font-size: 0.9rem; }
+    .schede-client-tab-count { font-size: 0.66rem; padding: 0.05rem 0.4rem; min-width: 16px; }
+}
+
 /* ── Report Mensili (client-detail + modal) ────────────────────────────────── */
 .schede-reports-section { margin-top: 1.2rem; }
 .schede-section-count {
