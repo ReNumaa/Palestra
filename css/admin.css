@@ -5989,6 +5989,17 @@ canvas {
     cursor: not-allowed; opacity: 0.55;
 }
 .schede-actual-client--guest { font-style: italic; color: #64748b; }
+.schede-actual-client--no-plan {
+    background: #fef2f2;
+    border-color: #fecaca;
+    color: #991b1b;
+}
+.schede-actual-client--no-plan:hover:not(:disabled) {
+    background: #fee2e2;
+    border-color: #fca5a5;
+    box-shadow: 0 2px 8px rgba(239,68,68,0.12);
+}
+.schede-actual-client--no-plan .schede-actual-client-chev { color: #f87171; }
 .schede-actual-client-name { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .schede-actual-client-chev { color: #94a3b8; font-size: 1.15rem; line-height: 1; }
 .schede-actual-client:hover:not(:disabled) .schede-actual-client-chev { color: #00AEEF; }

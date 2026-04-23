@@ -660,6 +660,18 @@ function _renderActualView(container) {
     const userById = {};
     for (const u of allUsers) userById[u.userId] = u;
 
+    // Precalcolo: user_ids con almeno una scheda attiva. Chi non e' nel set
+    // viene marcato "no-plan" (rosso tenue) → l'admin vede subito chi non
+    // ha scheda da seguire e deve assegnargliene una.
+    const usersWithActivePlan = new Set();
+    try {
+        if (typeof WorkoutPlanStorage !== 'undefined') {
+            for (const p of (WorkoutPlanStorage.getAllPlans() || [])) {
+                if (p.user_id && p.active) usersWithActivePlan.add(p.user_id);
+            }
+        }
+    } catch (e) { /* ignore: se fallisce, nessuno viene marcato no-plan */ }
+
     const nowLabel = now.toLocaleTimeString('it-IT', { hour: '2-digit', minute: '2-digit' });
     const dateLabel = now.toLocaleDateString('it-IT', { weekday: 'long', day: '2-digit', month: 'long' });
 
@@ -672,15 +684,15 @@ function _renderActualView(container) {
     </div>`;
 
     html += '<div class="schede-actual-grid">';
-    html += _schedeActualRenderSlot('prev',    prevIdx,    todayFormatted);
-    html += _schedeActualRenderSlot('current', currentIdx, todayFormatted);
-    html += _schedeActualRenderSlot('next',    nextIdx,    todayFormatted);
+    html += _schedeActualRenderSlot('prev',    prevIdx,    todayFormatted, usersWithActivePlan);
+    html += _schedeActualRenderSlot('current', currentIdx, todayFormatted, usersWithActivePlan);
+    html += _schedeActualRenderSlot('next',    nextIdx,    todayFormatted, usersWithActivePlan);
     html += '</div>';
 
     container.innerHTML = html;
 }
 
-function _schedeActualRenderSlot(position, slotIdx, todayFormatted) {
+function _schedeActualRenderSlot(position, slotIdx, todayFormatted, usersWithActivePlan) {
     const positionLabel = position === 'prev' ? 'Slot precedente'
                         : position === 'current' ? 'Slot attuale'
                         : 'Slot successivo';
@@ -725,8 +737,15 @@ function _schedeActualRenderSlot(position, slotIdx, todayFormatted) {
             const uid  = b.userId || b.user_id || '';
             const name = b.name || b.clientName || 'Sconosciuto';
             const hasUid = !!uid;
-            html += `<button class="schede-actual-client ${hasUid ? '' : 'schede-actual-client--guest'}"
-                ${hasUid ? `onclick="_schedeActualOpenClientPopup('${_escJs(uid)}','${_escJs(name)}')"` : 'disabled title="Cliente senza profilo registrato"'}>
+            const noPlan = hasUid && usersWithActivePlan && !usersWithActivePlan.has(uid);
+            const classes = ['schede-actual-client'];
+            if (!hasUid) classes.push('schede-actual-client--guest');
+            if (noPlan)  classes.push('schede-actual-client--no-plan');
+            const titleAttr = !hasUid
+                ? 'title="Cliente senza profilo registrato"'
+                : (noPlan ? 'title="Nessuna scheda attiva assegnata"' : '');
+            html += `<button class="${classes.join(' ')}"
+                ${hasUid ? `onclick="_schedeActualOpenClientPopup('${_escJs(uid)}','${_escJs(name)}')"` : 'disabled'} ${titleAttr}>
                 <span class="schede-actual-client-name">${_escHtml(name)}</span>
                 ${hasUid ? '<span class="schede-actual-client-chev">›</span>' : ''}
             </button>`;
