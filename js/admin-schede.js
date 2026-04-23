@@ -393,8 +393,8 @@ function _schedeGetRegisteredUsers() {
     return UserStorage.getAll().filter(u => u.userId);
 }
 
-let _schedeView = 'list';  // 'list' | 'edit' | 'progress' | 'clients' | 'client-detail'
-let _schedeSection = 'schede'; // 'schede' | 'clienti'
+let _schedeView = 'list';  // 'list' | 'edit' | 'progress' | 'clients' | 'client-detail' | 'actual'
+let _schedeSection = 'actual'; // 'actual' | 'schede' | 'clienti'
 let _currentPlanId = null;
 let _editingPlan = null;
 let _editDayLabels = [];
@@ -423,6 +423,7 @@ function _schedeWithTimeout(promise, ms, label) {
 function _schedeRenderShell(container, { loading }) {
     const loaderHtml = loading ? '<div class="schede-loading">Caricamento schede...</div>' : '';
     container.innerHTML = `<div class="schede-subnav">
+        <button class="schede-subnav-pill ${_schedeSection === 'actual' ? 'active' : ''}" onclick="_schedeSwitchSection('actual')">Actual</button>
         <button class="schede-subnav-pill ${_schedeSection === 'schede' ? 'active' : ''}" onclick="_schedeSwitchSection('schede')">Schede</button>
         <button class="schede-subnav-pill ${_schedeSection === 'clienti' ? 'active' : ''}" onclick="_schedeSwitchSection('clienti')">Clienti</button>
     </div><div id="schedeInner">${loaderHtml}</div>`;
@@ -510,11 +511,18 @@ async function renderSchedeTab() {
         const inner = document.getElementById('schedeInner');
         if (!inner) return;
 
+        // Actual section has its own auto-refresh (60s) for live slot rotation;
+        // keep the interval running only while the view is on 'actual/list'.
+        _schedeActualStopAutoRefresh();
+
         if (_schedeView === 'edit') _renderPlanEditor(inner);
         else if (_schedeView === 'progress') await _renderProgressView(inner);
         else if (_schedeSection === 'clienti') {
             if (_schedeView === 'client-detail') await _renderClientDetail(inner);
             else _renderClientsList(inner);
+        } else if (_schedeSection === 'actual') {
+            _renderActualView(inner);
+            _schedeActualStartAutoRefresh();
         } else {
             _renderSchedeList(inner);
         }
@@ -538,6 +546,291 @@ function _schedeSwitchSection(section) {
     _schedeView = section === 'clienti' ? 'clients' : 'list';
     _schedeClientUserId = null;
     renderSchedeTab();
+}
+
+// ═══════════════════════════════════════════════════════════════════════════════
+// ACTUAL (slot precedente / attuale / successivo — live view)
+// ═══════════════════════════════════════════════════════════════════════════════
+let _schedeActualIntervalId = null;
+
+function _schedeActualStartAutoRefresh() {
+    if (_schedeActualIntervalId) return;
+    _schedeActualIntervalId = setInterval(() => {
+        // Re-render solo se siamo ancora sul tab Actual e non c'e' un popup aperto.
+        // Il popup e' fuori da #schedeInner quindi non viene distrutto, ma evitiamo
+        // comunque di riallineare la UI sotto l'utente mentre decide.
+        if (_schedeSection !== 'actual' || _schedeView !== 'list') {
+            _schedeActualStopAutoRefresh();
+            return;
+        }
+        const inner = document.getElementById('schedeInner');
+        if (inner) _renderActualView(inner);
+    }, 60000);
+}
+
+function _schedeActualStopAutoRefresh() {
+    if (_schedeActualIntervalId) {
+        clearInterval(_schedeActualIntervalId);
+        _schedeActualIntervalId = null;
+    }
+}
+
+function _schedeActualParseSlot(slotStr) {
+    // "HH:MM - HH:MM" → { startMin, endMin }
+    const m = slotStr.match(/(\d{2}):(\d{2})\s*-\s*(\d{2}):(\d{2})/);
+    if (!m) return null;
+    return {
+        startMin: parseInt(m[1], 10) * 60 + parseInt(m[2], 10),
+        endMin:   parseInt(m[3], 10) * 60 + parseInt(m[4], 10)
+    };
+}
+
+function _schedeActualPickSlots(now) {
+    // Return { prev, current, next } indices into TIME_SLOTS (or null each).
+    const nowMin = now.getHours() * 60 + now.getMinutes();
+    let currentIdx = -1;
+    for (let i = 0; i < TIME_SLOTS.length; i++) {
+        const r = _schedeActualParseSlot(TIME_SLOTS[i]);
+        if (!r) continue;
+        if (nowMin >= r.startMin && nowMin < r.endMin) { currentIdx = i; break; }
+    }
+    let prevIdx = -1, nextIdx = -1;
+    if (currentIdx === -1) {
+        // Prima del primo slot o dopo l'ultimo
+        const first = _schedeActualParseSlot(TIME_SLOTS[0]);
+        if (first && nowMin < first.startMin) {
+            nextIdx = 0;
+        } else {
+            prevIdx = TIME_SLOTS.length - 1;
+        }
+    } else {
+        if (currentIdx > 0) prevIdx = currentIdx - 1;
+        if (currentIdx < TIME_SLOTS.length - 1) nextIdx = currentIdx + 1;
+    }
+    return { prevIdx, currentIdx, nextIdx };
+}
+
+function _schedeActualSlotTypeForDate(dateFormatted, slotTime) {
+    // Determine slot type from schedule overrides, fallback to default weekly schedule.
+    try {
+        if (typeof BookingStorage !== 'undefined' && BookingStorage.getScheduleOverrides) {
+            const overrides = BookingStorage.getScheduleOverrides();
+            const daySlots = overrides[dateFormatted];
+            if (daySlots) {
+                const hit = daySlots.find(s => s.time === slotTime);
+                if (hit) return hit.type;
+            }
+        }
+    } catch (e) { /* ignore, fallback below */ }
+    // Fallback: DEFAULT_WEEKLY_SCHEDULE by day name
+    try {
+        const d = new Date(dateFormatted + 'T00:00:00');
+        const dayNames = ['Domenica', 'Lunedì', 'Martedì', 'Mercoledì', 'Giovedì', 'Venerdì', 'Sabato'];
+        const dayName = dayNames[d.getDay()];
+        const week = (typeof DEFAULT_WEEKLY_SCHEDULE !== 'undefined') ? DEFAULT_WEEKLY_SCHEDULE[dayName] : null;
+        if (week) {
+            const hit = week.find(s => s.time === slotTime);
+            if (hit) return hit.type;
+        }
+    } catch (e) { /* ignore */ }
+    return null;
+}
+
+function _schedeActualSlotTypeLabel(type) {
+    if (typeof SLOT_NAMES !== 'undefined' && SLOT_NAMES[type]) return SLOT_NAMES[type];
+    return '';
+}
+
+function _schedeActualSlotTypeClass(type) {
+    if (type === 'personal-training') return 'schede-actual-type--personal';
+    if (type === 'small-group')       return 'schede-actual-type--group';
+    if (type === 'group-class')       return 'schede-actual-type--private';
+    if (type === 'cleaning')          return 'schede-actual-type--cleaning';
+    return '';
+}
+
+function _renderActualView(container) {
+    const now = new Date();
+    const todayFormatted = (typeof formatAdminDate === 'function')
+        ? formatAdminDate(now)
+        : `${now.getFullYear()}-${String(now.getMonth()+1).padStart(2,'0')}-${String(now.getDate()).padStart(2,'0')}`;
+    const { prevIdx, currentIdx, nextIdx } = _schedeActualPickSlots(now);
+
+    const allUsers = _schedeGetRegisteredUsers();
+    const userById = {};
+    for (const u of allUsers) userById[u.userId] = u;
+
+    const nowLabel = now.toLocaleTimeString('it-IT', { hour: '2-digit', minute: '2-digit' });
+    const dateLabel = now.toLocaleDateString('it-IT', { weekday: 'long', day: '2-digit', month: 'long' });
+
+    let html = `<div class="schede-actual-topbar">
+        <div>
+            <h3 class="schede-actual-title">Actual</h3>
+            <div class="schede-actual-subtitle">${_escHtml(dateLabel)} &middot; ore ${_escHtml(nowLabel)}</div>
+        </div>
+        <button class="schede-actual-refresh" onclick="renderSchedeTab()" title="Aggiorna">↻</button>
+    </div>`;
+
+    html += '<div class="schede-actual-grid">';
+    html += _schedeActualRenderSlot('prev',    prevIdx,    todayFormatted);
+    html += _schedeActualRenderSlot('current', currentIdx, todayFormatted);
+    html += _schedeActualRenderSlot('next',    nextIdx,    todayFormatted);
+    html += '</div>';
+
+    container.innerHTML = html;
+}
+
+function _schedeActualRenderSlot(position, slotIdx, todayFormatted) {
+    const positionLabel = position === 'prev' ? 'Slot precedente'
+                        : position === 'current' ? 'Slot attuale'
+                        : 'Slot successivo';
+
+    if (slotIdx < 0 || slotIdx >= TIME_SLOTS.length) {
+        return `<div class="schede-actual-slot schede-actual-slot--${position} schede-actual-slot--empty-range">
+            <div class="schede-actual-slot-head">
+                <div class="schede-actual-pos">${_escHtml(positionLabel)}</div>
+            </div>
+            <div class="schede-actual-empty">—</div>
+        </div>`;
+    }
+
+    const slotTime = TIME_SLOTS[slotIdx];
+    const slotType = _schedeActualSlotTypeForDate(todayFormatted, slotTime);
+    const typeLabel = _schedeActualSlotTypeLabel(slotType);
+    const typeClass = _schedeActualSlotTypeClass(slotType);
+
+    let bookings = [];
+    try {
+        bookings = (typeof BookingStorage !== 'undefined')
+            ? BookingStorage.getBookingsForSlot(todayFormatted, slotTime).filter(b => b.status !== 'cancelled' && !b.id?.startsWith('_avail_'))
+            : [];
+    } catch (e) { console.warn('[Schede Actual] getBookingsForSlot failed:', e); }
+
+    const livePill = position === 'current'
+        ? '<span class="schede-actual-live-pill"><span class="schede-actual-live-dot"></span>LIVE</span>'
+        : '';
+
+    let html = `<div class="schede-actual-slot schede-actual-slot--${position}">
+        <div class="schede-actual-slot-head">
+            <div class="schede-actual-pos">${_escHtml(positionLabel)}${livePill}</div>
+            <div class="schede-actual-time">${_escHtml(slotTime)}</div>
+            ${typeLabel ? `<span class="schede-actual-type ${typeClass}">${_escHtml(typeLabel)}</span>` : ''}
+        </div>`;
+
+    if (bookings.length === 0) {
+        html += '<div class="schede-actual-empty">Nessuno in questo slot</div>';
+    } else {
+        html += '<div class="schede-actual-clients">';
+        for (const b of bookings) {
+            const uid  = b.userId || b.user_id || '';
+            const name = b.name || b.clientName || 'Sconosciuto';
+            const hasUid = !!uid;
+            html += `<button class="schede-actual-client ${hasUid ? '' : 'schede-actual-client--guest'}"
+                ${hasUid ? `onclick="_schedeActualOpenClientPopup('${_escJs(uid)}','${_escJs(name)}')"` : 'disabled title="Cliente senza profilo registrato"'}>
+                <span class="schede-actual-client-name">${_escHtml(name)}</span>
+                ${hasUid ? '<span class="schede-actual-client-chev">›</span>' : ''}
+            </button>`;
+        }
+        html += '</div>';
+    }
+
+    html += '</div>';
+    return html;
+}
+
+function _escJs(s) {
+    return String(s || '').replace(/\\/g, '\\\\').replace(/'/g, "\\'").replace(/"/g, '\\"');
+}
+
+// ── Popup: scelta Carichi / Scheda ────────────────────────────────────────────
+function _schedeActualOpenClientPopup(userId, name) {
+    // Rimuovi eventuale popup precedente
+    _schedeActualCloseClientPopup();
+
+    const plans = (typeof WorkoutPlanStorage !== 'undefined')
+        ? WorkoutPlanStorage.getAllPlans().filter(p => p.user_id === userId)
+        : [];
+    const activePlans = plans.filter(p => p.active);
+
+    const overlay = document.createElement('div');
+    overlay.id = 'schedeActualPopupOverlay';
+    overlay.className = 'schede-actual-popup-overlay';
+    overlay.onclick = function(e) { if (e.target === overlay) _schedeActualCloseClientPopup(); };
+
+    const schedaDisabled = activePlans.length === 0;
+    const schedaSubtitle = activePlans.length === 0
+        ? 'Nessuna scheda attiva'
+        : (activePlans.length === 1 ? activePlans[0].name : `${activePlans.length} schede attive`);
+
+    overlay.innerHTML = `<div class="schede-actual-popup" role="dialog" aria-modal="true">
+        <div class="schede-actual-popup-head">
+            <div>
+                <div class="schede-actual-popup-eyebrow">Cliente</div>
+                <h3 class="schede-actual-popup-title">${_escHtml(name)}</h3>
+            </div>
+            <button class="schede-actual-popup-close" onclick="_schedeActualCloseClientPopup()" aria-label="Chiudi">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
+            </button>
+        </div>
+        <div class="schede-actual-popup-actions">
+            <button class="schede-actual-popup-btn" onclick="_schedeActualPickCarichi('${_escJs(userId)}')">
+                <div class="schede-actual-popup-btn-icon">📊</div>
+                <div class="schede-actual-popup-btn-body">
+                    <div class="schede-actual-popup-btn-title">Carichi</div>
+                    <div class="schede-actual-popup-btn-sub">Grafici e log delle sessioni precedenti</div>
+                </div>
+                <div class="schede-actual-popup-btn-chev">›</div>
+            </button>
+            <button class="schede-actual-popup-btn ${schedaDisabled ? 'schede-actual-popup-btn--disabled' : ''}"
+                ${schedaDisabled ? 'disabled' : `onclick="_schedeActualPickScheda('${_escJs(userId)}')"`}>
+                <div class="schede-actual-popup-btn-icon">📝</div>
+                <div class="schede-actual-popup-btn-body">
+                    <div class="schede-actual-popup-btn-title">Scheda</div>
+                    <div class="schede-actual-popup-btn-sub">${_escHtml(schedaSubtitle)}</div>
+                </div>
+                <div class="schede-actual-popup-btn-chev">›</div>
+            </button>
+        </div>
+    </div>`;
+
+    document.body.appendChild(overlay);
+    document.addEventListener('keydown', _schedeActualPopupKeyHandler);
+    requestAnimationFrame(() => overlay.classList.add('visible'));
+}
+
+function _schedeActualCloseClientPopup() {
+    const overlay = document.getElementById('schedeActualPopupOverlay');
+    if (overlay) overlay.remove();
+    document.removeEventListener('keydown', _schedeActualPopupKeyHandler);
+}
+
+function _schedeActualPopupKeyHandler(e) {
+    if (e.key === 'Escape') _schedeActualCloseClientPopup();
+}
+
+function _schedeActualPickCarichi(userId) {
+    _schedeActualCloseClientPopup();
+    // Riuso la view client-detail: contiene grafici + log per tutti gli esercizi del cliente.
+    _schedeClientUserId = userId;
+    _schedeSection = 'clienti';
+    _schedeView = 'client-detail';
+    renderSchedeTab();
+}
+
+function _schedeActualPickScheda(userId) {
+    _schedeActualCloseClientPopup();
+    const plans = WorkoutPlanStorage.getAllPlans().filter(p => p.user_id === userId);
+    const activePlans = plans.filter(p => p.active);
+    if (activePlans.length === 1) {
+        // Apri direttamente l'editor della scheda attiva
+        _schedeEditPlan(activePlans[0].id);
+    } else {
+        // Piu' schede attive: porta su client-detail per scegliere quale modificare
+        _schedeClientUserId = userId;
+        _schedeSection = 'clienti';
+        _schedeView = 'client-detail';
+        renderSchedeTab();
+    }
 }
 
 // ═══════════════════════════════════════════════════════════════════════════════
