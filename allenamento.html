@@ -237,6 +237,48 @@
             }
             return _findEx(ex.exercise_name);
         }
+        // Nome da mostrare lato client: se l'utente ha impostato un custom_name
+        // vince su tutto, altrimenti fallback al catalogo (dbEx.nome_it) e
+        // infine al nome salvato sulla riga di piano (ex.exercise_name).
+        // Lato admin il trainer continua a leggere direttamente exercise_name.
+        function _displayExName(ex, dbEx) {
+            if (ex && ex.custom_name) return ex.custom_name;
+            if (dbEx && dbEx.nome_it) return dbEx.nome_it;
+            return (ex && ex.exercise_name) || '';
+        }
+
+        // ── Raggruppamento esercizi per identità "logica" ─────────────────
+        // Slug se presente (stabile anche dopo rinomine in scheda), altrimenti
+        // nome normalizzato. Permette a Progressi/Storico di unire log dello
+        // stesso esercizio anche se è stato rinominato o duplicato in più
+        // schede/giorni. Il display name preferito è quello della scheda
+        // attiva (così la rinomina "vince").
+        function _exGroupKey(ex) {
+            if (ex && ex.exercise_slug) return 's:' + ex.exercise_slug;
+            const name = (ex && ex.exercise_name) || '';
+            return 'n:' + name.trim().toLowerCase();
+        }
+        function _buildExGroupingMaps(allExercises, activePlan) {
+            const idToGroupKey = {};
+            const groupKeyToName = {};
+            const groupKeyToMuscle = {};
+            const groupKeyToEx = {};
+            const seed = (ex) => {
+                const k = _exGroupKey(ex);
+                idToGroupKey[ex.id] = k;
+                if (!groupKeyToName[k]) {
+                    const nm = ex.custom_name || ex.exercise_name;
+                    if (nm) groupKeyToName[k] = nm;
+                }
+                if (!groupKeyToMuscle[k] && ex.muscle_group) groupKeyToMuscle[k] = ex.muscle_group;
+                if (!groupKeyToEx[k]) groupKeyToEx[k] = ex;
+            };
+            // Prima la scheda attiva: i suoi nomi vincono come display name
+            for (const ex of (activePlan?.workout_exercises || [])) seed(ex);
+            // Poi tutti gli altri esercizi (per coprire log di schede vecchie)
+            for (const ex of allExercises) seed(ex);
+            return { idToGroupKey, groupKeyToName, groupKeyToMuscle, groupKeyToEx };
+        }
 
         function showExDetail(slug) {
             const ex = _allExDB.find(e => e.slug === slug);
@@ -352,7 +394,11 @@
                     <button class="all-edit-close" onclick="closeEditExOverlay()">&times;</button>
                 </div>
                 <div class="all-edit-body">
-                    <div class="all-edit-ex-name">${_escHtml(_dbExEdit ? _dbExEdit.nome_it : ex.exercise_name)}</div>
+                    <div class="all-edit-ex-name">${_escHtml(_displayExName(ex, _dbExEdit))}</div>
+                    <label class="all-edit-label">Nome personalizzato (opzionale)</label>
+                    <div class="all-edit-field">
+                        <input type="text" id="editExCustomName" class="all-edit-input all-edit-input-wide" value="${_escHtml(ex.custom_name || '')}" maxlength="100" placeholder="${_escHtml(_dbExEdit ? _dbExEdit.nome_it : (ex.exercise_name || ''))}">
+                    </div>
                     ${setsHtml}
                     <label class="all-edit-label">Note</label>
                     <textarea id="editExNotes" class="all-edit-textarea" rows="3" placeholder="Aggiungi note...">${_escHtml(ex.notes || '')}</textarea>
@@ -386,6 +432,8 @@
                 const updates = {};
                 const notes = document.getElementById('editExNotes')?.value.trim() || null;
                 updates.notes = notes;
+                const customName = document.getElementById('editExCustomName')?.value.trim() || '';
+                updates.custom_name = customName || null;
 
                 if (!isCardio) {
                     updates.sets = parseInt(document.getElementById('editExSets')?.value) || 3;
@@ -927,8 +975,8 @@
                             </div>
                             <div class="all-ss-info">
                                 <div class="all-ss-names">
-                                    <span class="all-ss-ex-name">${_escHtml(db1 ? db1.nome_it : ex1.exercise_name)}</span>
-                                    ${ex2 ? `<span class="all-ss-ex-name">${_escHtml(db2 ? db2.nome_it : ex2.exercise_name)}</span>` : ''}
+                                    <span class="all-ss-ex-name">${_escHtml(_displayExName(ex1, db1))}</span>
+                                    ${ex2 ? `<span class="all-ss-ex-name">${_escHtml(_displayExName(ex2, db2))}</span>` : ''}
                                 </div>
                                 <div class="all-ss-target">${t1} + ${t2}${restDisp ? ' \u00b7 ' + restDisp : ''}</div>
                             </div>
@@ -960,7 +1008,7 @@
                     <div class="all-ex-header" onclick="openExerciseDetail('${ex.id}')">
                         ${thumbSrc ? `<img src="${thumbSrc}" class="all-ex-thumb" alt="" loading="lazy">` : ''}
                         <div class="all-ex-info">
-                            <div class="all-ex-name">${_escHtml(dbEx ? dbEx.nome_it : ex.exercise_name)}</div>
+                            <div class="all-ex-name">${_escHtml(_displayExName(ex, dbEx))}</div>
                             <div class="all-ex-target">${target}</div>
                         </div>
                         <div class="all-ex-status">${hasLogs ? '<span class="all-ex-check">&#10003;</span>' : '<span class="all-ex-chevron">&#8250;</span>'}</div>
@@ -1070,7 +1118,7 @@
             const todayLogs = _allLogs.filter(l => l.log_date === today);
             const prevLogs = _prevSessionLogs(ex.id);
             const isCardio = (ex.muscle_group || '').toLowerCase() === 'cardio';
-            const name = dbEx ? dbEx.nome_it : ex.exercise_name;
+            const name = _displayExName(ex, dbEx);
             const target = isCardio
                 ? `${ex.reps} min`
                 : `${ex.sets} × ${ex.reps}${ex.weight_kg != null ? ' · ' + ex.weight_kg + ' kg' : ''}${ex.rest_seconds ? ' · ' + (ex.rest_seconds <= 3 ? ex.rest_seconds + ' min' : ex.rest_seconds + 's') + ' pausa' : ''}`;
@@ -1141,7 +1189,7 @@
             pair.forEach((ssEx, idx) => {
                 const sDb = _findExForCard(ssEx);
                 const sPrev = _prevSessionLogs(ssEx.id);
-                const sName = sDb ? sDb.nome_it : ssEx.exercise_name;
+                const sName = _displayExName(ssEx, sDb);
                 const isCardio = (ssEx.muscle_group || '').toLowerCase() === 'cardio';
                 const sTarget = isCardio
                     ? `${ssEx.reps} min`
@@ -1376,7 +1424,7 @@
                 if (!allPlans || !allPlans.length) {
                     const { data, error } = await _queryWithTimeout(supabaseClient
                         .from('workout_plans')
-                        .select('id, workout_exercises(id, exercise_name, exercise_slug, muscle_group, sets, reps, weight_kg, rest_seconds)')
+                        .select('id, workout_exercises(id, exercise_name, custom_name, exercise_slug, muscle_group, sets, reps, weight_kg, rest_seconds)')
                         .eq('user_id', user.id), 15000);
                     if (error) throw error;
                     allPlans = data || [];
@@ -1412,15 +1460,18 @@
                     if (!exById[ex.id]) exById[ex.id] = ex;
                 }
 
-                // Raggruppa log per NOME esercizio (fonde log di stesso esercizio da schede diverse)
-                const idToName = {};
-                for (const ex of allExercises) idToName[ex.id] = ex.exercise_name;
-
+                // Raggruppa per identità logica: slug stabile (o nome
+                // normalizzato), e usa il nome della scheda attiva come
+                // display. Così rinomine e duplicati confluiscono.
+                const { idToGroupKey, groupKeyToName, groupKeyToEx } = _buildExGroupingMaps(allExercises, _allPlan);
                 const byName = {};
+                const exByName = {}; // rappresentante per la thumbnail
                 for (const l of logs) {
-                    const name = idToName[l.exercise_id] || 'Sconosciuto';
+                    const k = idToGroupKey[l.exercise_id];
+                    const name = (k && groupKeyToName[k]) || 'Sconosciuto';
                     if (!byName[name]) byName[name] = [];
                     byName[name].push(l);
+                    if (!exByName[name] && k) exByName[name] = groupKeyToEx[k];
                 }
 
                 // Filtro ricerca
@@ -1437,7 +1488,7 @@
                 <div class="all-storico-search-wrap">
                     <input type="text" id="storicoSearch" class="all-storico-search" placeholder="Cerca esercizio..." value="${_escHtml(_storicoSearch)}" oninput="_storicoSearch=this.value;_renderStoricoList()">
                 </div>
-                <div class="all-storico-list" id="storicoList">${_buildStoricoListHtml(names, byName, exById)}</div>`;
+                <div class="all-storico-list" id="storicoList">${_buildStoricoListHtml(names, byName, exById, exByName)}</div>`;
 
                 container.innerHTML = html;
                 // Ripristina focus al campo ricerca dopo render
@@ -1457,23 +1508,25 @@
             const allExercises = (_allPlans || []).flatMap(p => p.workout_exercises || []);
             const exById = {};
             for (const ex of allExercises) if (!exById[ex.id]) exById[ex.id] = ex;
-            const idToName = {};
-            for (const ex of allExercises) idToName[ex.id] = ex.exercise_name;
+            const { idToGroupKey, groupKeyToName, groupKeyToEx } = _buildExGroupingMaps(allExercises, _allPlan);
             const byName = {};
+            const exByName = {};
             for (const l of _storicoLogsCache) {
-                const name = idToName[l.exercise_id] || 'Sconosciuto';
+                const k = idToGroupKey[l.exercise_id];
+                const name = (k && groupKeyToName[k]) || 'Sconosciuto';
                 if (!byName[name]) byName[name] = [];
                 byName[name].push(l);
+                if (!exByName[name] && k) exByName[name] = groupKeyToEx[k];
             }
             let names = Object.keys(byName).sort();
             const q = (_storicoSearch || '').trim().toLowerCase();
             if (q) names = names.filter(n => n.toLowerCase().includes(q));
-            listEl.innerHTML = _buildStoricoListHtml(names, byName, exById);
+            listEl.innerHTML = _buildStoricoListHtml(names, byName, exById, exByName);
         }
 
         let _storicoLogsCache = [];
 
-        function _buildStoricoListHtml(names, byName, exById) {
+        function _buildStoricoListHtml(names, byName, exById, exByName) {
             if (!names.length) {
                 return '<div class="all-empty">Nessun risultato.</div>';
             }
@@ -1484,7 +1537,9 @@
                 const dates = new Set(logs.map(l => l.log_date));
                 const nSessions = dates.size;
                 const isOpen = _storicoExpanded.has(name);
-                const dbEx = _findEx(name);
+                // Lookup catalogo: prima per slug del rappresentante, fallback per nome
+                const rep = exByName ? exByName[name] : null;
+                const dbEx = rep ? _findExForCard(rep) : _findEx(name);
                 const thumb = dbEx ? dbEx.immagine_url_small : '';
 
                 html += `<div class="all-storico-card ${isOpen ? 'open' : ''}">
@@ -1647,7 +1702,7 @@
                 if (!allPlans || !allPlans.length) {
                     const { data, error } = await _queryWithTimeout(supabaseClient
                         .from('workout_plans')
-                        .select('id, workout_exercises(id, exercise_name, muscle_group, sets, reps, weight_kg)')
+                        .select('id, workout_exercises(id, exercise_name, custom_name, exercise_slug, muscle_group, sets, reps, weight_kg)')
                         .eq('user_id', user.id), 15000);
                     if (error) throw error;
                     allPlans = data || [];
@@ -1674,35 +1729,33 @@
                     return;
                 }
 
-                // Map exercise_id → { name, muscle_group }
-                const idToName = {};
-                const idToMuscle = {};
-                for (const ex of allExercises) {
-                    idToName[ex.id] = ex.exercise_name;
-                    idToMuscle[ex.id] = ex.muscle_group || '';
-                }
+                // Raggruppa per identità logica (slug stabile o nome
+                // normalizzato): rinomine e duplicati confluiscono in un
+                // unico esercizio. Il display name preferito è quello della
+                // scheda attiva (gestito da _buildExGroupingMaps).
+                const { idToGroupKey, groupKeyToName, groupKeyToMuscle } = _buildExGroupingMaps(allExercises, _allPlan);
 
-                // Map exercise_name → muscle_group (first found)
+                // Map display name → muscle_group
                 const nameToMuscle = {};
-                for (const ex of allExercises) {
-                    if (ex.muscle_group && !nameToMuscle[ex.exercise_name]) {
-                        nameToMuscle[ex.exercise_name] = ex.muscle_group;
-                    }
+                for (const k in groupKeyToName) {
+                    if (groupKeyToMuscle[k]) nameToMuscle[groupKeyToName[k]] = groupKeyToMuscle[k];
                 }
 
-                // Group logs by exercise NAME
+                // Group logs by display name (risolto via groupKey)
                 const logsByName = {};
                 for (const l of logs) {
-                    const name = idToName[l.exercise_id] || 'Sconosciuto';
+                    const k = idToGroupKey[l.exercise_id];
+                    const name = (k && groupKeyToName[k]) || 'Sconosciuto';
                     if (!logsByName[name]) logsByName[name] = [];
                     logsByName[name].push(l);
                 }
 
                 // Get current target from active plan (if available)
-                const activeExercises = _allPlan?.workout_exercises || [];
                 const targetByName = {};
-                for (const ex of activeExercises) {
-                    targetByName[ex.exercise_name] = { sets: ex.sets, reps: ex.reps, weight_kg: ex.weight_kg };
+                for (const ex of (_allPlan?.workout_exercises || [])) {
+                    const k = _exGroupKey(ex);
+                    const name = groupKeyToName[k] || ex.exercise_name;
+                    if (!targetByName[name]) targetByName[name] = { sets: ex.sets, reps: ex.reps, weight_kg: ex.weight_kg };
                 }
 
                 // Available muscle groups (from data)
@@ -1726,10 +1779,11 @@
                     }
                 }
 
-                // Re-group filtered logs by name
+                // Re-group filtered logs by display name (via groupKey)
                 const filteredByName = {};
                 for (const l of filteredLogs) {
-                    const name = idToName[l.exercise_id] || 'Sconosciuto';
+                    const k = idToGroupKey[l.exercise_id];
+                    const name = (k && groupKeyToName[k]) || 'Sconosciuto';
                     if (!filteredByName[name]) filteredByName[name] = [];
                     filteredByName[name].push(l);
                 }
@@ -1768,7 +1822,10 @@
                 // Stats overview (filtered)
                 // Filter logs for stats based on muscle filter too
                 const statsLogs = filterMuscle === 'all' ? filteredLogs
-                    : filteredLogs.filter(l => nameToMuscle[idToName[l.exercise_id]] === filterMuscle);
+                    : filteredLogs.filter(l => {
+                        const k = idToGroupKey[l.exercise_id];
+                        return k && groupKeyToMuscle[k] === filterMuscle;
+                    });
                 const totalSessions = new Set(statsLogs.map(l => l.exercise_id + '|' + l.log_date)).size;
                 const totalSets = statsLogs.length;
                 const totalVolume = statsLogs.reduce((sum, l) => sum + ((l.weight_done || 0) * (l.reps_done || 0)), 0);
