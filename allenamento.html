@@ -290,6 +290,13 @@
             if (ov) ov.remove();
             const stillOpen = document.getElementById('exDetailFullOverlay') || document.getElementById('ssDetailFullOverlay');
             if (!stillOpen) document.body.style.overflow = '';
+            if (_editExHistoryPushed) {
+                _editExHistoryPushed = false;
+                if (history.state && history.state.allEditExOpen) {
+                    _suppressNextPopstate = true;
+                    history.back();
+                }
+            }
         }
 
         function showEditExercise(exId) {
@@ -358,6 +365,10 @@
             document.body.appendChild(overlay);
             document.body.style.overflow = 'hidden';
             requestAnimationFrame(() => overlay.classList.add('visible'));
+            if (!_editExHistoryPushed) {
+                history.pushState({ allEditExOpen: true }, '', location.href);
+                _editExHistoryPushed = true;
+            }
         }
 
         function editExStepper(inputId, delta) {
@@ -933,7 +944,7 @@
                 const _cardio = (ex.muscle_group || '').toLowerCase() === 'cardio';
                 const target = _cardio
                     ? `${ex.reps} min`
-                    : `${ex.sets} \u00d7 ${ex.reps}${ex.weight_kg != null ? ' @ ' + ex.weight_kg + ' kg' : ''}${ex.rest_seconds ? ' \u00b7 ' + (ex.rest_seconds <= 3 ? ex.rest_seconds + ' min' : ex.rest_seconds + 's') + ' pausa' : ''}`;
+                    : `${ex.sets} \u00d7 ${ex.reps}${ex.weight_kg != null ? ' · ' + ex.weight_kg + ' kg' : ''}${ex.rest_seconds ? ' \u00b7 ' + (ex.rest_seconds <= 3 ? ex.rest_seconds + ' min' : ex.rest_seconds + 's') + ' pausa' : ''}`;
                 const hasLogs = todayLogs.some(l => l.exercise_id === ex.id);
                 const prevLogs = _prevSessionLogs(ex.id);
                 const dbEx = _findExForCard(ex);
@@ -1062,7 +1073,7 @@
             const name = dbEx ? dbEx.nome_it : ex.exercise_name;
             const target = isCardio
                 ? `${ex.reps} min`
-                : `${ex.sets} × ${ex.reps}${ex.weight_kg != null ? ' @ ' + ex.weight_kg + ' kg' : ''}${ex.rest_seconds ? ' · ' + (ex.rest_seconds <= 3 ? ex.rest_seconds + ' min' : ex.rest_seconds + 's') + ' pausa' : ''}`;
+                : `${ex.sets} × ${ex.reps}${ex.weight_kg != null ? ' · ' + ex.weight_kg + ' kg' : ''}${ex.rest_seconds ? ' · ' + (ex.rest_seconds <= 3 ? ex.rest_seconds + ' min' : ex.rest_seconds + 's') + ' pausa' : ''}`;
 
             const old = document.getElementById('exDetailFullOverlay');
             if (old) old.remove();
@@ -1094,12 +1105,23 @@
             document.body.appendChild(overlay);
             document.body.style.overflow = 'hidden';
             requestAnimationFrame(() => overlay.classList.add('visible'));
+            if (!_detailHistoryPushed) {
+                history.pushState({ allDetailOpen: true }, '', location.href);
+                _detailHistoryPushed = true;
+            }
         }
 
         function closeExerciseDetail() {
             const ov = document.getElementById('exDetailFullOverlay');
             if (ov) ov.remove();
             document.body.style.overflow = '';
+            if (_detailHistoryPushed) {
+                _detailHistoryPushed = false;
+                if (history.state && history.state.allDetailOpen) {
+                    _suppressNextPopstate = true;
+                    history.back();
+                }
+            }
         }
 
         // ── Overlay fullscreen dettaglio superset ──────────────────────────
@@ -1121,7 +1143,7 @@
                 const isCardio = (ssEx.muscle_group || '').toLowerCase() === 'cardio';
                 const sTarget = isCardio
                     ? `${ssEx.reps} min`
-                    : `${ssEx.sets} × ${ssEx.reps}${ssEx.weight_kg != null ? ' @ ' + ssEx.weight_kg + ' kg' : ''}${ssEx.rest_seconds ? ' · ' + ssEx.rest_seconds + 's pausa' : ''}`;
+                    : `${ssEx.sets} × ${ssEx.reps}${ssEx.weight_kg != null ? ' · ' + ssEx.weight_kg + ' kg' : ''}${ssEx.rest_seconds ? ' · ' + ssEx.rest_seconds + 's pausa' : ''}`;
                 body += `<div class="all-detail-ss-block">
                     <div class="all-detail-ss-divider">Esercizio ${idx + 1}</div>
                     <div class="all-detail-ss-name">${_escHtml(sName)}<button class="all-ex-edit-btn" onclick="showEditExercise('${ssEx.id}')" title="Modifica">&#9998;</button></div>
@@ -1153,12 +1175,23 @@
             document.body.appendChild(overlay);
             document.body.style.overflow = 'hidden';
             requestAnimationFrame(() => overlay.classList.add('visible'));
+            if (!_ssDetailHistoryPushed) {
+                history.pushState({ allSsDetailOpen: true }, '', location.href);
+                _ssDetailHistoryPushed = true;
+            }
         }
 
         function closeSupersetDetail() {
             const ov = document.getElementById('ssDetailFullOverlay');
             if (ov) ov.remove();
             document.body.style.overflow = '';
+            if (_ssDetailHistoryPushed) {
+                _ssDetailHistoryPushed = false;
+                if (history.state && history.state.allSsDetailOpen) {
+                    _suppressNextPopstate = true;
+                    history.back();
+                }
+            }
         }
 
         async function saveLog(exerciseId, btn) {
@@ -1802,7 +1835,7 @@
                     const trendClass = trend > 0 ? 'all-trend-up' : trend < 0 ? 'all-trend-down' : '';
                     const target = targetByName[exName];
                     const targetStr = target
-                        ? (isCardio ? `Target: ${target.reps} min` : `Target: ${target.sets}×${target.reps}${target.weight_kg != null ? ' @ ' + target.weight_kg + 'kg' : ''}`)
+                        ? (isCardio ? `Target: ${target.reps} min` : `Target: ${target.sets}×${target.reps}${target.weight_kg != null ? ' · ' + target.weight_kg + 'kg' : ''}`)
                         : '';
 
                     const canvasId = 'pchart-' + (chartIdx++);
@@ -2556,18 +2589,55 @@
         // Serve per intercettare il tasto "Indietro" del device/browser e
         // chiudere il picker invece di navigare via da allenamento.html.
         let _pickerHistoryPushed = false;
+        // Stessi flag per gli overlay dettaglio (esercizio singolo e superset)
+        // e per l'overlay di modifica esercizio.
+        let _detailHistoryPushed = false;
+        let _ssDetailHistoryPushed = false;
+        let _editExHistoryPushed = false;
+        // Quando chiudiamo un overlay via bottone chiamiamo history.back() per
+        // ripulire lo state pushato. Il popstate che ne deriva NON deve
+        // chiudere anche l'overlay sottostante: questa flag lo sopprime.
+        let _suppressNextPopstate = false;
 
-        // Intercetta il tasto Indietro: se il picker è aperto, chiudilo
+        // Intercetta il tasto Indietro: se un overlay è aperto, chiudilo
         // (lo state che avevamo pushato è già stato consumato dal browser).
+        // Ordine: l'overlay più "sopra" viene chiuso per primo.
         window.addEventListener('popstate', () => {
-            if (!_pickerHistoryPushed) return;
-            const overlay = document.getElementById('allExPickerOverlay');
-            if (!overlay) { _pickerHistoryPushed = false; return; }
-            _pickerHistoryPushed = false;
-            overlay.remove();
-            document.body.style.overflow = '';
-            _pendingDayLabel = null;
-            _supersetMode = false;
+            if (_suppressNextPopstate) { _suppressNextPopstate = false; return; }
+            if (_editExHistoryPushed) {
+                _editExHistoryPushed = false;
+                const ov = document.getElementById('editExOverlay');
+                if (ov) {
+                    ov.remove();
+                    const stillOpen = document.getElementById('exDetailFullOverlay') || document.getElementById('ssDetailFullOverlay');
+                    if (!stillOpen) document.body.style.overflow = '';
+                }
+                return;
+            }
+            if (_detailHistoryPushed) {
+                _detailHistoryPushed = false;
+                const ov = document.getElementById('exDetailFullOverlay');
+                if (ov) ov.remove();
+                document.body.style.overflow = '';
+                return;
+            }
+            if (_ssDetailHistoryPushed) {
+                _ssDetailHistoryPushed = false;
+                const ov = document.getElementById('ssDetailFullOverlay');
+                if (ov) ov.remove();
+                document.body.style.overflow = '';
+                return;
+            }
+            if (_pickerHistoryPushed) {
+                _pickerHistoryPushed = false;
+                const overlay = document.getElementById('allExPickerOverlay');
+                if (overlay) {
+                    overlay.remove();
+                    document.body.style.overflow = '';
+                }
+                _pendingDayLabel = null;
+                _supersetMode = false;
+            }
         });
 
         function _buildPickerData() {
@@ -2648,6 +2718,7 @@
             if (_pickerHistoryPushed) {
                 _pickerHistoryPushed = false;
                 if (history.state && history.state.allPickerOpen) {
+                    _suppressNextPopstate = true;
                     history.back();
                 }
             }
@@ -3214,7 +3285,7 @@
                         const restUnit = ex.rest_seconds && ex.rest_seconds <= 3 ? ' min' : 's';
                         const target = isCardio
                             ? ex.reps + ' min'
-                            : (ex.sets || '') + ' \u00d7 ' + (ex.reps || '') + (ex.weight_kg != null ? ' @ ' + ex.weight_kg + ' kg' : '') + (ex.rest_seconds ? ' \u00b7 ' + ex.rest_seconds + restUnit + ' pausa' : '');
+                            : (ex.sets || '') + ' \u00d7 ' + (ex.reps || '') + (ex.weight_kg != null ? ' · ' + ex.weight_kg + ' kg' : '') + (ex.rest_seconds ? ' \u00b7 ' + ex.rest_seconds + restUnit + ' pausa' : '');
                         doc.setFont('helvetica', 'normal');
                         doc.setFontSize(9);
                         doc.setTextColor(...GRAY);
