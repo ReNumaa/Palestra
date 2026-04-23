@@ -121,7 +121,15 @@
     <script src="js/auth.js?v=22"></script>
     <!-- chart-mini.js non serve: usa drawDarkLineChart() interno -->
     <script>
-        let _allView = 'scheda';
+        // Vista attiva: ripristinata da sessionStorage così ricaricando la
+        // pagina l'utente rimane sullo stesso tab (Scheda/Progressi/Report/...).
+        const _SAVED_VIEWS = ['scheda', 'progressi', 'storico', 'report', 'tablet', 'pdf'];
+        let _allView = (() => {
+            try {
+                const v = sessionStorage.getItem('allView');
+                return _SAVED_VIEWS.includes(v) ? v : 'scheda';
+            } catch { return 'scheda'; }
+        })();
         let _allPlan = null;
         let _allPlans = [];  // tutte le schede (attive e vecchie)
         let _allLogs = [];
@@ -456,8 +464,9 @@
             }
         }
 
-        function switchAllView(view) {
-            _allView = view;
+        // Sincronizza pill attivi + visibilità FAB con _allView corrente.
+        // Non dispatcha nessun render (chi chiama decide se/quando renderizzare).
+        function _syncAllViewUI() {
             const pills = ['pillScheda', 'pillProgressi', 'pillReport', 'pillTablet', 'pillPdf'];
             const views = ['scheda', 'progressi', 'report', 'tablet', 'pdf'];
             pills.forEach((id, i) => {
@@ -465,14 +474,19 @@
                 if (el) {
                     // 'storico' è una sotto-vista di 'progressi' (accessibile dal bottone
                     // dentro Progressi). Quando siamo in storico, teniamo pillProgressi attiva.
-                    const isActive = view === views[i] || (view === 'storico' && views[i] === 'progressi');
+                    const isActive = _allView === views[i] || (_allView === 'storico' && views[i] === 'progressi');
                     el.classList.toggle('active', isActive);
                     el.setAttribute('aria-selected', isActive);
                 }
             });
-            // Hide/show FAB only for scheda view
             const fab = document.getElementById('allFabCreate');
-            if (fab) fab.style.display = view === 'scheda' ? '' : 'none';
+            if (fab) fab.style.display = _allView === 'scheda' ? '' : 'none';
+        }
+
+        function switchAllView(view) {
+            _allView = view;
+            try { sessionStorage.setItem('allView', view); } catch {}
+            _syncAllViewUI();
             if (view === 'scheda') renderScheda();
             else if (view === 'storico') renderStorico();
             else if (view === 'progressi') renderProgressi();
@@ -588,9 +602,8 @@
                 }
             }
 
-            // Mostra FAB per creare scheda
-            const fab = document.getElementById('allFabCreate');
-            if (fab) fab.style.display = '';
+            // Sincronizza pill e FAB con la vista ripristinata da sessionStorage
+            _syncAllViewUI();
 
             await _refreshAllenamentoData({ isInitial: true });
         }
