@@ -1061,15 +1061,15 @@
             if (!prevLogs.length) return '';
             const isCardio = (ex.muscle_group || '').toLowerCase() === 'cardio';
             const prevDate = prevLogs[0].log_date;
-            let html = `<div class="all-prev-session">
-                <span class="all-prev-label">Sessione precedente — ${_fmtDateAll(prevDate)}</span>
+            let html = `<details class="all-prev-session">
+                <summary class="all-prev-label">Sessione precedente — ${_fmtDateAll(prevDate)}</summary>
                 <div class="all-prev-sets">`;
             for (const pl of prevLogs) {
                 html += isCardio
                     ? `<span class="all-prev-set">${pl.reps_done || '—'} min</span>`
                     : `<span class="all-prev-set">${pl.set_number}. ${pl.reps_done || '—'}×${pl.weight_done != null ? pl.weight_done + 'kg' : '—'}</span>`;
             }
-            html += `</div></div>`;
+            html += `</div></details>`;
             return html;
         }
 
