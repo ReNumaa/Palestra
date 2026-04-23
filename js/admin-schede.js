@@ -1454,17 +1454,25 @@ async function _schedeClientRenderProgressi(container, userId, plans) {
         const muscle = nameToMuscle[exName] || '';
 
         const canvasId = 'admin-pchart-' + (chartIdx++);
+        const dbEx = _findExercise(exName);
+        const imgUrl = dbEx ? (dbEx.immagine_url_small || dbEx.immagine_url || '') : '';
+        const imgHtml = imgUrl
+            ? `<img src="${_escHtml(imgUrl)}" alt="${_escHtml(exName)}" loading="lazy">`
+            : '<div class="schede-admin-chart-img-placeholder">🏋️</div>';
         html += `<div class="schede-admin-chart-card">
-            <div class="schede-chart-header">
-                <strong>${_escHtml(exName)}</strong>
-                ${muscle ? '<span class="schede-badge-active schede-badge-sm">' + _escHtml(muscle) + '</span>' : ''}
-            </div>
-            <canvas id="${canvasId}" width="400" height="140" style="width:100%;max-height:140px;"></canvas>
-            <div class="schede-chart-stats">
-                <span>Max <strong>${maxW}kg</strong></span>
-                <span>Ultimo <strong>${lastW}kg</strong></span>
-                <span class="${trend >= 0 ? 'schede-trend-up' : 'schede-trend-down'}">Trend <strong>${trendSign}${trend.toFixed(1)}kg</strong></span>
-                <span>${sessions.length} sessioni</span>
+            <div class="schede-admin-chart-img">${imgHtml}</div>
+            <div class="schede-admin-chart-main">
+                <div class="schede-chart-header">
+                    <strong>${_escHtml(exName)}</strong>
+                    ${muscle ? '<span class="schede-badge-active schede-badge-sm">' + _escHtml(muscle) + '</span>' : ''}
+                </div>
+                <canvas id="${canvasId}" width="400" height="140" style="width:100%;max-height:140px;"></canvas>
+                <div class="schede-chart-stats">
+                    <span>Max <strong>${maxW}kg</strong></span>
+                    <span>Ultimo <strong>${lastW}kg</strong></span>
+                    <span class="${trend >= 0 ? 'schede-trend-up' : 'schede-trend-down'}">Trend <strong>${trendSign}${trend.toFixed(1)}kg</strong></span>
+                    <span>${sessions.length} sessioni</span>
+                </div>
             </div>
         </div>`;
         pendingCharts.push({ canvasId, labels, values });
