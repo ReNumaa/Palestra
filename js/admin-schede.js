@@ -845,6 +845,14 @@ function _schedeActualOpenClientPopup(userId, name) {
                 </div>
                 <div class="schede-actual-popup-btn-chev">›</div>
             </button>
+            <button class="schede-actual-popup-btn" onclick="_schedeActualPickReport('${_escJs(userId)}')">
+                <div class="schede-actual-popup-btn-icon">📅</div>
+                <div class="schede-actual-popup-btn-body">
+                    <div class="schede-actual-popup-btn-title">Report</div>
+                    <div class="schede-actual-popup-btn-sub">Report AI mensili generati dal cliente</div>
+                </div>
+                <div class="schede-actual-popup-btn-chev">›</div>
+            </button>
             <div class="schede-actual-popup-row">
                 <button class="schede-actual-popup-btn ${schedaDisabled ? 'schede-actual-popup-btn--disabled' : ''}"
                     ${schedaDisabled ? 'disabled' : `onclick="_schedeActualPickScheda('${_escJs(userId)}')"`}>
@@ -925,6 +933,173 @@ function _schedeActualAddPlan(userId, clientName) {
     _editActiveDay = 'Giorno A';
     _schedeView = 'edit';
     renderSchedeTab();
+}
+
+// ═══════════════════════════════════════════════════════════════════════════════
+// REPORT AI (lettura admin dei monthly_reports generati dai clienti)
+// ═══════════════════════════════════════════════════════════════════════════════
+const _SCHEDE_REPORT_TONES = {
+    serious:      { label: 'Serio',         icon: '🎯' },
+    motivational: { label: 'Motivazionale', icon: '💪' },
+    ironic:       { label: 'Ironico',       icon: '😏' }
+};
+
+// Cache: userId → array di report (caricati al primo open)
+const _schedeReportsCache = {};
+// Flag pending scroll dopo il render della client-detail (usato da Actual → Report)
+let _schedeClientDetailScrollTo = null;
+
+function _schedeFormatYearMonth(ym) {
+    if (!ym) return '';
+    const [y, m] = ym.split('-');
+    const months = ['Gennaio', 'Febbraio', 'Marzo', 'Aprile', 'Maggio', 'Giugno',
+                    'Luglio', 'Agosto', 'Settembre', 'Ottobre', 'Novembre', 'Dicembre'];
+    const idx = parseInt(m, 10) - 1;
+    return `${months[idx] || m} ${y}`;
+}
+
+function _schedeReportMarkdownToHtml(md) {
+    if (!md) return '';
+    let html = _escHtml(md);
+    html = html.replace(/^### (.+)$/gm, '<h4>$1</h4>');
+    html = html.replace(/^## (.+)$/gm,  '<h3>$1</h3>');
+    html = html.replace(/^# (.+)$/gm,   '<h2>$1</h2>');
+    html = html.replace(/\*\*([^*]+)\*\*/g, '<strong>$1</strong>');
+    html = html.replace(/(?<!\*)\*([^*\n]+)\*(?!\*)/g, '<em>$1</em>');
+    html = html.split(/\n{2,}/).map(block => {
+        const trimmed = block.trim();
+        if (!trimmed) return '';
+        if (/^<h[2-4]>/.test(trimmed)) return trimmed;
+        return `<p>${trimmed.replace(/\n/g, '<br>')}</p>`;
+    }).filter(Boolean).join('\n');
+    return html;
+}
+
+async function _schedeFetchClientReports(userId, { force = false } = {}) {
+    if (!force && _schedeReportsCache[userId]) return _schedeReportsCache[userId];
+    if (typeof supabaseClient === 'undefined') return [];
+    try {
+        const { data, error } = await _queryWithTimeout(supabaseClient
+            .from('monthly_reports')
+            .select('id, user_id, year_month, tone, narrative, generated_at, status')
+            .eq('user_id', userId)
+            .eq('status', 'generated')
+            .order('year_month', { ascending: false })
+            .order('generated_at', { ascending: false }), 15000);
+        if (error) throw error;
+        _schedeReportsCache[userId] = data || [];
+        return _schedeReportsCache[userId];
+    } catch (e) {
+        console.error('[Schede] fetch reports error:', e);
+        return [];
+    }
+}
+
+// Chiamato da Actual → Report: apre client-detail e schedula uno scroll
+// automatico alla sezione Report dopo il render.
+function _schedeActualPickReport(userId) {
+    _schedeActualCloseClientPopup();
+    _schedeClientUserId = userId;
+    _schedeSection = 'clienti';
+    _schedeView = 'client-detail';
+    _schedeClientDetailScrollTo = 'reports';
+    renderSchedeTab();
+}
+
+function _schedeRenderReportCard(r) {
+    const tone = _SCHEDE_REPORT_TONES[r.tone] || { label: r.tone || '—', icon: '📝' };
+    const monthLabel = _schedeFormatYearMonth(r.year_month);
+    const dateStr = r.generated_at ? new Date(r.generated_at).toLocaleDateString('it-IT') : '';
+    return `<button class="schede-report-item" onclick="_schedeOpenReportModal('${_escJs(r.id)}','${_escJs(r.user_id)}')">
+        <span class="schede-report-item-icon">${tone.icon}</span>
+        <span class="schede-report-item-body">
+            <span class="schede-report-item-title">${_escHtml(monthLabel)}</span>
+            <span class="schede-report-item-meta">${_escHtml(tone.label)}${dateStr ? ' &middot; generato ' + _escHtml(dateStr) : ''}</span>
+        </span>
+        <span class="schede-report-item-chev">›</span>
+    </button>`;
+}
+
+async function _schedeRenderReportsSection(userId) {
+    const section = document.getElementById('schedeReportsSection');
+    if (!section) return;
+    section.innerHTML = '<div class="schede-loading">Caricamento report...</div>';
+
+    const reports = await _schedeFetchClientReports(userId);
+    if (!reports || reports.length === 0) {
+        section.innerHTML = `<h4 class="schede-section-title" id="schedeReportsAnchor">Report Mensili</h4>
+            <div class="empty-slot">Nessun report generato da questo cliente.</div>`;
+        return;
+    }
+
+    // Raggruppa per mese
+    const byMonth = {};
+    for (const r of reports) {
+        (byMonth[r.year_month] = byMonth[r.year_month] || []).push(r);
+    }
+    const months = Object.keys(byMonth).sort().reverse();
+
+    let html = `<h4 class="schede-section-title" id="schedeReportsAnchor">Report Mensili
+        <span class="schede-section-count">${reports.length}</span>
+    </h4>`;
+    html += '<div class="schede-report-list">';
+    for (const ym of months) {
+        html += `<div class="schede-report-month">
+            <div class="schede-report-month-label">${_escHtml(_schedeFormatYearMonth(ym))}</div>
+            <div class="schede-report-month-items">`;
+        for (const r of byMonth[ym]) html += _schedeRenderReportCard(r);
+        html += '</div></div>';
+    }
+    html += '</div>';
+
+    section.innerHTML = html;
+}
+
+function _schedeOpenReportModal(reportId, userId) {
+    const reports = _schedeReportsCache[userId] || [];
+    const report = reports.find(r => r.id === reportId);
+    if (!report) return;
+
+    _schedeCloseReportModal();
+
+    const tone = _SCHEDE_REPORT_TONES[report.tone] || { label: report.tone || '—', icon: '📝' };
+    const bodyHtml = _schedeReportMarkdownToHtml(report.narrative);
+    const monthLabel = _schedeFormatYearMonth(report.year_month);
+    const dateStr = report.generated_at
+        ? new Date(report.generated_at).toLocaleDateString('it-IT', { day: '2-digit', month: 'short', year: 'numeric' })
+        : '';
+
+    const overlay = document.createElement('div');
+    overlay.id = 'schedeReportModalOverlay';
+    overlay.className = 'schede-report-modal-overlay';
+    overlay.onclick = function(e) { if (e.target === overlay) _schedeCloseReportModal(); };
+
+    overlay.innerHTML = `<div class="schede-report-modal" role="dialog" aria-modal="true">
+        <div class="schede-report-modal-head">
+            <div>
+                <div class="schede-report-modal-eyebrow">Report ${_escHtml(monthLabel)}</div>
+                <div class="schede-report-modal-tone">${tone.icon} ${_escHtml(tone.label)}${dateStr ? ' &middot; ' + _escHtml(dateStr) : ''}</div>
+            </div>
+            <button class="schede-report-modal-close" onclick="_schedeCloseReportModal()" aria-label="Chiudi">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
+            </button>
+        </div>
+        <div class="schede-report-modal-body">${bodyHtml || '<p><em>Report vuoto.</em></p>'}</div>
+    </div>`;
+
+    document.body.appendChild(overlay);
+    document.addEventListener('keydown', _schedeReportModalKeyHandler);
+    requestAnimationFrame(() => overlay.classList.add('visible'));
+}
+
+function _schedeCloseReportModal() {
+    const overlay = document.getElementById('schedeReportModalOverlay');
+    if (overlay) overlay.remove();
+    document.removeEventListener('keydown', _schedeReportModalKeyHandler);
+}
+
+function _schedeReportModalKeyHandler(e) {
+    if (e.key === 'Escape') _schedeCloseReportModal();
 }
 
 // ═══════════════════════════════════════════════════════════════════════════════
@@ -1155,7 +1330,9 @@ async function _renderClientDetail(container) {
 
     if (!allExIds.length || !logs.length) {
         html += '<div class="empty-slot">Nessun log registrato da questo cliente.</div>';
+        html += '<div id="schedeReportsSection" class="schede-reports-section"></div>';
         container.innerHTML = html;
+        _schedeRenderReportsSection(userId).then(() => _schedeClientDetailMaybeScroll());
         return;
     }
 
@@ -1244,7 +1421,18 @@ async function _renderClientDetail(container) {
         })(canvasId, labels, values), 50);
     }
 
+    html += '<div id="schedeReportsSection" class="schede-reports-section"></div>';
     container.innerHTML = html;
+    _schedeRenderReportsSection(userId).then(() => _schedeClientDetailMaybeScroll());
+}
+
+// Se Actual → Report ha richiesto uno scroll alla sezione Report, eseguilo
+// dopo che _schedeRenderReportsSection ha scritto l'anchor nel DOM.
+function _schedeClientDetailMaybeScroll() {
+    if (_schedeClientDetailScrollTo !== 'reports') return;
+    _schedeClientDetailScrollTo = null;
+    const anchor = document.getElementById('schedeReportsAnchor');
+    if (anchor) anchor.scrollIntoView({ behavior: 'smooth', block: 'start' });
 }
 
 // Premium line chart for admin dashboard
