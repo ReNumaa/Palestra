@@ -800,15 +800,21 @@ function _schedeActualOpenClientPopup(userId, name) {
                 </div>
                 <div class="schede-actual-popup-btn-chev">›</div>
             </button>
-            <button class="schede-actual-popup-btn ${schedaDisabled ? 'schede-actual-popup-btn--disabled' : ''}"
-                ${schedaDisabled ? 'disabled' : `onclick="_schedeActualPickScheda('${_escJs(userId)}')"`}>
-                <div class="schede-actual-popup-btn-icon">📝</div>
-                <div class="schede-actual-popup-btn-body">
-                    <div class="schede-actual-popup-btn-title">Scheda</div>
-                    <div class="schede-actual-popup-btn-sub">${_escHtml(schedaSubtitle)}</div>
-                </div>
-                <div class="schede-actual-popup-btn-chev">›</div>
-            </button>
+            <div class="schede-actual-popup-row">
+                <button class="schede-actual-popup-btn ${schedaDisabled ? 'schede-actual-popup-btn--disabled' : ''}"
+                    ${schedaDisabled ? 'disabled' : `onclick="_schedeActualPickScheda('${_escJs(userId)}')"`}>
+                    <div class="schede-actual-popup-btn-icon">📝</div>
+                    <div class="schede-actual-popup-btn-body">
+                        <div class="schede-actual-popup-btn-title">Scheda</div>
+                        <div class="schede-actual-popup-btn-sub">${_escHtml(schedaSubtitle)}</div>
+                    </div>
+                    ${schedaDisabled ? '' : '<div class="schede-actual-popup-btn-chev">›</div>'}
+                </button>
+                ${schedaDisabled ? `<button class="schede-actual-popup-add" onclick="_schedeActualAddPlan('${_escJs(userId)}','${_escJs(name)}')" title="Crea nuova scheda per ${_escHtml(name)}">
+                    <span class="schede-actual-popup-add-plus">+</span>
+                    <span class="schede-actual-popup-add-label">Aggiungi</span>
+                </button>` : ''}
+            </div>
         </div>
     </div>`;
 
@@ -850,6 +856,30 @@ function _schedeActualPickScheda(userId) {
         _schedeView = 'client-detail';
         renderSchedeTab();
     }
+}
+
+// Pending prefill per la creazione di una nuova scheda: applicato da
+// _renderPlanEditor subito dopo aver scritto il DOM.
+let _schedePendingNewPlanPrefill = null;
+
+function _schedeActualAddPlan(userId, clientName) {
+    const planName = prompt(`Nome della nuova scheda per ${clientName}:`, '');
+    if (planName === null) return; // annullato
+    const trimmed = (planName || '').trim();
+    if (!trimmed) {
+        if (typeof showToast === 'function') showToast('Nome scheda richiesto', 'error');
+        return;
+    }
+    _schedeActualCloseClientPopup();
+
+    // Imposta prefill + apri editor in modalita' "nuova scheda"
+    _schedePendingNewPlanPrefill = { userId: userId, clientName: clientName, planName: trimmed };
+    _editingPlan = null;
+    _currentPlanId = null;
+    _editDayLabels = ['Giorno A'];
+    _editActiveDay = 'Giorno A';
+    _schedeView = 'edit';
+    renderSchedeTab();
 }
 
 // ═══════════════════════════════════════════════════════════════════════════════
@@ -1483,6 +1513,19 @@ function _renderPlanEditor(container) {
     </div>`;
 
     container.innerHTML = html;
+
+    // Applica prefill di una nuova scheda creata da "Actual → Aggiungi"
+    if (isNew && _schedePendingNewPlanPrefill) {
+        const pref = _schedePendingNewPlanPrefill;
+        _schedePendingNewPlanPrefill = null;
+        const nameInput = container.querySelector('#schedePlanName');
+        if (nameInput) nameInput.value = pref.planName || '';
+        const clientInput = container.querySelector('#schedeClientSearch');
+        if (clientInput) {
+            clientInput.value = pref.clientName || '';
+            if (pref.userId) clientInput.dataset.userId = pref.userId;
+        }
+    }
 }
 
 function _renderExercisesForDay() {

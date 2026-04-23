@@ -6093,6 +6093,39 @@ canvas {
 }
 .schede-actual-popup-btn:hover:not(:disabled) .schede-actual-popup-btn-chev { color: #00AEEF; }
 
+/* Row con Scheda disabilitata + bottone Aggiungi laterale */
+.schede-actual-popup-row {
+    display: flex; align-items: stretch; gap: 0.5rem;
+}
+.schede-actual-popup-row .schede-actual-popup-btn { flex: 1; min-width: 0; }
+.schede-actual-popup-add {
+    display: flex; flex-direction: column;
+    align-items: center; justify-content: center; gap: 0.15rem;
+    min-width: 84px; padding: 0.6rem 0.8rem;
+    border: 1.5px solid #22c55e; border-radius: 14px;
+    background: linear-gradient(135deg, #22c55e, #16a34a);
+    color: #fff; cursor: pointer;
+    font-weight: 700; font-size: 0.85rem;
+    box-shadow: 0 2px 8px rgba(34,197,94,0.25);
+    transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+    flex-shrink: 0;
+}
+.schede-actual-popup-add:hover {
+    transform: translateY(-1px);
+    box-shadow: 0 4px 14px rgba(34,197,94,0.35);
+}
+.schede-actual-popup-add:active { transform: translateY(0); }
+.schede-actual-popup-add-plus {
+    font-size: 1.3rem; font-weight: 800; line-height: 1;
+}
+.schede-actual-popup-add-label { font-size: 0.78rem; letter-spacing: 0.02em; }
+
+@media (max-width: 500px) {
+    .schede-actual-popup-add { min-width: 72px; padding: 0.5rem 0.6rem; }
+    .schede-actual-popup-add-plus { font-size: 1.15rem; }
+    .schede-actual-popup-add-label { font-size: 0.72rem; }
+}
+
 @media (max-width: 780px) {
     .schede-actual-grid { grid-template-columns: 1fr; gap: 0.7rem; }
     .schede-actual-slot { padding: 0.8rem 0.85rem; }

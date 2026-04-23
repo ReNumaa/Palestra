@@ -1,4 +1,4 @@
-const CACHE_NAME = 'palestra-v466';
+const CACHE_NAME = 'palestra-v467';
 
 const APP_SHELL = [
     '/',
