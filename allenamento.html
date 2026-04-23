@@ -1051,14 +1051,14 @@
         }
 
         function _buildDetailMediaHtml(dbEx) {
-            if (!dbEx) return '<div class="all-detail-media-placeholder"></div>';
+            if (!dbEx) return '';
             if (dbEx.video_url) {
                 return `<video class="all-detail-media-video" src="${_escHtml(dbEx.video_url)}" autoplay loop muted playsinline preload="auto" controls></video>`;
             }
             if (dbEx.immagine_url_small) {
                 return `<img class="all-detail-media-img" src="${_escHtml(dbEx.immagine_url_small)}" alt="${_escHtml(dbEx.nome_it || '')}">`;
             }
-            return '<div class="all-detail-media-placeholder"></div>';
+            return '';
         }
 
         // ── Overlay fullscreen dettaglio esercizio singolo ─────────────────
@@ -1078,6 +1078,8 @@
             const old = document.getElementById('exDetailFullOverlay');
             if (old) old.remove();
 
+            const mediaHtml = _buildDetailMediaHtml(dbEx);
+
             const overlay = document.createElement('div');
             overlay.id = 'exDetailFullOverlay';
             overlay.className = 'all-detail-overlay';
@@ -1091,7 +1093,7 @@
                         <button class="all-ex-edit-btn all-detail-edit" onclick="showEditExercise('${ex.id}')" title="Modifica esercizio" aria-label="Modifica esercizio">&#9998;</button>
                     </div>
                     <div class="all-detail-scroll">
-                        <div class="all-detail-media">${_buildDetailMediaHtml(dbEx)}</div>
+                        ${mediaHtml ? `<div class="all-detail-media">${mediaHtml}</div>` : ''}
                         <div class="all-detail-target-row">
                             <span class="all-detail-target-label">DA FARE:</span>
                             <span class="all-detail-target-sep">·</span>
@@ -1144,10 +1146,11 @@
                 const sTarget = isCardio
                     ? `${ssEx.reps} min`
                     : `${ssEx.sets} × ${ssEx.reps}${ssEx.weight_kg != null ? ' · ' + ssEx.weight_kg + ' kg' : ''}${ssEx.rest_seconds ? ' · ' + ssEx.rest_seconds + 's pausa' : ''}`;
+                const sMediaHtml = _buildDetailMediaHtml(sDb);
                 body += `<div class="all-detail-ss-block">
                     <div class="all-detail-ss-divider">Esercizio ${idx + 1}</div>
                     <div class="all-detail-ss-name">${_escHtml(sName)}<button class="all-ex-edit-btn" onclick="showEditExercise('${ssEx.id}')" title="Modifica">&#9998;</button></div>
-                    <div class="all-detail-media">${_buildDetailMediaHtml(sDb)}</div>
+                    ${sMediaHtml ? `<div class="all-detail-media">${sMediaHtml}</div>` : ''}
                     <div class="all-detail-target-row">
                         <span class="all-detail-target-label">DA FARE:</span>
                         <span class="all-detail-target-sep">·</span>
