@@ -6474,7 +6474,7 @@ canvas {
 .schede-ss-block {
     border: 2px solid #f59e0b;
     border-radius: 12px;
-    padding: 0.6rem 0.5rem 0.5rem;
+    padding: 0.6rem 0.5rem 0.5rem 2.4rem;
     margin-bottom: 0.5rem;
     background: linear-gradient(135deg, #fffbeb 0%, #fff 60%);
     position: relative;
@@ -6509,20 +6509,21 @@ canvas {
 .schede-ss-delete:hover { background: #dc2626; }
 .schede-ss-move {
     position: absolute;
-    top: -11px; right: 58px;
+    left: 0.5rem;
+    top: 50%;
+    transform: translateY(-50%);
     display: flex;
+    flex-direction: column;
     gap: 0.2rem;
-    line-height: 1;
 }
 .schede-ss-move button {
     background: linear-gradient(135deg, #f1f5f9, #e8ecf1);
-    border: 1px solid #e2e8f0;
-    border-radius: 4px;
-    padding: 0.05rem 0.35rem;
-    font-size: 0.7rem;
+    border: none;
+    border-radius: 6px;
+    padding: 0.25rem 0.4rem;
+    font-size: 0.75rem;
     color: #64748b;
     cursor: pointer;
-    line-height: 1.4;
     transition: all 0.15s;
 }
 .schede-ss-move button:hover { color: #00AEEF; background: #e0f2fe; box-shadow: 0 1px 4px rgba(0,174,239,0.15); }
