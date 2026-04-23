@@ -949,7 +949,7 @@
                     <div class="all-ex-header" onclick="openExerciseDetail('${ex.id}')">
                         ${thumbSrc ? `<img src="${thumbSrc}" class="all-ex-thumb" alt="" loading="lazy">` : ''}
                         <div class="all-ex-info">
-                            <div class="all-ex-name">${_escHtml(dbEx ? dbEx.nome_it : ex.exercise_name)}<button class="all-ex-edit-btn" onclick="event.stopPropagation();showEditExercise('${ex.id}')" title="Modifica esercizio">&#9998;</button></div>
+                            <div class="all-ex-name">${_escHtml(dbEx ? dbEx.nome_it : ex.exercise_name)}</div>
                             <div class="all-ex-target">${target}</div>
                         </div>
                         <div class="all-ex-status">${hasLogs ? '<span class="all-ex-check">&#10003;</span>' : '<span class="all-ex-chevron">&#8250;</span>'}</div>
@@ -1077,11 +1077,12 @@
                             <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" width="22" height="22"><polyline points="15 18 9 12 15 6"/></svg>
                         </button>
                         <div class="all-detail-title">${_escHtml(name)}</div>
+                        <button class="all-ex-edit-btn all-detail-edit" onclick="showEditExercise('${ex.id}')" title="Modifica esercizio" aria-label="Modifica esercizio">&#9998;</button>
                     </div>
                     <div class="all-detail-scroll">
                         <div class="all-detail-media">${_buildDetailMediaHtml(dbEx)}</div>
                         <div class="all-detail-target-row">
-                            <span class="all-detail-target-label">LOG DI OGGI</span>
+                            <span class="all-detail-target-label">DA FARE:</span>
                             <span class="all-detail-target-sep">·</span>
                             <span class="all-detail-target-value">${target}</span>
                         </div>
@@ -1126,7 +1127,7 @@
                     <div class="all-detail-ss-name">${_escHtml(sName)}<button class="all-ex-edit-btn" onclick="showEditExercise('${ssEx.id}')" title="Modifica">&#9998;</button></div>
                     <div class="all-detail-media">${_buildDetailMediaHtml(sDb)}</div>
                     <div class="all-detail-target-row">
-                        <span class="all-detail-target-label">LOG DI OGGI</span>
+                        <span class="all-detail-target-label">DA FARE:</span>
                         <span class="all-detail-target-sep">·</span>
                         <span class="all-detail-target-value">${sTarget}</span>
                     </div>
