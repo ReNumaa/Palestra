@@ -771,7 +771,7 @@ canvas {
 .admin-slot-card.personal-training:hover { background: rgba(34, 197, 94, 0.09); }
 .admin-slot-card.small-group:hover       { background: rgba(251, 191, 36, 0.10); }
 .admin-slot-card.group-class:hover       { background: rgba(239, 68, 68, 0.08); }
-.admin-slot-card.cleaning:hover          { background: rgba(139, 92, 246, 0.08); }
+.admin-slot-card.cleaning:hover          { background: rgba(0, 174, 239, 0.08); }
 
 .admin-slot-card.personal-training {
     border-left-color: var(--personal-training);
@@ -790,7 +790,7 @@ canvas {
 
 .admin-slot-card.cleaning {
     border-left-color: var(--cleaning);
-    background: rgba(139, 92, 246, 0.05);
+    background: rgba(0, 174, 239, 0.05);
 }
 
 .admin-slot-header {
@@ -8558,14 +8558,14 @@ canvas {
         padding: 0.55rem 0.85rem;
         border: none;
         border-radius: 10px;
-        background: linear-gradient(135deg, #8B5CF6, #7C3AED);
+        background: linear-gradient(135deg, #00AEEF, #0090cc);
         color: #fff;
         font-family: inherit;
         font-size: 0.92rem;
         font-weight: 700;
         letter-spacing: 0.01em;
         cursor: pointer;
-        box-shadow: 0 2px 8px rgba(139, 92, 246, 0.3);
+        box-shadow: 0 2px 8px rgba(0, 174, 239, 0.3);
         transition: transform 0.15s ease, box-shadow 0.2s ease;
         text-align: left;
         overflow: hidden;
@@ -8602,13 +8602,13 @@ canvas {
         position: relative;
     }
     .adm-mbar-filter:active { transform: scale(0.98); }
-    .adm-mbar-filter:hover { border-color: #8B5CF6; color: #7C3AED; }
+    .adm-mbar-filter:hover { border-color: #00AEEF; color: #0090cc; }
     .adm-mbar-filter.has-active {
-        border-color: #8B5CF6;
-        color: #7C3AED;
-        background: rgba(139, 92, 246, 0.06);
+        border-color: #00AEEF;
+        color: #0090cc;
+        background: rgba(0, 174, 239, 0.06);
     }
-    .adm-mbar-filter-ico { font-size: 1rem; color: #8B5CF6; line-height: 1; flex-shrink: 0; }
+    .adm-mbar-filter-ico { font-size: 1rem; color: #00AEEF; line-height: 1; flex-shrink: 0; }
     .adm-mbar-filter-label {
         max-width: 40vw;
         overflow: hidden;
@@ -8706,8 +8706,8 @@ canvas {
     .adm-sheet-item + .adm-sheet-item { margin-top: 0.1rem; }
     .adm-sheet-item:active { background: #f1f5f9; }
     .adm-sheet-item.is-active {
-        background: rgba(139, 92, 246, 0.08);
-        border-color: rgba(139, 92, 246, 0.25);
+        background: rgba(0, 174, 239, 0.08);
+        border-color: rgba(0, 174, 239, 0.25);
     }
     .adm-sheet-item-ico {
         width: 36px;
@@ -8721,7 +8721,7 @@ canvas {
         flex-shrink: 0;
     }
     .adm-sheet-item.is-active .adm-sheet-item-ico {
-        background: linear-gradient(135deg, #8B5CF6, #7C3AED);
+        background: linear-gradient(135deg, #00AEEF, #0090cc);
         color: #fff;
     }
     .adm-sheet-item-text {
@@ -8756,8 +8756,8 @@ canvas {
         transition: border-color 0.15s ease, background 0.15s ease;
     }
     .adm-sheet-item.is-active .adm-sheet-item-radio {
-        border-color: #8B5CF6;
-        background: #8B5CF6;
+        border-color: #00AEEF;
+        background: #00AEEF;
     }
     .adm-sheet-item.is-active .adm-sheet-item-radio::after {
         content: '';
@@ -8804,9 +8804,9 @@ canvas {
         color: #475569;
     }
     .adm-sheet-btn--primary {
-        background: linear-gradient(135deg, #8B5CF6, #7C3AED);
+        background: linear-gradient(135deg, #00AEEF, #0090cc);
         color: #fff;
-        box-shadow: 0 2px 8px rgba(139, 92, 246, 0.3);
+        box-shadow: 0 2px 8px rgba(0, 174, 239, 0.3);
     }
 
     /* ── Gruppi filtri dentro il bottom sheet ────────────────────────────── */
@@ -8845,10 +8845,10 @@ canvas {
     }
     .adm-filt-pill:active { transform: scale(0.97); }
     .adm-filt-pill.is-active {
-        background: linear-gradient(135deg, #8B5CF6, #7C3AED);
-        border-color: #7C3AED;
+        background: linear-gradient(135deg, #00AEEF, #0090cc);
+        border-color: #0090cc;
         color: #fff;
-        box-shadow: 0 2px 6px rgba(139, 92, 246, 0.3);
+        box-shadow: 0 2px 6px rgba(0, 174, 239, 0.3);
     }
 
     .adm-filt-input,
@@ -8866,8 +8866,8 @@ canvas {
     .adm-filt-input:focus,
     .adm-filt-date:focus {
         outline: none;
-        border-color: #8B5CF6;
-        box-shadow: 0 0 0 3px rgba(139, 92, 246, 0.12);
+        border-color: #00AEEF;
+        box-shadow: 0 0 0 3px rgba(0, 174, 239, 0.12);
     }
     .adm-filt-row {
         display: flex;
