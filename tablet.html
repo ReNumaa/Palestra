@@ -108,6 +108,11 @@
     let _inactivityTimer = null;
     let _inactivityCountdown = null;
     let _secondsLeft = 0;
+    // Guard contro chiamate concorrenti di loadUserWorkout: senza, lo scanner
+    // QR (fps: 10) puo' invocare il callback piu' volte prima che stop() completi,
+    // triggerando loadUserWorkout multiple volte in parallelo -> UI bloccata
+    // su "Caricamento..." per race condition tra promise interlacciate.
+    let _loadingInProgress = false;
     const INACTIVITY_MS = 20 * 60 * 1000; // 20 minutes
 
     // ── Helpers ───────────────────────────────────────────────────────────
@@ -196,6 +201,18 @@
         _logs = [];
         _activeDay = null;
         _tabView = 'scheda';
+        // Azzera l'URL: senza, un refresh dopo back riaprirebbe la vecchia scheda
+        // (quella di una persona diversa). Il tablet e' condiviso quindi va pulito.
+        try {
+            const url = new URL(window.location);
+            if (url.searchParams.has('uid')) {
+                url.searchParams.delete('uid');
+                history.replaceState(null, '', url);
+            }
+        } catch(e) {}
+        // Reset placeholder per prossimo caricamento
+        const tc = document.getElementById('tabContent');
+        if (tc) tc.innerHTML = '<div class="tab-loading">Caricamento...</div>';
         _stopInactivity();
         const fab = document.getElementById('tabFabAdd');
         if (fab) fab.style.display = 'none';
@@ -258,6 +275,10 @@
     }
 
     function _onQrScanned(text) {
+        // Guard: lo scanner puo' triggerare il callback piu' volte con lo stesso
+        // uid prima che _stopScanner() (async) abbia effetto. Senza questo check
+        // lanciamo loadUserWorkout in parallelo e la UI resta "Caricamento...".
+        if (_loadingInProgress || _userId) return;
         // Extract uid from URL or raw UUID
         let uid = null;
         try {
@@ -303,28 +324,44 @@
 
     // ── Load user workout data ────────────────────────────────────────────
     async function loadUserWorkout(userId) {
+        // Re-entrancy guard: se un caricamento e' gia' in corso, ignora. Lo
+        // scanner QR puo' triggerare il callback multiple volte prima di stoppare.
+        if (_loadingInProgress) return;
+        _loadingInProgress = true;
         _userId = userId;
         const statusEl = document.getElementById('scanStatus');
         if (statusEl) statusEl.textContent = 'Caricamento scheda...';
 
+        // Helper: se l'utente ha premuto Indietro durante un await, _userId e'
+        // stato azzerato da resetToScan(). In quel caso aborta senza toccare UI.
+        const aborted = () => _userId !== userId;
+
         try {
-            // Step 1: profile + plan in parallel
-            const [profileRes, plansRes] = await Promise.all([
+            // Step 1: plan (critico) + profile (best-effort, solo per nome display).
+            // profile e plan in Promise.allSettled perche' un timeout/errore sulla
+            // tabella profiles non deve bloccare il caricamento della scheda.
+            const [profileRes, plansRes] = await Promise.allSettled([
                 _queryWithTimeout(supabaseClient.from('profiles').select('name, email').eq('id', userId).single()),
                 _queryWithTimeout(supabaseClient.from('workout_plans').select('*, workout_exercises(*)').eq('user_id', userId).eq('active', true).order('updated_at', { ascending: false }).limit(1))
             ]);
 
-            _userName = profileRes.data?.name || profileRes.data?.email || 'Utente';
+            if (aborted()) return;
 
-            if (plansRes.error) throw plansRes.error;
-            if (!plansRes.data?.length) {
+            _userName = profileRes.status === 'fulfilled'
+                ? (profileRes.value.data?.name || profileRes.value.data?.email || 'Utente')
+                : 'Utente';
+
+            if (plansRes.status === 'rejected') throw plansRes.reason;
+            const plansData = plansRes.value;
+            if (plansData.error) throw plansData.error;
+            if (!plansData.data?.length) {
                 if (statusEl) statusEl.textContent = 'Nessuna scheda attiva trovata per questo utente.';
                 _userId = null;
                 _startScanner();
                 return;
             }
 
-            _plan = plansRes.data[0];
+            _plan = plansData.data[0];
             _exercises = (_plan.workout_exercises || []).sort((a, b) => a.sort_order - b.sort_order);
 
             // Step 2: exercise catalog (only needed names) + logs (last 30 days) in parallel
@@ -344,6 +381,8 @@
                 _loadExDB(exNames),
                 logsPromise
             ]);
+
+            if (aborted()) return;
             _logs = logsRes.data || [];
 
             // Persist uid in URL so refresh keeps the session
@@ -358,6 +397,10 @@
             document.getElementById('tabPlanName').textContent = _plan.name;
             const renameBtn = document.getElementById('tabPlanRenameBtn');
             if (renameBtn) renameBtn.style.display = '';
+            // Reset del placeholder "Caricamento..." iniziale prima del render,
+            // cosi' se renderTabScheda dovesse uscire early non resta appeso.
+            const tc = document.getElementById('tabContent');
+            if (tc) tc.innerHTML = '';
             showScreen('workoutScreen');
             const fab = document.getElementById('tabFabAdd');
             if (fab) fab.style.display = '';
@@ -366,9 +409,12 @@
 
         } catch (e) {
             console.error('[Tablet] load error:', e);
-            if (statusEl) statusEl.textContent = 'Errore caricamento. Riprova.';
+            if (aborted()) return;
+            if (statusEl) statusEl.textContent = 'Errore caricamento. Riprovo tra 2s...';
             _userId = null;
             setTimeout(() => _startScanner(), 2000);
+        } finally {
+            _loadingInProgress = false;
         }
     }
 
@@ -437,7 +483,13 @@
     // ── Render Scheda ─────────────────────────────────────────────────────
     function renderTabScheda() {
         const c = document.getElementById('tabContent');
-        if (!_plan) return;
+        if (!c) return;
+        // Fallback: se arriviamo qui senza _plan il placeholder "Caricamento..."
+        // iniziale resterebbe visibile. Mostra invece un errore azionabile.
+        if (!_plan) {
+            c.innerHTML = '<div class="tab-empty">Scheda non disponibile. <button class="tab-btn tab-btn--primary" onclick="resetToScan()">Torna allo scanner</button></div>';
+            return;
+        }
 
         const today = _localDate();
         const todayLogs = _logs.filter(l => l.log_date === today);
@@ -869,22 +921,34 @@
         btn.disabled = true;
         btn.textContent = 'Salvataggio...';
         try {
-            // Batch all sets into a single upsert
+            // Batch all sets into a single upsert. Righe completamente vuote
+            // (reps e weight entrambi mancanti) vengono saltate: senza, premere
+            // "Salva" a vuoto crea record null/null che fanno apparire
+            // l'esercizio come completato pur senza dati reali.
             const batch = [];
             for (const row of rows) {
                 const setEl = row.querySelector('.tab-log-set');
                 const s = setEl ? parseInt(setEl.textContent) : 1;
                 const reps = row.querySelector('input[data-field="reps"]');
                 const weight = row.querySelector('input[data-field="weight"]');
+                const repsVal = reps?.value ? parseInt(reps.value) : null;
+                const weightVal = weight?.value ? parseFloat(weight.value) : null;
+                if (repsVal == null && weightVal == null) continue;
                 batch.push({
                     exercise_id: exId,
                     user_id: _userId,
                     log_date: today,
                     set_number: s,
-                    reps_done: reps?.value ? parseInt(reps.value) : null,
-                    weight_done: weight?.value ? parseFloat(weight.value) : null,
+                    reps_done: repsVal,
+                    weight_done: weightVal,
                     rpe: null, notes: null
                 });
+            }
+            if (!batch.length) {
+                btn.textContent = 'Salva';
+                btn.disabled = false;
+                _toast('Inserisci almeno una serie', 'info');
+                return;
             }
             const { data, error: logErr } = await _queryWithTimeout(
                 supabaseClient.from('workout_logs')
@@ -971,7 +1035,11 @@
     // ── Render Progressi ──────────────────────────────────────────────────
     async function renderTabProgressi() {
         const c = document.getElementById('tabContent');
-        if (!_userId) return;
+        if (!c) return;
+        if (!_userId) {
+            c.innerHTML = '<div class="tab-empty">Sessione non attiva. <button class="tab-btn tab-btn--primary" onclick="resetToScan()">Torna allo scanner</button></div>';
+            return;
+        }
         c.innerHTML = '<div class="tab-loading">Caricamento progressi...</div>';
 
         try {
@@ -1811,6 +1879,10 @@
 
     async function _refreshLogsFromBg() {
         if (!_userId || !_plan) return;
+        // Evita di sovrapporsi al caricamento iniziale (se visibilitychange
+        // scatta mentre loadUserWorkout e' ancora in corso).
+        if (_loadingInProgress) return;
+        const uidAtStart = _userId;
         try {
             // Ricarica piano + esercizi (possono essere cambiati durante il background:
             // edit, aggiunta, rimozione, riordino)
@@ -1821,6 +1893,9 @@
                     .single()
             );
             if (planErr) throw planErr;
+            // Se l'utente ha cambiato sessione mentre eravamo in background,
+            // abortisci prima di sovrascrivere lo stato della nuova sessione.
+            if (_userId !== uidAtStart) return;
             if (planData) {
                 _plan = planData;
                 _exercises = (_plan.workout_exercises || []).sort((a, b) => a.sort_order - b.sort_order);
@@ -1839,11 +1914,13 @@
                         .order('set_number', { ascending: true })
                 );
                 if (logsErr) throw logsErr;
+                if (_userId !== uidAtStart) return;
                 if (logsData) _logs = logsData;
             } else {
                 _logs = [];
             }
 
+            if (_userId !== uidAtStart) return;
             if (_tabView === 'scheda') renderTabScheda();
         } catch(e) {
             console.warn('[Tablet] bg refresh failed', e);
