@@ -373,23 +373,47 @@ async function bookForClient(slotType) {
         BookingStorage._cache.push(booking);
         BookingStorage.updateStats(booking);
 
-        // Imposta custom_price=15 su entrambi (nuovo + esistente)
+        // Imposta custom_price=15 su entrambi (nuovo + esistente) via RPC admin
+        // (necessario: la tabella bookings non ha policy UPDATE per authenticated).
+        // Se l'esistente era già pagato con denaro/credito, gli rimborsa €15
+        // sul balance con entry credit_history hidden=true (silenzioso: nessuna
+        // riga in registro; il booking_paid mostrerà €15 grazie a custom_price).
         try {
-            const updates = [];
+            const rpcs = [];
             if (booking._sbId) {
-                updates.push(_queryWithTimeout(
-                    supabaseClient.from('bookings').update({ custom_price: 15 }).eq('id', booking._sbId)
-                ));
+                rpcs.push(_rpcWithTimeout(supabaseClient.rpc('admin_set_booking_custom_price', {
+                    p_booking_id: booking._sbId, p_price: 15
+                })));
             }
             if (other._sbId) {
-                updates.push(_queryWithTimeout(
-                    supabaseClient.from('bookings').update({ custom_price: 15 }).eq('id', other._sbId)
-                ));
+                rpcs.push(_rpcWithTimeout(supabaseClient.rpc('admin_set_booking_custom_price', {
+                    p_booking_id: other._sbId, p_price: 15
+                })));
             }
-            await Promise.all(updates);
+            const results = await Promise.all(rpcs);
+            const failed = results.find(r => r.error || (r.data && r.data.success === false));
+            if (failed) throw new Error(failed.error?.message || 'RPC fallita');
             // Allinea cache locale
             const oIdx = BookingStorage._cache.findIndex(b => b.id === other.id);
             if (oIdx !== -1) BookingStorage._cache[oIdx].customPrice = 15;
+
+            // Rimborso silenzioso €15 all'esistente se aveva già pagato (non gratis)
+            const otherWasPaid = other.paid
+                && other._sbId
+                && (other.paymentMethod || '') !== 'lezione-gratuita'
+                && (other.paymentMethod || '') !== '';
+            if (otherWasPaid) {
+                const { data: rd, error: re } = await _rpcWithTimeout(
+                    supabaseClient.rpc('admin_refund_shared_slot_hidden', {
+                        p_booking_id: other._sbId, p_amount: 15
+                    })
+                );
+                if (re || (rd && !rd.success)) {
+                    console.warn('[bookForClient shared] rimborso silenzioso fallito:', re || rd);
+                } else if (Number(rd?.refunded || 0) > 0 && typeof CreditStorage?.syncFromSupabase === 'function') {
+                    await CreditStorage.syncFromSupabase();
+                }
+            }
         } catch (e) {
             console.warn('[bookForClient shared] update custom_price fallito:', e);
             showToast('⚠️ Prenotazione creata ma prezzo condiviso non applicato: verifica.', 'error', 6000);
@@ -710,14 +734,17 @@ function deleteBooking(bookingId, bookingName) {
           )
         : null;
 
-    // Reset customPrice sul booking rimasto (locale + Supabase) → torna a 30€
+    // Reset customPrice sul booking rimasto (locale + Supabase) → torna a 30€.
+    // Va via RPC admin: bookings non ha policy UPDATE per authenticated.
     async function _resetSharedPrice(other) {
         if (!other) return;
         const cacheIdx = BookingStorage._cache.findIndex(b => b.id === other.id);
         if (cacheIdx !== -1) BookingStorage._cache[cacheIdx].customPrice = null;
         if (other._sbId && typeof supabaseClient !== 'undefined') {
             try {
-                await supabaseClient.from('bookings').update({ custom_price: null }).eq('id', other._sbId);
+                await _rpcWithTimeout(supabaseClient.rpc('admin_set_booking_custom_price', {
+                    p_booking_id: other._sbId, p_price: null
+                }));
             } catch (e) {
                 console.warn('[_resetSharedPrice] update Supabase fallito:', e);
             }
