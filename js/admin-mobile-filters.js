@@ -28,12 +28,18 @@
 
     // Estrae {icon, label} dal testo di un .admin-tab:
     // - gestisce cluster emoji con skin-tone modifier e variation selector (FE0F)
-    // - tollera spazi/nbsp in testa
+    // - se il primo char NON e' un'emoji (es. "Oggi"), tutto il testo e' label
+    //   (altrimenti mbar renderizzava "O ggi" con "O" come icona separata)
     function splitEmojiLabel(raw) {
         const text = (raw || '').trim();
         if (!text) return { icon: '', label: '' };
         const arr = Array.from(text);
         if (!arr.length) return { icon: '', label: text };
+        const firstCp = arr[0].codePointAt(0);
+        // Lettere/numeri/punteggiatura stanno sotto U+2000. Le emoji/symbol
+        // in uso nel progetto sono tutti >= U+2000 (⚙️ 0x2699, ✅ 0x2705,
+        // 📅/💳/🏋 nel piano SMP >= 0x1F300).
+        if (firstCp < 0x2000) return { icon: '', label: text };
         let icoEnd = 1;
         // include eventuale modifier tone / variation selector
         while (icoEnd < arr.length) {
