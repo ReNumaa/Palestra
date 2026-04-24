@@ -13,7 +13,7 @@
     <link rel="icon" type="image/jpeg" href="images/logo-tb---nero.jpg">
     <link rel="stylesheet" href="css/style.css?v=8">
     <link rel="stylesheet" href="css/login.css?v=5">
-    <link rel="stylesheet" href="css/admin.css?v=51">
+    <link rel="stylesheet" href="css/admin.css?v=52">
 </head>
 <body>
     <nav class="navbar">
@@ -62,18 +62,31 @@
                 </div>
             </div>
 
+            <!-- Mobile filter bar (solo < 768px) -->
+            <div class="adm-mbar" id="admMbar" role="toolbar" aria-label="Filtri sezione">
+                <button class="adm-mbar-page" id="admMbarPage" aria-haspopup="dialog" aria-expanded="false" aria-label="Cambia sezione">
+                    <span class="adm-mbar-page-ico" id="admMbarPageIco" aria-hidden="true">📅</span>
+                    <span class="adm-mbar-page-label" id="admMbarPageLabel">Prenotazioni</span>
+                    <span class="adm-mbar-page-chevron" aria-hidden="true">▾</span>
+                </button>
+                <button class="adm-mbar-filter" id="admMbarFilter" aria-haspopup="dialog" aria-expanded="false" aria-label="Filtri">
+                    <span class="adm-mbar-filter-ico" id="admMbarFilterIco" aria-hidden="true">🔍</span>
+                    <span class="adm-mbar-filter-label" id="admMbarFilterLabel">Filtri</span>
+                </button>
+            </div>
+
             <!-- Tab Navigation -->
             <div class="admin-tabs">
                 <button class="admin-tab active" data-tab="bookings">📅 Prenotazioni</button>
                 <button class="admin-tab" data-tab="payments">💳 Pagamenti</button>
+                <button class="admin-tab" data-tab="analytics">📊 Statistiche & Fatturato</button>
+                <button class="admin-tab" data-tab="schede" id="adminTabSchede">🏋🏻 Schede</button>
+                <button class="admin-tab" data-tab="registro">📋 Registro</button>
                 <button class="admin-tab" data-tab="clients">👤 Clienti</button>
                 <button class="admin-tab" data-tab="schedule">⚙️ Gestione Orari</button>
-                <button class="admin-tab" data-tab="analytics">📊 Statistiche & Fatturato</button>
-                <button class="admin-tab" data-tab="settings">🔧 Impostazioni</button>
-                <button class="admin-tab" data-tab="registro">📋 Registro</button>
-                <button class="admin-tab" data-tab="messaggi">📩 Messaggi</button>
-                <button class="admin-tab" data-tab="schede" id="adminTabSchede">🏋🏻 Schede</button>
                 <button class="admin-tab" data-tab="importa" id="adminTabImporta">💪🏻 Importa</button>
+                <button class="admin-tab" data-tab="messaggi">📩 Messaggi</button>
+                <button class="admin-tab" data-tab="settings">🔧 Impostazioni</button>
                 <button class="admin-tab admin-tab--privacy" id="btnToggleSensitive" onclick="toggleSensitiveData()" title="Nascondi/mostra dati sensibili">👁</button>
             </div>
 
@@ -1114,6 +1127,26 @@
         </div>
     </div>
 
+    <!-- Bottom sheet: Pagine (mobile) -->
+    <div class="adm-sheet-backdrop" id="admPagesBackdrop" hidden></div>
+    <aside class="adm-sheet" id="admPagesSheet" role="dialog" aria-modal="true" aria-labelledby="admPagesTitle" aria-hidden="true">
+        <div class="adm-sheet-grabber" aria-hidden="true"></div>
+        <h3 class="adm-sheet-title" id="admPagesTitle">Vai a</h3>
+        <ul class="adm-sheet-list" id="admPagesList" role="listbox"></ul>
+    </aside>
+
+    <!-- Bottom sheet: Filtri (mobile) -->
+    <div class="adm-sheet-backdrop" id="admFiltersBackdrop" hidden></div>
+    <aside class="adm-sheet adm-sheet--filters" id="admFiltersSheet" role="dialog" aria-modal="true" aria-labelledby="admFiltersTitle" aria-hidden="true">
+        <div class="adm-sheet-grabber" aria-hidden="true"></div>
+        <h3 class="adm-sheet-title" id="admFiltersTitle">Filtri</h3>
+        <div class="adm-sheet-body" id="admFiltersBody"></div>
+        <div class="adm-sheet-footer">
+            <button type="button" class="adm-sheet-btn adm-sheet-btn--ghost" id="admFiltersReset">Reset</button>
+            <button type="button" class="adm-sheet-btn adm-sheet-btn--primary" id="admFiltersApply">Applica</button>
+        </div>
+    </aside>
+
     <!-- Sidebar -->
     <div class="nav-sidebar-overlay" id="navSidebarOverlay" onclick="toggleNavMenu()"></div>
     <nav class="nav-sidebar" id="navSidebar">
@@ -1176,6 +1209,7 @@
     <script src="js/admin-messaggi.js?v=2"></script>
     <script src="js/admin-schede.js?v=18"></script>
     <script src="js/admin-importa.js?v=4"></script>
+    <script src="js/admin-mobile-filters.js?v=1"></script>
     <script src="js/maintenance.js?v=1"></script>
     <script>
         // Avvia auth, sincronizza i booking da Supabase, poi aggiorna la dashboard
