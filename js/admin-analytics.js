@@ -328,9 +328,16 @@ function updateStatsCards(filteredBookings, allBookings) {
         if (bd >= filterFrom && bd <= filterTo) _moraRevenue += moraAmt;
         if (prevRange && bd >= prevRange.from && bd <= prevRange.to) _moraPrevRevenue += moraAmt;
     });
+    // Check Fisico: incassi extra-prenotazione, contati nel range su createdAt.
+    // Esclusi i pagamenti con 'lezione-gratuita' (non sono cassa).
+    const _cfRevenue     = (typeof CheckFisicoStorage !== 'undefined') ? CheckFisicoStorage.sumInRange(filterFrom, filterTo) : 0;
+    const _cfCount       = (typeof CheckFisicoStorage !== 'undefined') ? CheckFisicoStorage.countInRange(filterFrom, filterTo) : 0;
+    const _cfPrevRevenue = (typeof CheckFisicoStorage !== 'undefined' && prevRange) ? CheckFisicoStorage.sumInRange(prevRange.from, prevRange.to) : 0;
+    const _cfPrevCount   = (typeof CheckFisicoStorage !== 'undefined' && prevRange) ? CheckFisicoStorage.countInRange(prevRange.from, prevRange.to) : 0;
+
     const revenue = filteredBookings
         .filter(b => b.paymentMethod !== 'lezione-gratuita')
-        .reduce((t, b) => t + getBookingPrice(b), 0) + _moraRevenue;
+        .reduce((t, b) => t + getBookingPrice(b), 0) + _moraRevenue + _cfRevenue;
     sensitiveSet('monthlyRevenue', `€${revenue}`);
     const prevRevBookings = prevRange ? allBookings.filter(b => {
         const d = new Date(b.date + 'T00:00:00');
@@ -341,13 +348,14 @@ function updateStatsCards(filteredBookings, allBookings) {
         const d = new Date(b.date + 'T00:00:00');
         return d >= prevRange.from && d <= prevRange.to;
     }) : [];
-    const prevRev = prevRevBookings.reduce((t, b) => t + getBookingPrice(b), 0) + _moraPrevRevenue;
+    const prevRev = prevRevBookings.reduce((t, b) => t + getBookingPrice(b), 0) + _moraPrevRevenue + _cfPrevRevenue;
     calcChange(revenue, prevRev, document.getElementById('revenueChange'));
     sensitiveSet('revenueChange', document.getElementById('revenueChange').textContent);
 
-    // Total bookings
-    document.getElementById('totalBookings').textContent = filteredBookings.length;
-    calcChange(filteredBookings.length, prevAllBookings.length, document.getElementById('bookingsChange'));
+    // Total bookings (include Check Fisico nel periodo come "prenotazione fatta")
+    const totalBookingsCount = filteredBookings.length + _cfCount;
+    document.getElementById('totalBookings').textContent = totalBookingsCount;
+    calcChange(totalBookingsCount, prevAllBookings.length + _cfPrevCount, document.getElementById('bookingsChange'));
 
     // Active clients
     const uniqueClients = new Set(filteredBookings.map(b => b.email)).size;
@@ -694,6 +702,20 @@ function renderFatturatoDetail(panel) {
         .filter(h => { const d = new Date(h.date); return d >= dateFrom && d <= dateTo; })
         .reduce((s, h) => s + h.amount, 0);
 
+    // ── Check Fisico ─────────────────────────────────────────────────────────
+    // Incassi "secchi" extra-prenotazione. createdAt = momento del pagamento
+    // (sempre nel passato). In Reale escludiamo lezione-gratuita; in
+    // modalita' Prenotazioni li teniamo tutti (anche le lezioni gratuite
+    // non scalano nulla, ma il conteggio e' utile come "prenotazioni fatte").
+    const _cfAll = (typeof CheckFisicoStorage !== 'undefined') ? CheckFisicoStorage.getAll() : [];
+    const _cfEntries = _cfAll.filter(e => isReale ? (e.paymentMethod !== 'lezione-gratuita') : true);
+    const cfInRange = (dateFrom, dateTo) => _cfEntries
+        .filter(e => { const d = new Date(e.createdAt); return d >= dateFrom && d <= dateTo; })
+        .reduce((s, e) => s + (e.paymentMethod === 'lezione-gratuita' ? 0 : e.amount), 0);
+    const cfCountInRange = (dateFrom, dateTo) => _cfEntries
+        .filter(e => { const d = new Date(e.createdAt); return d >= dateFrom && d <= dateTo; })
+        .length;
+
     // ── Booking filter ──────────────────────────────────────────────────────
     // Passo 2: in Reale, escludi booking già in displayAmount e inferisci method su vecchie entry.
     const allBookings = (_statsBookings ?? _excludeAdminBookings(BookingStorage.getAllBookings()))
@@ -719,14 +741,14 @@ function renderFatturatoDetail(panel) {
         return d >= from && d <= to;
     });
 
-    // Past bookings (before pastCutoff) + crediti passati + more passate
+    // Past bookings (before pastCutoff) + crediti passati + more passate + check fisici
     const pastBookings   = periodBookings.filter(b => new Date(b.date + 'T00:00:00') < pastCutoff);
     const pastCreditEnd  = new Date(Math.min(to.getTime(), pastCutoff.getTime() - 1));
-    const pastRevenue    = pastBookings.reduce(revFn, 0) + creditInRange(from, pastCreditEnd) + moraInRange(from, pastCreditEnd);
+    const pastRevenue    = pastBookings.reduce(revFn, 0) + creditInRange(from, pastCreditEnd) + moraInRange(from, pastCreditEnd) + cfInRange(from, pastCreditEnd);
 
-    // Future confirmed bookings in period + crediti futuri + more future
+    // Future confirmed bookings in period + crediti futuri + more future + check fisici futuri
     const futureBookings = periodBookings.filter(b => new Date(b.date + 'T00:00:00') >= pastCutoff);
-    const futureRevenue  = futureBookings.reduce(revFn, 0) + creditInRange(pastCutoff, to) + moraInRange(pastCutoff, to);
+    const futureRevenue  = futureBookings.reduce(revFn, 0) + creditInRange(pastCutoff, to) + moraInRange(pastCutoff, to) + cfInRange(pastCutoff, to);
 
     // Linear projection for remaining days (based on past daily rate)
     const periodStart    = from.getTime();
@@ -761,9 +783,9 @@ function renderFatturatoDetail(panel) {
     const cmFrom    = new Date(now.getFullYear(), now.getMonth(), 1);
     const cmTo      = new Date(now.getFullYear(), now.getMonth() + 1, 0, 23, 59, 59, 999);
     const cmActual  = allBookings.filter(b => { const d = new Date(b.date + 'T00:00:00'); return d >= cmFrom && d < pastCutoff; }).reduce(revFn, 0)
-        + creditInRange(cmFrom, new Date(pastCutoff.getTime() - 1)) + moraInRange(cmFrom, new Date(pastCutoff.getTime() - 1));
+        + creditInRange(cmFrom, new Date(pastCutoff.getTime() - 1)) + moraInRange(cmFrom, new Date(pastCutoff.getTime() - 1)) + cfInRange(cmFrom, new Date(pastCutoff.getTime() - 1));
     const cmFuture  = allBookings.filter(b => { const d = new Date(b.date + 'T00:00:00'); return d >= pastCutoff && d <= cmTo; }).reduce(revFn, 0)
-        + creditInRange(pastCutoff, cmTo) + moraInRange(pastCutoff, cmTo);
+        + creditInRange(pastCutoff, cmTo) + moraInRange(pastCutoff, cmTo) + cfInRange(pastCutoff, cmTo);
     const cmElapsed = Math.max(1, Math.round((Math.min(lastPastDay.getTime(), cmTo.getTime()) - cmFrom.getTime()) / 86400000) + 1);
     const cmDays    = Math.ceil((cmTo.getTime() - cmFrom.getTime()) / 86400000);
     const cmRate    = cmActual / cmElapsed;
@@ -787,7 +809,7 @@ function renderFatturatoDetail(panel) {
         } else if (isFuture) {
             if (isReale) {
                 // Reale: solo crediti già incassati nel mese futuro
-                const futCredits = creditInRange(mFrom, mTo) + moraInRange(mFrom, mTo);
+                const futCredits = creditInRange(mFrom, mTo) + moraInRange(mFrom, mTo) + cfInRange(mFrom, mTo);
                 barValues.push(futCredits);
                 barHighlight.push(false);
                 barProjected.push(0);
@@ -795,7 +817,7 @@ function renderFatturatoDetail(panel) {
                 // Prenotazioni: barra tratteggiata = prenotazioni confermate + crediti
                 const confirmedRev = allBookings
                     .filter(b => { const bd = new Date(b.date + 'T00:00:00'); return bd >= mFrom && bd <= mTo && b.status !== 'cancelled' && b.paymentMethod !== 'lezione-gratuita'; })
-                    .reduce(revFn, 0) + creditInRange(mFrom, mTo) + moraInRange(mFrom, mTo);
+                    .reduce(revFn, 0) + creditInRange(mFrom, mTo) + moraInRange(mFrom, mTo) + cfInRange(mFrom, mTo);
                 barValues.push(0);
                 barHighlight.push(false);
                 barProjected.push(confirmedRev);
@@ -804,7 +826,7 @@ function renderFatturatoDetail(panel) {
             // Mesi passati: barra solida = fatturato reale + crediti
             const rev = allBookings
                 .filter(b => { const bd = new Date(b.date + 'T00:00:00'); return bd >= mFrom && bd <= mTo; })
-                .reduce(revFn, 0) + creditInRange(mFrom, mTo) + moraInRange(mFrom, mTo);
+                .reduce(revFn, 0) + creditInRange(mFrom, mTo) + moraInRange(mFrom, mTo) + cfInRange(mFrom, mTo);
             barValues.push(rev);
             barHighlight.push(false);
             barProjected.push(0);
@@ -874,6 +896,14 @@ function renderFatturatoDetail(panel) {
         const ds = d.toISOString().split('T')[0];
         if (d >= from && d < pastCutoff)              revByDate[ds]       = (revByDate[ds] || 0)       + h.amount;
         else if (d >= pastCutoff && d >= from && d <= to) futureRevByDate[ds] = (futureRevByDate[ds] || 0) + h.amount;
+    });
+    // Aggiungi check fisici alle mappe per data (createdAt)
+    _cfEntries.forEach(e => {
+        if (e.paymentMethod === 'lezione-gratuita') return;
+        const d  = new Date(e.createdAt);
+        const ds = d.toISOString().split('T')[0];
+        if (d >= from && d < pastCutoff)                  revByDate[ds]       = (revByDate[ds] || 0)       + e.amount;
+        else if (d >= pastCutoff && d >= from && d <= to) futureRevByDate[ds] = (futureRevByDate[ds] || 0) + e.amount;
     });
 
     let cumRev = 0, cumFuture = 0, cumEstExtra = 0;
@@ -971,16 +1001,24 @@ function renderFatturatoDetail(panel) {
         typeStats.push({ label: 'More', pastCount: 0, futureCount: 0,
             pastRev: periodMoraTotal, futureRev: 0 });
     }
+    // Aggiungi fetta "Check Fisico" alla pie chart (incassi extra-prenotazione)
+    const periodCfTotal = cfInRange(from, to);
+    const periodCfCount = cfCountInRange(from, to);
+    if (periodCfTotal > 0) {
+        typeStats.push({ label: 'Check Fisico', pastCount: periodCfCount, futureCount: 0,
+            pastRev: periodCfTotal, futureRev: 0 });
+    }
     const typeTotal = typeStats.reduce((s, t) => s + t.pastRev + t.futureRev, 0);
     const typePieData = {
         labels: typeStats.map(t => t.label),
         values: typeStats.map(t => t.pastRev + t.futureRev),
     };
-    // Colori: verde (Autonomia), giallo (Gruppo), rosso (Slot), blu (Crediti), viola (More)
+    // Colori: verde (Autonomia), giallo (Gruppo), rosso (Slot), blu (Crediti), viola (More), ciano (Check Fisico)
     const basePieColors = ['#22c55e', '#f59e0b', '#e63946'];
     const pieColors = [...basePieColors];
     if (isReale && periodCreditTotal > 0) pieColors.push('#3b82f6');
     if (periodMoraTotal > 0) pieColors.push('#a855f7');
+    if (periodCfTotal > 0) pieColors.push('#06b6d4');
 
     // ── Stima futura: solo giorni futuri senza slot programmati ────────────
     // Conta i giorni futuri (da oggi in poi) nel periodo che NON hanno slot.
@@ -1033,12 +1071,22 @@ function renderFatturatoDetail(panel) {
                 }
             }
         });
+        // Check Fisico nel periodo raggruppati per metodo (escluso lezione-gratuita)
+        const cfByMethod = {};
+        _cfEntries.forEach(e => {
+            if (e.paymentMethod === 'lezione-gratuita') return;
+            const d = new Date(e.createdAt);
+            if (d >= from && d <= to) {
+                cfByMethod[e.paymentMethod] = (cfByMethod[e.paymentMethod] || 0) + e.amount;
+            }
+        });
         payMethodStats = PAY_METHODS.map(({ key, label, color }) => {
             const bookingRev = allPaidInPeriod
                 .filter(b => b.paymentMethod === key)
                 .reduce(revFn, 0);
             const creditRev = creditByMethod[key] || 0;
-            return { label, color, rev: bookingRev + creditRev };
+            const cfRev     = cfByMethod[key]     || 0;
+            return { label, color, rev: bookingRev + creditRev + cfRev };
         }).filter(m => m.rev > 0);
         // Crediti senza metodo specificato → "Altro"
         if (creditNoMethod > 0) {
@@ -1059,6 +1107,15 @@ function renderFatturatoDetail(panel) {
         });
         freeLessonCount = _freeLessons.length;
         freeLessonValue = _freeLessons.reduce((s, b) => s + getBookingPrice(b), 0);
+        // Check Fisico con metodo 'lezione-gratuita': contali tra le lezioni gratuite
+        _cfAll.forEach(e => {
+            if (e.paymentMethod !== 'lezione-gratuita') return;
+            const d = new Date(e.createdAt);
+            if (d >= from && d <= to) {
+                freeLessonCount += 1;
+                freeLessonValue += e.amount;
+            }
+        });
     }
 
     // ── Render ────────────────────────────────────────────────────────────────
@@ -1173,6 +1230,11 @@ function renderPrenotazioniDetail(panel) {
         .filter(b => new Date(b.date + 'T00:00:00') >= today)
         .sort((a, b) => a.date.localeCompare(b.date) || a.time.localeCompare(b.time));
 
+    // Check Fisico nel periodo: contati come "prenotazioni passate" (createdAt = pagamento, sempre passato)
+    const _cfAll = (typeof CheckFisicoStorage !== 'undefined') ? CheckFisicoStorage.getAll() : [];
+    const cfInPeriod = _cfAll.filter(e => { const d = new Date(e.createdAt); return d >= from && d <= to; });
+    const cfPeriodCount = cfInPeriod.length;
+
     const cancelledInPeriod = allBookings.filter(b => {
         if (b.status !== 'cancelled') return false;
         const d = new Date(b.date + 'T00:00:00');
@@ -1204,7 +1266,7 @@ function renderPrenotazioniDetail(panel) {
         if (hasSlots) periodScheduledDays++;
         else if (day >= today) futureUnscheduledDays++;
     }
-    const knownCount = periodBookings.length;
+    const knownCount = periodBookings.length + cfPeriodCount;
     const scheduleEstimate = (periodScheduledDays > 0 && futureUnscheduledDays > 0)
         ? knownCount + Math.round(knownCount / periodScheduledDays * futureUnscheduledDays)
         : knownCount;
@@ -1220,7 +1282,7 @@ function renderPrenotazioniDetail(panel) {
         if (b.status === 'cancelled') return false;
         const bd = new Date(b.date + 'T00:00:00');
         return bd >= cmFrom && bd < today;
-    }).length;
+    }).length + _cfAll.filter(e => { const d = new Date(e.createdAt); return d >= cmFrom && d < today; }).length;
     const cmFuture = allBookings.filter(b => {
         if (b.status === 'cancelled') return false;
         const bd = new Date(b.date + 'T00:00:00');
@@ -1259,7 +1321,7 @@ function renderPrenotazioniDetail(panel) {
                 if (b.status === 'cancelled') return false;
                 const bd = new Date(b.date + 'T00:00:00');
                 return bd >= mFrom && bd <= mTo;
-            }).length;
+            }).length + _cfAll.filter(e => { const d = new Date(e.createdAt); return d >= mFrom && d <= mTo; }).length;
             trendValues.push(count);
             trendHighlight.push(false);
             trendProjected.push(0);
@@ -1298,6 +1360,7 @@ function renderPrenotazioniDetail(panel) {
         const c = periodBookings.filter(b => b.slotType === key).length;
         if (c > 0) { typeLabels.push(label); typeValues.push(c); }
     });
+    if (cfPeriodCount > 0) { typeLabels.push('Check Fisico'); typeValues.push(cfPeriodCount); }
 
     // ── Per giorno della settimana ────────────────────────────────────────────
     const dayCounts = [0,0,0,0,0,0,0];
@@ -1343,7 +1406,7 @@ function renderPrenotazioniDetail(panel) {
         </div>
         <div class="stat-detail-kpis">
             <div class="stat-detail-kpi stat-detail-kpi--actual">
-                <div class="stat-detail-kpi-value">${pastBookings.length}</div>
+                <div class="stat-detail-kpi-value">${pastBookings.length + cfPeriodCount}</div>
                 <div class="stat-detail-kpi-label">Passate</div>
             </div>
             <div class="stat-detail-kpi stat-detail-kpi--future">
@@ -1421,7 +1484,7 @@ function renderPrenotazioniDetail(panel) {
         if (typeBookCanvas && typeLabels.length > 0)
             new SimpleChart(typeBookCanvas).drawPieChart(
                 { labels: typeLabels, values: typeValues },
-                { colors: ['#22c55e', '#f59e0b', '#e63946'], prefix: '' }
+                { colors: ['#22c55e', '#f59e0b', '#e63946', '#06b6d4'], prefix: '' }
             );
         const dayCanvas = document.getElementById('detailDayChart');
         if (dayCanvas) new SimpleChart(dayCanvas).drawBarChart(
@@ -2282,6 +2345,7 @@ async function downloadWeeklyReport() {
             ManualDebtStorage.syncFromSupabase(),
             CreditStorage.syncFromSupabase(),
             UserStorage.syncUsersFromSupabase(),
+            CheckFisicoStorage.syncFromSupabase(),
         ]);
 
         // Fetch bookings paid with carta / bonifico / stripe / contanti-report in the date range.
@@ -2452,6 +2516,27 @@ async function downloadWeeklyReport() {
             });
         });
 
+        // Check Fisici nel range con metodo reportabile
+        const cfAllW = (typeof CheckFisicoStorage !== 'undefined') ? CheckFisicoStorage.getAll() : [];
+        cfAllW.forEach(e => {
+            if (!REPORT_METHODS.has(e.paymentMethod)) return;
+            const eDate = e.createdAt ? e.createdAt.slice(0, 10) : '';
+            if (eDate < fromStr || eDate > toStr) return;
+            const user = userMap[(e.email || '').toLowerCase()];
+            const { nome, cognome } = splitName(e.name);
+            const addr = [user?.indirizzoVia, user?.indirizzoPaese, user?.indirizzoCap].filter(Boolean).join(', ');
+            rows.push({
+                nome, cognome,
+                cf: user?.codiceFiscale || '',
+                indirizzo: addr,
+                data: fmtDateTime(e.createdAt),
+                sortKey: e.createdAt || '',
+                tipo: 'Check Fisico',
+                metodo: METHOD_LABEL_REPORT[e.paymentMethod] || e.paymentMethod,
+                importo: e.amount
+            });
+        });
+
         // Sort by date ascending
         rows.sort((a, b) => (a.sortKey || '').localeCompare(b.sortKey || ''));
 
@@ -2502,6 +2587,7 @@ async function downloadFiscalReport() {
             ManualDebtStorage.syncFromSupabase(),
             CreditStorage.syncFromSupabase(),
             UserStorage.syncUsersFromSupabase(),
+            CheckFisicoStorage.syncFromSupabase(),
         ]);
 
         const REPORT_METHODS = new Set(['carta', 'iban', 'stripe', 'contanti-report']);
@@ -2654,6 +2740,25 @@ async function downloadFiscalReport() {
                 tipo: p.type,
                 metodo: METHOD_LABEL_REPORT[p.method] || p.method,
                 importo: p.amount
+            });
+        });
+
+        // Check Fisici totali con metodo reportabile (no date filter)
+        const cfAllF = (typeof CheckFisicoStorage !== 'undefined') ? CheckFisicoStorage.getAll() : [];
+        cfAllF.forEach(e => {
+            if (!REPORT_METHODS.has(e.paymentMethod)) return;
+            const user = userMap[(e.email || '').toLowerCase()];
+            const { nome, cognome } = splitName(e.name);
+            const addr = [user?.indirizzoVia, user?.indirizzoPaese, user?.indirizzoCap].filter(Boolean).join(', ');
+            rows.push({
+                nome, cognome,
+                cf: user?.codiceFiscale || '',
+                indirizzo: addr,
+                data: fmtDateTime(e.createdAt),
+                sortKey: e.createdAt || '',
+                tipo: 'Check Fisico',
+                metodo: METHOD_LABEL_REPORT[e.paymentMethod] || e.paymentMethod,
+                importo: e.amount
             });
         });
 

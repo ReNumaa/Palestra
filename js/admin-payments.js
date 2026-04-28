@@ -1,6 +1,7 @@
 // Payments Management Functions
 let debtorsListVisible = false;
 let creditsListVisible = false;
+let checkFisicoListVisible = false;
 
 // Contatore render: ogni chiamata a renderPaymentsTab lo incrementa e lo usa
 // come guard. Le RPC in volo che tornano con un reqId non più corrente
@@ -106,6 +107,9 @@ function _paintPaymentsTab(debtors, { preserveUiState }) {
     sensitiveSet('totalDebtors', debtors.length);
     sensitiveSet('totalCreditors', credits.length);
     sensitiveSet('totalCreditAmount', `€${totalCredit}`);
+    if (typeof CheckFisicoStorage !== 'undefined') {
+        sensitiveSet('totalCheckFisico', CheckFisicoStorage.getAll().length);
+    }
 
     const debtorsList = document.getElementById('debtorsList');
     const creditsList = document.getElementById('creditsList');
@@ -146,6 +150,69 @@ function _paintPaymentsTab(debtors, { preserveUiState }) {
             });
         }
     }
+
+    _renderCheckFisicoList();
+}
+
+// ── Lista Check Fisici recenti (tab Pagamenti) ─────────────────────────────
+// Mostra gli ultimi 50 pagamenti Check Fisico con possibilità di eliminarli.
+function _renderCheckFisicoList() {
+    const list = document.getElementById('checkFisicoList');
+    if (!list) return;
+    if (typeof CheckFisicoStorage === 'undefined') { list.innerHTML = ''; return; }
+    const entries = CheckFisicoStorage.getAll().slice(0, 50);
+    if (entries.length === 0) {
+        list.innerHTML = '<div class="empty-slot">Nessun Check Fisico registrato</div>';
+        return;
+    }
+    const METHOD_ICON  = { contanti: '💵', 'contanti-report': '🧾', carta: '💳', iban: '🏦', stripe: '💳', 'lezione-gratuita': '🎁' };
+    const METHOD_LABEL = { contanti: 'Contanti', 'contanti-report': 'Contanti con Report', carta: 'Carta', iban: 'Bonifico', stripe: 'Stripe', 'lezione-gratuita': 'Gratuita' };
+    list.innerHTML = entries.map(e => {
+        const dt = new Date(e.createdAt).toLocaleString('it-IT', { day:'2-digit', month:'2-digit', year:'2-digit', hour:'2-digit', minute:'2-digit' });
+        const mi = METHOD_ICON[e.paymentMethod]  || '';
+        const ml = METHOD_LABEL[e.paymentMethod] || e.paymentMethod;
+        const safeId = (e.id || '').replace(/'/g, "\\'");
+        return `<div class="checkfisico-entry">
+            <div class="checkfisico-entry-main">
+                <strong>${_escHtml(e.name)}</strong>
+                <span class="checkfisico-entry-meta">${dt} · ${mi} ${_escHtml(ml)}</span>
+                ${e.note ? `<span class="checkfisico-entry-note">${_escHtml(e.note)}</span>` : ''}
+            </div>
+            <div class="checkfisico-entry-amount">€${e.amount.toFixed(2)}</div>
+            <button class="debt-entry-delete-btn" onclick="deleteCheckFisico('${safeId}')" title="Elimina">✕</button>
+        </div>`;
+    }).join('');
+}
+
+async function deleteCheckFisico(id) {
+    if (!id) return;
+    if (!confirm('Eliminare questo Check Fisico?')) return;
+    try {
+        const { data, error } = await _rpcWithTimeout(supabaseClient.rpc('admin_delete_check_fisico', { p_id: id }));
+        if (error) {
+            console.error('[Supabase] admin_delete_check_fisico error:', error.message);
+            alert('⚠️ Errore: ' + error.message);
+            return;
+        }
+        if (!data?.success) { alert('⚠️ Voce non trovata.'); return; }
+        await CheckFisicoStorage.syncFromSupabase();
+        if (typeof invalidateStatsCache === 'function') invalidateStatsCache();
+        renderPaymentsTab('deleteCheckFisico');
+        if (typeof loadDashboardData === 'function') loadDashboardData();
+        showToast('Check Fisico eliminato', 'success');
+    } catch (ex) {
+        console.error('[deleteCheckFisico] unexpected error:', ex);
+        alert('⚠️ Errore imprevisto. Riprova.');
+    }
+}
+
+function toggleCheckFisicoList() {
+    checkFisicoListVisible = !checkFisicoListVisible;
+    const list = document.getElementById('checkFisicoList');
+    const hint = document.getElementById('checkFisicoToggleHint');
+    if (list) list.style.display = checkFisicoListVisible ? '' : 'none';
+    if (hint) hint.textContent = checkFisicoListVisible ? '▲ Nascondi lista' : '▼ Mostra lista';
+    if (checkFisicoListVisible) _renderCheckFisicoList();
 }
 
 function deleteManualDebtEntry(whatsapp, email, entryDate) {
@@ -895,11 +962,14 @@ let _manualEntryContact = null;
 function openManualEntryPopup(type, prefillEmail, prefillName, prefillWhatsapp) {
     _manualEntryType = type;
     _manualEntryContact = null;
-    const isDebt = type === 'debt';
-    document.getElementById('manualEntryTitle').textContent = isDebt ? 'Aggiungi Debito Manuale' : 'Aggiungi Credito Manuale';
-    document.getElementById('manualEntrySubtitle').textContent = isDebt
-        ? 'Debito non legato a prenotazioni (es. lezione privata)'
-        : 'Ricarica il saldo credito del cliente';
+    const isDebt        = type === 'debt';
+    const isCheckFisico = type === 'checkfisico';
+    let title, subtitle;
+    if (isDebt)              { title = 'Aggiungi Debito Manuale';  subtitle = 'Debito non legato a prenotazioni (es. lezione privata)'; }
+    else if (isCheckFisico)  { title = 'Aggiungi Check Fisico';    subtitle = 'Pagamento secco — non scala credito al cliente'; }
+    else                     { title = 'Aggiungi Credito Manuale'; subtitle = 'Ricarica il saldo credito del cliente'; }
+    document.getElementById('manualEntryTitle').textContent = title;
+    document.getElementById('manualEntrySubtitle').textContent = subtitle;
     document.getElementById('manualClientInput').value = '';
     document.getElementById('manualClientDropdown').style.display = 'none';
     document.getElementById('manualClientSelected').style.display = 'none';
@@ -907,10 +977,11 @@ function openManualEntryPopup(type, prefillEmail, prefillName, prefillWhatsapp) 
     document.getElementById('manualNoteInput').value = '';
     const manualSelect = document.getElementById('manualMethodSelect');
     if (manualSelect) manualSelect.value = '';
+    // Per i debiti il metodo si chiede solo al saldamento, non ora.
     document.getElementById('manualMethodField').style.display = isDebt ? 'none' : '';
     const modal = document.getElementById('manualEntryModal');
-    modal.classList.remove('manual-entry--debt', 'manual-entry--credit');
-    modal.classList.add(isDebt ? 'manual-entry--debt' : 'manual-entry--credit');
+    modal.classList.remove('manual-entry--debt', 'manual-entry--credit', 'manual-entry--checkfisico');
+    modal.classList.add(isDebt ? 'manual-entry--debt' : (isCheckFisico ? 'manual-entry--checkfisico' : 'manual-entry--credit'));
     document.getElementById('manualEntryOverlay').classList.add('open');
     modal.classList.add('open');
 
@@ -988,6 +1059,10 @@ async function saveManualEntry() {
     const method = manualSelect ? manualSelect.value : '';
     if (!method && _manualEntryType !== 'debt') { showToast('Seleziona un metodo di pagamento', 'error'); return; }
     const { name, whatsapp, email } = _manualEntryContact;
+    if (_manualEntryType === 'checkfisico' && !email) {
+        showToast('Cliente senza email: non posso registrare il Check Fisico', 'error');
+        return;
+    }
 
     // Controllo dati per metodi reportabili (carta/iban/stripe/contanti-report)
     if (['carta', 'iban', 'stripe', 'contanti-report'].includes(method)) {
@@ -1030,6 +1105,33 @@ async function saveManualEntry() {
             showToast('Debito aggiunto con successo', 'success');
             await renderPaymentsTab('saveManualEntry/debt');
             _reopenContactCard(name, whatsapp, email);
+        } else if (savedType === 'checkfisico') {
+            // Check Fisico: incasso secco, non tocca credito/debito né crea booking
+            const { data, error } = await _rpcWithTimeout(supabaseClient.rpc('admin_add_check_fisico', {
+                p_email:    email.toLowerCase(),
+                p_whatsapp: whatsapp || null,
+                p_name:     name,
+                p_amount:   amount,
+                p_method:   method,
+                p_note:     note || '',
+            }));
+            if (error) {
+                console.error('[Supabase] admin_add_check_fisico error:', error.message, error.code);
+                showToast('Errore: ' + error.message, 'error');
+                return;
+            }
+            if (!data?.success) {
+                showToast('Errore: ' + (data?.error || 'salvataggio non riuscito'), 'error');
+                return;
+            }
+            console.log('[admin_add_check_fisico]', data);
+            await CheckFisicoStorage.syncFromSupabase();
+            closeManualEntryPopup();
+            showToast('Check Fisico registrato', 'success');
+            // Invalida cache stats e ridisegna sia il tab Pagamenti sia la dashboard
+            if (typeof invalidateStatsCache === 'function') invalidateStatsCache();
+            await renderPaymentsTab('saveManualEntry/checkfisico');
+            if (typeof loadDashboardData === 'function') loadDashboardData();
         } else {
             // Credito: operazione atomica server-side via RPC
             const isFreeLesson = method === 'lezione-gratuita';

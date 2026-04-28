@@ -2663,6 +2663,11 @@ canvas {
     color: #fff;
 }
 
+.payments-fab-btn--checkfisico {
+    background: #06b6d4;
+    color: #fff;
+}
+
 /* Manual entry popup */
 .manual-entry-modal { max-height: min(92vh, 560px); }
 
@@ -2706,6 +2711,70 @@ canvas {
 .manual-entry--credit .debt-popup-pay-btn:hover:not(:disabled) {
     background: #16a34a;
     box-shadow: 0 4px 14px rgba(34,197,94,0.3);
+}
+
+/* Check Fisico theme */
+.manual-entry--checkfisico {
+    background: #ecfeff;
+}
+.manual-entry--checkfisico .debt-popup-header {
+    border-bottom-color: rgba(6,182,212,0.18);
+}
+.manual-entry--checkfisico .debt-popup-header h3 {
+    color: #0e7490;
+}
+.manual-entry--checkfisico .debt-popup-footer {
+    border-top-color: rgba(6,182,212,0.14);
+}
+.manual-entry--checkfisico .debt-popup-pay-btn {
+    background: #06b6d4;
+}
+.manual-entry--checkfisico .debt-popup-pay-btn:hover:not(:disabled) {
+    background: #0891b2;
+    box-shadow: 0 4px 14px rgba(6,182,212,0.3);
+}
+
+/* Lista Check Fisici (tab Pagamenti) */
+.checkfisico-list .checkfisico-entry {
+    display: flex;
+    align-items: center;
+    gap: 0.75rem;
+    padding: 0.65rem 0.85rem;
+    background: #fff;
+    border: 1px solid #e5e7eb;
+    border-left: 3px solid #06b6d4;
+    border-radius: 8px;
+    margin-bottom: 0.4rem;
+}
+.checkfisico-entry-main {
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    gap: 0.15rem;
+    min-width: 0;
+}
+.checkfisico-entry-meta {
+    font-size: 0.78rem;
+    color: #6b7280;
+}
+.checkfisico-entry-note {
+    font-size: 0.78rem;
+    color: #4b5563;
+    font-style: italic;
+}
+.checkfisico-entry-amount {
+    font-weight: 700;
+    color: #0e7490;
+    white-space: nowrap;
+}
+
+/* Card stat Check Fisico */
+.payment-stat-card--checkfisico {
+    background: linear-gradient(135deg, #ecfeff 0%, #cffafe 100%);
+    border-color: rgba(6,182,212,0.25);
+}
+.payment-stat-card--checkfisico .payment-total {
+    color: #0e7490;
 }
 
 .manual-entry-form {
@@ -4786,6 +4855,7 @@ canvas {
 .rtype-debt       { background: #fef9c3; color: #854d0e; }
 .rtype-debtpaid   { background: #d1fae5; color: #065f46; }
 .rtype-mora       { background: #fde68a; color: #92400e; }
+.rtype-checkfisico{ background: #cffafe; color: #0e7490; }
 
 /* Status badges */
 .rstatus-badge {

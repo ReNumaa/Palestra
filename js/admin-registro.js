@@ -203,6 +203,31 @@ function buildRegistroEntries() {
         }
     }
 
+    // 3.bis Check Fisico: ogni voce è un evento "check_fisico" pagato all'istante
+    if (typeof CheckFisicoStorage !== 'undefined') {
+        for (const e of CheckFisicoStorage.getAll()) {
+            entries.push({
+                bookingId:     null,
+                clientName:    e.name || '—',
+                clientPhone:   e.whatsapp || '',
+                clientEmail:   e.email || '',
+                lessonDate:    null,
+                lessonTime:    null,
+                slotType:      null,
+                slotLabel:     'Check Fisico',
+                notes:         e.note || '',
+                eventType:     'check_fisico',
+                timestamp:     e.createdAt ? new Date(e.createdAt) : new Date(),
+                amount:        e.amount,
+                paymentMethod: e.paymentMethod,
+                bookingStatus: 'paid',
+                bookingPaid:   true,
+                actorType:     'admin',
+                _checkFisicoId: e.id,
+            });
+        }
+    }
+
     // 3. Storico debiti manuali
     const allDebts = ManualDebtStorage._getAll();
     for (const record of Object.values(allDebts)) {
@@ -334,9 +359,12 @@ function _updateRegistroSummary(filtered) {
             (e.eventType === 'booking_paid'  && e.paymentMethod !== 'lezione-gratuita' && e.paymentMethod !== 'credito')
             || (e.eventType === 'credit_added'    && !e.freeLesson)
             || (e.eventType === 'manual_debt_paid' && e.paymentMethod)
+            || (e.eventType === 'check_fisico'    && e.paymentMethod !== 'lezione-gratuita')
         )
         .reduce((s, e) => s + (e.amount || 0), 0);
-    const totalBookings = filtered.filter(e => e.eventType === 'booking_created').length;
+    const totalBookings = filtered.filter(e =>
+        e.eventType === 'booking_created' || e.eventType === 'check_fisico'
+    ).length;
 
     const el = id => document.getElementById(id);
     if (el('registroTotalEvents'))   el('registroTotalEvents').textContent   = totalEvents;
@@ -379,6 +407,7 @@ function renderRegistroTable() {
         manual_debt_paid:         { icon: '💰', cls: 'rtype-debtpaid',   label: 'Debito Saldato' },
         cancellation_mora:        { icon: '💸', cls: 'rtype-mora',       label: 'Mora' },
         bonus_used:               { icon: '🎟️', cls: 'rtype-bonus',      label: 'Bonus Utilizzato' },
+        check_fisico:             { icon: '🩺', cls: 'rtype-checkfisico', label: 'Check Fisico' },
     };
     const METHOD_ICON  = { contanti: '💵', 'contanti-report': '🧾', carta: '💳', iban: '🏦', credito: '🔄', stripe: '💳', 'lezione-gratuita': '🎁' };
     const METHOD_LABEL = { contanti: 'Contanti', 'contanti-report': 'Contanti con Report', carta: 'Carta', iban: 'Bonifico', credito: 'Credito', stripe: 'Stripe', 'lezione-gratuita': 'Gratuita' };
@@ -559,6 +588,7 @@ async function _registroRefreshData() {
             BookingStorage.syncFromSupabase(),
             CreditStorage.syncFromSupabase(),
             ManualDebtStorage.syncFromSupabase(),
+            CheckFisicoStorage.syncFromSupabase(),
         ]);
         _registroLastSyncAt = Date.now();
         // Re-render solo se siamo ancora sul tab Registro: evita lavoro inutile
@@ -599,6 +629,7 @@ function exportRegistro() {
         manual_debt_paid:         'Debito Saldato',
         cancellation_mora:        'Mora',
         bonus_used:               'Bonus Utilizzato',
+        check_fisico:             'Check Fisico',
     };
     const METHOD_LABEL = {
         contanti: 'Contanti', 'contanti-report': 'Contanti con Report', carta: 'Carta', iban: 'Bonifico',

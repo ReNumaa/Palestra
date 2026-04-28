@@ -2075,6 +2075,68 @@ class ManualDebtStorage {
     }
 }
 
+// Check Fisico storage — pagamenti "secchi" non legati a prenotazioni.
+// Sono incassi che entrano nelle stats admin (fatturato, prenotazioni, metodo
+// pagamento, tipo lezione) e nel registro, ma NON toccano credito/debito del
+// cliente e NON sono visibili lato utente. Solo admin via RLS.
+class CheckFisicoStorage {
+    static _cache = [];
+
+    static getAll() {
+        return this._cache;
+    }
+
+    static async syncFromSupabase() {
+        if (typeof supabaseClient === 'undefined') return;
+        try {
+            const { data, error } = await supabaseClient
+                .from('check_fisico_payments')
+                .select('id, created_at, user_id, name, email, whatsapp, amount, payment_method, note')
+                .order('created_at', { ascending: false });
+            if (error) {
+                // Non-admin: la RLS nega la SELECT — silenzia per evitare rumore lato utente
+                if (error.code !== 'PGRST301' && error.code !== '42501') {
+                    console.error('[Supabase] CheckFisicoStorage.sync error:', error.message);
+                }
+                this._cache = [];
+                return;
+            }
+            this._cache = (data || []).map(r => ({
+                id:            r.id,
+                createdAt:     r.created_at,
+                userId:        r.user_id,
+                name:          r.name,
+                email:         r.email,
+                whatsapp:      r.whatsapp || '',
+                amount:        Number(r.amount) || 0,
+                paymentMethod: r.payment_method,
+                note:          r.note || '',
+            }));
+        } catch (e) {
+            console.error('[Supabase] CheckFisicoStorage.sync exception:', e);
+        }
+    }
+
+    // Somma importi nel range di date (su createdAt). Esclude lezione-gratuita.
+    static sumInRange(from, to) {
+        return this._cache
+            .filter(e => e.paymentMethod !== 'lezione-gratuita')
+            .filter(e => { const d = new Date(e.createdAt); return d >= from && d <= to; })
+            .reduce((s, e) => s + e.amount, 0);
+    }
+
+    static countInRange(from, to) {
+        return this._cache
+            .filter(e => { const d = new Date(e.createdAt); return d >= from && d <= to; })
+            .length;
+    }
+
+    static getInRange(from, to) {
+        return this._cache
+            .filter(e => { const d = new Date(e.createdAt); return d >= from && d <= to; });
+    }
+}
+
 // Bonus storage — one free cancellation bonus per client per month (non-cumulative)
 class BonusStorage {
     static BONUS_KEY = 'gym_bonus';
