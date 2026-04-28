@@ -1,7 +1,6 @@
 // Payments Management Functions
 let debtorsListVisible = false;
 let creditsListVisible = false;
-let checkFisicoListVisible = false;
 
 // Contatore render: ogni chiamata a renderPaymentsTab lo incrementa e lo usa
 // come guard. Le RPC in volo che tornano con un reqId non più corrente
@@ -107,9 +106,6 @@ function _paintPaymentsTab(debtors, { preserveUiState }) {
     sensitiveSet('totalDebtors', debtors.length);
     sensitiveSet('totalCreditors', credits.length);
     sensitiveSet('totalCreditAmount', `€${totalCredit}`);
-    if (typeof CheckFisicoStorage !== 'undefined') {
-        sensitiveSet('totalCheckFisico', CheckFisicoStorage.getAll().length);
-    }
 
     const debtorsList = document.getElementById('debtorsList');
     const creditsList = document.getElementById('creditsList');
@@ -150,69 +146,6 @@ function _paintPaymentsTab(debtors, { preserveUiState }) {
             });
         }
     }
-
-    _renderCheckFisicoList();
-}
-
-// ── Lista Check Fisici recenti (tab Pagamenti) ─────────────────────────────
-// Mostra gli ultimi 50 pagamenti Check Fisico con possibilità di eliminarli.
-function _renderCheckFisicoList() {
-    const list = document.getElementById('checkFisicoList');
-    if (!list) return;
-    if (typeof CheckFisicoStorage === 'undefined') { list.innerHTML = ''; return; }
-    const entries = CheckFisicoStorage.getAll().slice(0, 50);
-    if (entries.length === 0) {
-        list.innerHTML = '<div class="empty-slot">Nessun Check Fisico registrato</div>';
-        return;
-    }
-    const METHOD_ICON  = { contanti: '💵', 'contanti-report': '🧾', carta: '💳', iban: '🏦', stripe: '💳', 'lezione-gratuita': '🎁' };
-    const METHOD_LABEL = { contanti: 'Contanti', 'contanti-report': 'Contanti con Report', carta: 'Carta', iban: 'Bonifico', stripe: 'Stripe', 'lezione-gratuita': 'Gratuita' };
-    list.innerHTML = entries.map(e => {
-        const dt = new Date(e.createdAt).toLocaleString('it-IT', { day:'2-digit', month:'2-digit', year:'2-digit', hour:'2-digit', minute:'2-digit' });
-        const mi = METHOD_ICON[e.paymentMethod]  || '';
-        const ml = METHOD_LABEL[e.paymentMethod] || e.paymentMethod;
-        const safeId = (e.id || '').replace(/'/g, "\\'");
-        return `<div class="checkfisico-entry">
-            <div class="checkfisico-entry-main">
-                <strong>${_escHtml(e.name)}</strong>
-                <span class="checkfisico-entry-meta">${dt} · ${mi} ${_escHtml(ml)}</span>
-                ${e.note ? `<span class="checkfisico-entry-note">${_escHtml(e.note)}</span>` : ''}
-            </div>
-            <div class="checkfisico-entry-amount">€${e.amount.toFixed(2)}</div>
-            <button class="debt-entry-delete-btn" onclick="deleteCheckFisico('${safeId}')" title="Elimina">✕</button>
-        </div>`;
-    }).join('');
-}
-
-async function deleteCheckFisico(id) {
-    if (!id) return;
-    if (!confirm('Eliminare questo Check Fisico?')) return;
-    try {
-        const { data, error } = await _rpcWithTimeout(supabaseClient.rpc('admin_delete_check_fisico', { p_id: id }));
-        if (error) {
-            console.error('[Supabase] admin_delete_check_fisico error:', error.message);
-            alert('⚠️ Errore: ' + error.message);
-            return;
-        }
-        if (!data?.success) { alert('⚠️ Voce non trovata.'); return; }
-        await CheckFisicoStorage.syncFromSupabase();
-        if (typeof invalidateStatsCache === 'function') invalidateStatsCache();
-        renderPaymentsTab('deleteCheckFisico');
-        if (typeof loadDashboardData === 'function') loadDashboardData();
-        showToast('Check Fisico eliminato', 'success');
-    } catch (ex) {
-        console.error('[deleteCheckFisico] unexpected error:', ex);
-        alert('⚠️ Errore imprevisto. Riprova.');
-    }
-}
-
-function toggleCheckFisicoList() {
-    checkFisicoListVisible = !checkFisicoListVisible;
-    const list = document.getElementById('checkFisicoList');
-    const hint = document.getElementById('checkFisicoToggleHint');
-    if (list) list.style.display = checkFisicoListVisible ? '' : 'none';
-    if (hint) hint.textContent = checkFisicoListVisible ? '▲ Nascondi lista' : '▼ Mostra lista';
-    if (checkFisicoListVisible) _renderCheckFisicoList();
 }
 
 function deleteManualDebtEntry(whatsapp, email, entryDate) {

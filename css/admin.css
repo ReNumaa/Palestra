@@ -382,10 +382,11 @@
     border-radius: 16px 16px 0 0;
 }
 
-#statcard-fatturato::after   { background: linear-gradient(90deg, #f59e0b, #fbbf24); }
+#statcard-fatturato::after    { background: linear-gradient(90deg, #f59e0b, #fbbf24); }
 #statcard-prenotazioni::after { background: linear-gradient(90deg, #3b82f6, #60a5fa); }
 #statcard-clienti::after      { background: linear-gradient(90deg, #10b981, #34d399); }
 #statcard-occupancy::after    { background: linear-gradient(90deg, #8b5cf6, #a78bfa); }
+#statcard-checkfisico::after  { background: linear-gradient(90deg, #06b6d4, #22d3ee); }
 
 .stat-card:hover {
     transform: translateY(-3px);
@@ -396,6 +397,7 @@
 #statcard-prenotazioni:hover { box-shadow: 0 8px 28px rgba(59,130,246,0.14), 0 2px 6px rgba(0,0,0,0.03); }
 #statcard-clienti:hover      { box-shadow: 0 8px 28px rgba(16,185,129,0.14), 0 2px 6px rgba(0,0,0,0.03); }
 #statcard-occupancy:hover    { box-shadow: 0 8px 28px rgba(139,92,246,0.14), 0 2px 6px rgba(0,0,0,0.03); }
+#statcard-checkfisico:hover  { box-shadow: 0 8px 28px rgba(6,182,212,0.14), 0 2px 6px rgba(0,0,0,0.03); }
 
 .stat-icon {
     font-size: 1.5rem;
@@ -414,6 +416,7 @@
 #statcard-prenotazioni .stat-icon { background: rgba(59,130,246,0.10); }
 #statcard-clienti .stat-icon      { background: rgba(16,185,129,0.10); }
 #statcard-occupancy .stat-icon    { background: rgba(139,92,246,0.10); }
+#statcard-checkfisico .stat-icon  { background: rgba(6,182,212,0.10); }
 
 .stat-card h3 {
     font-size: 0.7rem;
@@ -2734,8 +2737,22 @@ canvas {
     box-shadow: 0 4px 14px rgba(6,182,212,0.3);
 }
 
-/* Lista Check Fisici (tab Pagamenti) */
-.checkfisico-list .checkfisico-entry {
+/* Lista Check Fisici (detail panel Statistiche) */
+.checkfisico-list-wrap {
+    display: flex;
+    flex-direction: column;
+    gap: 0.4rem;
+    max-height: 360px;
+    overflow-y: auto;
+}
+.checkfisico-empty {
+    color: #9ca3af;
+    text-align: center;
+    padding: 1.5rem 0;
+    font-size: 0.9rem;
+}
+.checkfisico-list .checkfisico-entry,
+.checkfisico-list-wrap .checkfisico-entry {
     display: flex;
     align-items: center;
     gap: 0.75rem;
@@ -2768,14 +2785,6 @@ canvas {
     white-space: nowrap;
 }
 
-/* Card stat Check Fisico */
-.payment-stat-card--checkfisico {
-    background: linear-gradient(135deg, #ecfeff 0%, #cffafe 100%);
-    border-color: rgba(6,182,212,0.25);
-}
-.payment-stat-card--checkfisico .payment-total {
-    color: #0e7490;
-}
 
 .manual-entry-form {
     padding: 1.1rem 1.5rem 0.5rem;
@@ -4058,15 +4067,30 @@ canvas {
         padding: 1rem;
     }
 
-    /* Stats grid */
+    /* Stats grid: scroll orizzontale a "pagine"
+       2 card visibili per schermo, snap a sinistra → swipe → 2 card successive.
+       Con 5 card (Fatturato, Prenotazioni, Clienti, Occupazione, Check Fisici)
+       si ottengono 2.5 "pagine": l'ultimo swipe rivela Check Fisici. */
     .stats-grid {
-        grid-template-columns: 1fr 1fr;
-        gap: 0.75rem;
+        display: flex;
+        grid-template-columns: none;
+        flex-wrap: nowrap;
+        gap: 0.6rem;
+        overflow-x: auto;
+        scroll-snap-type: x mandatory;
+        -webkit-overflow-scrolling: touch;
         margin-bottom: 1.5rem;
+        padding-bottom: 0.4rem;
+        scrollbar-width: thin;
     }
+    .stats-grid::-webkit-scrollbar { height: 4px; }
+    .stats-grid::-webkit-scrollbar-thumb { background: rgba(0,0,0,0.15); border-radius: 4px; }
 
     .stat-card {
         padding: 1rem 0.75rem;
+        flex: 0 0 calc(50% - 0.3rem);
+        min-width: calc(50% - 0.3rem);
+        scroll-snap-align: start;
     }
 
     .stat-icon {
@@ -4475,9 +4499,9 @@ canvas {
     /* Dashboard card: tighter padding */
     .dashboard-card { padding: 0.75rem; }
 
-    /* Stats grid: compact 2×2 */
+    /* Stats grid: compact, scroll orizzontale (eredita da 768px) */
     .stats-grid { gap: 0.5rem; margin-bottom: 0.6rem; }
-    .stat-card { padding: 0.6rem 0.55rem; }
+    .stat-card { padding: 0.6rem 0.55rem; flex: 0 0 calc(50% - 0.25rem); min-width: calc(50% - 0.25rem); }
     .stat-icon { font-size: 1.25rem; margin-bottom: 0.15rem; }
     .stat-card h3 { font-size: 0.62rem; margin-bottom: 0.15rem; }
     .stat-value { font-size: 1.15rem; margin-bottom: 0.1rem; }

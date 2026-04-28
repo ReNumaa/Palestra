@@ -206,6 +206,7 @@ function _renderDashboardUI() {
                 case 'prenotazioni': renderPrenotazioniDetail(panel); break;
                 case 'clienti':      renderClientiDetail(panel);      break;
                 case 'occupancy':    renderOccupancyDetail(panel);    break;
+                case 'checkfisico':  renderCheckFisicoDetail(panel);  break;
             }
         }
     }
@@ -356,6 +357,12 @@ function updateStatsCards(filteredBookings, allBookings) {
     const totalBookingsCount = filteredBookings.length + _cfCount;
     document.getElementById('totalBookings').textContent = totalBookingsCount;
     calcChange(totalBookingsCount, prevAllBookings.length + _cfPrevCount, document.getElementById('bookingsChange'));
+
+    // Check Fisici: count + total revenue nel periodo
+    const cfCardValue  = document.getElementById('totalCheckFisico');
+    const cfCardChange = document.getElementById('checkFisicoChange');
+    if (cfCardValue)  cfCardValue.textContent  = _cfCount;
+    if (cfCardChange) cfCardChange.textContent = `€${Math.round(_cfRevenue)}`;
 
     // Active clients
     const uniqueClients = new Set(filteredBookings.map(b => b.email)).size;
@@ -620,6 +627,7 @@ function toggleStatDetail(type) {
         case 'prenotazioni':  renderPrenotazioniDetail(panel);  break;
         case 'clienti':       renderClientiDetail(panel);       break;
         case 'occupancy':     renderOccupancyDetail(panel);     break;
+        case 'checkfisico':   renderCheckFisicoDetail(panel);   break;
         default:
             panel.innerHTML = `<div class="stat-detail-header"><h3>Dettaglio ${type}</h3></div><p style="color:#9ca3af;text-align:center;padding:1.5rem 0">Prossimamente</p>`;
     }
@@ -2270,6 +2278,132 @@ function renderOccupancyDetail(panel) {
             { colors: ['#3b82f6'], prefix: '', suffix: '%' }
         );
     });
+}
+
+// ── Check Fisico Detail Panel ────────────────────────────────────────────────
+
+function renderCheckFisicoDetail(panel) {
+    const { from, to } = getFilterDateRange(currentFilter);
+    const all = (typeof CheckFisicoStorage !== 'undefined') ? CheckFisicoStorage.getAll() : [];
+    const inPeriod = all.filter(e => { const d = new Date(e.createdAt); return d >= from && d <= to; });
+    const inPeriodSorted = [...inPeriod].sort((a, b) =>
+        new Date(b.createdAt) - new Date(a.createdAt)
+    );
+
+    const totalCount    = inPeriod.length;
+    const totalRevenue  = inPeriod
+        .filter(e => e.paymentMethod !== 'lezione-gratuita')
+        .reduce((s, e) => s + e.amount, 0);
+    const freeCount     = inPeriod.filter(e => e.paymentMethod === 'lezione-gratuita').length;
+    const avgAmount     = totalCount > 0 ? Math.round(totalRevenue / Math.max(1, totalCount - freeCount)) : 0;
+
+    // Breakdown per metodo di pagamento
+    const PAY_METHODS = [
+        { key: 'contanti',         label: 'Contanti',            color: '#22c55e' },
+        { key: 'contanti-report',  label: 'Contanti con Report', color: '#ef4444' },
+        { key: 'carta',            label: 'Carta',               color: '#3b82f6' },
+        { key: 'iban',             label: 'Bonifico',            color: '#f59e0b' },
+        { key: 'stripe',           label: 'Stripe',              color: '#635bff' },
+        { key: 'lezione-gratuita', label: 'Lezione Gratuita',    color: '#a855f7' },
+    ];
+    const byMethod = PAY_METHODS.map(m => ({
+        ...m,
+        rev:   inPeriod.filter(e => e.paymentMethod === m.key).reduce((s, e) => s + e.amount, 0),
+        count: inPeriod.filter(e => e.paymentMethod === m.key).length,
+    })).filter(m => m.count > 0);
+
+    const METHOD_ICON  = { contanti: '💵', 'contanti-report': '🧾', carta: '💳', iban: '🏦', stripe: '💳', 'lezione-gratuita': '🎁' };
+    const METHOD_LABEL = { contanti: 'Contanti', 'contanti-report': 'Contanti con Report', carta: 'Carta', iban: 'Bonifico', stripe: 'Stripe', 'lezione-gratuita': 'Gratuita' };
+    const fmtTs = iso => {
+        const d = new Date(iso);
+        return d.toLocaleString('it-IT', { day:'2-digit', month:'2-digit', year:'2-digit', hour:'2-digit', minute:'2-digit' });
+    };
+
+    const listHtml = inPeriodSorted.length === 0
+        ? `<div class="checkfisico-empty">Nessun Check Fisico nel periodo</div>`
+        : inPeriodSorted.map(e => {
+            const mi = METHOD_ICON[e.paymentMethod]  || '';
+            const ml = METHOD_LABEL[e.paymentMethod] || e.paymentMethod;
+            const safeId = (e.id || '').replace(/'/g, "\\'");
+            return `<div class="checkfisico-entry">
+                <div class="checkfisico-entry-main">
+                    <strong>${_escHtml(e.name)}</strong>
+                    <span class="checkfisico-entry-meta">${fmtTs(e.createdAt)} · ${mi} ${_escHtml(ml)}</span>
+                    ${e.note ? `<span class="checkfisico-entry-note">${_escHtml(e.note)}</span>` : ''}
+                </div>
+                <div class="checkfisico-entry-amount">€${e.amount.toFixed(2)}</div>
+                <button class="debt-entry-delete-btn" onclick="deleteCheckFisico('${safeId}')" title="Elimina">✕</button>
+            </div>`;
+        }).join('');
+
+    panel.innerHTML = `
+        <div class="stat-detail-header">
+            <h3>🩺 Check Fisici — Dettaglio</h3>
+            <span class="stat-detail-period">${getFilterLabel(currentFilter)}</span>
+        </div>
+        <div class="stat-detail-kpis">
+            <div class="stat-detail-kpi stat-detail-kpi--actual">
+                <div class="stat-detail-kpi-value">${totalCount}</div>
+                <div class="stat-detail-kpi-label">Totale</div>
+            </div>
+            <div class="stat-detail-kpi">
+                <div class="stat-detail-kpi-value">€${Math.round(totalRevenue)}</div>
+                <div class="stat-detail-kpi-label">Incassato</div>
+            </div>
+            <div class="stat-detail-kpi">
+                <div class="stat-detail-kpi-value">€${avgAmount}</div>
+                <div class="stat-detail-kpi-label">Importo medio</div>
+            </div>
+            ${freeCount > 0 ? `<div class="stat-detail-kpi">
+                <div class="stat-detail-kpi-value">${freeCount}</div>
+                <div class="stat-detail-kpi-label">Gratuiti</div>
+            </div>` : ''}
+        </div>
+
+        ${byMethod.length > 0 ? `<div class="stat-detail-breakdown" style="margin-top:0.5rem">
+            <div class="sdb-rows">
+                ${byMethod.map(m => `<div class="sdb-row">
+                    <span class="sdb-label"><span style="display:inline-block;width:10px;height:10px;border-radius:50%;background:${m.color};margin-right:6px"></span>${m.label} (${m.count})</span>
+                    <span class="sdb-value sdb-bold">€${m.rev.toFixed(2)}</span>
+                </div>`).join('')}
+            </div>
+        </div>` : ''}
+
+        <div class="stat-detail-chart-block stat-detail-type-section">
+            <h4>Lista Check Fisici nel periodo</h4>
+            <div class="checkfisico-list-wrap">${listHtml}</div>
+        </div>
+    `;
+}
+
+// Refresh wrapper: chiamata da deleteCheckFisico per ridisegnare il pannello se aperto
+function _refreshCheckFisicoDetailIfOpen() {
+    if (_currentStatDetail !== 'checkfisico') return;
+    const panel = document.getElementById('statsDetailPanel');
+    if (panel && panel.style.display !== 'none') renderCheckFisicoDetail(panel);
+}
+
+// Delete handler: chiamato dai bottoni ✕ nella lista del detail panel
+async function deleteCheckFisico(id) {
+    if (!id) return;
+    if (!confirm('Eliminare questo Check Fisico?')) return;
+    try {
+        const { data, error } = await _rpcWithTimeout(supabaseClient.rpc('admin_delete_check_fisico', { p_id: id }));
+        if (error) {
+            console.error('[Supabase] admin_delete_check_fisico error:', error.message);
+            alert('⚠️ Errore: ' + error.message);
+            return;
+        }
+        if (!data?.success) { alert('⚠️ Voce non trovata.'); return; }
+        await CheckFisicoStorage.syncFromSupabase();
+        invalidateStatsCache();
+        if (typeof loadDashboardData === 'function') loadDashboardData();
+        _refreshCheckFisicoDetailIfOpen();
+        if (typeof showToast === 'function') showToast('Check Fisico eliminato', 'success');
+    } catch (ex) {
+        console.error('[deleteCheckFisico] unexpected error:', ex);
+        alert('⚠️ Errore imprevisto. Riprova.');
+    }
 }
 
 // ── End Statistics Detail Panel ───────────────────────────────────────────────
