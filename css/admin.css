@@ -4101,10 +4101,8 @@ canvas {
         scroll-snap-align: start;
         scroll-snap-stop: always;
     }
-    /* Card singola in pagina (es. Check Fisici): occupa tutta la larghezza */
-    .stats-page > .stat-card:only-child {
-        grid-column: 1 / -1;
-    }
+    /* Card singola in pagina (es. Check Fisici): tiene la stessa larghezza
+       delle altre card della pagina 2x2 — la cella accanto resta vuota. */
 
     .stat-card {
         padding: 1rem 0.75rem;
