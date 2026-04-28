@@ -221,6 +221,7 @@
                 if (error) throw error;
                 _allExDB = (data || []).map(e => ({
                     nome_it: e.nome_it,
+                    nome_original: e.nome_original || '',
                     nome_en: e.nome_en || '',
                     categoria: e.categoria,
                     slug: e.slug,

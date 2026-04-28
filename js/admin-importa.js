@@ -419,17 +419,50 @@ async function _importaRename(slug) {
     const imp = _importaImported.find(e => e.slug === slug);
     if (!imp) return;
 
-    const newName = prompt('Nuovo nome italiano:', imp.nome_it);
-    if (!newName || newName.trim() === imp.nome_it) return;
+    const oldName = imp.nome_it;
+    const origName = imp.nome_original || '';
+    const newNameRaw = prompt('Nuovo nome italiano:', oldName);
+    if (!newNameRaw || newNameRaw.trim() === oldName) return;
+    const newName = newNameRaw.trim();
 
     try {
         const { error } = await _queryWithTimeout(
             supabaseClient
                 .from('imported_exercises')
-                .update({ nome_it: newName.trim() })
+                .update({ nome_it: newName })
                 .eq('slug', slug)
         );
         if (error) throw error;
+
+        // Propaga il nuovo nome a tutte le schede che linkano questo slug:
+        // così il nome visualizzato in allenamento.html/tablet.html resta in
+        // sync anche se il lookup per slug fallisce o se la riga e' letta
+        // direttamente (es. workout_exercises.exercise_name).
+        try {
+            await _queryWithTimeout(
+                supabaseClient
+                    .from('workout_exercises')
+                    .update({ exercise_name: newName })
+                    .eq('exercise_slug', slug)
+            );
+        } catch (e) { console.warn('[Importa] Sync exercise_name fallita:', e); }
+
+        // Backfill legacy: righe senza slug il cui nome corrente matcha quello
+        // precedente o il nome originale dell'import. Le aggancia allo slug e
+        // le rinomina in un colpo solo, così future rinomine continuano a
+        // funzionare via slug.
+        try {
+            const orFilter = origName && origName !== oldName
+                ? `exercise_name.eq.${oldName},exercise_name.eq.${origName}`
+                : `exercise_name.eq.${oldName}`;
+            await _queryWithTimeout(
+                supabaseClient
+                    .from('workout_exercises')
+                    .update({ exercise_slug: slug, exercise_name: newName })
+                    .is('exercise_slug', null)
+                    .or(orFilter)
+            );
+        } catch (e) { console.warn('[Importa] Backfill exercise_slug fallito:', e); }
 
         _importaImportedLoaded = false;
         try { localStorage.removeItem('schede_exercises_db_v1'); } catch (e) { /* noop */ }
