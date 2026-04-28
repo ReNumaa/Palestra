@@ -4081,6 +4081,7 @@ canvas {
        Snap completo (scroll-snap-stop: always) → uno swipe = una pagina intera. */
     .stats-grid {
         display: flex;
+        align-items: stretch;
         grid-template-columns: none;
         flex-wrap: nowrap;
         gap: 0;
@@ -4092,17 +4093,21 @@ canvas {
     }
     .stats-grid::-webkit-scrollbar { display: none; }
 
+    /* grid-template-rows: 1fr 1fr forza ogni pagina a 2 righe uguali.
+       Combinato con align-items:stretch sul flex parent, le pagine hanno
+       tutte la stessa altezza (= pagina 1 con 2 righe di card).
+       Cosi' la card singola di pagina 2 occupa esattamente 1 riga e ha
+       la stessa altezza delle card del 2x2. */
     .stats-page {
         display: grid;
         grid-template-columns: 1fr 1fr;
+        grid-template-rows: 1fr 1fr;
         gap: 0.75rem;
         flex: 0 0 100%;
         min-width: 100%;
         scroll-snap-align: start;
         scroll-snap-stop: always;
     }
-    /* Card singola in pagina (es. Check Fisici): tiene la stessa larghezza
-       delle altre card della pagina 2x2 — la cella accanto resta vuota. */
 
     .stat-card {
         padding: 1rem 0.75rem;
