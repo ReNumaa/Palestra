@@ -18,6 +18,7 @@ const _EXDB_LS_TTL_MS = 6 * 60 * 60 * 1000;
 function _populateExercisesFromRaw(rawData) {
     EXERCISES_DB = rawData.map(e => ({
         nome_it: e.nome_it,
+        nome_original: e.nome_original || '',
         nome_en: e.nome_en || '',
         categoria: e.categoria,
         slug: e.slug,
