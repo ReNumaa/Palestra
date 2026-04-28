@@ -6,6 +6,11 @@ let creditsListVisible = false;
 // come guard. Le RPC in volo che tornano con un reqId non più corrente
 // vengono scartate per evitare race (tab switch rapidi, azioni concorrenti).
 let _paymentsReqCounter = 0;
+// Flag fisico: evita di lanciare una nuova RPC `get_debtors` se una è gia' in volo.
+// Senza questo, click ripetuti su tab/sub-tab Payments lanciavano N RPC concorrenti
+// (il guard logico le scartava al ritorno, ma occupavano comunque il pool Supabase
+// per 12s saturando le altre query).
+let _paymentsRpcInFlight = false;
 
 /**
  * Dopo salvataggio debito/credito, riapre la card del contatto nella lista
@@ -47,6 +52,15 @@ async function renderPaymentsTab(_diagSource = 'unknown') {
 }
 
 function _refreshPaymentsFromServer(reqId, tag) {
+    // Skip fisico se una RPC e' gia' in volo: il render locale ha gia' aggiornato
+    // la UI, e lanciare un'altra RPC concorrente saturerebbe il pool Supabase.
+    // Quando l'utente riapre la tab dopo che la RPC corrente termina, partira'
+    // una nuova RPC fresca.
+    if (_paymentsRpcInFlight) {
+        console.log(`${tag} rpc skip — gia' in volo (reqId=${reqId})`);
+        return;
+    }
+    _paymentsRpcInFlight = true;
     const tRpc = performance.now();
     _rpcWithTimeout(supabaseClient.rpc('get_debtors', { p_slot_prices: SLOT_PRICES }))
         .then(({ data, error }) => {
@@ -67,6 +81,9 @@ function _refreshPaymentsFromServer(reqId, tag) {
             const dt = (performance.now() - tRpc).toFixed(1);
             console.log(`${tag} rpc failed/timeout in ${dt} ms`, e?.message || e);
             /* Tab già funzionante dal render locale, niente da fare */
+        })
+        .finally(() => {
+            _paymentsRpcInFlight = false;
         });
 }
 
