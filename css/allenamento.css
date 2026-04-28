@@ -3334,3 +3334,210 @@ body.all-modal-open .all-modal-overlay {
         animation-duration: 2s;
     }
 }
+
+/* ───────────────────────────────────────────────────────────────────────── */
+/* MOBILE NAV BAR + BOTTOM SHEET (replica admin .adm-mbar)                   */
+/* ───────────────────────────────────────────────────────────────────────── */
+
+/* Nascoste su desktop */
+.all-mbar { display: none; }
+.all-sheet-backdrop,
+.all-sheet { display: none; }
+
+@media (max-width: 768px) {
+    /* Sostituisce i pill desktop con la barra mobile */
+    .all-nav { display: none !important; }
+
+    /* ── Barra mobile ────────────────────────────────────────────────── */
+    .all-mbar {
+        display: flex;
+        gap: 0.5rem;
+        align-items: center;
+        padding: 0.5rem;
+        background: linear-gradient(135deg, #f1f5f9, #e8ecf1);
+        border: 1px solid #e2e8f0;
+        border-radius: 14px;
+        box-shadow: 0 1px 4px rgba(0, 0, 0, 0.04), 0 4px 8px rgba(0, 0, 0, 0.06);
+        margin: 0.5rem 0 1rem;
+    }
+
+    .all-mbar-page {
+        flex: 1 1 auto;
+        width: 100%;
+        min-height: 44px;
+        display: flex;
+        align-items: center;
+        gap: 0.5rem;
+        padding: 0.55rem 0.85rem;
+        border: none;
+        border-radius: 10px;
+        background: linear-gradient(135deg, #00AEEF, #0090cc);
+        color: #fff;
+        font-family: inherit;
+        font-size: 0.92rem;
+        font-weight: 700;
+        letter-spacing: 0.01em;
+        cursor: pointer;
+        box-shadow: 0 2px 8px rgba(0, 174, 239, 0.3);
+        transition: transform 0.15s ease, box-shadow 0.2s ease;
+        text-align: left;
+        overflow: hidden;
+    }
+    .all-mbar-page:active { transform: scale(0.98); }
+    .all-mbar-page-ico { font-size: 1.05rem; line-height: 1; flex-shrink: 0; }
+    .all-mbar-page-label {
+        flex: 1 1 auto;
+        min-width: 0;
+        overflow: hidden;
+        text-overflow: ellipsis;
+        white-space: nowrap;
+    }
+    .all-mbar-page-chevron { font-size: 0.85rem; opacity: 0.9; flex-shrink: 0; }
+
+    /* ── Backdrop ────────────────────────────────────────────────────── */
+    .all-sheet-backdrop {
+        display: block;
+        position: fixed;
+        inset: 0;
+        background: rgba(15, 23, 42, 0.45);
+        opacity: 0;
+        transition: opacity 0.25s ease;
+        z-index: 1100;
+        pointer-events: none;
+    }
+    .all-sheet-backdrop[hidden] { display: none; }
+    .all-sheet-backdrop.is-open {
+        opacity: 1;
+        pointer-events: auto;
+    }
+
+    /* ── Bottom sheet ────────────────────────────────────────────────── */
+    .all-sheet {
+        display: flex;
+        flex-direction: column;
+        position: fixed;
+        left: 0;
+        right: 0;
+        bottom: 0;
+        max-height: 82vh;
+        background: #fff;
+        border-top-left-radius: 20px;
+        border-top-right-radius: 20px;
+        box-shadow: 0 -10px 30px rgba(0, 0, 0, 0.18);
+        padding: 0.5rem 0 max(18px, env(safe-area-inset-bottom));
+        z-index: 1101;
+        transform: translateY(100%);
+        transition: transform 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+        visibility: hidden;
+    }
+    .all-sheet.is-open {
+        transform: translateY(0);
+        visibility: visible;
+    }
+
+    .all-sheet-grabber {
+        width: 40px;
+        height: 4px;
+        margin: 0.35rem auto 0.5rem;
+        background: #cbd5e1;
+        border-radius: 999px;
+        flex-shrink: 0;
+    }
+
+    .all-sheet-title {
+        margin: 0.25rem 1rem 0.75rem;
+        font-size: 1.05rem;
+        font-weight: 700;
+        color: #0f172a;
+        flex-shrink: 0;
+    }
+
+    .all-sheet-list {
+        list-style: none;
+        margin: 0;
+        padding: 0 0.5rem 0.25rem;
+        overflow-y: auto;
+        -webkit-overflow-scrolling: touch;
+    }
+
+    .all-sheet-item {
+        width: 100%;
+        display: flex;
+        align-items: center;
+        gap: 0.75rem;
+        padding: 0.75rem 0.85rem;
+        border: 1px solid transparent;
+        border-radius: 12px;
+        background: transparent;
+        cursor: pointer;
+        text-align: left;
+        font-family: inherit;
+        color: #0f172a;
+        min-height: 48px;
+        transition: background 0.15s ease, border-color 0.15s ease;
+    }
+    .all-sheet-item + .all-sheet-item { margin-top: 0.1rem; }
+    .all-sheet-item:active { background: #f1f5f9; }
+    .all-sheet-item.is-active {
+        background: rgba(0, 174, 239, 0.08);
+        border-color: rgba(0, 174, 239, 0.25);
+    }
+
+    .all-sheet-item-ico {
+        width: 36px;
+        height: 36px;
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        background: #f1f5f9;
+        border-radius: 10px;
+        font-size: 1.1rem;
+        flex-shrink: 0;
+    }
+    .all-sheet-item.is-active .all-sheet-item-ico {
+        background: linear-gradient(135deg, #00AEEF, #0090cc);
+        color: #fff;
+    }
+
+    .all-sheet-item-text {
+        flex: 1 1 auto;
+        min-width: 0;
+        display: flex;
+        flex-direction: column;
+        gap: 0.15rem;
+    }
+    .all-sheet-item-title {
+        font-size: 0.95rem;
+        font-weight: 700;
+        color: #0f172a;
+        overflow: hidden;
+        text-overflow: ellipsis;
+        white-space: nowrap;
+    }
+
+    .all-sheet-item-radio {
+        width: 22px;
+        height: 22px;
+        border: 2px solid #cbd5e1;
+        border-radius: 50%;
+        flex-shrink: 0;
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        transition: border-color 0.15s ease, background 0.15s ease;
+    }
+    .all-sheet-item.is-active .all-sheet-item-radio {
+        border-color: #00AEEF;
+        background: #00AEEF;
+    }
+    .all-sheet-item.is-active .all-sheet-item-radio::after {
+        content: '';
+        width: 8px;
+        height: 8px;
+        border-radius: 50%;
+        background: #fff;
+    }
+
+    /* Body lock quando sheet aperto */
+    body.all-sheet-open { overflow: hidden; }
+}

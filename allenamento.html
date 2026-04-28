@@ -13,7 +13,7 @@
     <link rel="icon" type="image/jpeg" href="images/logo-tb---nero.jpg">
     <link rel="stylesheet" href="css/style.css?v=8">
     <link rel="stylesheet" href="css/login.css?v=4">
-    <link rel="stylesheet" href="css/allenamento.css?v=28">
+    <link rel="stylesheet" href="css/allenamento.css?v=29">
 </head>
 <body class="allenamento-body">
     <nav class="navbar">
@@ -47,7 +47,16 @@
 
     <main class="all-page">
         <div class="container" style="padding-top:1rem;">
-            <!-- Navigation pills -->
+            <!-- Mobile bar (<= 768px): un solo bottone che apre lo sheet "Vai a" -->
+            <div class="all-mbar" id="allMbar" role="toolbar" aria-label="Sezioni allenamento">
+                <button class="all-mbar-page" id="allMbarPage" aria-haspopup="dialog" aria-expanded="false" aria-label="Cambia sezione">
+                    <span class="all-mbar-page-ico" id="allMbarPageIco" aria-hidden="true">📋</span>
+                    <span class="all-mbar-page-label" id="allMbarPageLabel">Scheda</span>
+                    <span class="all-mbar-page-chevron" aria-hidden="true">▾</span>
+                </button>
+            </div>
+
+            <!-- Navigation pills (desktop) -->
             <div class="all-nav" role="tablist" aria-label="Sezioni allenamento">
                 <button class="all-nav-pill active" id="pillScheda" role="tab" aria-selected="true" aria-controls="allContent" onclick="switchAllView('scheda')">Scheda</button>
                 <button class="all-nav-pill" id="pillProgressi" role="tab" aria-selected="false" aria-controls="allContent" onclick="switchAllView('progressi')">Progressi</button>
@@ -86,6 +95,14 @@
             <button class="all-modal-save" id="createPlanBtn" onclick="submitCreatePlan()">Crea scheda</button>
         </div>
     </div>
+
+    <!-- Bottom sheet: Sezioni allenamento (mobile) -->
+    <div class="all-sheet-backdrop" id="allPagesBackdrop" hidden></div>
+    <aside class="all-sheet" id="allPagesSheet" role="dialog" aria-modal="true" aria-labelledby="allPagesTitle" aria-hidden="true">
+        <div class="all-sheet-grabber" aria-hidden="true"></div>
+        <h3 class="all-sheet-title" id="allPagesTitle">Vai a</h3>
+        <ul class="all-sheet-list" id="allPagesList" role="listbox"></ul>
+    </aside>
 
     <footer class="footer">
         <div class="container">
@@ -3514,5 +3531,192 @@
     <script src="js/allenamento-report.js?v=1"></script>
     <script src="js/sw-update.js"></script>
     <script src="js/pwa-install.js"></script>
+
+    <!-- Mobile nav: page switcher con bottom sheet (replica admin) -->
+    <script>
+    (function () {
+        'use strict';
+        const MQ = window.matchMedia('(max-width: 768px)');
+
+        // Mappa view → icona/label per la mbar e il bottom sheet
+        const PAGES = [
+            { view: 'scheda',    icon: '📋', label: 'Scheda',    pillId: 'pillScheda' },
+            { view: 'progressi', icon: '📈', label: 'Progressi', pillId: 'pillProgressi' },
+            { view: 'storico',   icon: '📈', label: 'Progressi', pillId: 'pillProgressi' },
+            { view: 'report',    icon: '📊', label: 'Report',    pillId: 'pillReport' },
+            { view: 'tablet',    icon: '📱', label: 'Tablet',    pillId: 'pillTablet' },
+            { view: 'pdf',       icon: '📄', label: 'PDF',       pillId: 'pillPdf' },
+        ];
+
+        const $ = id => document.getElementById(id);
+
+        function getActiveView() {
+            const active = document.querySelector('.all-nav-pill.active');
+            if (!active) return null;
+            const map = {
+                pillScheda: 'scheda',
+                pillProgressi: 'progressi',
+                pillReport: 'report',
+                pillTablet: 'tablet',
+                pillPdf: 'pdf',
+            };
+            return map[active.id] || null;
+        }
+
+        function pageFor(view) {
+            return PAGES.find(p => p.view === view) || PAGES[0];
+        }
+
+        /* ── Bottom sheet open/close ─────────────────────────────────────── */
+        function openSheet() {
+            const sheet = $('allPagesSheet');
+            const backdrop = $('allPagesBackdrop');
+            const trigger = $('allMbarPage');
+            if (!sheet || !backdrop) return;
+            backdrop.hidden = false;
+            // forza reflow per animare opacity
+            void backdrop.offsetWidth;
+            backdrop.classList.add('is-open');
+            sheet.classList.add('is-open');
+            sheet.setAttribute('aria-hidden', 'false');
+            if (trigger) trigger.setAttribute('aria-expanded', 'true');
+            document.body.classList.add('all-sheet-open');
+        }
+
+        function closeSheet() {
+            const sheet = $('allPagesSheet');
+            const backdrop = $('allPagesBackdrop');
+            const trigger = $('allMbarPage');
+            if (!sheet || !backdrop) return;
+            sheet.classList.remove('is-open');
+            backdrop.classList.remove('is-open');
+            sheet.setAttribute('aria-hidden', 'true');
+            if (trigger) trigger.setAttribute('aria-expanded', 'false');
+            setTimeout(() => {
+                if (!sheet.classList.contains('is-open')) {
+                    backdrop.hidden = true;
+                    document.body.classList.remove('all-sheet-open');
+                }
+            }, 310);
+        }
+
+        /* ── Render del contenuto sheet ──────────────────────────────────── */
+        function renderSheet() {
+            const list = $('allPagesList');
+            if (!list) return;
+            list.innerHTML = '';
+            const activeView = getActiveView();
+            // Una entry per pill (escludo l'alias 'storico' che punta a Progressi)
+            const items = PAGES.filter(p => p.view !== 'storico');
+            items.forEach(p => {
+                const li = document.createElement('li');
+                const btn = document.createElement('button');
+                btn.type = 'button';
+                btn.className = 'all-sheet-item';
+                btn.setAttribute('role', 'option');
+                const isActive = (p.view === activeView) ||
+                    (activeView === 'storico' && p.view === 'progressi');
+                if (isActive) {
+                    btn.classList.add('is-active');
+                    btn.setAttribute('aria-selected', 'true');
+                }
+                btn.innerHTML =
+                    '<span class="all-sheet-item-ico" aria-hidden="true">' + p.icon + '</span>' +
+                    '<span class="all-sheet-item-text">' +
+                        '<span class="all-sheet-item-title">' + p.label + '</span>' +
+                    '</span>' +
+                    '<span class="all-sheet-item-radio" aria-hidden="true"></span>';
+                btn.addEventListener('click', () => {
+                    closeSheet();
+                    // Delego al click nativo del pill: replica esattamente
+                    // il comportamento attuale (incluso PDF/Tablet)
+                    const pill = $(p.pillId);
+                    if (pill) setTimeout(() => pill.click(), 50);
+                });
+                li.appendChild(btn);
+                list.appendChild(li);
+            });
+        }
+
+        /* ── Aggiorna icona/label della mbar in base alla view attiva ───── */
+        function updateMbarLabel() {
+            const view = getActiveView() || 'scheda';
+            const p = pageFor(view);
+            const ico = $('allMbarPageIco');
+            const lbl = $('allMbarPageLabel');
+            if (ico) ico.textContent = p.icon;
+            if (lbl) lbl.textContent = p.label;
+        }
+
+        /* ── Swipe down per chiudere lo sheet ────────────────────────────── */
+        function attachSwipeDown(sheet, onClose) {
+            const handles = sheet.querySelectorAll('.all-sheet-grabber, .all-sheet-title');
+            let startY = null, dy = 0;
+            function onStart(e) {
+                const t = e.touches ? e.touches[0] : e;
+                startY = t.clientY; dy = 0;
+            }
+            function onMove(e) {
+                if (startY == null) return;
+                const t = e.touches ? e.touches[0] : e;
+                dy = t.clientY - startY;
+                if (dy > 0) sheet.style.transform = 'translateY(' + dy + 'px)';
+            }
+            function onEnd() {
+                if (startY == null) return;
+                sheet.style.transform = '';
+                if (dy > 80) onClose();
+                startY = null; dy = 0;
+            }
+            handles.forEach(h => {
+                h.addEventListener('touchstart', onStart, { passive: true });
+                h.addEventListener('touchmove', onMove, { passive: true });
+                h.addEventListener('touchend', onEnd);
+                h.addEventListener('touchcancel', onEnd);
+            });
+        }
+
+        /* ── Wiring ──────────────────────────────────────────────────────── */
+        function wire() {
+            const btn = $('allMbarPage');
+            const sheet = $('allPagesSheet');
+            const backdrop = $('allPagesBackdrop');
+            if (!btn || !sheet || !backdrop) return;
+
+            btn.addEventListener('click', () => { renderSheet(); openSheet(); });
+            backdrop.addEventListener('click', closeSheet);
+
+            const grab = sheet.querySelector('.all-sheet-grabber');
+            if (grab) grab.addEventListener('click', closeSheet);
+            attachSwipeDown(sheet, closeSheet);
+
+            document.addEventListener('keydown', e => {
+                if (e.key === 'Escape') closeSheet();
+            });
+
+            // Sync label quando cambia il pill attivo (switchAllView aggiorna .active)
+            const nav = document.querySelector('.all-nav');
+            if (nav) {
+                const obs = new MutationObserver(() => updateMbarLabel());
+                nav.querySelectorAll('.all-nav-pill').forEach(p => {
+                    obs.observe(p, { attributes: true, attributeFilter: ['class'] });
+                });
+            }
+
+            // Chiudi se passa a desktop
+            const onMQ = e => { if (!e.matches) closeSheet(); };
+            if (MQ.addEventListener) MQ.addEventListener('change', onMQ);
+            else if (MQ.addListener) MQ.addListener(onMQ);
+
+            updateMbarLabel();
+        }
+
+        if (document.readyState === 'loading') {
+            document.addEventListener('DOMContentLoaded', wire);
+        } else {
+            wire();
+        }
+    })();
+    </script>
 </body>
 </html>
