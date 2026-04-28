@@ -258,42 +258,50 @@
                     </div>
                 </div>
 
-                <div class="stats-grid">
-                    <div class="stat-card stat-card--clickable" id="statcard-fatturato" onclick="toggleStatDetail('fatturato')">
-                        <div class="stat-card-click-hint">Dettagli ▼</div>
-                        <div class="stat-icon">💰</div>
-                        <h3>Fatturato previsto</h3>
-                        <p class="stat-value" id="monthlyRevenue">€0</p>
-                        <span class="stat-change positive" id="revenueChange">+0%</span>
+                <div class="stats-grid" id="statsGrid">
+                    <div class="stats-page">
+                        <div class="stat-card stat-card--clickable" id="statcard-fatturato" onclick="toggleStatDetail('fatturato')">
+                            <div class="stat-card-click-hint">Dettagli ▼</div>
+                            <div class="stat-icon">💰</div>
+                            <h3>Fatturato previsto</h3>
+                            <p class="stat-value" id="monthlyRevenue">€0</p>
+                            <span class="stat-change positive" id="revenueChange">+0%</span>
+                        </div>
+                        <div class="stat-card stat-card--clickable" id="statcard-prenotazioni" onclick="toggleStatDetail('prenotazioni')">
+                            <div class="stat-card-click-hint">Dettagli ▼</div>
+                            <div class="stat-icon">📅</div>
+                            <h3>Prenotazioni Totali</h3>
+                            <p class="stat-value" id="totalBookings">0</p>
+                            <span class="stat-change" id="bookingsChange">+0%</span>
+                        </div>
+                        <div class="stat-card stat-card--clickable" id="statcard-clienti" onclick="toggleStatDetail('clienti')">
+                            <div class="stat-card-click-hint">Dettagli ▼</div>
+                            <div class="stat-icon">👥</div>
+                            <h3>Clienti Attivi</h3>
+                            <p class="stat-value" id="activeClients">0</p>
+                            <span class="stat-change" id="clientsChange">+0%</span>
+                        </div>
+                        <div class="stat-card stat-card--clickable" id="statcard-occupancy" onclick="toggleStatDetail('occupancy')">
+                            <div class="stat-card-click-hint">Dettagli ▼</div>
+                            <div class="stat-icon">📊</div>
+                            <h3>Tasso Occupazione</h3>
+                            <p class="stat-value" id="occupancyRate">0%</p>
+                            <span class="stat-change" id="occupancyChange">+0%</span>
+                        </div>
                     </div>
-                    <div class="stat-card stat-card--clickable" id="statcard-prenotazioni" onclick="toggleStatDetail('prenotazioni')">
-                        <div class="stat-card-click-hint">Dettagli ▼</div>
-                        <div class="stat-icon">📅</div>
-                        <h3>Prenotazioni Totali</h3>
-                        <p class="stat-value" id="totalBookings">0</p>
-                        <span class="stat-change" id="bookingsChange">+0%</span>
+                    <div class="stats-page">
+                        <div class="stat-card stat-card--clickable" id="statcard-checkfisico" onclick="toggleStatDetail('checkfisico')">
+                            <div class="stat-card-click-hint">Dettagli ▼</div>
+                            <div class="stat-icon">🩺</div>
+                            <h3>Check Fisici</h3>
+                            <p class="stat-value" id="totalCheckFisico">0</p>
+                            <span class="stat-change" id="checkFisicoChange">€0</span>
+                        </div>
                     </div>
-                    <div class="stat-card stat-card--clickable" id="statcard-clienti" onclick="toggleStatDetail('clienti')">
-                        <div class="stat-card-click-hint">Dettagli ▼</div>
-                        <div class="stat-icon">👥</div>
-                        <h3>Clienti Attivi</h3>
-                        <p class="stat-value" id="activeClients">0</p>
-                        <span class="stat-change" id="clientsChange">+0%</span>
-                    </div>
-                    <div class="stat-card stat-card--clickable" id="statcard-occupancy" onclick="toggleStatDetail('occupancy')">
-                        <div class="stat-card-click-hint">Dettagli ▼</div>
-                        <div class="stat-icon">📊</div>
-                        <h3>Tasso Occupazione</h3>
-                        <p class="stat-value" id="occupancyRate">0%</p>
-                        <span class="stat-change" id="occupancyChange">+0%</span>
-                    </div>
-                    <div class="stat-card stat-card--clickable" id="statcard-checkfisico" onclick="toggleStatDetail('checkfisico')">
-                        <div class="stat-card-click-hint">Dettagli ▼</div>
-                        <div class="stat-icon">🩺</div>
-                        <h3>Check Fisici</h3>
-                        <p class="stat-value" id="totalCheckFisico">0</p>
-                        <span class="stat-change" id="checkFisicoChange">€0</span>
-                    </div>
+                </div>
+                <div class="stats-dots" id="statsDots">
+                    <button type="button" class="stats-dot active" data-page="0" aria-label="Pagina 1"></button>
+                    <button type="button" class="stats-dot" data-page="1" aria-label="Pagina 2"></button>
                 </div>
 
                 <!-- Pannello dettaglio statistiche (aperto al click su una card) -->

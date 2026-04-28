@@ -288,6 +288,41 @@ document.addEventListener('visibilitychange', () => {
     loadDashboardData();
 });
 
+// ── Stats carosello dots (mobile) ────────────────────────────────────────────
+// Su mobile la stats-grid e' un carosello a 2 pagine con snap. I dots sotto
+// indicano la pagina attiva e permettono di saltare cliccandoli.
+function _initStatsDots() {
+    const grid = document.getElementById('statsGrid');
+    const dotsContainer = document.getElementById('statsDots');
+    if (!grid || !dotsContainer) return;
+    const dots = dotsContainer.querySelectorAll('.stats-dot');
+    if (dots.length === 0) return;
+
+    const updateActiveDot = () => {
+        const w = grid.clientWidth;
+        if (w === 0) return;
+        const idx = Math.round(grid.scrollLeft / w);
+        dots.forEach((d, i) => d.classList.toggle('active', i === idx));
+    };
+
+    let scrollTimer = null;
+    grid.addEventListener('scroll', () => {
+        clearTimeout(scrollTimer);
+        scrollTimer = setTimeout(updateActiveDot, 60);
+    }, { passive: true });
+
+    dots.forEach((d, i) => {
+        d.addEventListener('click', () => {
+            grid.scrollTo({ left: i * grid.clientWidth, behavior: 'smooth' });
+        });
+    });
+
+    // Reset alla pagina 0 quando si rientra nel tab Statistiche
+    // (evita stato "bloccato" sulla pagina 2 dopo aver navigato altrove)
+    window.addEventListener('resize', updateActiveDot);
+}
+document.addEventListener('DOMContentLoaded', _initStatsDots);
+
 function updateStatsCards(filteredBookings, allBookings) {
     const filterLabel = getFilterLabel(currentFilter);
     const prevRange = getPreviousFilterDateRange(currentFilter);
