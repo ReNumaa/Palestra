@@ -6137,6 +6137,21 @@ canvas {
 .schede-actual-client-chev { color: #94a3b8; font-size: 1.15rem; line-height: 1; }
 .schede-actual-client:hover:not(:disabled) .schede-actual-client-chev { color: #00AEEF; }
 
+.schede-actual-client-log {
+    display: inline-flex; align-items: center; justify-content: center;
+    width: 1.35rem; height: 1.35rem;
+    border-radius: 50%;
+    font-size: 0.78rem; font-weight: 700; line-height: 1;
+    flex-shrink: 0;
+    border: 1px solid transparent;
+}
+.schede-actual-client-log--ok {
+    background: #dcfce7; color: #15803d; border-color: #86efac;
+}
+.schede-actual-client-log--ko {
+    background: #fef2f2; color: #b91c1c; border-color: #fca5a5;
+}
+
 .schede-actual-empty {
     color: #94a3b8; font-size: 0.85rem; font-style: italic;
     padding: 0.4rem 0.25rem;

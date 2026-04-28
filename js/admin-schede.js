@@ -601,6 +601,48 @@ function _schedeSwitchSection(section) {
 // ═══════════════════════════════════════════════════════════════════════════════
 let _schedeActualIntervalId = null;
 
+// Set di user_id che hanno almeno un workout_log per la data corrente.
+// Popolato in background da _schedeActualFetchLoggedToday e usato per mostrare
+// i badge V/X accanto ai nomi nello slot precedente e attuale.
+let _schedeActualLoggedTodayDate = null;
+let _schedeActualLoggedTodaySet = new Set();
+let _schedeActualLoggedTodayInflight = false;
+let _schedeActualLoggedTodayFetchedAt = 0;
+
+async function _schedeActualFetchLoggedToday(todayFormatted) {
+    if (_schedeActualLoggedTodayInflight) return;
+    const fresh = _schedeActualLoggedTodayDate === todayFormatted
+        && (Date.now() - _schedeActualLoggedTodayFetchedAt) < 60000;
+    if (fresh) return;
+    if (typeof supabaseClient === 'undefined') return;
+    _schedeActualLoggedTodayInflight = true;
+    try {
+        const { data, error } = await _queryWithTimeout(supabaseClient
+            .from('workout_logs')
+            .select('user_id')
+            .eq('log_date', todayFormatted));
+        if (error) {
+            console.warn('[Schede Actual] fetch logged today error:', error.message);
+            return;
+        }
+        const set = new Set();
+        for (const r of (data || [])) if (r.user_id) set.add(r.user_id);
+        _schedeActualLoggedTodaySet = set;
+        _schedeActualLoggedTodayDate = todayFormatted;
+        _schedeActualLoggedTodayFetchedAt = Date.now();
+        // Re-render se siamo ancora sull'Actual: la guardia "fresh" sopra evita
+        // il loop infinito (il rerender richiama fetch che vede cache fresca).
+        if (_schedeSection === 'actual' && _schedeView === 'list') {
+            const inner = document.getElementById('schedeInner');
+            if (inner) _renderActualView(inner);
+        }
+    } catch (e) {
+        console.warn('[Schede Actual] fetch logged today exception:', e);
+    } finally {
+        _schedeActualLoggedTodayInflight = false;
+    }
+}
+
 function _schedeActualStartAutoRefresh() {
     if (_schedeActualIntervalId) return;
     _schedeActualIntervalId = setInterval(() => {
@@ -720,6 +762,14 @@ function _renderActualView(container) {
         }
     } catch (e) { /* ignore: se fallisce, nessuno viene marcato no-plan */ }
 
+    // Set user_id che hanno loggato oggi: usato per il badge V/X (solo prev/current).
+    // Se la cache e' di un'altra data usiamo set vuoto (tutti X) finche' il fetch
+    // in background non aggiorna e ri-renderizza.
+    _schedeActualFetchLoggedToday(todayFormatted);
+    const loggedSet = (_schedeActualLoggedTodayDate === todayFormatted)
+        ? _schedeActualLoggedTodaySet
+        : new Set();
+
     const nowLabel = now.toLocaleTimeString('it-IT', { hour: '2-digit', minute: '2-digit' });
     const dateLabel = now.toLocaleDateString('it-IT', { weekday: 'long', day: '2-digit', month: 'long' });
 
@@ -732,15 +782,15 @@ function _renderActualView(container) {
     </div>`;
 
     html += '<div class="schede-actual-grid">';
-    html += _schedeActualRenderSlot('prev',    prevIdx,    todayFormatted, usersWithActivePlan);
-    html += _schedeActualRenderSlot('current', currentIdx, todayFormatted, usersWithActivePlan);
-    html += _schedeActualRenderSlot('next',    nextIdx,    todayFormatted, usersWithActivePlan);
+    html += _schedeActualRenderSlot('prev',    prevIdx,    todayFormatted, usersWithActivePlan, loggedSet);
+    html += _schedeActualRenderSlot('current', currentIdx, todayFormatted, usersWithActivePlan, loggedSet);
+    html += _schedeActualRenderSlot('next',    nextIdx,    todayFormatted, usersWithActivePlan, loggedSet);
     html += '</div>';
 
     container.innerHTML = html;
 }
 
-function _schedeActualRenderSlot(position, slotIdx, todayFormatted, usersWithActivePlan) {
+function _schedeActualRenderSlot(position, slotIdx, todayFormatted, usersWithActivePlan, loggedSet) {
     const positionLabel = position === 'prev' ? 'Slot precedente'
                         : position === 'current' ? 'Slot attuale'
                         : 'Slot successivo';
@@ -780,6 +830,9 @@ function _schedeActualRenderSlot(position, slotIdx, todayFormatted, usersWithAct
     if (bookings.length === 0) {
         html += '<div class="schede-actual-empty">Nessuno in questo slot</div>';
     } else {
+        // Badge V/X solo per slot precedente e attuale: nello slot successivo
+        // la sessione non e' ancora iniziata, quindi non ha senso mostrarlo.
+        const showLogBadge = position === 'prev' || position === 'current';
         html += '<div class="schede-actual-clients">';
         for (const b of bookings) {
             const uid  = b.userId || b.user_id || '';
@@ -792,9 +845,17 @@ function _schedeActualRenderSlot(position, slotIdx, todayFormatted, usersWithAct
             const titleAttr = !hasUid
                 ? 'title="Cliente senza profilo registrato"'
                 : (noPlan ? 'title="Nessuna scheda attiva assegnata"' : '');
+            let logBadge = '';
+            if (showLogBadge) {
+                const logged = hasUid && loggedSet && loggedSet.has(uid);
+                const badgeCls = logged ? 'schede-actual-client-log--ok' : 'schede-actual-client-log--ko';
+                const badgeTitle = logged ? 'Ha registrato log oggi' : 'Nessun log registrato oggi';
+                logBadge = `<span class="schede-actual-client-log ${badgeCls}" title="${badgeTitle}" aria-label="${badgeTitle}">${logged ? '✓' : '✗'}</span>`;
+            }
             html += `<button class="${classes.join(' ')}"
                 ${hasUid ? `onclick="_schedeActualOpenClientPopup('${_escJs(uid)}','${_escJs(name)}')"` : 'disabled'} ${titleAttr}>
                 <span class="schede-actual-client-name">${_escHtml(name)}</span>
+                ${logBadge}
                 ${hasUid ? '<span class="schede-actual-client-chev">›</span>' : ''}
             </button>`;
         }
