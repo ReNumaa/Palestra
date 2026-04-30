@@ -243,23 +243,32 @@ REGOLE ASSOLUTE (mai violare)
 5. Italiano. Apri SEMPRE rivolgendoti al cliente per nome (è nei dati).
 
 ═══════════════════════════════════════════════════════════════════════
-INTERPRETAZIONE DEI DATI — FONTE UNICA: I LOG
+INTERPRETAZIONE DEI DATI — DUE FONTI: LEZIONI E LOG
 ═══════════════════════════════════════════════════════════════════════
-Il dato di riferimento di TUTTO il report sono gli "allenamenti registrati"
-(workout_logs): le sessioni in cui il cliente ha INSERITO i carichi nello
-scheda. Le prenotazioni / annullamenti delle lezioni NON entrano nel
-report (sono fuorvianti — un annullamento può avere mille motivi).
+Il report ha DUE numeri chiave:
+  1. "lessons_attended" = lezioni effettivamente frequentate (non
+     annullate). È la FONTE della frequenza settimanale e della
+     categoria frequenza.
+  2. "sessions_logged" = workout_logs effettivi (sessioni in cui il
+     cliente ha inserito carichi nella scheda).
 
-- TERMINOLOGIA per il cliente: "allenamenti registrati" (NON "sessioni
-  loggate"). Il campo JSON è sessions_logged_count, in italiano si
-  scrive "allenamenti registrati / segnati".
-- Frequenza (avg_sessions_per_week) e categoria frequenza
-  (frequency_category) sono CALCOLATE SUI LOG, non sulle prenotazioni.
-- NON parlare MAI di: aderenza, sessioni completate, sessioni cancellate,
-  prenotazioni, percentuali di presenza. Quei dati non ci sono e non
-  vanno menzionati nemmeno come ipotesi.
-- NON parlare MAI di "ripetizioni" o "reps totali": il numero di reps
-  non viene fornito. Parla di carichi, set, costanza, varietà.
+Le DUE fonti vanno tenute distinte:
+- La frequenza con cui si "viene in palestra" è lessons_attended.
+- I log sono il MATERIALE su cui si può commentare carichi, esercizi,
+  progressioni. Se il cliente ha frequentato 8 lezioni ma loggato
+  solo 3, il report può commentare i dati delle 3 ma deve invitare
+  a registrare meglio i carichi per ottenere un report più ricco
+  il mese prossimo (vedi sotto "GAP LOG").
+
+NON parlare MAI di:
+- annullamenti, lezioni cancellate, percentuali di presenza, aderenza,
+  prenotazioni totali → fuorvianti, non vanno menzionati.
+- "ripetizioni" o "reps totali" → il numero di reps non è fornito.
+  Parla di carichi, set, costanza, varietà.
+
+INTERPRETAZIONE LOG:
+- TERMINOLOGIA per il cliente: "allenamenti registrati" o "log dei carichi"
+  per sessions_logged; "lezioni frequentate" per lessons_attended.
 - Esercizio con max_weight = null o 0 → CORPO LIBERO. NON dire "carico
   fermo a 0kg". Parla di volume (set), costanza, presenza nel mese.
 - Esercizio con sessions_logged = 1 → TEST SINGOLO, non progressione.
@@ -267,23 +276,41 @@ report (sono fuorvianti — un annullamento può avere mille motivi).
 - delta.trend = "stable" con weight_change = 0 → STALLO, non regressione.
 
 ═══════════════════════════════════════════════════════════════════════
+GAP LOG — INVITO A REGISTRARE MEGLIO
+═══════════════════════════════════════════════════════════════════════
+Il valore "logging_completeness_pct" indica quanti dei lessons_attended
+sono stati anche loggati (= sessions_logged / lessons_attended × 100).
+
+Soglie:
+  · ≥ 80% → ottima copertura, NON menzionare il gap
+  · 50–79% → cita brevemente che registrare TUTTI i carichi rende il
+    report del prossimo mese più dettagliato
+  · < 50% → invita esplicitamente a registrare i carichi durante
+    l'allenamento (1 frase, non moralista, formulata come "se vuoi
+    sfruttare al massimo il report di fine mese, segna i carichi
+    durante ogni sessione: il prossimo report avrà dati più ricchi
+    e progressioni misurabili").
+  · sessions_logged = 0 ma lessons_attended > 0 → enfatizza che il
+    report non può commentare carichi/progressi proprio per assenza
+    totale di registrazioni; il primo passo è iniziare a segnarli.
+
+═══════════════════════════════════════════════════════════════════════
 FREQUENZA E "FAR VENIRE DI PIÙ" (priorità del business)
 ═══════════════════════════════════════════════════════════════════════
-Il valore "frequency_category" indica la fascia di allenamenti registrati
-per settimana. "freq_gap_vs_goal" è la distanza dalla soglia minima del
-goal (es. -1.5 = 1,5 allenamenti/sett sotto soglia).
+Il valore "frequency_category" è calcolato sulle LEZIONI FREQUENTATE
+(lessons_attended), non sui log. "freq_gap_vs_goal" è la distanza dalla
+soglia minima del goal (es. -1.5 = 1,5 lezioni/sett sotto soglia).
 
 Se frequency_category = BASSA o MEDIA-BASSA → il messaggio centrale del
-report deve essere: aumentare la frequenza degli allenamenti registrati
-è la singola leva più efficace per vedere risultati legati al goal.
-Non moralista, non colpevolizzante, ma esplicito.
+report deve essere: aumentare la frequenza in palestra è la singola leva
+più efficace per vedere risultati legati al goal. Non moralista, non
+colpevolizzante, ma esplicito.
 
 Esempi (adatta al tono del goal):
-  · "I tuoi 1,2 allenamenti registrati/settimana stanno costruendo
-    abitudine, ma per vedere il dimagrimento muoversi davvero servono
-    almeno 3."
-  · "Sopra i 2 allenamenti registrati/settimana il corpo inizia a
-    rispondere in modo visibile: oggi sei a 1,5."
+  · "I tuoi 1,2 allenamenti/settimana stanno costruendo abitudine, ma
+    per vedere il dimagrimento muoversi davvero servono almeno 3."
+  · "Sopra i 2 allenamenti/settimana il corpo inizia a rispondere in
+    modo visibile: oggi sei a 1,5."
 
 Se frequency_category = MEDIA o ALTA → NON spingere ulteriormente.
 Valorizza la costanza e parla di qualità (carichi, varietà, recupero).
@@ -312,13 +339,14 @@ Il report deve seguire ESATTAMENTE questa struttura markdown:
   Apertura: 1-2 frasi di saluto al cliente per nome (NO heading).
 
   ## Numeri del mese
-  3-5 righe con i dati salienti (allenamenti registrati nel mese,
-  frequenza media settimanale calcolata sui log, eventuale delta del
-  numero di allenamenti registrati vs mese precedente). Pesa solo i
-  numeri rilevanti per il goal: per dimagrimento = costanza dei log;
-  per forza = carichi top + costanza; per massa = volume e progressi;
-  per salute = costanza; per recupero = costanza e varietà del lavoro.
-  NON menzionare aderenza, prenotazioni, cancellazioni, ripetizioni.
+  3-5 righe con i dati salienti: lezioni frequentate (lessons_attended),
+  frequenza media settimanale (avg_sessions_per_week), allenamenti
+  registrati con carichi (sessions_logged), eventuale delta delle
+  lezioni vs mese precedente. Pesa solo i numeri rilevanti per il goal:
+  per dimagrimento = costanza; per forza = carichi top + costanza;
+  per massa = volume e progressi; per salute = costanza; per recupero
+  = costanza e varietà del lavoro.
+  NON menzionare aderenza, annullamenti, prenotazioni totali, ripetizioni.
 
   ## Cosa dicono i dati
   Paragrafo discorsivo (180-280 parole, modulato dal REPORT TYPE).
@@ -374,9 +402,11 @@ function freqLabel(avgPerWeek: number): string {
     return "ALTA";
 }
 
-// Compone il messaggio utente: prefisso (goal + report type) + scorecard
-// LIMITATA AI LOG (no bookings/aderenza, no ripetizioni). Frequenza
-// calcolata sui log, non sulle prenotazioni.
+// Compone il messaggio utente: prefisso (goal + report type) + scorecard.
+// Frequenza basata sulle LEZIONI FREQUENTATE (bookings.completed); i log
+// (sessions_logged) sono un dato secondario per commentare carichi e
+// invitare a registrare meglio se il gap è alto. Annullamenti/cancellati,
+// totali bookings, aderenza % e ripetizioni NON vengono inviati al modello.
 function buildUserMessage(
     scorecard: any,
     userName: string,
@@ -385,16 +415,28 @@ function buildUserMessage(
 ): string {
     const c = scorecard.current ?? {};
     const p = scorecard.previous ?? {};
+    const cb = c.bookings ?? {};
+    const pb = p.bookings ?? {};
+
+    const lessonsAttended = cb.completed ?? 0;
+    const lessonsAttendedPrev = pb.completed ?? 0;
     const sessionsLogged = c.sessions_logged_count ?? 0;
     const sessionsLoggedPrev = p.sessions_logged_count ?? 0;
-    // Frequenza calcolata sui LOG, non sui bookings.completed.
-    const avgPerWeek = sessionsLogged > 0
-        ? Number((sessionsLogged / 4.33).toFixed(2))
+
+    // Frequenza = lezioni frequentate / settimana.
+    const avgPerWeek = lessonsAttended > 0
+        ? Number((lessonsAttended / 4.33).toFixed(2))
         : 0;
-    const avgPerWeekPrev = sessionsLoggedPrev > 0
-        ? Number((sessionsLoggedPrev / 4.33).toFixed(2))
+    const avgPerWeekPrev = lessonsAttendedPrev > 0
+        ? Number((lessonsAttendedPrev / 4.33).toFixed(2))
         : 0;
     const freqGapVsGoal = Number((avgPerWeek - goal.minWeeklyFreq).toFixed(2));
+
+    // % di lezioni effettivamente loggate. null se 0 lezioni (non
+    // calcolabile, evitiamo divisione per zero e false segnalazioni).
+    const loggingCompletenessPct = lessonsAttended > 0
+        ? Math.round((sessionsLogged / lessonsAttended) * 100)
+        : null;
 
     // Normalizza nomi esercizi (Title Case) e rimuove total_reps_sum: il
     // numero di ripetizioni non va menzionato nel report (richiesta esplicita).
@@ -405,9 +447,9 @@ function buildUserMessage(
     const exercises = (c.exercises ?? []).map(stripReps);
     const deltaExercises = (scorecard.delta?.exercises ?? []).map(stripReps);
 
-    // Ricostruisce blocchi current/previous/delta SENZA bookings, senza
-    // adherence_pct_change e senza i campi reps. Il report non deve mai
-    // riferirsi a prenotazioni o aderenza.
+    // Ricostruisce blocchi current/previous/delta rimuovendo TUTTO ciò
+    // che è "aderenza/annullamenti": teniamo solo lessons_attended e
+    // sessions_logged_count come fonti, niente cancelled/total/percent.
     const { bookings: _cb, ...cRest } = c;
     const { bookings: _pb, ...pRest } = p;
     const dRaw = scorecard.delta ?? {};
@@ -420,10 +462,20 @@ function buildUserMessage(
         client_name: userName,
         goal: goal.id,
         goal_min_weekly_freq: goal.minWeeklyFreq,
+
+        // Frequenza (basata su lezioni frequentate)
+        lessons_attended: lessonsAttended,
+        lessons_attended_previous: lessonsAttendedPrev,
         avg_sessions_per_week: avgPerWeek,
         avg_sessions_per_week_previous: avgPerWeekPrev,
         frequency_category: freqLabel(avgPerWeek),
         freq_gap_vs_goal: freqGapVsGoal,
+
+        // Dati log (per commenti su carichi e invito a registrare meglio)
+        sessions_logged: sessionsLogged,
+        sessions_logged_previous: sessionsLoggedPrev,
+        logging_completeness_pct: loggingCompletenessPct,
+
         current: { ...cRest, exercises },
         previous: pRest,
         delta: { ...dRest, exercises: deltaExercises },
