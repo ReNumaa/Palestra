@@ -182,11 +182,24 @@ NON dare consigli medici, mai.`,
 const TYPE_INSTRUCTIONS: Record<string, string> = {
     no_data: `REPORT TYPE: NO DATA.
 Il cliente ha ZERO allenamenti registrati nel mese.
-Produci un messaggio BREVE (80-120 parole) che:
+Produci un messaggio BREVE (120-180 parole) che:
   · riconosca il mese senza giudizio (niente colpe, niente "dove sei stato?")
-  · proponga di ripartire con 1 solo allenamento la settimana entrante
-  · chiuda in modo rispettoso
-NON scrivere un vero report. NON menzionare esercizi che non esistono.`,
+  · se nei dati è presente "assigned_plan_structure" (la scheda assegnata
+    al cliente), descrivi a grandi linee come è strutturata: numero di
+    giorni, principali gruppi muscolari coperti, eventuali esercizi chiave
+    citati per nome (Title Case italiano). NON elencare TUTTI gli esercizi:
+    bastano 2-3 esempi rappresentativi per dare l'idea.
+  · spiega che, registrando i carichi durante l'allenamento (anche solo
+    qualche sessione), il prossimo report potrà commentare progressi
+    concreti, suggerire dove spingere e dove rallentare. Senza log il
+    sistema non può misurare nulla.
+  · proponi di ripartire con 1 solo allenamento la settimana entrante,
+    segnando i carichi sull'app
+  · chiudi in modo rispettoso
+Se "assigned_plan_structure" NON è presente o è vuota, ometti la parte
+sulla scheda e mantieni il messaggio sulle 80-120 parole.
+NON scrivere un vero report. NON inventare esercizi non presenti nella
+scheda. NON parlare di carichi, progressi o pattern: non hai dati.`,
 
     encouragement: `REPORT TYPE: ENCOURAGEMENT (pochi dati).
 Il cliente ha 1-2 allenamenti registrati — sotto la soglia minima per un report pieno.
@@ -642,6 +655,81 @@ async function computeAttendancePatterns(
     };
 }
 
+// ─────────────────────────────────────────────────────────────────────
+// SCHEDA ASSEGNATA — usata per il caso NO_DATA.
+// Quando il cliente non ha loggato nulla nel mese, la scorecard è vuota
+// e il modello non avrebbe materiale su cui costruire un consiglio
+// concreto. Recuperiamo qui la struttura della scheda attiva (giorni +
+// esercizi raggruppati) così che il prompt no_data possa fare un cenno
+// alla scheda esistente e invitare a registrare gli allenamenti.
+// ─────────────────────────────────────────────────────────────────────
+
+interface AssignedPlanDay {
+    day_label: string;
+    exercises: { exercise_name: string; muscle_group: string | null }[];
+}
+
+interface AssignedPlanStructure {
+    plan_name: string;
+    plan_notes: string | null;
+    days: AssignedPlanDay[];
+    muscle_groups_covered: string[];
+}
+
+async function fetchAssignedPlan(
+    sb: any,
+    userId: string,
+): Promise<AssignedPlanStructure | null> {
+    const { data: plans, error: planErr } = await sb
+        .from("workout_plans")
+        .select("id, name, notes, updated_at")
+        .eq("user_id", userId)
+        .eq("active", true)
+        .order("updated_at", { ascending: false })
+        .limit(1);
+
+    if (planErr) {
+        console.warn("[AssignedPlan] plans query failed:", planErr.message);
+        return null;
+    }
+    const plan = plans?.[0];
+    if (!plan) return null;
+
+    const { data: exs, error: exErr } = await sb
+        .from("workout_exercises")
+        .select("day_label, exercise_name, muscle_group, sort_order")
+        .eq("plan_id", plan.id)
+        .order("day_label", { ascending: true })
+        .order("sort_order", { ascending: true });
+
+    if (exErr) {
+        console.warn("[AssignedPlan] exercises query failed:", exErr.message);
+        return null;
+    }
+    if (!exs || exs.length === 0) return null;
+
+    const byDay = new Map<string, AssignedPlanDay>();
+    const muscles = new Set<string>();
+    for (const ex of exs) {
+        const dayKey = ex.day_label || "Giorno A";
+        if (!byDay.has(dayKey)) {
+            byDay.set(dayKey, { day_label: dayKey, exercises: [] });
+        }
+        byDay.get(dayKey)!.exercises.push({
+            exercise_name: titleCaseIt(ex.exercise_name),
+            muscle_group: ex.muscle_group ?? null,
+        });
+        if (ex.muscle_group) muscles.add(ex.muscle_group);
+    }
+
+    return {
+        plan_name: plan.name,
+        plan_notes: plan.notes ?? null,
+        days: Array.from(byDay.values()),
+        muscle_groups_covered: Array.from(muscles).sort(),
+    };
+}
+
 function inferExperienceHint(exercises: any[]): "advanced" | "intermediate" | "beginner_or_returning" {
     let advancedSignals = 0;
     let intermediateSignals = 0;
@@ -680,6 +768,7 @@ function buildUserMessage(
     goal: GoalSpec,
     reportType: string,
     patterns: AttendancePatterns,
+    assignedPlan: AssignedPlanStructure | null,
 ): string {
     const c = scorecard.current ?? {};
     const p = scorecard.previous ?? {};
@@ -831,6 +920,11 @@ function buildUserMessage(
         top_time_slot: patterns.top_time_slot,
         top_time_slot_share_pct: patterns.top_time_slot_share_pct,
 
+        // Scheda assegnata (popolata solo per il caso no_data: serve a
+        // dare al modello qualcosa di concreto su cui ancorare il
+        // suggerimento "registra gli allenamenti").
+        assigned_plan_structure: assignedPlan,
+
         current: { ...cRest, exercises },
         previous: pRest,
         delta: { ...dRest, exercises: deltaExercises },
@@ -952,12 +1046,6 @@ Deno.serve(async (req) => {
         }
 
         const isAdmin = (authData.user.app_metadata as any)?.role === "admin";
-        // Allow-list di utenti non-admin abilitati alla feature durante la
-        // fase di test/refinement. Tenere allineata con js/allenamento-report.js.
-        const REPORT_BETA_USER_IDS = new Set<string>([
-            "eeb4eaf2-0ba0-423e-a345-22aae5f1682f",
-        ]);
-        const isBetaUser = REPORT_BETA_USER_IDS.has(authData.user.id);
 
         // ── Parse body ────────────────────────────────────────────────
         let body: any;
@@ -989,18 +1077,9 @@ Deno.serve(async (req) => {
         }
         const goal = GOALS[goalId];
 
-        // ⚠️ TEMPORANEO: feature ancora gated agli admin (+ allow-list beta)
-        // durante refinement. Rimuovere quando si vuole aprire a tutti.
-        if (!isAdmin && !isBetaUser) {
-            return json({
-                error: "La generazione report è attualmente in beta e non ancora abilitata per il tuo profilo.",
-                code: "ADMIN_ONLY_TEMPORARY",
-            }, 403);
-        }
-
-        // Un beta-user può generare SOLO il proprio report (un admin può
-        // generare per chiunque). Difesa in profondità: bloccare cross-user.
-        if (!isAdmin && isBetaUser && body?.user_id !== authData.user.id) {
+        // Un cliente non-admin può generare SOLO il proprio report
+        // (un admin può generare per chiunque). Difesa in profondità.
+        if (!isAdmin && body?.user_id !== authData.user.id) {
             return json({
                 error: "Puoi generare solo il tuo report.",
                 code: "NOT_AUTHORIZED_FOR_USER",
@@ -1099,8 +1178,19 @@ Deno.serve(async (req) => {
         // ritorna valori "vuoti".
         const patterns = await computeAttendancePatterns(supabase, user_id, year_month);
 
+        // ── Scheda assegnata (solo per no_data) ───────────────────────
+        // Senza log la scorecard è muta: la struttura della scheda dà al
+        // modello materiale per un consiglio mirato (cita 2-3 esercizi
+        // chiave + invita a registrare). Negli altri casi il commento
+        // poggia già sui dati log e plans_used, quindi non serve.
+        const assignedPlan = reportType === "no_data"
+            ? await fetchAssignedPlan(supabase, user_id)
+            : null;
+
         // ── Costruisci prompt e chiama Anthropic ──────────────────────
-        const userMessage = buildUserMessage(scorecard, userName, goal, reportType, patterns);
+        const userMessage = buildUserMessage(
+            scorecard, userName, goal, reportType, patterns, assignedPlan,
+        );
 
         let aiResult: AnthropicResult;
         try {
