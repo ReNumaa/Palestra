@@ -516,6 +516,12 @@ Deno.serve(async (req) => {
         }
 
         const isAdmin = (authData.user.app_metadata as any)?.role === "admin";
+        // Allow-list di utenti non-admin abilitati alla feature durante la
+        // fase di test/refinement. Tenere allineata con js/allenamento-report.js.
+        const REPORT_BETA_USER_IDS = new Set<string>([
+            "eeb4eaf2-0ba0-423e-a345-22aae5f1682f",
+        ]);
+        const isBetaUser = REPORT_BETA_USER_IDS.has(authData.user.id);
 
         // ── Parse body ────────────────────────────────────────────────
         let body: any;
@@ -547,12 +553,21 @@ Deno.serve(async (req) => {
         }
         const goal = GOALS[goalId];
 
-        // ⚠️ TEMPORANEO: feature ancora gated agli admin durante refinement.
-        // Rimuovere quando si vuole aprire ai clienti.
-        if (!isAdmin) {
+        // ⚠️ TEMPORANEO: feature ancora gated agli admin (+ allow-list beta)
+        // durante refinement. Rimuovere quando si vuole aprire a tutti.
+        if (!isAdmin && !isBetaUser) {
             return json({
-                error: "La generazione report è attualmente disponibile solo per gli admin.",
+                error: "La generazione report è attualmente in beta e non ancora abilitata per il tuo profilo.",
                 code: "ADMIN_ONLY_TEMPORARY",
+            }, 403);
+        }
+
+        // Un beta-user può generare SOLO il proprio report (un admin può
+        // generare per chiunque). Difesa in profondità: bloccare cross-user.
+        if (!isAdmin && isBetaUser && body?.user_id !== authData.user.id) {
+            return json({
+                error: "Puoi generare solo il tuo report.",
+                code: "NOT_AUTHORIZED_FOR_USER",
             }, 403);
         }
 
