@@ -451,10 +451,16 @@ async function _startGenerationInternal(yearMonth, goal, force) {
         const { data: { session } } = await supabaseClient.auth.getSession();
         if (!session) throw new Error('Sessione scaduta, ricarica la pagina');
 
+        // apikey è obbligatoria per la pre-validazione lato Supabase platform
+        // davanti alle Edge Functions (anche se Authorization Bearer è già un
+        // JWT firmato). Senza questo header alcune configurazioni rispondono
+        // 401 PRIMA che la nostra funzione giri (body vuoto o non-JSON).
+        // SUPABASE_ANON_KEY è esposta globalmente da supabase-client.js.
         const res = await fetch(REPORT_FN_URL, {
             method: 'POST',
             headers: {
                 'Authorization': 'Bearer ' + session.access_token,
+                'apikey': (typeof SUPABASE_ANON_KEY !== 'undefined' ? SUPABASE_ANON_KEY : ''),
                 'Content-Type': 'application/json',
             },
             body: JSON.stringify({
