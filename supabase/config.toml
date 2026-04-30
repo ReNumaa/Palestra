@@ -396,6 +396,9 @@ verify_jwt = false
 [functions.send-admin-message]
 verify_jwt = false
 
+[functions.generate-monthly-report]
+verify_jwt = false
+
 [analytics]
 enabled = true
 port = 54327
