@@ -1069,6 +1069,28 @@ Deno.serve(async (req) => {
         if (!/^\d{4}-(0[1-9]|1[0-2])$/.test(year_month)) {
             return json({ error: "Invalid year_month format, expected YYYY-MM" }, 400);
         }
+
+        // Il report di un mese è generabile SOLO dal primo giorno del mese
+        // successivo. Si confronta col mese in corso usando il TZ Europe/Rome
+        // così che, attorno alla mezzanotte italiana del 1°, il check non
+        // sbaglia per via dell'offset UTC. Vale per tutti, admin inclusi.
+        const _romeFmt = new Intl.DateTimeFormat("en-CA", {
+            timeZone: "Europe/Rome",
+            year: "numeric",
+            month: "2-digit",
+        });
+        const _romeParts = _romeFmt.formatToParts(new Date());
+        const _romeYear = _romeParts.find((p) => p.type === "year")?.value;
+        const _romeMonth = _romeParts.find((p) => p.type === "month")?.value;
+        const currentYearMonth = `${_romeYear}-${_romeMonth}`;
+        if (year_month >= currentYearMonth) {
+            return json({
+                error: "Il report di un mese può essere generato solo a partire dal primo giorno del mese successivo.",
+                code: "MONTH_NOT_YET_AVAILABLE",
+                current_year_month: currentYearMonth,
+            }, 400);
+        }
+
         if (!goalId || !GOALS[goalId]) {
             return json({
                 error: `Missing or invalid goal. Valid: ${Object.keys(GOALS).join(", ")}`,

@@ -39,11 +39,12 @@ function _unlockBodyScrollIfNoModals() {
 // ═════════════════════════════════════════════════════════════════════
 
 function _getAvailableMonthForGeneration() {
-    // ⚠️ TEMPORANEAMENTE: restituisce il mese CORRENTE per permettere test.
-    // RIATTIVARE comportamento "mese precedente" prima del rilascio in produzione,
-    // e riattivare anche il controllo corrispondente nell'Edge Function.
+    // Il report di un mese diventa generabile dal 1° del mese successivo:
+    // si restituisce sempre il mese precedente a oggi (TZ locale).
+    // La regola è applicata anche lato server (Edge Function).
     const now = new Date();
-    return `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}`;
+    const prev = new Date(now.getFullYear(), now.getMonth() - 1, 1);
+    return `${prev.getFullYear()}-${String(prev.getMonth() + 1).padStart(2, '0')}`;
 }
 
 const MAX_GENERATIONS_PER_MONTH = 3;
@@ -469,6 +470,8 @@ async function _startGenerationInternal(yearMonth, goal, force) {
         if (!res.ok || !data.success) {
             if (data.code === 'REGEN_LIMIT_REACHED') {
                 alert(`Hai raggiunto il limite di ${data.limit} generazioni per questo mese. Non puoi rigenerare ulteriormente.`);
+            } else if (data.code === 'MONTH_NOT_YET_AVAILABLE') {
+                alert('Il report di questo mese sarà disponibile dal 1° del mese successivo.');
             } else {
                 const msg = data.error || `Errore HTTP ${res.status}`;
                 alert('Errore nella generazione:\n' + msg);
