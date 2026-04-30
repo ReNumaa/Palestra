@@ -3060,11 +3060,11 @@ body.all-modal-open .all-modal-overlay {
    ══════════════════════════════════════════════════════════════════════════ */
 
 .all-report-modal-box {
-    max-width: 680px;
-    max-height: 90vh;
+    max-width: 560px;
+    max-height: 88vh;
     overflow-y: auto;
-    padding: 1.75rem 1.5rem 2rem;
-    border-radius: 20px;
+    padding: 1.4rem 1.4rem 1.75rem;
+    border-radius: 18px;
     overscroll-behavior: contain;
     -webkit-overflow-scrolling: touch;
     box-shadow:
@@ -3072,39 +3072,43 @@ body.all-modal-open .all-modal-overlay {
         0 24px 48px rgba(30, 27, 46, 0.12);
 }
 
+/* Stack verticale: il meta non lotta più con la X di chiusura */
 .all-report-modal-meta {
     display: flex;
-    justify-content: space-between;
-    align-items: center;
-    gap: 0.6rem;
-    padding-bottom: 1rem;
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 0.35rem;
+    /* Spazio a destra per non finire sotto la X */
+    padding: 0 2.5rem 0.9rem 0;
     border-bottom: 1px solid rgba(30, 27, 46, 0.06);
-    margin-bottom: 1.25rem;
+    margin-bottom: 1rem;
 }
 
 .all-report-modal-month {
-    font-size: 1.25rem;
+    font-size: 1.15rem;
     font-weight: 700;
     color: #1e1b2e;
     letter-spacing: -0.01em;
+    line-height: 1.2;
 }
 
 .all-report-modal-tone {
-    font-size: 0.82rem;
+    font-size: 0.78rem;
     background: linear-gradient(135deg, rgba(124, 58, 237, 0.1), rgba(168, 85, 247, 0.08));
     color: #6d28d9;
-    padding: 0.3rem 0.85rem;
+    padding: 0.22rem 0.7rem;
     border-radius: 999px;
     font-weight: 600;
     white-space: nowrap;
+    line-height: 1.4;
 }
 
 .all-report-modal-body {
-    font-size: 1rem;
-    line-height: 1.7;
+    font-size: 0.97rem;
+    line-height: 1.65;
     color: #2a2432;
     /* Ottimizza line-length per reading */
-    max-width: 62ch;
+    max-width: 58ch;
     margin: 0 auto;
 }
 
@@ -3321,11 +3325,21 @@ body.all-modal-open .all-modal-overlay {
     .all-report-goal-card-label { font-size: 0.8rem; }
     .all-report-goal-card-desc { font-size: 0.66rem; }
 
-    .all-report-modal-box { max-height: 94vh; padding: 1.3rem 1.1rem 1.6rem; border-radius: 18px; }
-    .all-report-modal-month { font-size: 1.15rem; }
-    .all-report-modal-body { font-size: 0.95rem; line-height: 1.65; }
-    .all-report-modal-body h2 { font-size: 1.1rem; }
-    .all-report-modal-body h3 { font-size: 1rem; }
+    .all-report-modal-box {
+        max-height: 92vh;
+        padding: 1.05rem 1rem 1.35rem;
+        border-radius: 16px;
+    }
+    .all-report-modal-meta {
+        padding: 0 2.25rem 0.7rem 0;
+        margin-bottom: 0.85rem;
+        gap: 0.3rem;
+    }
+    .all-report-modal-month { font-size: 1.05rem; }
+    .all-report-modal-tone { font-size: 0.72rem; padding: 0.18rem 0.6rem; }
+    .all-report-modal-body { font-size: 0.92rem; line-height: 1.6; }
+    .all-report-modal-body h2 { font-size: 1.05rem; }
+    .all-report-modal-body h3 { font-size: 0.98rem; }
 
     .all-report-consent-box { padding: 1.3rem 1.1rem; }
 

@@ -580,9 +580,10 @@
                 await _loadLogsForPlan(_allPlan);
 
                 // Re-renderizza la view correntemente attiva (non sempre 'scheda':
-                // dopo un resume da background l'utente potrebbe essere su Progressi/Tablet/PDF)
+                // dopo un resume da background l'utente potrebbe essere su Progressi/Report/Tablet/PDF)
                 if (_allView === 'progressi') renderProgressi();
                 else if (_allView === 'storico') renderStorico();
+                else if (_allView === 'report') renderReport();
                 else if (_allView === 'tablet') renderTabletQR();
                 else if (_allView === 'pdf') renderPdfDownload();
                 else renderScheda();
