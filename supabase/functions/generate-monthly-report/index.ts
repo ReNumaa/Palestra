@@ -59,12 +59,11 @@ const GOALS: Record<string, GoalSpec> = {
         minWeeklyFreq: 3,
         nutritionEmphasis: "primary",
         spec: `OBIETTIVO: Dimagrimento (riduzione massa grassa preservando muscolo)
-Frequenza minima per risultati visibili: 3-4 sessioni/settimana.
+Frequenza minima per risultati visibili: 3-4 allenamenti registrati/settimana.
 Cosa guardare nei log:
-  · costanza settimanale (la leva n.1 in dimagrimento)
+  · costanza settimanale di allenamenti registrati (la leva n.1)
   · presenza di multiarticolari (squat, stacchi, panca, trazioni, rematori, military)
   · mantenimento dei carichi (in deficit non si pretende progresso, mantenere è già successo)
-  · aderenza alle prenotazioni (aderenza bassa = niente deficit reale)
 Tono richiesto: caloroso, orientato al fare. NON moralista sul peso.
 NON menzionare mai numeri su peso, kcal, % grasso, dieta specifica: non li abbiamo.
 ALIMENTAZIONE — leva PRIMARIA: il dimagrimento è 80% alimentazione.
@@ -124,7 +123,7 @@ Frequenza minima: 2-3 sessioni/settimana (la forza tollera meno volume ma più i
 Cosa guardare nei log:
   · 1RM stimato o carichi top set sui fondamentali (squat, panca, stacco, military, trazione)
   · progressione carico nel mese (anche +2,5kg/+5kg sono progresso reale)
-  · numero di set in range forza (1-5 reps con carichi alti)
+  · presenza di set a carichi alti sui fondamentali
   · recuperi adeguati tra le sessioni dei main lift (no due squat pesanti consecutivi)
 Tono richiesto: diretto, tecnico, da coach esperto. Nessun fronzolo.
 Numeri sempre puntuali, mai vaghi.
@@ -215,9 +214,12 @@ NON usare le parole "progressione" o "regressione": non c'è confronto possibile
 Il cliente ha dati sia nel mese corrente che nel precedente.
 Produci un report completo (300-400 parole) che:
   · apra citando 2-3 progressi concreti dal blocco DELTA con numeri esatti
-  · identifichi 1-2 pattern interessanti (volume per gruppo muscolare, aderenza)
-  · segnali 1 area di attenzione (stallo, regressione, gap di registrazione)
-  · menzioni il cambio di aderenza SOLO se previous.bookings.total >= 3
+  · identifichi 1-2 pattern interessanti (volume per gruppo muscolare,
+    distribuzione del lavoro, costanza)
+  · segnali 1 area di attenzione (stallo, regressione, esercizi fatti
+    una volta sola)
+  · commenti l'andamento della frequenza degli allenamenti registrati
+    rispetto al mese precedente, se entrambi i mesi hanno almeno 3 log
   · chiuda con 1-2 obiettivi concreti e misurabili per il mese successivo
 Ogni progresso/stallo/regressione citato deve usare i numeri esatti dal DELTA.`,
 };
@@ -241,39 +243,47 @@ REGOLE ASSOLUTE (mai violare)
 5. Italiano. Apri SEMPRE rivolgendoti al cliente per nome (è nei dati).
 
 ═══════════════════════════════════════════════════════════════════════
-INTERPRETAZIONE DEI DATI
+INTERPRETAZIONE DEI DATI — FONTE UNICA: I LOG
 ═══════════════════════════════════════════════════════════════════════
+Il dato di riferimento di TUTTO il report sono gli "allenamenti registrati"
+(workout_logs): le sessioni in cui il cliente ha INSERITO i carichi nello
+scheda. Le prenotazioni / annullamenti delle lezioni NON entrano nel
+report (sono fuorvianti — un annullamento può avere mille motivi).
+
 - TERMINOLOGIA per il cliente: "allenamenti registrati" (NON "sessioni
-  loggate"). Il campo JSON è sessions_logged_count, ma in italiano si
+  loggate"). Il campo JSON è sessions_logged_count, in italiano si
   scrive "allenamenti registrati / segnati".
+- Frequenza (avg_sessions_per_week) e categoria frequenza
+  (frequency_category) sono CALCOLATE SUI LOG, non sulle prenotazioni.
+- NON parlare MAI di: aderenza, sessioni completate, sessioni cancellate,
+  prenotazioni, percentuali di presenza. Quei dati non ci sono e non
+  vanno menzionati nemmeno come ipotesi.
+- NON parlare MAI di "ripetizioni" o "reps totali": il numero di reps
+  non viene fornito. Parla di carichi, set, costanza, varietà.
 - Esercizio con max_weight = null o 0 → CORPO LIBERO. NON dire "carico
-  fermo a 0kg". Parla di volume (set), reps, costanza.
+  fermo a 0kg". Parla di volume (set), costanza, presenza nel mese.
 - Esercizio con sessions_logged = 1 → TEST SINGOLO, non progressione.
 - delta.trend = "new" → esercizio NUOVO. Non è progressione, è inserimento.
 - delta.trend = "stable" con weight_change = 0 → STALLO, non regressione.
-- bookings.completed > sessions_logged_count → GAP REGISTRAZIONE.
-  Menzionalo come OPPORTUNITÀ ("registrare gli allenamenti darebbe più
-  insight"), MAI come rimprovero.
-- previous.bookings.total < 3 → evita conclusioni sul delta aderenza:
-  baseline troppo piccola.
 
 ═══════════════════════════════════════════════════════════════════════
 FREQUENZA E "FAR VENIRE DI PIÙ" (priorità del business)
 ═══════════════════════════════════════════════════════════════════════
-Il valore "frequency_category" indica la fascia di frequenza settimanale.
-Il valore "freq_gap_vs_goal" indica la distanza dalla soglia minima del
-goal scelto (es. -1.5 = 1,5 sessioni/sett sotto soglia).
+Il valore "frequency_category" indica la fascia di allenamenti registrati
+per settimana. "freq_gap_vs_goal" è la distanza dalla soglia minima del
+goal (es. -1.5 = 1,5 allenamenti/sett sotto soglia).
 
 Se frequency_category = BASSA o MEDIA-BASSA → il messaggio centrale del
-report deve essere: aumentare la frequenza è la singola leva più efficace
-per vedere risultati legati al goal. Non moralista, non colpevolizzante,
-ma esplicito.
+report deve essere: aumentare la frequenza degli allenamenti registrati
+è la singola leva più efficace per vedere risultati legati al goal.
+Non moralista, non colpevolizzante, ma esplicito.
 
 Esempi (adatta al tono del goal):
-  · "I tuoi 1,2 allenamenti/settimana stanno costruendo abitudine, ma per
-    vedere il dimagrimento muoversi davvero servono almeno 3."
-  · "Sopra le 2 sessioni/settimana il corpo inizia a rispondere in modo
-    visibile: oggi sei a 1,5."
+  · "I tuoi 1,2 allenamenti registrati/settimana stanno costruendo
+    abitudine, ma per vedere il dimagrimento muoversi davvero servono
+    almeno 3."
+  · "Sopra i 2 allenamenti registrati/settimana il corpo inizia a
+    rispondere in modo visibile: oggi sei a 1,5."
 
 Se frequency_category = MEDIA o ALTA → NON spingere ulteriormente.
 Valorizza la costanza e parla di qualità (carichi, varietà, recupero).
@@ -302,11 +312,13 @@ Il report deve seguire ESATTAMENTE questa struttura markdown:
   Apertura: 1-2 frasi di saluto al cliente per nome (NO heading).
 
   ## Numeri del mese
-  3-5 righe con i dati salienti (allenamenti registrati, frequenza,
-  aderenza, eventuale delta vs mese precedente). Pesa solo i numeri
-  rilevanti per il goal: per dimagrimento = costanza/aderenza; per
-  forza = carichi top; per massa = volume e progressi; per salute =
-  costanza; per recupero = costanza e varietà del lavoro.
+  3-5 righe con i dati salienti (allenamenti registrati nel mese,
+  frequenza media settimanale calcolata sui log, eventuale delta del
+  numero di allenamenti registrati vs mese precedente). Pesa solo i
+  numeri rilevanti per il goal: per dimagrimento = costanza dei log;
+  per forza = carichi top + costanza; per massa = volume e progressi;
+  per salute = costanza; per recupero = costanza e varietà del lavoro.
+  NON menzionare aderenza, prenotazioni, cancellazioni, ripetizioni.
 
   ## Cosa dicono i dati
   Paragrafo discorsivo (180-280 parole, modulato dal REPORT TYPE).
@@ -363,7 +375,8 @@ function freqLabel(avgPerWeek: number): string {
 }
 
 // Compone il messaggio utente: prefisso (goal + report type) + scorecard
-// arricchita con freq_gap_vs_goal, frequency_category, esercizi normalizzati.
+// LIMITATA AI LOG (no bookings/aderenza, no ripetizioni). Frequenza
+// calcolata sui log, non sulle prenotazioni.
 function buildUserMessage(
     scorecard: any,
     userName: string,
@@ -371,33 +384,49 @@ function buildUserMessage(
     reportType: string,
 ): string {
     const c = scorecard.current ?? {};
-    const cb = c.bookings ?? {};
-    const cbCompleted = cb.completed ?? 0;
-    const avgPerWeek = cbCompleted > 0 ? Number((cbCompleted / 4.33).toFixed(2)) : 0;
+    const p = scorecard.previous ?? {};
+    const sessionsLogged = c.sessions_logged_count ?? 0;
+    const sessionsLoggedPrev = p.sessions_logged_count ?? 0;
+    // Frequenza calcolata sui LOG, non sui bookings.completed.
+    const avgPerWeek = sessionsLogged > 0
+        ? Number((sessionsLogged / 4.33).toFixed(2))
+        : 0;
+    const avgPerWeekPrev = sessionsLoggedPrev > 0
+        ? Number((sessionsLoggedPrev / 4.33).toFixed(2))
+        : 0;
     const freqGapVsGoal = Number((avgPerWeek - goal.minWeeklyFreq).toFixed(2));
 
-    // Normalizza nomi esercizi (Title Case) lato server: l'AI sbaglia meno.
-    const exercises = (c.exercises ?? []).map((ex: any) => ({
-        ...ex,
-        exercise_name: titleCaseIt(ex.exercise_name),
-    }));
-    const deltaExercises = (scorecard.delta?.exercises ?? []).map((ex: any) => ({
-        ...ex,
-        exercise_name: titleCaseIt(ex.exercise_name),
-    }));
+    // Normalizza nomi esercizi (Title Case) e rimuove total_reps_sum: il
+    // numero di ripetizioni non va menzionato nel report (richiesta esplicita).
+    const stripReps = (ex: any) => {
+        const { total_reps_sum: _drop, ...rest } = ex ?? {};
+        return { ...rest, exercise_name: titleCaseIt(rest.exercise_name) };
+    };
+    const exercises = (c.exercises ?? []).map(stripReps);
+    const deltaExercises = (scorecard.delta?.exercises ?? []).map(stripReps);
+
+    // Ricostruisce blocchi current/previous/delta SENZA bookings, senza
+    // adherence_pct_change e senza i campi reps. Il report non deve mai
+    // riferirsi a prenotazioni o aderenza.
+    const { bookings: _cb, ...cRest } = c;
+    const { bookings: _pb, ...pRest } = p;
+    const dRaw = scorecard.delta ?? {};
+    const { adherence_pct_change: _ad, ...dRest } = dRaw;
 
     const enriched = {
-        ...scorecard,
+        year_month: scorecard.year_month,
+        previous_year_month: scorecard.previous_year_month,
+        metadata: scorecard.metadata,
         client_name: userName,
         goal: goal.id,
         goal_min_weekly_freq: goal.minWeeklyFreq,
         avg_sessions_per_week: avgPerWeek,
+        avg_sessions_per_week_previous: avgPerWeekPrev,
         frequency_category: freqLabel(avgPerWeek),
         freq_gap_vs_goal: freqGapVsGoal,
-        gap_logging: cbCompleted > (c.sessions_logged_count ?? 0),
-        previous_baseline_too_small: (scorecard.previous?.bookings?.total ?? 0) < 3,
-        current: { ...c, exercises },
-        delta: { ...(scorecard.delta ?? {}), exercises: deltaExercises },
+        current: { ...cRest, exercises },
+        previous: pRest,
+        delta: { ...dRest, exercises: deltaExercises },
     };
 
     return buildUserPrefix(goal, reportType) +
