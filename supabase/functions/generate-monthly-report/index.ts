@@ -1,7 +1,20 @@
 // Edge Function: generate-monthly-report
 // Genera un report mensile AI personalizzato per un cliente, basato sui dati
 // aggregati da generate_monthly_scorecard() e passati a Claude Haiku.
-// Solo admin può chiamare questa funzione.
+//
+// Modello mentale:
+// - Il cliente sceglie 1 dei 6 OBIETTIVI (dimagrimento, massa, tonificazione,
+//   forza, salute, recupero). L'obiettivo determina:
+//     · tono e registro del report
+//     · soglia di frequenza minima per "fare risultati"
+//     · enfasi sul piano alimentare come moltiplicatore
+//     · cosa il report deve guardare nei log
+// - I dati provengono ESCLUSIVAMENTE da bookings + workout_logs. Nessuna
+//   metrica antropometrica (peso, BF%, kcal): non l'abbiamo, non si menziona.
+// - Output strutturato in 3 sezioni fisse (markdown):
+//     · "Numeri del mese"
+//     · "Cosa dicono i dati"
+//     · "Obiettivo del mese prossimo"
 
 import { createClient } from "npm:@supabase/supabase-js@2";
 
@@ -25,209 +38,313 @@ function json(body: unknown, status = 200): Response {
 }
 
 // ─────────────────────────────────────────────────────────────────────
-// PROMPT BUILDING
+// OBIETTIVI — blocchi operativi distillati dai .md di "Obiettivi Palestra".
+// Ogni blocco contiene SOLO ciò che può essere collegato ai dati reali
+// (frequenza, log esercizi, costanza). Tutto il resto (BF%, kcal, esami)
+// resta knowledge interna e NON va nel prompt.
 // ─────────────────────────────────────────────────────────────────────
 
-const TONES: Record<string, string> = {
-    serious: `Analitico, professionale, rispettoso. Linguaggio tecnico ma accessibile.
-Senza essere freddo o impersonale. Parla come un coach che conosce il cliente
-e commenta dati concreti. Evita slogan motivazionali, battute, esclamazioni.
-Le affermazioni sono fattuali e misurate.`,
+interface GoalSpec {
+    id: string;
+    label: string;
+    minWeeklyFreq: number; // soglia sotto la quale "i risultati non si vedono"
+    nutritionEmphasis: "primary" | "secondary" | "minimal"; // quanto insistere
+    spec: string; // testo che entra nel prompt
+}
 
-    motivational: `Caloroso, energico, orientato al "puoi farcela". Senza essere mielenso o forzato.
-Riconosci lo sforzo del cliente come conseguenza del lavoro, non come fortuna.
-Non usare frasi fatte ("la costanza paga", "il duro lavoro ripaga"). Mostra che
-hai letto i SUOI dati specifici, non un template generico. Il calore viene dai
-dettagli concreti, non dagli aggettivi.`,
+const GOALS: Record<string, GoalSpec> = {
+    dimagrimento: {
+        id: "dimagrimento",
+        label: "Dimagrimento",
+        minWeeklyFreq: 3,
+        nutritionEmphasis: "primary",
+        spec: `OBIETTIVO: Dimagrimento (riduzione massa grassa preservando muscolo)
+Frequenza minima per risultati visibili: 3-4 sessioni/settimana.
+Cosa guardare nei log:
+  · costanza settimanale (la leva n.1 in dimagrimento)
+  · presenza di multiarticolari (squat, stacchi, panca, trazioni, rematori, military)
+  · mantenimento dei carichi (in deficit non si pretende progresso, mantenere è già successo)
+  · aderenza alle prenotazioni (aderenza bassa = niente deficit reale)
+Tono richiesto: caloroso, orientato al fare. NON moralista sul peso.
+NON menzionare mai numeri su peso, kcal, % grasso, dieta specifica: non li abbiamo.
+ALIMENTAZIONE — leva PRIMARIA: il dimagrimento è 80% alimentazione.
+  Inserire SEMPRE nel report una frase sul piano alimentare come moltiplicatore
+  ("senza un piano alimentare strutturato in deficit moderato i progressi
+  restano marginali, anche con allenamento perfetto").`,
+    },
 
-    ironic: `Umorismo DECISO, dry, mordace — deve far ridere, non solo sorridere.
-Tono di un amico sveglio, intelligente, un po' cinico ma affezionato: commenta
-allenamenti, dati mancanti, pattern assurdi con osservazioni taglienti e
-punch line concise. Battute intelligenti, non comiche-da-social.
+    massa: {
+        id: "massa",
+        label: "Aumento Massa",
+        minWeeklyFreq: 3,
+        nutritionEmphasis: "primary",
+        spec: `OBIETTIVO: Aumento Massa Muscolare (ipertrofia)
+Frequenza minima: 3 sessioni/settimana, idealmente 4-5 per intermedi.
+Ogni gruppo muscolare va stimolato 2 volte/settimana.
+Cosa guardare nei log:
+  · progressive overload sui multiarticolari (carico in salita nel mese)
+  · volume per gruppo muscolare (set settimanali, 10-20 set/muscolo è il sweet spot)
+  · presenza di esercizi su tutti i pattern (push, pull, gambe, core)
+  · esercizi solo "1 volta nel mese" → segnalare come gap (no progresso possibile)
+Tono richiesto: tecnico ma stimolante, orientato alla crescita.
+ALIMENTAZIONE — leva PRIMARIA: senza surplus calorico controllato + proteine
+  adeguate non c'è ipertrofia. Insistere SEMPRE: "il muscolo si costruisce
+  in cucina almeno quanto in palestra".`,
+    },
 
-TECNICHE PERMESSE E INCORAGGIATE:
-- Iperboli calibrate ("hai consumato metà dell'ossigeno della sala pesi")
-- Paradossi ("la tua aderenza del 90% in un mondo dove il 90% non si presenta
-  neanche al telefono")
-- Osservazioni caustiche sui gap di registrazione ("le altre 3 sessioni
-  risiedono in una dimensione parallela a cui il nostro database non ha accesso")
-- Self-awareness sul formato report ("prima o poi pubblicheremo anche la
-  versione in rima")
-- Commenti acuti sui nomi delle schede, sugli esercizi ripetuti, sulle
-  ossessioni del cliente (hip thrust, squat ecc.)
-- Sarcasmo intelligente sui numeri ("un RPE costante a 7 su tutto, come se
-  avessi un'app per mantenerlo esattamente lì")
+    tonificazione: {
+        id: "tonificazione",
+        label: "Tonificazione",
+        minWeeklyFreq: 3,
+        nutritionEmphasis: "primary",
+        spec: `OBIETTIVO: Tonificazione e Ricomposizione Corporea
+La "tonificazione" significa: lieve aumento massa magra + riduzione massa grassa,
+peso quasi invariato. Richiede pesi, NON solo cardio.
+Frequenza minima: 3-4 sessioni/settimana di pesistica.
+Cosa guardare nei log:
+  · costanza (è il driver principale di una ricomposizione)
+  · mix multiarticolari + isolamento (specie core, glutei, spalle posteriori)
+  · varietà dei gruppi stimolati (full-body coverage)
+  · stabilità dei carichi (mai cali significativi)
+Tono richiesto: rassicurante, orientato al cambiamento progressivo e visibile.
+Smonta esplicitamente il mito "solo cardio per tonificare".
+ALIMENTAZIONE — leva PRIMARIA: ricomposizione = mantenimento o lieve deficit
+  CON proteine alte (1,8-2 g/kg). Insistere SEMPRE: senza un piano alimentare
+  i pesi da soli non bastano.`,
+    },
 
-REGOLE DELL'IRONIA (non negoziabili):
-- L'ironia punge il CONTESTO, i PATTERN, i DATI MANCANTI, le SITUAZIONI
-  assurde. MAI la persona. MAI il livello di performance in quanto tale.
-- Se il cliente è principiante con carichi bassi, NON ironizzare sui carichi.
-  Ironizza sulla costanza, sul nome della scheda, sull'esercizio strano.
-- Mai ironia su aspetto fisico, età, genere, peso corporeo.
-- Se la frequenza è bassa, l'ironia sull'aumento frequenza può esserci ma
-  deve restare affettuosa ("il corpo capisce meglio il linguaggio della
-  frequenza regolare — misteriosamente").
+    forza: {
+        id: "forza",
+        label: "Forza",
+        minWeeklyFreq: 2,
+        nutritionEmphasis: "secondary",
+        spec: `OBIETTIVO: Forza e Performance
+Aumento dei carichi massimali sui movimenti fondamentali.
+Frequenza minima: 2-3 sessioni/settimana (la forza tollera meno volume ma più intensità).
+Cosa guardare nei log:
+  · 1RM stimato o carichi top set sui fondamentali (squat, panca, stacco, military, trazione)
+  · progressione carico nel mese (anche +2,5kg/+5kg sono progresso reale)
+  · numero di set in range forza (1-5 reps con carichi alti)
+  · recuperi adeguati tra le sessioni dei main lift (no due squat pesanti consecutivi)
+Tono richiesto: diretto, tecnico, da coach esperto. Nessun fronzolo.
+Numeri sempre puntuali, mai vaghi.
+ALIMENTAZIONE — leva SECONDARIA: forza tollera deficit minimi e mantenimento.
+  Menzionare l'alimentazione 1 volta su 2 report, focalizzata su recupero
+  (proteine, carboidrati pre-workout, sonno).`,
+    },
 
-VIETATI SEMPRE:
-- Emoji di risata (😂 🤣)
-- "ahahah", "lol", "cringe", "slay", linguaggio da social
-- Offese, body shaming, battute sul peso
-- Sarcasmo cattivo o umiliante
-- Ironia forzata quando il materiale è scarno
+    salute: {
+        id: "salute",
+        label: "Salute e Benessere",
+        minWeeklyFreq: 2,
+        nutritionEmphasis: "secondary",
+        spec: `OBIETTIVO: Benessere e Salute Generale
+Migliorare marker metabolici, cardiovascolari, posturali. Costruire abitudine.
+Frequenza minima OMS: 2 sessioni/settimana di forza + 150 min/sett aerobica
+moderata. Per chi parte da sedentarietà: 2/sett è già una vittoria.
+Cosa guardare nei log:
+  · semplicemente: c'è costanza? Quanti allenamenti?
+  · varietà di pattern (cardiovascolare + forza + mobilità)
+  · presenza di multiarticolari basici (movimenti naturali per la vita quotidiana)
+Tono richiesto: incoraggiante, accessibile, nessun gergo da palestra.
+Valorizzare anche piccoli risultati (es. "sei passato da 0 a 2/sett").
+ALIMENTAZIONE — leva SECONDARIA: stile mediterraneo come framework.
+  Menzionare 1 volta ogni 2 report, in chiave di benessere generale,
+  non di performance.`,
+    },
 
-RITMO:
-- Alterna frasi taglienti e osservazioni riflessive. Non una battuta per riga.
-- Apri con un'osservazione che coglie subito (hook ironico).
-- Chiudi con un'ultima punch line o con un obiettivo formulato con ironia.
-- Se davvero non c'è materiale (ZERO sessioni), cala intensità ma mantieni
-  la voce. Non diventare neutrale/corporate.`,
+    recupero: {
+        id: "recupero",
+        label: "Recupero Funzionale",
+        minWeeklyFreq: 2,
+        nutritionEmphasis: "minimal",
+        spec: `OBIETTIVO: Recupero Funzionale e Postura
+Ripristinare ROM, riequilibrare tonicità muscolare, ridurre dolore.
+Frequenza minima: 2 sessioni/settimana di lavoro mirato.
+Cosa guardare nei log:
+  · costanza (in riabilitazione la regolarità conta più dell'intensità)
+  · progressione DOLCE (mai picchi di carico)
+  · presenza di lavoro su mobilità, core, attivazione (non solo "alzata di pesi")
+Tono richiesto: paziente, rassicurante. Nessuna competitività, nessuna
+ironia sui carichi bassi (sono volutamente bassi). Valorizza precisione
+tecnica e costanza.
+ALIMENTAZIONE — leva MINIMA: NON menzionare l'alimentazione in questo report
+salvo si tratti di un cenno breve su recupero (proteine, idratazione).
+NON dare consigli medici, mai.`,
+    },
 };
+
+// ─────────────────────────────────────────────────────────────────────
+// PROMPT BUILDING
+// Strategia: il system prompt è (quasi) statico — viene messo in cache
+// Anthropic. La parte specifica per goal/tipo è breve in coda.
+// ─────────────────────────────────────────────────────────────────────
 
 const TYPE_INSTRUCTIONS: Record<string, string> = {
     no_data: `REPORT TYPE: NO DATA.
-L'utente ha ZERO allenamenti registrati nel mese.
+Il cliente ha ZERO allenamenti registrati nel mese.
 Produci un messaggio BREVE (80-120 parole) che:
-- Riconosca il mese senza giudizio (niente colpe, niente "dove sei stato?")
-- Proponga di ripartire con 1 solo allenamento nella settimana entrante
-- Chiuda in modo rispettoso
+  · riconosca il mese senza giudizio (niente colpe, niente "dove sei stato?")
+  · proponga di ripartire con 1 solo allenamento la settimana entrante
+  · chiuda in modo rispettoso
 NON scrivere un vero report. NON menzionare esercizi che non esistono.`,
 
     encouragement: `REPORT TYPE: ENCOURAGEMENT (pochi dati).
-L'utente ha 1-2 allenamenti registrati — sotto la soglia minima per un report pieno.
+Il cliente ha 1-2 allenamenti registrati — sotto la soglia minima per un report pieno.
 Produci un report BREVE (150-220 parole) che:
-- Valorizzi gli allenamenti fatti e gli esercizi eseguiti (citali per nome)
-- Non faccia confronti statistici (base troppo piccola, sarebbero fuorvianti)
-- Incoraggi a raggiungere almeno 3 allenamenti il mese successivo
-- Chiuda con un obiettivo minimo e raggiungibile`,
+  · valorizzi gli allenamenti fatti e gli esercizi eseguiti (citali per nome)
+  · NON faccia confronti statistici (base troppo piccola, sarebbero fuorvianti)
+  · spieghi che con questa frequenza i risultati legati all'obiettivo non possono
+    ancora manifestarsi: serve raggiungere almeno la soglia minima del goal
+  · chiuda con un obiettivo minimo e raggiungibile per il mese successivo`,
 
     first_month: `REPORT TYPE: FIRST MONTH.
-Questo è il primo mese del cliente con dati di allenamento utili.
-Non ci sono dati nel mese precedente: NESSUN confronto possibile.
+Primo mese del cliente con dati di allenamento utili.
+Nessun confronto possibile col mese precedente.
 Produci un report (250-350 parole) che:
-- Apra riconoscendo che è la baseline ufficiale
-- Descriva i pattern emersi: quali gruppi muscolari sono stati lavorati (dal volume),
-  quali esercizi, quale distribuzione di carichi vs corpo libero
-- Valorizzi la costanza su esercizi ripetuti 2+ volte
-- Tratti con cautela esercizi fatti 1 sola volta (mai "stai progredendo", piuttosto "hai testato")
-- Chiuda con un obiettivo SEMPLICE per il mese successivo
-NON usare la parola "progressione" (non c'è nulla con cui confrontare).
-NON usare la parola "regressione" per la stessa ragione.`,
+  · apra riconoscendo che è la baseline ufficiale
+  · descriva i pattern emersi: gruppi muscolari lavorati, esercizi, distribuzione
+    carichi vs corpo libero, varietà
+  · valorizzi la costanza su esercizi ripetuti 2+ volte
+  · tratti con cautela esercizi fatti 1 sola volta (mai "stai progredendo",
+    piuttosto "hai testato")
+  · chiuda con un obiettivo SEMPLICE per il mese successivo, allineato al goal
+NON usare le parole "progressione" o "regressione": non c'è confronto possibile.`,
 
     full: `REPORT TYPE: FULL.
 Il cliente ha dati sia nel mese corrente che nel precedente.
 Produci un report completo (300-400 parole) che:
-- Apra citando 2-3 progressi concreti dal blocco DELTA (con numeri esatti)
-- Identifichi 1-2 pattern interessanti (ratio volume tra gruppi muscolari, aderenza)
-- Segnali 1 area di attenzione (stallo, regressione, gap di registrazione, esercizio saltato)
-- Menzioni il cambio di aderenza SOLO se previous.bookings.total >= 3 (altrimenti la baseline è troppo piccola)
-- Chiuda con 1-2 obiettivi concreti e misurabili per il mese successivo
+  · apra citando 2-3 progressi concreti dal blocco DELTA con numeri esatti
+  · identifichi 1-2 pattern interessanti (volume per gruppo muscolare, aderenza)
+  · segnali 1 area di attenzione (stallo, regressione, gap di registrazione)
+  · menzioni il cambio di aderenza SOLO se previous.bookings.total >= 3
+  · chiuda con 1-2 obiettivi concreti e misurabili per il mese successivo
 Ogni progresso/stallo/regressione citato deve usare i numeri esatti dal DELTA.`,
 };
 
-const BASE_SYSTEM = `Sei l'assistente AI di Thomas Bresciani Personal Training.
-Il tuo compito: scrivere un report mensile personalizzato per un cliente,
-basato ESCLUSIVAMENTE sui dati forniti nel blocco [DATI].
+// La parte STATICA del system prompt (cacheable, ~stabile).
+const BASE_SYSTEM_STATIC = `Sei l'assistente AI di Thomas Bresciani Personal Training.
+Compito: scrivere un report mensile personalizzato per un cliente, basato
+ESCLUSIVAMENTE sui dati JSON forniti nel blocco [SCORECARD] del messaggio.
 
-REGOLE ASSOLUTE (mai violare):
-1. Ogni affermazione concreta deve essere ancorata a un numero o un fatto presente
-   nei dati. Vietate frasi vaghe tipo "stai andando bene", "ottimo lavoro in generale".
-2. Se un dato NON è presente nei dati forniti, NON menzionarlo. Mai inventare
-   esercizi, carichi, RPE, note del trainer, o progressi.
-3. Non dare consigli medici, nutrizionali, o di gestione infortuni.
-4. Non citare nomi di altri clienti, trainer, o persone non presenti nei dati.
-5. Rispondi in italiano.
-6. Apri SEMPRE rivolgendoti al cliente per nome (il nome è nei dati).
+═══════════════════════════════════════════════════════════════════════
+REGOLE ASSOLUTE (mai violare)
+═══════════════════════════════════════════════════════════════════════
+1. Ogni affermazione concreta deve essere ancorata a un numero o un fatto
+   presente nei dati. Vietate frasi vaghe ("stai andando bene", "ottimo
+   lavoro in generale").
+2. Se un dato NON è presente, NON menzionarlo. Mai inventare esercizi,
+   carichi, RPE, note del trainer, progressi, peso, BF%, calorie.
+3. NON dare consigli medici, nutrizionali specifici, integrazione,
+   gestione infortuni.
+4. NON citare nomi di altri clienti, trainer, persone non presenti nei dati.
+5. Italiano. Apri SEMPRE rivolgendoti al cliente per nome (è nei dati).
 
-INTERPRETAZIONE DEI DATI (critica):
-- TERMINOLOGIA PER IL CLIENTE: nel testo del report usa "allenamenti registrati"
-  (NON "sessioni loggate"). Il campo JSON si chiama sessions_logged ma al cliente
-  va presentato come "allenamenti registrati" / "allenamenti segnati".
-- Se un esercizio ha max_weight = null o = 0 → è a CORPO LIBERO (o peso non
-  tracciato). NON dire "carico fermo a 0kg". Parla invece di volume (total_sets),
-  ripetizioni (total_reps_sum), costanza (numero di allenamenti in cui l'hai fatto).
-- Se un esercizio ha sessions_logged = 1 → è un TEST SINGOLO, NON una progressione.
-  Non scrivere "stai progredendo su X". Al massimo "hai provato X in un allenamento".
-- Se delta.trend = "new" → l'esercizio è NUOVO, non era nel mese precedente.
-  Non è progressione, è inserimento.
-- Se delta.trend = "stable" con weight_change = 0 → è STALLO, non regressione.
-- Se current.bookings.completed > current.sessions_logged_count → c'è un GAP tra
-  prenotazioni completate e allenamenti registrati. Menzionalo come OPPORTUNITÀ
-  ("registrare gli allenamenti darebbe più insight"), MAI come rimprovero.
-- Se previous.bookings.total < 3 → evita conclusioni sul delta aderenza: baseline
-  troppo piccola per essere significativa.
+═══════════════════════════════════════════════════════════════════════
+INTERPRETAZIONE DEI DATI
+═══════════════════════════════════════════════════════════════════════
+- TERMINOLOGIA per il cliente: "allenamenti registrati" (NON "sessioni
+  loggate"). Il campo JSON è sessions_logged_count, ma in italiano si
+  scrive "allenamenti registrati / segnati".
+- Esercizio con max_weight = null o 0 → CORPO LIBERO. NON dire "carico
+  fermo a 0kg". Parla di volume (set), reps, costanza.
+- Esercizio con sessions_logged = 1 → TEST SINGOLO, non progressione.
+- delta.trend = "new" → esercizio NUOVO. Non è progressione, è inserimento.
+- delta.trend = "stable" con weight_change = 0 → STALLO, non regressione.
+- bookings.completed > sessions_logged_count → GAP REGISTRAZIONE.
+  Menzionalo come OPPORTUNITÀ ("registrare gli allenamenti darebbe più
+  insight"), MAI come rimprovero.
+- previous.bookings.total < 3 → evita conclusioni sul delta aderenza:
+  baseline troppo piccola.
 
-FALLBACK SUI DATI DELLE SESSIONI (quando workout_logs scarseggiano):
-Se sessions_logged_count è 0 o molto basso MA bookings.completed > 0, NON dire
-solo "non ho dati di allenamento". Usa invece i dati delle PRENOTAZIONI:
-- Commenta la "Media sessioni/settimana" e la "Categoria frequenza"
-- Parla della DISTRIBUZIONE: ritmo costante o sbilanciato?
-- Valorizza la presenza in palestra anche senza log dettagliati
-- Suggerisci che registrare gli allenamenti permetterebbe analisi più ricche
+═══════════════════════════════════════════════════════════════════════
+FREQUENZA E "FAR VENIRE DI PIÙ" (priorità del business)
+═══════════════════════════════════════════════════════════════════════
+Il valore "frequency_category" indica la fascia di frequenza settimanale.
+Il valore "freq_gap_vs_goal" indica la distanza dalla soglia minima del
+goal scelto (es. -1.5 = 1,5 sessioni/sett sotto soglia).
 
-SUGGERIMENTO IMPLICITO DI AUMENTO FREQUENZA (importante):
-Usa la "Categoria frequenza":
-- BASSA (≤1/settimana): suggerisci IN MODO VELATO che aumentare a 2-3 sessioni
-  settimanali porterebbe "miglioramenti fisici più evidenti" o "risultati più
-  tangibili". Non essere moralista. Non dire "devi allenarti di più". Di' cose
-  come "con una frequenza di 2-3 volte a settimana il corpo risponde in modo
-  molto più marcato" o "il salto qualitativo si vede sopra le 2 sessioni settimanali".
-- MEDIA-BASSA (2/settimana): approva ma invita a provare 3/settimana per
-  accelerare i risultati.
-- MEDIA o ALTA: non suggerire aumento. Valorizza la costanza.
+Se frequency_category = BASSA o MEDIA-BASSA → il messaggio centrale del
+report deve essere: aumentare la frequenza è la singola leva più efficace
+per vedere risultati legati al goal. Non moralista, non colpevolizzante,
+ma esplicito.
 
-MENZIONE ALIMENTAZIONE (rara, non in ogni report):
-Massimo 1 accenno all'alimentazione ogni 3-4 report, e SOLO se pertinente:
-- Se frequenza è BASSA o MEDIA-BASSA: puoi chiudere con un cenno tipo
-  "ricorda che allenamento e alimentazione vanno di pari passo" — frase breve,
-  non moralista, non prescrittiva.
-- Se frequenza è ALTA: puoi accennare alla nutrizione come fattore che
-  "moltiplica i risultati già solidi che stai costruendo".
-- VIETATO: dare consigli nutrizionali specifici (calorie, proteine, dieta),
-  citare integratori, prescrivere piani. Solo accenno motivazionale al legame
-  allenamento-alimentazione come principio.
-- Se non sai cosa dire sull'alimentazione, EVITA di menzionarla.
+Esempi (adatta al tono del goal):
+  · "I tuoi 1,2 allenamenti/settimana stanno costruendo abitudine, ma per
+    vedere il dimagrimento muoversi davvero servono almeno 3."
+  · "Sopra le 2 sessioni/settimana il corpo inizia a rispondere in modo
+    visibile: oggi sei a 1,5."
 
-CONTESTUALIZZAZIONE DALLA SCHEDA (critica):
-Nel blocco DATI troverai "SCHEDE USATE NEL MESE" con il nome delle schede che
-hanno prodotto i log. Il nome della scheda rivela spesso il contesto. Adatta
-TONO e ASPETTATIVE di conseguenza:
-- Scheda con parole come "recupero", "post infortunio", "rehab", "riabilitazione",
-  "mobilità", "physio" → cliente in FASE RIABILITATIVA. NON parlare di
-  progressione carichi come obiettivo primario. Valorizza costanza, precisione
-  tecnica, mobilità, stabilità. Evita competitività. Obiettivi mese prossimo
-  focalizzati su recupero funzionale, non su prestazione.
-- Scheda con "preparazione gara", "peak", "specifica", "agonismo" → fase
-  PERFORMANCE. Parla di progressione, picchi, affinamento tecnico, aspettative
-  più alte.
-- Scheda con "base", "introduzione", "principiante" → fase di APPRENDIMENTO.
-  Valorizza consistency, nessuna pressione su carichi.
-- Scheda generica (es. "Full Body A", "Scheda Forza", nessun nome contestuale) →
-  tono e aspettative standard come da REPORT TYPE.
-Se sono presenti MULTIPLE schede, il contesto è quello della scheda con più
-sessioni. Se plan_notes contengono indicazioni aggiuntive, tienine conto.
-NON citare letteralmente i nomi delle schede nel report (sono nomi tecnici).
-Usa il contesto per adattare IL REGISTRO, non fare riferimenti espliciti.
+Se frequency_category = MEDIA o ALTA → NON spingere ulteriormente.
+Valorizza la costanza e parla di qualità (carichi, varietà, recupero).
 
-FORMATTAZIONE:
-- Markdown pulito
-- Paragrafi scorrevoli, non liste puntate (tranne che per dati specifici se
-  davvero necessario)
-- Lunghezza come indicato nel REPORT TYPE
-- Chiudi SEMPRE con una sezione "Obiettivo [mese successivo]" con 1-2 obiettivi
-  concreti e misurabili
-- Riformatta i nomi esercizi in Title Case italiano (es. "UN GAMBA ESTENSIONE"
-  → "Estensione Gamba") prima di citarli
+═══════════════════════════════════════════════════════════════════════
+CONTESTUALIZZAZIONE DALLA SCHEDA
+═══════════════════════════════════════════════════════════════════════
+Il blocco scorecard può contenere "plans_used" con il nome delle schede
+attive. Il nome rivela il contesto. Adatta tono e aspettative:
+  · scheda con "recupero", "post infortunio", "rehab", "mobilità" → fase
+    riabilitativa, non parlare di progressione carichi come obiettivo
+    primario
+  · scheda con "preparazione gara", "peak", "agonismo" → fase performance
+  · scheda con "base", "introduzione", "principiante" → fase apprendimento,
+    nessuna pressione su carichi
+  · nome generico → tono standard del goal
+Se più schede sono presenti, contesto = scheda con più sessioni.
+NON citare LETTERALMENTE i nomi delle schede nel report (sono tecnici).
+Usa il contesto per modulare il REGISTRO.
 
-TONO RICHIESTO:
-[TONO]
+═══════════════════════════════════════════════════════════════════════
+FORMATTAZIONE — STRUTTURA OBBLIGATORIA
+═══════════════════════════════════════════════════════════════════════
+Il report deve seguire ESATTAMENTE questa struttura markdown:
 
-ISTRUZIONI PER QUESTO TIPO DI REPORT:
-[TYPE_INSTRUCTIONS]`;
+  Apertura: 1-2 frasi di saluto al cliente per nome (NO heading).
 
-function buildSystemPrompt(tone: string, reportType: string): string {
-    return BASE_SYSTEM
-        .replace("[TONO]", TONES[tone] ?? TONES.motivational)
-        .replace("[TYPE_INSTRUCTIONS]", TYPE_INSTRUCTIONS[reportType] ?? TYPE_INSTRUCTIONS.full);
+  ## Numeri del mese
+  3-5 righe con i dati salienti (allenamenti registrati, frequenza,
+  aderenza, eventuale delta vs mese precedente). Pesa solo i numeri
+  rilevanti per il goal: per dimagrimento = costanza/aderenza; per
+  forza = carichi top; per massa = volume e progressi; per salute =
+  costanza; per recupero = costanza e varietà del lavoro.
+
+  ## Cosa dicono i dati
+  Paragrafo discorsivo (180-280 parole, modulato dal REPORT TYPE).
+  Lega i numeri al goal scelto. Cita esercizi specifici per nome
+  (Title Case italiano). Solleva 1 pattern positivo + 1 area di
+  attenzione. Inserisci, dove pertinente, il messaggio sulla frequenza
+  e — secondo la regola del goal — il messaggio sul piano alimentare.
+
+  ## Obiettivo del mese prossimo
+  1-2 obiettivi CONCRETI E MISURABILI (es. "portare la frequenza da 1,5
+  a 2,5 allenamenti/settimana", "aggiungere uno squat con 5kg in più").
+  NIENTE liste lunghe, niente programmi dettagliati: 1-2 punti netti.
+
+Riformatta i nomi esercizi in Title Case italiano (es. "UN GAMBA
+ESTENSIONE" → "Estensione Gamba") prima di citarli.
+Markdown pulito, paragrafi scorrevoli. Niente liste puntate tranne se
+strettamente necessario per dati specifici.
+
+═══════════════════════════════════════════════════════════════════════
+SLOT DI PERSONALIZZAZIONE
+═══════════════════════════════════════════════════════════════════════
+Il messaggio utente conterà:
+- Il blocco [GOAL_SPEC]: linee guida del goal scelto (tono, frequenza
+  minima, regola sull'alimentazione, cosa guardare nei log).
+- Il blocco [REPORT_TYPE]: lunghezza e impostazione del report.
+- Il blocco [SCORECARD]: i dati JSON.
+
+Le linee guida del [GOAL_SPEC] hanno priorità sul tono "default" di
+questo system prompt.`;
+
+function buildUserPrefix(goal: GoalSpec, reportType: string): string {
+    return `[GOAL_SPEC]
+${goal.spec}
+
+[REPORT_TYPE]
+${TYPE_INSTRUCTIONS[reportType] ?? TYPE_INSTRUCTIONS.full}
+
+`;
 }
 
 function titleCaseIt(str: string | null | undefined): string {
@@ -237,194 +354,82 @@ function titleCaseIt(str: string | null | undefined): string {
         .join(" ");
 }
 
-function buildUserMessage(scorecard: any, userName: string): string {
+function freqLabel(avgPerWeek: number): string {
+    if (avgPerWeek === 0) return "NESSUNA";
+    if (avgPerWeek < 1.5) return "BASSA";
+    if (avgPerWeek < 2.5) return "MEDIA-BASSA";
+    if (avgPerWeek < 3.5) return "MEDIA";
+    return "ALTA";
+}
+
+// Compone il messaggio utente: prefisso (goal + report type) + scorecard
+// arricchita con freq_gap_vs_goal, frequency_category, esercizi normalizzati.
+function buildUserMessage(
+    scorecard: any,
+    userName: string,
+    goal: GoalSpec,
+    reportType: string,
+): string {
     const c = scorecard.current ?? {};
-    const p = scorecard.previous ?? {};
-    const d = scorecard.delta ?? {};
-    const m = scorecard.metadata ?? {};
     const cb = c.bookings ?? {};
-    const pb = p.bookings ?? {};
-
-    const gapLogging = (cb.completed ?? 0) > (c.sessions_logged_count ?? 0);
-
-    const lines: string[] = [];
-    lines.push("[DATI]");
-    lines.push(`Cliente: ${userName}`);
-    lines.push(`Mese del report: ${scorecard.year_month}`);
-    lines.push(`Mese precedente: ${scorecard.previous_year_month}`);
-    lines.push(`Report type: ${m.report_type}`);
-    lines.push("");
-
-    lines.push("== PRENOTAZIONI MESE CORRENTE ==");
-    lines.push(`Totali: ${cb.total ?? 0}`);
-    lines.push(`Completate: ${cb.completed ?? 0}`);
-    lines.push(`Cancellate: ${cb.cancelled ?? 0}`);
-    lines.push(`Aderenza: ${cb.adherence_pct ?? 0}%`);
-    // Media sessioni/settimana (4.33 settimane per mese).
     const cbCompleted = cb.completed ?? 0;
-    const avgPerWeek = cbCompleted > 0 ? (cbCompleted / 4.33).toFixed(1) : "0";
-    lines.push(`Media sessioni/settimana: ${avgPerWeek}`);
-    // Flag frequenza (utile all'AI per suggerimenti impliciti aumento attività)
-    const avgPerWeekNum = parseFloat(avgPerWeek);
-    let freqLabel = "non valutabile";
-    if (avgPerWeekNum === 0) freqLabel = "nessuna attività";
-    else if (avgPerWeekNum < 1.5) freqLabel = "BASSA (≤1/settimana)";
-    else if (avgPerWeekNum < 2.5) freqLabel = "MEDIA-BASSA (2/settimana)";
-    else if (avgPerWeekNum < 3.5) freqLabel = "MEDIA (3/settimana)";
-    else freqLabel = "ALTA (3+/settimana)";
-    lines.push(`Categoria frequenza: ${freqLabel}`);
-    if (cb.by_slot_type && Object.keys(cb.by_slot_type).length > 0) {
-        const mix = Object.entries(cb.by_slot_type)
-            .map(([k, v]) => `${k}:${v}`).join(", ");
-        lines.push(`Mix tipologia: ${mix}`);
-    }
-    lines.push("");
+    const avgPerWeek = cbCompleted > 0 ? Number((cbCompleted / 4.33).toFixed(2)) : 0;
+    const freqGapVsGoal = Number((avgPerWeek - goal.minWeeklyFreq).toFixed(2));
 
-    lines.push("== PRENOTAZIONI MESE PRECEDENTE ==");
-    lines.push(`Totali: ${pb.total ?? 0}`);
-    lines.push(`Completate: ${pb.completed ?? 0}`);
-    lines.push(`Aderenza: ${pb.adherence_pct ?? 0}%`);
-    if ((pb.total ?? 0) < 3) {
-        lines.push(`⚠️ Baseline precedente < 3 booking: delta aderenza NON significativo`);
-    }
-    lines.push("");
+    // Normalizza nomi esercizi (Title Case) lato server: l'AI sbaglia meno.
+    const exercises = (c.exercises ?? []).map((ex: any) => ({
+        ...ex,
+        exercise_name: titleCaseIt(ex.exercise_name),
+    }));
+    const deltaExercises = (scorecard.delta?.exercises ?? []).map((ex: any) => ({
+        ...ex,
+        exercise_name: titleCaseIt(ex.exercise_name),
+    }));
 
-    lines.push("== ALLENAMENTI REGISTRATI ==");
-    lines.push(`Mese corrente: ${c.sessions_logged_count ?? 0} allenamenti registrati`);
-    lines.push(`Mese precedente: ${p.sessions_logged_count ?? 0} allenamenti registrati`);
-    if (gapLogging) {
-        lines.push(`⚠️ GAP REGISTRAZIONE: ${cb.completed} prenotazioni completate ma solo ` +
-            `${c.sessions_logged_count} allenamenti registrati (menzionare come opportunità)`);
-    }
-    lines.push("");
+    const enriched = {
+        ...scorecard,
+        client_name: userName,
+        goal: goal.id,
+        goal_min_weekly_freq: goal.minWeeklyFreq,
+        avg_sessions_per_week: avgPerWeek,
+        frequency_category: freqLabel(avgPerWeek),
+        freq_gap_vs_goal: freqGapVsGoal,
+        gap_logging: cbCompleted > (c.sessions_logged_count ?? 0),
+        previous_baseline_too_small: (scorecard.previous?.bookings?.total ?? 0) < 3,
+        current: { ...c, exercises },
+        delta: { ...(scorecard.delta ?? {}), exercises: deltaExercises },
+    };
 
-    // Contesto scheda: determinante per adattare tono e aspettative del report.
-    lines.push("== SCHEDE USATE NEL MESE ==");
-    const plansUsed = c.plans_used ?? [];
-    if (plansUsed.length === 0) {
-        lines.push("(nessuna scheda tracciata — log possibile di esercizi slegati)");
-    } else {
-        for (const pl of plansUsed) {
-            lines.push(
-                `- "${pl.plan_name ?? '(senza nome)'}" ` +
-                `(${pl.sessions_in_plan} allenamenti registrati nel mese${pl.active ? ', attiva' : ', inattiva'})`
-            );
-            if (pl.plan_notes && String(pl.plan_notes).trim().length > 0) {
-                lines.push(`    Note scheda: ${pl.plan_notes}`);
-            }
-        }
-        lines.push("→ Usa il nome/note della scheda per contestualizzare il tono del report (vedi regole CONTESTUALIZZAZIONE DALLA SCHEDA). NON citare i nomi letterali nel testo.");
-    }
-    lines.push("");
-
-    lines.push("== ESERCIZI MESE CORRENTE ==");
-    const exercises = c.exercises ?? [];
-    if (exercises.length === 0) {
-        lines.push("(nessuno)");
-    } else {
-        for (const ex of exercises) {
-            const name = titleCaseIt(ex.exercise_name);
-            const isBodyweight = ex.max_weight === null || ex.max_weight === 0;
-            const weightLabel = isBodyweight
-                ? "CORPO LIBERO"
-                : `max ${ex.max_weight}kg`;
-            lines.push(
-                `- ${name} [${ex.muscle_group ?? "n/a"}] — ` +
-                `${ex.sessions_logged} allenamenti, ${weightLabel}, ` +
-                `${ex.total_sets} set, ${ex.total_reps_sum} reps`
-            );
-            if (!isBodyweight && ex.first_weight !== null && ex.last_weight !== null
-                && ex.first_weight !== ex.last_weight) {
-                lines.push(`    Nel mese: ${ex.first_weight}kg → ${ex.last_weight}kg`);
-            }
-            if (ex.sessions_logged === 1) {
-                lines.push(`    ⚠️ SOLO 1 ALLENAMENTO — test singolo, non progressione`);
-            }
-        }
-    }
-    lines.push("");
-
-    lines.push("== VOLUME PER GRUPPO MUSCOLARE (set mese corrente) ==");
-    const volume = c.volume_by_muscle ?? {};
-    if (Object.keys(volume).length === 0) {
-        lines.push("(nessun volume tracciato)");
-    } else {
-        for (const [muscle, sets] of Object.entries(volume)) {
-            lines.push(`- ${muscle}: ${sets} set`);
-        }
-    }
-    lines.push("");
-
-    lines.push("== DELTA vs MESE PRECEDENTE ==");
-    lines.push(`Aderenza delta: ${d.adherence_pct_change ?? 0} punti percentuali`);
-    lines.push(`Allenamenti registrati delta: ${d.sessions_change ?? 0}`);
-    lines.push("");
-
-    lines.push("Esercizi (delta per nome):");
-    const deltaExercises = d.exercises ?? [];
-    if (deltaExercises.length === 0) {
-        lines.push("(nessun esercizio nel mese corrente)");
-    } else {
-        for (const ex of deltaExercises) {
-            const name = titleCaseIt(ex.exercise_name);
-            if (ex.trend === "new") {
-                lines.push(`- ${name}: NUOVO (non presente nel mese precedente)`);
-            } else if (ex.trend === "progressed") {
-                const sign = ex.weight_change > 0 ? "+" : "";
-                const pctSign = ex.weight_pct_change > 0 ? "+" : "";
-                lines.push(
-                    `- ${name}: PROGRESSO ${ex.previous_max}kg → ${ex.current_max}kg ` +
-                    `(${sign}${ex.weight_change}kg, ${pctSign}${ex.weight_pct_change}%)`
-                );
-            } else if (ex.trend === "stable") {
-                lines.push(`- ${name}: STALLO a ${ex.current_max}kg (invariato vs mese precedente)`);
-            } else if (ex.trend === "regressed") {
-                lines.push(
-                    `- ${name}: REGRESSO ${ex.previous_max}kg → ${ex.current_max}kg ` +
-                    `(${ex.weight_change}kg)`
-                );
-            }
-        }
-    }
-    lines.push("");
-
-    lines.push("Volume muscolare delta:");
-    const deltaVolume = d.volume_by_muscle ?? {};
-    if (Object.keys(deltaVolume).length === 0) {
-        lines.push("(nessun dato)");
-    } else {
-        for (const [muscle, data] of Object.entries(deltaVolume)) {
-            const dd: any = data;
-            const sign = dd.change > 0 ? "+" : "";
-            lines.push(`- ${muscle}: ${dd.previous} → ${dd.current} set (${sign}${dd.change})`);
-        }
-    }
-    lines.push("");
-    lines.push("[FINE DATI]");
-    lines.push("");
-    lines.push(`Scrivi ora il report mensile per ${userName} seguendo le REGOLE ASSOLUTE, ` +
-        `il TONO RICHIESTO e le ISTRUZIONI PER QUESTO TIPO DI REPORT.`);
-
-    return lines.join("\n");
+    return buildUserPrefix(goal, reportType) +
+        `[SCORECARD]\n\`\`\`json\n${JSON.stringify(enriched, null, 2)}\n\`\`\`\n\n` +
+        `Scrivi ora il report mensile per ${userName}, seguendo le REGOLE ASSOLUTE, ` +
+        `il [GOAL_SPEC] e il [REPORT_TYPE]. Rispetta la struttura markdown a 3 sezioni ` +
+        `(Numeri del mese, Cosa dicono i dati, Obiettivo del mese prossimo).`;
 }
 
 // ─────────────────────────────────────────────────────────────────────
-// ANTHROPIC API
+// ANTHROPIC API (con prompt caching del system prompt statico)
 // ─────────────────────────────────────────────────────────────────────
 
 const ANTHROPIC_MODEL = "claude-haiku-4-5-20251001";
-const ANTHROPIC_INPUT_COST_PER_MTOK = 1.0;   // USD per 1M input tokens
-const ANTHROPIC_OUTPUT_COST_PER_MTOK = 5.0;  // USD per 1M output tokens
+const ANTHROPIC_INPUT_COST_PER_MTOK = 1.0;
+const ANTHROPIC_OUTPUT_COST_PER_MTOK = 5.0;
+// Cache hit costa il 10% del prezzo input normale (cache read).
+const ANTHROPIC_CACHE_READ_COST_PER_MTOK = 0.1;
+// Cache write costa il 125% del prezzo input normale.
+const ANTHROPIC_CACHE_WRITE_COST_PER_MTOK = 1.25;
 
 interface AnthropicResult {
     text: string;
     input_tokens: number;
     output_tokens: number;
+    cache_creation_tokens: number;
+    cache_read_tokens: number;
     cost_usd: number;
 }
 
 async function callAnthropic(
-    systemPrompt: string,
+    systemStatic: string,
     userMessage: string,
 ): Promise<AnthropicResult> {
     if (!ANTHROPIC_API_KEY) {
@@ -441,7 +446,16 @@ async function callAnthropic(
         body: JSON.stringify({
             model: ANTHROPIC_MODEL,
             max_tokens: 1500,
-            system: systemPrompt,
+            // System come array di blocchi: il blocco statico è marcato per
+            // il caching. La generazione successiva entro 5' costa il 10%
+            // sui token cached.
+            system: [
+                {
+                    type: "text",
+                    text: systemStatic,
+                    cache_control: { type: "ephemeral" },
+                },
+            ],
             messages: [{ role: "user", content: userMessage }],
         }),
     });
@@ -453,13 +467,26 @@ async function callAnthropic(
 
     const data = await response.json();
     const text: string = data.content?.[0]?.text ?? "";
-    const input_tokens: number = data.usage?.input_tokens ?? 0;
-    const output_tokens: number = data.usage?.output_tokens ?? 0;
+    const u = data.usage ?? {};
+    const input_tokens: number = u.input_tokens ?? 0;
+    const output_tokens: number = u.output_tokens ?? 0;
+    const cache_creation_tokens: number = u.cache_creation_input_tokens ?? 0;
+    const cache_read_tokens: number = u.cache_read_input_tokens ?? 0;
+
     const cost_usd =
         (input_tokens / 1_000_000) * ANTHROPIC_INPUT_COST_PER_MTOK +
+        (cache_creation_tokens / 1_000_000) * ANTHROPIC_CACHE_WRITE_COST_PER_MTOK +
+        (cache_read_tokens / 1_000_000) * ANTHROPIC_CACHE_READ_COST_PER_MTOK +
         (output_tokens / 1_000_000) * ANTHROPIC_OUTPUT_COST_PER_MTOK;
 
-    return { text, input_tokens, output_tokens, cost_usd };
+    return {
+        text,
+        input_tokens,
+        output_tokens,
+        cache_creation_tokens,
+        cache_read_tokens,
+        cost_usd,
+    };
 }
 
 // ─────────────────────────────────────────────────────────────────────
@@ -489,7 +516,6 @@ Deno.serve(async (req) => {
         }
 
         const isAdmin = (authData.user.app_metadata as any)?.role === "admin";
-        const callerUserId = authData.user.id;
 
         // ── Parse body ────────────────────────────────────────────────
         let body: any;
@@ -502,7 +528,7 @@ Deno.serve(async (req) => {
         const {
             user_id,
             year_month,
-            tone: toneOverride,
+            goal: goalId,
             skip_consent_check = false,
             force_regenerate = false,
         } = body;
@@ -513,11 +539,16 @@ Deno.serve(async (req) => {
         if (!/^\d{4}-(0[1-9]|1[0-2])$/.test(year_month)) {
             return json({ error: "Invalid year_month format, expected YYYY-MM" }, 400);
         }
+        if (!goalId || !GOALS[goalId]) {
+            return json({
+                error: `Missing or invalid goal. Valid: ${Object.keys(GOALS).join(", ")}`,
+                code: "INVALID_GOAL",
+            }, 400);
+        }
+        const goal = GOALS[goalId];
 
-        // ⚠️ TEMPORANEO: la feature è in fase di test/refinement. Durante questa
-        // fase, SOLO gli admin possono generare report (anche per se stessi).
-        // Rimuovere questo blocco e ripristinare la logica self-service cliente
-        // commentata sotto quando la feature è pronta per tutti gli utenti.
+        // ⚠️ TEMPORANEO: feature ancora gated agli admin durante refinement.
+        // Rimuovere quando si vuole aprire ai clienti.
         if (!isAdmin) {
             return json({
                 error: "La generazione report è attualmente disponibile solo per gli admin.",
@@ -525,41 +556,10 @@ Deno.serve(async (req) => {
             }, 403);
         }
 
-        // ── Autorizzazione originale (DISABILITATA durante la fase WIP) ───
-        // const isSelfService = !isAdmin && user_id === callerUserId;
-        // if (!isAdmin && !isSelfService) {
-        //     return json({
-        //         error: "Forbidden: puoi generare solo il tuo report",
-        //         code: "NOT_AUTHORIZED_FOR_USER",
-        //     }, 403);
-        // }
-        // if (!isAdmin && skip_consent_check) {
-        //     return json({
-        //         error: "skip_consent_check riservato all'admin",
-        //         code: "ADMIN_ONLY_FLAG",
-        //     }, 403);
-        // }
-
-        // Self-service: valida che year_month sia un mese già concluso.
-        // ⚠️ TEMPORANEAMENTE DISABILITATO per consentire test sul mese corrente (Aprile).
-        // Da RIATTIVARE quando i test sono completi.
-        // if (isSelfService) {
-        //     const now = new Date();
-        //     const currentYM = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, "0")}`;
-        //     if (year_month >= currentYM) {
-        //         return json({
-        //             error: "Puoi generare solo report di mesi già conclusi",
-        //             code: "MONTH_NOT_AVAILABLE",
-        //             current_month: currentYM,
-        //             requested_month: year_month,
-        //         }, 400);
-        //     }
-        // }
-
         // ── Carica profilo utente target ──────────────────────────────
         const { data: profile, error: profErr } = await supabase
             .from("profiles")
-            .select("id, name, email, report_tone_preference, report_ai_consent")
+            .select("id, name, email, report_ai_consent")
             .eq("id", user_id)
             .single();
 
@@ -568,9 +568,6 @@ Deno.serve(async (req) => {
         }
 
         // ── GDPR: verifica consenso AI ────────────────────────────────
-        // Durante la fase WIP solo admin chiama questa funzione, quindi il
-        // messaggio è sempre quello "lato admin". Quando riabiliteremo il
-        // self-service cliente, il ramo isSelfService andrà ripristinato.
         if (!profile.report_ai_consent && !skip_consent_check) {
             return json({
                 error: `L'utente ${profile.name ?? user_id} non ha dato il consenso AI`,
@@ -579,19 +576,14 @@ Deno.serve(async (req) => {
             }, 403);
         }
 
-        // ── Determina tono effettivo ──────────────────────────────────
-        const tone: string = toneOverride ?? profile.report_tone_preference ?? "motivational";
-        if (!["serious", "motivational", "ironic"].includes(tone)) {
-            return json({ error: `Invalid tone: ${tone}` }, 400);
-        }
-
-        // ── Idempotenza: se esiste già e non è force_regenerate, ritorna il più recente
+        // ── Idempotenza: report ESATTO (stesso user, mese, GOAL) già generato? ──
         if (!force_regenerate) {
             const { data: existingList } = await supabase
                 .from("monthly_reports")
-                .select("id, status, narrative, scorecard, cost_usd, tone, generated_at, model_used")
+                .select("id, status, narrative, scorecard, cost_usd, goal, tone, generated_at, model_used")
                 .eq("user_id", user_id)
                 .eq("year_month", year_month)
+                .eq("goal", goalId)
                 .eq("status", "generated")
                 .order("generated_at", { ascending: false })
                 .limit(1);
@@ -602,20 +594,20 @@ Deno.serve(async (req) => {
                     success: true,
                     status: "existing",
                     report_id: existing.id,
-                    tone: existing.tone,
+                    goal: existing.goal,
                     narrative: existing.narrative,
                     scorecard: existing.scorecard,
                     cost_usd: existing.cost_usd,
                     generated_at: existing.generated_at,
                     model_used: existing.model_used,
-                    message: "Report già generato per questo mese. Usa force_regenerate=true per rigenerare.",
+                    message: "Report già generato per questo mese e obiettivo. Usa force_regenerate=true per rigenerare.",
                 });
             }
         }
 
-        // ── Rate limit: max 3 report con status='generated' per (user, year_month)
-        // Non conta i 'failed' (potrebbero essere stati errori AI non attribuibili all'utente).
-        // Admin può comunque bypassare (utile per testing / supporto).
+        // ── Rate limit: max 3 generazioni con status='generated' per (user, mese)
+        // (totale, indipendentemente dal goal: l'idea è 1 obiettivo ufficiale +
+        // max 2 cambi di idea). Admin bypassa.
         if (force_regenerate && !isAdmin) {
             const { count: existingCount } = await supabase
                 .from("monthly_reports")
@@ -650,24 +642,21 @@ Deno.serve(async (req) => {
         const reportType: string = scorecard.metadata?.report_type ?? "full";
         const userName: string = profile.name ?? "Cliente";
 
-        // ── Costruisci prompt ─────────────────────────────────────────
-        const systemPrompt = buildSystemPrompt(tone, reportType);
-        const userMessage = buildUserMessage(scorecard, userName);
+        // ── Costruisci prompt e chiama Anthropic ──────────────────────
+        const userMessage = buildUserMessage(scorecard, userName, goal, reportType);
 
-        // ── Chiama Anthropic API ─────────────────────────────────────
         let aiResult: AnthropicResult;
         try {
-            aiResult = await callAnthropic(systemPrompt, userMessage);
+            aiResult = await callAnthropic(BASE_SYSTEM_STATIC, userMessage);
         } catch (e) {
             const errMsg = e instanceof Error ? e.message : String(e);
             console.error("Anthropic call failed:", errMsg);
 
-            // Salva comunque una riga 'failed' per tracciabilità (INSERT, non upsert:
-            // i tentativi falliti non sovrascrivono i report precedenti.)
             await supabase.from("monthly_reports").insert({
                 user_id,
                 year_month,
-                tone,
+                tone: "motivational",
+                goal: goal.id,
                 scorecard,
                 status: "failed",
                 error_message: errMsg,
@@ -680,18 +669,24 @@ Deno.serve(async (req) => {
             }, 502);
         }
 
-        // ── Salva risultato in DB (INSERT per permettere multiple generazioni)
+        // ── Salva ───────────────────────────────────────────────────
+        const totalInputTokens =
+            aiResult.input_tokens +
+            aiResult.cache_creation_tokens +
+            aiResult.cache_read_tokens;
+
         const { data: saved, error: saveErr } = await supabase
             .from("monthly_reports")
             .insert({
                 user_id,
                 year_month,
-                tone,
+                tone: "motivational",
+                goal: goal.id,
                 scorecard,
                 narrative: aiResult.text,
                 status: "generated",
                 model_used: ANTHROPIC_MODEL,
-                input_tokens: aiResult.input_tokens,
+                input_tokens: totalInputTokens,
                 output_tokens: aiResult.output_tokens,
                 cost_usd: aiResult.cost_usd,
                 generated_at: new Date().toISOString(),
@@ -705,16 +700,16 @@ Deno.serve(async (req) => {
             return json({
                 error: `Save failed: ${saveErr.message}`,
                 code: "SAVE_ERROR",
-                narrative: aiResult.text, // ritorna comunque il testo, così admin non perde il lavoro
+                narrative: aiResult.text,
             }, 500);
         }
 
-        // ── Risposta OK ──────────────────────────────────────────────
+        // ── Risposta OK ─────────────────────────────────────────────
         return json({
             success: true,
             status: "generated",
             report_id: saved.id,
-            tone,
+            goal: goal.id,
             report_type: reportType,
             user_name: userName,
             narrative: aiResult.text,
@@ -722,6 +717,8 @@ Deno.serve(async (req) => {
             tokens: {
                 input: aiResult.input_tokens,
                 output: aiResult.output_tokens,
+                cache_creation: aiResult.cache_creation_tokens,
+                cache_read: aiResult.cache_read_tokens,
             },
             cost_usd: aiResult.cost_usd,
             model_used: ANTHROPIC_MODEL,

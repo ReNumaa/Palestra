@@ -1,5 +1,6 @@
 // Modulo "Report AI" per allenamento.html — lato cliente.
-// Gestisce: lista report storici, generazione self-service, opt-in GDPR, modal lettura.
+// Gestisce: lista report storici, generazione self-service per OBIETTIVO,
+// opt-in GDPR, modal lettura.
 // Dipende da supabaseClient (definito in supabase-client.js).
 
 // ═════════════════════════════════════════════════════════════════════
@@ -16,14 +17,9 @@ const REPORT_FN_URL = 'https://ppymuuyoveyyoswcimck.supabase.co/functions/v1/gen
 // Evita che la pagina sotto al modal scrolli quando l'utente fa swipe.
 // ═════════════════════════════════════════════════════════════════════
 
-// ID dei modal creati da QUESTO modulo. Usati per capire se il body deve
-// restare lockato (altri modal statici di allenamento.html hanno class
-// .all-modal-overlay ma display:none, quindi querySelector generico è
-// inaffidabile per contarli).
 const _REPORT_MODAL_IDS = [
     'reportModalOverlay',
     'consentModalOverlay',
-    'toneModalOverlay',
     'generatingOverlay',
 ];
 
@@ -43,15 +39,13 @@ function _unlockBodyScrollIfNoModals() {
 // ═════════════════════════════════════════════════════════════════════
 
 function _getAvailableMonthForGeneration() {
-    // ⚠️ TEMPORANEAMENTE: restituisce il mese CORRENTE per permettere test su Aprile.
+    // ⚠️ TEMPORANEAMENTE: restituisce il mese CORRENTE per permettere test.
     // RIATTIVARE comportamento "mese precedente" prima del rilascio in produzione,
     // e riattivare anche il controllo corrispondente nell'Edge Function.
     const now = new Date();
     return `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}`;
 }
 
-// Limite massimo di rigenerazioni per (utente, mese). Deve coincidere con il
-// valore nell'Edge Function.
 const MAX_GENERATIONS_PER_MONTH = 3;
 
 function _formatYearMonth(ym) {
@@ -61,10 +55,6 @@ function _formatYearMonth(ym) {
                     'Luglio', 'Agosto', 'Settembre', 'Ottobre', 'Novembre', 'Dicembre'];
     const idx = parseInt(m, 10) - 1;
     return `${months[idx] || m} ${y}`;
-}
-
-function _formatTone(tone) {
-    return { serious: 'Serio', motivational: 'Motivazionale', ironic: 'Ironico' }[tone] || tone;
 }
 
 function _escapeHtml(s) {
@@ -84,20 +74,15 @@ function _escapeHtml(s) {
 
 function _markdownToHtml(md) {
     if (!md) return '';
-    // Prima scappo HTML potenzialmente pericoloso
     let html = _escapeHtml(md);
 
-    // Headers
     html = html.replace(/^### (.+)$/gm, '<h4>$1</h4>');
     html = html.replace(/^## (.+)$/gm, '<h3>$1</h3>');
     html = html.replace(/^# (.+)$/gm, '<h2>$1</h2>');
 
-    // Bold (**testo**)
     html = html.replace(/\*\*([^*]+)\*\*/g, '<strong>$1</strong>');
-    // Italic (*testo*) — escluso **
     html = html.replace(/(?<!\*)\*([^*\n]+)\*(?!\*)/g, '<em>$1</em>');
 
-    // Paragrafi: separo su doppio newline, wrappo in <p> (tranne headers)
     html = html.split(/\n{2,}/).map(block => {
         const trimmed = block.trim();
         if (!trimmed) return '';
@@ -109,6 +94,26 @@ function _markdownToHtml(md) {
 }
 
 // ═════════════════════════════════════════════════════════════════════
+// OBIETTIVI — definizione canonica dei 6 obiettivi selezionabili.
+// Deve essere allineata ai valori accettati dall'Edge Function e dal
+// CHECK del DB (vedi 20260430000000_monthly_reports_goal.sql).
+// ═════════════════════════════════════════════════════════════════════
+
+const _GOALS = [
+    { value: 'dimagrimento',  label: 'Dimagrimento',     icon: '🔥', desc: 'Riduci la massa grassa' },
+    { value: 'massa',         label: 'Aumento Massa',    icon: '💪', desc: 'Cresci muscolarmente' },
+    { value: 'tonificazione', label: 'Tonificazione',    icon: '✨', desc: 'Ricomposizione corporea' },
+    { value: 'forza',         label: 'Forza',            icon: '🏋️', desc: 'Aumenta i carichi' },
+    { value: 'salute',        label: 'Salute',           icon: '❤️', desc: 'Benessere e abitudine' },
+    { value: 'recupero',      label: 'Recupero',         icon: '🧘', desc: 'Postura e funzionalità' },
+];
+
+function _formatGoal(goalId) {
+    const g = _GOALS.find(x => x.value === goalId);
+    return g ? `${g.icon} ${g.label}` : (goalId || '—');
+}
+
+// ═════════════════════════════════════════════════════════════════════
 // FETCH REPORT STORICI (RLS filtra per user_id=auth.uid())
 // ═════════════════════════════════════════════════════════════════════
 
@@ -117,16 +122,17 @@ async function _fetchReports() {
     _reportLoading = true;
     try {
         if (typeof supabaseClient === 'undefined') return [];
-        // Filtro ESPLICITO per user_id: questa vista è per il cliente ("i MIEI report").
+        // Filtro ESPLICITO per user_id: questa vista è per il cliente.
         // Non ci affidiamo solo alla RLS perché se l'utente è admin la policy
-        // monthly_reports_admin_all gli mostrerebbe TUTTI i report di tutti gli utenti.
+        // monthly_reports_admin_all gli mostrerebbe TUTTI i report di tutti
+        // gli utenti.
         const { data: authRes } = await supabaseClient.auth.getUser();
         const userId = authRes?.user?.id;
         if (!userId) { _reportCache = []; return _reportCache; }
 
         const { data, error } = await supabaseClient
             .from('monthly_reports')
-            .select('id, user_id, year_month, tone, narrative, scorecard, cost_usd, generated_at, model_used, status')
+            .select('id, user_id, year_month, goal, tone, narrative, scorecard, cost_usd, generated_at, model_used, status')
             .eq('user_id', userId)
             .eq('status', 'generated')
             .order('year_month', { ascending: false });
@@ -144,13 +150,6 @@ async function _fetchReports() {
 // ═════════════════════════════════════════════════════════════════════
 // RENDER VISTA PRINCIPALE (tab "Report")
 // ═════════════════════════════════════════════════════════════════════
-
-// Definizione canonica dei 3 toni supportati (usata in tutte le UI)
-const _TONES = [
-    { value: 'serious',      label: 'Serio',        icon: '🎯', desc: 'Analitico e professionale' },
-    { value: 'motivational', label: 'Motivazionale', icon: '💪', desc: 'Caloroso ed energico' },
-    { value: 'ironic',       label: 'Ironico',      icon: '😏', desc: 'Umorismo dry' },
-];
 
 async function renderReport() {
     const container = document.getElementById('allContent');
@@ -194,9 +193,11 @@ async function renderReport() {
     const availableMonthLabel = _formatYearMonth(availableMonth);
     const availableMonthReports = reports.filter(r => r.year_month === availableMonth);
 
-    // Quali toni sono già stati generati per il mese disponibile
-    const tonesGenerated = new Set(availableMonthReports.map(r => r.tone));
-    const allToneGenerated = _TONES.every(t => tonesGenerated.has(t.value));
+    // Quali obiettivi sono già stati generati per il mese disponibile
+    const goalsGenerated = new Set(availableMonthReports.map(r => r.goal).filter(Boolean));
+    // Limite totale di generazioni per mese (indipendente dal goal: 1 ufficiale
+    // + max 2 cambi di idea).
+    const reachedRegenLimit = availableMonthReports.length >= MAX_GENERATIONS_PER_MONTH;
 
     // Raggruppa tutti i report per mese (per la lista archivio)
     const reportsByMonth = reports.reduce((acc, r) => {
@@ -214,27 +215,41 @@ async function renderReport() {
         </div>
     `;
 
-    // CTA con 3 bottoni tono (uno per ogni tono, disabilitato se già generato)
+    // CTA: 6 card obiettivo (3x2). Click → genera il report di quel mese
+    // sull'obiettivo scelto. Se l'obiettivo è già stato generato per quel
+    // mese, la card è in stato "fatto" (cliccabile per riaprire).
     html += `
         <div class="all-report-generate-card">
-            <div class="all-report-generate-title">Genera report di ${availableMonthLabel}</div>
-            <div class="all-report-generate-desc">Scegli un tono e lancia la generazione. Ogni tono può essere usato una sola volta.</div>
-            <div class="all-report-tone-grid">
-                ${_TONES.map(t => {
-                    const disabled = tonesGenerated.has(t.value);
+            <div class="all-report-generate-title">Genera il report di ${availableMonthLabel}</div>
+            <div class="all-report-generate-desc">Scegli l'obiettivo del mese: il report verrà costruito intorno a quello.</div>
+            <div class="all-report-goal-grid">
+                ${_GOALS.map(g => {
+                    const alreadyGenerated = goalsGenerated.has(g.value);
+                    const blockedByLimit = reachedRegenLimit && !alreadyGenerated;
+                    const disabled = blockedByLimit;
+                    let onclick = '';
+                    if (alreadyGenerated) {
+                        const existingId = availableMonthReports.find(r => r.goal === g.value)?.id;
+                        onclick = existingId ? `openReportDetail('${existingId}')` : '';
+                    } else if (!disabled) {
+                        onclick = `_generateGoal('${availableMonth}', '${g.value}')`;
+                    }
+                    const stateClass = alreadyGenerated
+                        ? 'all-report-goal-card--done'
+                        : (disabled ? 'all-report-goal-card--disabled' : '');
                     return `
-                        <button class="all-report-tone-card ${disabled ? 'all-report-tone-card--done' : ''}"
+                        <button class="all-report-goal-card ${stateClass}"
                                 ${disabled ? 'disabled aria-disabled="true"' : ''}
-                                onclick="${disabled ? '' : `_generateTone('${availableMonth}', '${t.value}')`}">
-                            <div class="all-report-tone-card-icon">${t.icon}</div>
-                            <div class="all-report-tone-card-label">${t.label}</div>
-                            <div class="all-report-tone-card-desc">${disabled ? '✓ Generato' : t.desc}</div>
+                                onclick="${onclick}">
+                            <div class="all-report-goal-card-icon">${g.icon}</div>
+                            <div class="all-report-goal-card-label">${g.label}</div>
+                            <div class="all-report-goal-card-desc">${alreadyGenerated ? '✓ Generato — apri' : g.desc}</div>
                         </button>
                     `;
                 }).join('')}
             </div>
-            ${allToneGenerated
-                ? `<div class="all-report-generate-limit">Hai usato tutti e 3 i toni per ${availableMonthLabel}.</div>`
+            ${reachedRegenLimit
+                ? `<div class="all-report-generate-limit">Hai usato tutte e ${MAX_GENERATIONS_PER_MONTH} le generazioni per ${availableMonthLabel}.</div>`
                 : ''}
         </div>
     `;
@@ -244,7 +259,7 @@ async function renderReport() {
     if (reports.length === 0) {
         html += `
             <div class="all-empty-state">
-                <p>Non hai ancora report generati. Scegli un tono sopra per generare il primo.</p>
+                <p>Non hai ancora report generati. Scegli un obiettivo qui sopra per generare il primo.</p>
             </div>
         `;
     } else {
@@ -255,17 +270,18 @@ async function renderReport() {
             html += `<div class="all-report-month-group">
                 <div class="all-report-month-group-title">${monthLabel}</div>
                 <div class="all-report-month-group-list">`;
-            // Ordina i report del mese: prima il più recente
             monthReports.sort((a, b) =>
                 (new Date(b.generated_at).getTime() || 0) - (new Date(a.generated_at).getTime() || 0)
             );
             for (const r of monthReports) {
-                const toneInfo = _TONES.find(t => t.value === r.tone);
+                const goalInfo = _GOALS.find(g => g.value === r.goal);
                 const dateStr = r.generated_at ? new Date(r.generated_at).toLocaleDateString('it-IT') : '';
+                const icon = goalInfo?.icon ?? '📝';
+                const label = goalInfo?.label ?? (r.goal || '—');
                 html += `
                     <button class="all-report-variant" onclick="openReportDetail('${r.id}')">
-                        <span class="all-report-variant-icon">${toneInfo?.icon ?? '📝'}</span>
-                        <span class="all-report-variant-label">${toneInfo?.label ?? r.tone}</span>
+                        <span class="all-report-variant-icon">${icon}</span>
+                        <span class="all-report-variant-label">${label}</span>
                         <span class="all-report-variant-date">${dateStr}</span>
                         <span class="all-report-variant-arrow">›</span>
                     </button>
@@ -290,8 +306,7 @@ function openReportDetail(reportId) {
     if (!report) return;
 
     const bodyHtml = _markdownToHtml(report.narrative);
-    const toneInfo = _TONES.find(t => t.value === report.tone);
-    const toneLabel = toneInfo ? `${toneInfo.icon} ${toneInfo.label}` : _formatTone(report.tone);
+    const goalLabel = _formatGoal(report.goal);
 
     const modalHtml = `
         <div class="all-modal-overlay all-report-modal" id="reportModalOverlay" onclick="if(event.target===this) closeReportModal()">
@@ -299,7 +314,7 @@ function openReportDetail(reportId) {
                 <button class="all-modal-close" onclick="closeReportModal()" aria-label="Chiudi">&times;</button>
                 <div class="all-report-modal-meta">
                     <span class="all-report-modal-month">${_formatYearMonth(report.year_month)}</span>
-                    <span class="all-report-modal-tone">${toneLabel}</span>
+                    <span class="all-report-modal-tone">${goalLabel}</span>
                 </div>
                 <div class="all-report-modal-body">${bodyHtml}</div>
             </div>
@@ -321,12 +336,13 @@ function closeReportModal() {
 
 // ═════════════════════════════════════════════════════════════════════
 // FLUSSO: GENERAZIONE NUOVO REPORT
-// Entry point chiamato da uno dei 3 bottoni tono della CTA principale.
-// 1. Check consenso GDPR → se manca, mostra modal di consenso (dopo accept ricomincia da qui)
-// 2. Chiama Edge Function direttamente (niente modal selezione tono: il tono è già nel click)
+// Entry point chiamato cliccando su una delle 6 card obiettivo.
+// 1. Check consenso GDPR → se manca, mostra modal di consenso
+// 2. Chiama Edge Function direttamente (force=true: ogni click è esplicito,
+//    il rate limit lato server impedisce abusi).
 // ═════════════════════════════════════════════════════════════════════
 
-async function _generateTone(yearMonth, tone) {
+async function _generateGoal(yearMonth, goal) {
     const { data: authRes } = await supabaseClient.auth.getUser();
     const user = authRes?.user;
     if (!user) { alert('Non sei loggato'); return; }
@@ -339,18 +355,15 @@ async function _generateTone(yearMonth, tone) {
     if (!profile) { alert('Profilo non trovato'); return; }
 
     if (!profile.report_ai_consent) {
-        _showConsentModal(yearMonth, tone);
+        _showConsentModal(yearMonth, goal);
         return;
     }
 
-    // Tono già scelto cliccando il bottone → genera direttamente.
-    // force_regenerate=true perché nell'UI nuova ogni click è una richiesta esplicita
-    // (il rate limit lato server impedisce abusi: max 3 con status='generated').
-    _startGenerationInternal(yearMonth, tone, /* force */ true);
+    _startGenerationInternal(yearMonth, goal, /* force */ true);
 }
 
 // ── Modal consenso GDPR ──
-function _showConsentModal(yearMonth, currentTone) {
+function _showConsentModal(yearMonth, currentGoal) {
     const monthLabel = _formatYearMonth(yearMonth);
     const modalHtml = `
         <div class="all-modal-overlay" id="consentModalOverlay" onclick="if(event.target===this) closeConsentModal()">
@@ -375,7 +388,7 @@ function _showConsentModal(yearMonth, currentTone) {
                 </label>
                 <div class="all-modal-actions">
                     <button class="all-modal-btn all-modal-btn--secondary" onclick="closeConsentModal()">Annulla</button>
-                    <button class="all-modal-btn" onclick="_acceptConsentAndContinue('${yearMonth}', '${currentTone}')">Accetta e continua</button>
+                    <button class="all-modal-btn" onclick="_acceptConsentAndContinue('${yearMonth}', '${currentGoal}')">Accetta e continua</button>
                 </div>
             </div>
         </div>
@@ -394,7 +407,7 @@ function closeConsentModal() {
     _unlockBodyScrollIfNoModals();
 }
 
-async function _acceptConsentAndContinue(yearMonth, tone) {
+async function _acceptConsentAndContinue(yearMonth, goal) {
     const checkbox = document.getElementById('consentCheckbox');
     if (!checkbox?.checked) {
         alert('Devi spuntare la casella per procedere.');
@@ -408,18 +421,17 @@ async function _acceptConsentAndContinue(yearMonth, tone) {
     }
 
     closeConsentModal();
-    // Consenso appena dato: genera subito il tono già scelto dal bottone
-    _startGenerationInternal(yearMonth, tone, /* force */ true);
+    _startGenerationInternal(yearMonth, goal, /* force */ true);
 }
 
 // ── Chiamata Edge Function interna ──
-async function _startGenerationInternal(yearMonth, tone, force) {
+async function _startGenerationInternal(yearMonth, goal, force) {
     // Loading overlay
     const loadingHtml = `
         <div class="all-modal-overlay" id="generatingOverlay">
             <div class="all-modal-box all-report-loading-box">
                 <div class="all-report-loading-spinner"></div>
-                <h3 class="all-report-loading-title">${force ? 'Rigenerazione' : 'Generazione'} in corso...</h3>
+                <h3 class="all-report-loading-title">Generazione in corso...</h3>
                 <p class="all-report-loading-desc">Sto analizzando i tuoi dati e scrivendo il report.</p>
             </div>
         </div>
@@ -443,7 +455,7 @@ async function _startGenerationInternal(yearMonth, tone, force) {
             body: JSON.stringify({
                 user_id: session.user.id,
                 year_month: yearMonth,
-                tone: tone,
+                goal: goal,
                 force_regenerate: !!force,
             }),
         });
