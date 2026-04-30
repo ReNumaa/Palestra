@@ -12,7 +12,7 @@
 // - I dati provengono ESCLUSIVAMENTE da bookings + workout_logs. Nessuna
 //   metrica antropometrica (peso, BF%, kcal): non l'abbiamo, non si menziona.
 // - Output strutturato in 3 sezioni fisse (markdown):
-//     · "Numeri del mese"
+//     · "Sintesi del mese"
 //     · "Cosa dicono i dati"
 //     · "Obiettivo del mese prossimo"
 
@@ -276,6 +276,62 @@ INTERPRETAZIONE LOG:
 - delta.trend = "stable" con weight_change = 0 → STALLO, non regressione.
 
 ═══════════════════════════════════════════════════════════════════════
+REGISTRO LINGUISTICO — RESTA SUL VAGO
+═══════════════════════════════════════════════════════════════════════
+Il report deve essere DESCRITTIVO, non un report tecnico-numerico.
+Preferisci formulazioni qualitative invece dei numeri puntuali:
+  · "carichi importanti", "lavoro a corpo libero", "carichi moderati"
+    invece di "max 65kg / 8 set / 32 reps"
+  · "buon volume sulle gambe", "lavoro consistente sulla parte alta"
+    invece di "12 set su quadricipite"
+  · "una buona costanza", "presenza regolare" invece di "11 sessioni"
+Cita i NUMERI solo dove sono davvero significativi:
+  · 1 PR netto (top_progress) lo puoi citare con i kg
+  · la frequenza settimanale (es. "circa 2 allenamenti a settimana")
+  · il numero di lezioni del mese se è il dato chiave
+Non ripetere mai il numero di set o le ripetizioni. Niente "sedute"
+intese come "n. di sessioni" — usa "allenamenti" o "settimane".
+
+═══════════════════════════════════════════════════════════════════════
+LIVELLO DI ESPERIENZA — experience_hint
+═══════════════════════════════════════════════════════════════════════
+Il campo "experience_hint" può valere:
+  · "advanced" → cliente con carichi importanti su almeno 2 fondamentali.
+    Anche se è la prima volta che logga in app, NON è un principiante.
+    Tono: tecnico, parla di affinamento, periodizzazione, picchi.
+    Non usare frasi del tipo "stai imparando i fondamentali".
+  · "intermediate" → cliente con base solida.
+    Tono: rispetta il livello, parla di progressione e consolidamento.
+  · "beginner_or_returning" → cliente con carichi modesti o prevalentemente
+    a corpo libero. Possibile principiante o chi riparte dopo una pausa.
+    Tono: incoraggiante, niente pressione su carichi, valorizza la costanza
+    e l'apprendimento dei movimenti base.
+
+═══════════════════════════════════════════════════════════════════════
+QUALITÀ DEL DATO — data_quality_warning
+═══════════════════════════════════════════════════════════════════════
+Se "data_quality_warning" = true, alcuni carichi inseriti erano
+chiaramente errati (es. 1000 kg) e sono stati esclusi dai conteggi.
+Includi UNA frase breve e cortese che inviti a ricontrollare i numeri
+inseriti: "ho notato qualche valore probabilmente digitato male nei
+log — vale la pena ricontrollare i carichi quando li segni, così il
+report del prossimo mese sarà ancora più preciso." Mai accusatorio,
+mai un elenco puntuale degli errori.
+
+═══════════════════════════════════════════════════════════════════════
+HIGHLIGHT DEL MESE — campi opzionali da usare se presenti
+═══════════════════════════════════════════════════════════════════════
+- "favorite_exercise" (se ≥ 2 sessioni con lo stesso esercizio): puoi
+  citarlo come "esercizio del mese" o "il movimento su cui hai lavorato
+  di più". Cita il nome.
+- "top_progress" (esercizio con il salto in carico maggiore): è la
+  vittoria più tangibile del mese. Citalo CON i numeri (from → to).
+- "most_worked_muscle" / "least_worked_muscle": se la differenza è
+  netta, puoi segnalare uno sbilanciamento ("le gambe sono state il
+  focus del mese, mentre la schiena ha ricevuto meno attenzione").
+  NON drammatizzare.
+
+═══════════════════════════════════════════════════════════════════════
 GAP LOG — INVITO A REGISTRARE MEGLIO
 ═══════════════════════════════════════════════════════════════════════
 Il valore "logging_completeness_pct" indica quanti dei lessons_attended
@@ -338,15 +394,15 @@ Il report deve seguire ESATTAMENTE questa struttura markdown:
 
   Apertura: 1-2 frasi di saluto al cliente per nome (NO heading).
 
-  ## Numeri del mese
-  3-5 righe con i dati salienti: lezioni frequentate (lessons_attended),
-  frequenza media settimanale (avg_sessions_per_week), allenamenti
-  registrati con carichi (sessions_logged), eventuale delta delle
-  lezioni vs mese precedente. Pesa solo i numeri rilevanti per il goal:
-  per dimagrimento = costanza; per forza = carichi top + costanza;
-  per massa = volume e progressi; per salute = costanza; per recupero
-  = costanza e varietà del lavoro.
-  NON menzionare aderenza, annullamenti, prenotazioni totali, ripetizioni.
+  ## Sintesi del mese
+  3-4 righe brevi che condensano il mese: numero di allenamenti del
+  mese, frequenza media settimanale, eventuale confronto col mese
+  precedente. Tono leggero e qualitativo. Esempi:
+    · "11 allenamenti nel mese, circa 2,5 a settimana — ritmo
+      regolare in linea col mese scorso."
+    · "8 allenamenti nel mese: una crescita rispetto ai 5 di marzo."
+  Cita SOLO numeri davvero rilevanti. NON elencare set, kg, ripetizioni.
+  NON menzionare aderenza, annullamenti, prenotazioni totali.
 
   ## Cosa dicono i dati
   Paragrafo discorsivo (180-280 parole, modulato dal REPORT TYPE).
@@ -402,6 +458,55 @@ function freqLabel(avgPerWeek: number): string {
     return "ALTA";
 }
 
+// Soglia oltre la quale un carico è quasi certamente un errore di
+// compilazione. 500kg lascia margine al record mondiale di stacco
+// (~501kg) per non escludere casi reali di atleti elite, ma rende
+// inequivocabile un valore tipo "1000".
+const MAX_REASONABLE_WEIGHT_KG = 500;
+
+// Soglie usate per stimare il livello di esperienza dai carichi sui
+// multiarticolari principali. Sono volutamente conservative e tipiche
+// di un cliente di palestra "medio" (non distinte per genere): se uno
+// supera queste soglie su almeno 2 esercizi importanti, è un atleta
+// con esperienza, non un principiante che ha appena iniziato a loggare.
+const ADVANCED_LIFT_THRESHOLDS_KG: Record<string, number> = {
+    // chiavi: sostringhe (lowercase) presenti nel nome esercizio
+    squat: 80,
+    stacco: 100,
+    panca: 60,
+    military: 40,
+    "shoulder press": 40,
+    rematore: 50,
+    trazione: 0, // se ne hai loggate con kg > 0 sei già avanzato
+};
+
+function inferExperienceHint(exercises: any[]): "advanced" | "intermediate" | "beginner_or_returning" {
+    let advancedSignals = 0;
+    let intermediateSignals = 0;
+    for (const ex of exercises ?? []) {
+        const name = String(ex.exercise_name ?? "").toLowerCase();
+        const w = typeof ex.max_weight === "number" ? ex.max_weight : 0;
+        if (!w) continue;
+
+        // Match con le soglie advanced
+        let matchedThreshold: number | null = null;
+        for (const key of Object.keys(ADVANCED_LIFT_THRESHOLDS_KG)) {
+            if (name.includes(key)) {
+                matchedThreshold = ADVANCED_LIFT_THRESHOLDS_KG[key];
+                break;
+            }
+        }
+        if (matchedThreshold !== null && w >= matchedThreshold) {
+            advancedSignals++;
+        } else if (w >= 30) {
+            intermediateSignals++;
+        }
+    }
+    if (advancedSignals >= 2) return "advanced";
+    if (advancedSignals >= 1 || intermediateSignals >= 3) return "intermediate";
+    return "beginner_or_returning";
+}
+
 // Compone il messaggio utente: prefisso (goal + report type) + scorecard.
 // Frequenza basata sulle LEZIONI FREQUENTATE (bookings.completed); i log
 // (sessions_logged) sono un dato secondario per commentare carichi e
@@ -438,14 +543,86 @@ function buildUserMessage(
         ? Math.round((sessionsLogged / lessonsAttended) * 100)
         : null;
 
-    // Normalizza nomi esercizi (Title Case) e rimuove total_reps_sum: il
-    // numero di ripetizioni non va menzionato nel report (richiesta esplicita).
-    const stripReps = (ex: any) => {
+    // Sanifica un singolo esercizio:
+    //  · rimuove total_reps_sum (le ripetizioni non vanno menzionate)
+    //  · azzera carichi assurdi (>500kg = errore di compilazione)
+    //  · normalizza il nome in Title Case
+    //  · ritorna anche un flag se il carico è stato filtrato
+    const sanitize = (ex: any): { ex: any; hadOutlier: boolean } => {
         const { total_reps_sum: _drop, ...rest } = ex ?? {};
-        return { ...rest, exercise_name: titleCaseIt(rest.exercise_name) };
+        let hadOutlier = false;
+        const fix = (key: string) => {
+            const v = rest[key];
+            if (typeof v === "number" && v > MAX_REASONABLE_WEIGHT_KG) {
+                rest[key] = null;
+                hadOutlier = true;
+            }
+        };
+        fix("max_weight");
+        fix("first_weight");
+        fix("last_weight");
+        return {
+            ex: { ...rest, exercise_name: titleCaseIt(rest.exercise_name) },
+            hadOutlier,
+        };
     };
-    const exercises = (c.exercises ?? []).map(stripReps);
-    const deltaExercises = (scorecard.delta?.exercises ?? []).map(stripReps);
+
+    let outlierCount = 0;
+    const exercises = (c.exercises ?? []).map((ex: any) => {
+        const r = sanitize(ex);
+        if (r.hadOutlier) outlierCount++;
+        return r.ex;
+    });
+    const deltaExercises = (scorecard.delta?.exercises ?? []).map((ex: any) => {
+        const r = sanitize(ex);
+        // Anche weight_change/previous_max/current_max possono essere assurdi
+        // perché derivati da max_weight: se sopra soglia, neutralizza il delta.
+        const dx = r.ex;
+        if (typeof dx.previous_max === "number" && dx.previous_max > MAX_REASONABLE_WEIGHT_KG) {
+            dx.previous_max = null; outlierCount++;
+        }
+        if (typeof dx.current_max === "number" && dx.current_max > MAX_REASONABLE_WEIGHT_KG) {
+            dx.current_max = null; outlierCount++;
+        }
+        if (typeof dx.weight_change === "number" && Math.abs(dx.weight_change) > MAX_REASONABLE_WEIGHT_KG) {
+            dx.weight_change = null;
+            dx.weight_pct_change = null;
+            dx.trend = "unknown";
+        }
+        return dx;
+    });
+
+    // Stima livello di esperienza dai carichi puliti.
+    const experienceHint = inferExperienceHint(exercises);
+
+    // Esercizio "preferito" del mese (più sessioni con quel nome).
+    const favorite = exercises
+        .slice()
+        .sort((a: any, b: any) => (b.sessions_logged ?? 0) - (a.sessions_logged ?? 0))[0];
+    const favoriteExercise = favorite && (favorite.sessions_logged ?? 0) >= 2
+        ? { name: favorite.exercise_name, sessions: favorite.sessions_logged }
+        : null;
+
+    // Top progresso: esercizio con weight_change positivo più alto.
+    const topProgressEx = deltaExercises
+        .filter((d: any) => d.trend === "progressed" && typeof d.weight_change === "number" && d.weight_change > 0)
+        .sort((a: any, b: any) => (b.weight_change ?? 0) - (a.weight_change ?? 0))[0];
+    const topProgress = topProgressEx
+        ? {
+            name: topProgressEx.exercise_name,
+            from: topProgressEx.previous_max,
+            to: topProgressEx.current_max,
+        }
+        : null;
+
+    // Bilanciamento muscolare: muscolo più e meno stimolato.
+    const volumeByMuscle = c.volume_by_muscle ?? {};
+    const muscleEntries = Object.entries(volumeByMuscle) as [string, number][];
+    muscleEntries.sort((a, b) => (b[1] ?? 0) - (a[1] ?? 0));
+    const mostWorkedMuscle = muscleEntries[0]?.[0] ?? null;
+    const leastWorkedMuscle = muscleEntries.length > 1
+        ? muscleEntries[muscleEntries.length - 1]?.[0] ?? null
+        : null;
 
     // Ricostruisce blocchi current/previous/delta rimuovendo TUTTO ciò
     // che è "aderenza/annullamenti": teniamo solo lessons_attended e
@@ -476,6 +653,14 @@ function buildUserMessage(
         sessions_logged_previous: sessionsLoggedPrev,
         logging_completeness_pct: loggingCompletenessPct,
 
+        // Inferenze utili al modello
+        experience_hint: experienceHint,
+        data_quality_warning: outlierCount > 0,
+        favorite_exercise: favoriteExercise,
+        top_progress: topProgress,
+        most_worked_muscle: mostWorkedMuscle,
+        least_worked_muscle: leastWorkedMuscle,
+
         current: { ...cRest, exercises },
         previous: pRest,
         delta: { ...dRest, exercises: deltaExercises },
@@ -485,7 +670,7 @@ function buildUserMessage(
         `[SCORECARD]\n\`\`\`json\n${JSON.stringify(enriched, null, 2)}\n\`\`\`\n\n` +
         `Scrivi ora il report mensile per ${userName}, seguendo le REGOLE ASSOLUTE, ` +
         `il [GOAL_SPEC] e il [REPORT_TYPE]. Rispetta la struttura markdown a 3 sezioni ` +
-        `(Numeri del mese, Cosa dicono i dati, Obiettivo del mese prossimo).`;
+        `(Sintesi del mese, Cosa dicono i dati, Obiettivo del mese prossimo).`;
 }
 
 // ─────────────────────────────────────────────────────────────────────
