@@ -332,6 +332,30 @@ HIGHLIGHT DEL MESE — campi opzionali da usare se presenti
   NON drammatizzare.
 
 ═══════════════════════════════════════════════════════════════════════
+PATTERN DI FREQUENZA — streak e abitudini
+═══════════════════════════════════════════════════════════════════════
+- "attendance_streak_weeks" = numero di settimane consecutive (fino alla
+  fine del mese del report) con almeno 1 lezione frequentata.
+    · Se ≥ 3 → CITALO con enfasi positiva ("3ª settimana di fila con
+      almeno un allenamento", "stai costruendo una serie di 5 settimane
+      consecutive": è un segnale forte di costanza).
+    · Se = 1 o 2 → puoi accennarlo solo se è un nuovo inizio.
+    · Se = 0 → non menzionarlo.
+- "top_day" + "top_day_share_pct" = giorno della settimana più frequente
+  e percentuale di sessioni che cadono in quel giorno.
+    · Cita il giorno SOLO se top_day_share_pct ≥ 40 ("ti alleni
+      soprattutto di martedì", "il sabato è diventato il giorno fisso").
+    · Sotto 40% NON menzionare il giorno: la distribuzione è varia.
+- "top_time_slot" + "top_time_slot_share_pct" = fascia oraria preferita
+  ("mattina presto", "mattina", "primo pomeriggio", "pomeriggio",
+  "sera", "tarda sera").
+    · Cita la fascia SOLO se top_time_slot_share_pct ≥ 50 ("alleni
+      quasi sempre la sera").
+    · Usalo per riconoscere l'abitudine, non per giudicarla.
+Questi tre pattern, quando presenti, vanno integrati nel paragrafo
+"Cosa dicono i dati" come UN SOLO accenno breve, non un elenco.
+
+═══════════════════════════════════════════════════════════════════════
 GAP LOG — INVITO A REGISTRARE MEGLIO
 ═══════════════════════════════════════════════════════════════════════
 Il valore "logging_completeness_pct" indica quanti dei lessons_attended
@@ -480,6 +504,144 @@ const ADVANCED_LIFT_THRESHOLDS_KG: Record<string, number> = {
     trazione: 0, // se ne hai loggate con kg > 0 sei già avanzato
 };
 
+// ─────────────────────────────────────────────────────────────────────
+// PATTERN DI FREQUENZA — streak settimanale e giorno/fascia preferiti
+// Calcolati con una query separata su `bookings` (la scorecard non ha
+// le date settimana per settimana). Usa solo bookings con status =
+// 'confirmed' (= "lezioni frequentate", convenzione coerente con
+// generate_monthly_scorecard).
+// ─────────────────────────────────────────────────────────────────────
+
+interface AttendancePatterns {
+    streak_weeks: number;
+    top_day: string | null;
+    top_day_share_pct: number | null;
+    top_time_slot: string | null;
+    top_time_slot_share_pct: number | null;
+}
+
+function _isoWeekStart(d: Date): string {
+    // Lunedì della settimana ISO contenente d (UTC).
+    const x = new Date(d);
+    const dayIdx = (x.getUTCDay() + 6) % 7; // Mon = 0, Sun = 6
+    x.setUTCDate(x.getUTCDate() - dayIdx);
+    return x.toISOString().slice(0, 10);
+}
+
+function _timeSlotOf(timeStr: string): string {
+    // formato es. "10:00 - 11:00" o "10:00"
+    const m = String(timeStr ?? "").match(/^(\d{1,2}):/);
+    if (!m) return "altro";
+    const h = parseInt(m[1], 10);
+    if (h < 9)  return "mattina presto";
+    if (h < 12) return "mattina";
+    if (h < 15) return "primo pomeriggio";
+    if (h < 18) return "pomeriggio";
+    if (h < 21) return "sera";
+    return "tarda sera";
+}
+
+const _DAY_NAMES_IT = [
+    "Domenica", "Lunedì", "Martedì", "Mercoledì",
+    "Giovedì", "Venerdì", "Sabato",
+];
+
+async function computeAttendancePatterns(
+    sb: any,
+    userId: string,
+    yearMonth: string,
+): Promise<AttendancePatterns> {
+    const empty: AttendancePatterns = {
+        streak_weeks: 0,
+        top_day: null,
+        top_day_share_pct: null,
+        top_time_slot: null,
+        top_time_slot_share_pct: null,
+    };
+
+    const [yStr, mStr] = yearMonth.split("-");
+    const y = parseInt(yStr, 10);
+    const m = parseInt(mStr, 10); // 1-12
+    if (!y || !m) return empty;
+
+    // Fine del mese del report (UTC) e inizio finestra di lookback (6 mesi).
+    const endOfMonth = new Date(Date.UTC(y, m, 0));     // ultimo giorno del mese
+    const lookbackStart = new Date(Date.UTC(y, m - 6, 1));
+    const fromDate = lookbackStart.toISOString().slice(0, 10);
+    const toDate = endOfMonth.toISOString().slice(0, 10);
+
+    const { data: bookings, error } = await sb
+        .from("bookings")
+        .select("date, time")
+        .eq("user_id", userId)
+        .eq("status", "confirmed")
+        .gte("date", fromDate)
+        .lte("date", toDate);
+
+    if (error) {
+        console.warn("[Patterns] bookings query failed:", error.message);
+        return empty;
+    }
+    if (!bookings || bookings.length === 0) return empty;
+
+    // Streak: settimane consecutive con ≥ 1 booking, terminanti con la
+    // settimana che contiene endOfMonth.
+    const weeksWithBookings = new Set<string>();
+    for (const b of bookings) {
+        if (!b.date) continue;
+        const d = new Date(b.date + "T00:00:00Z");
+        weeksWithBookings.add(_isoWeekStart(d));
+    }
+    let streak = 0;
+    const cursor = new Date(endOfMonth);
+    while (streak <= 52) {
+        const k = _isoWeekStart(cursor);
+        if (!weeksWithBookings.has(k)) break;
+        streak++;
+        cursor.setUTCDate(cursor.getUTCDate() - 7);
+    }
+
+    // Giorno e fascia oraria: SOLO bookings dentro il mese del report
+    // (il pattern del mese, non della finestra di lookback).
+    const monthStart = Date.UTC(y, m - 1, 1);
+    const monthEnd   = Date.UTC(y, m, 0);
+    const inMonth = bookings.filter((b: any) => {
+        if (!b.date) return false;
+        const t = Date.parse(b.date + "T00:00:00Z");
+        return t >= monthStart && t <= monthEnd;
+    });
+    if (inMonth.length === 0) {
+        return { ...empty, streak_weeks: streak };
+    }
+
+    const dayCounts: Record<string, number> = {};
+    const slotCounts: Record<string, number> = {};
+    for (const b of inMonth) {
+        const d = new Date((b.date as string) + "T00:00:00Z");
+        const dayName = _DAY_NAMES_IT[d.getUTCDay()];
+        dayCounts[dayName] = (dayCounts[dayName] ?? 0) + 1;
+        const slot = _timeSlotOf(b.time);
+        slotCounts[slot] = (slotCounts[slot] ?? 0) + 1;
+    }
+    const pickTop = (counts: Record<string, number>) => {
+        const entries = Object.entries(counts).sort((a, b) => b[1] - a[1]);
+        if (entries.length === 0) return null;
+        return { name: entries[0][0], count: entries[0][1] };
+    };
+    const topDay = pickTop(dayCounts);
+    const topSlot = pickTop(slotCounts);
+
+    return {
+        streak_weeks: streak,
+        top_day: topDay?.name ?? null,
+        top_day_share_pct: topDay
+            ? Math.round((topDay.count / inMonth.length) * 100) : null,
+        top_time_slot: topSlot?.name ?? null,
+        top_time_slot_share_pct: topSlot
+            ? Math.round((topSlot.count / inMonth.length) * 100) : null,
+    };
+}
+
 function inferExperienceHint(exercises: any[]): "advanced" | "intermediate" | "beginner_or_returning" {
     let advancedSignals = 0;
     let intermediateSignals = 0;
@@ -517,6 +679,7 @@ function buildUserMessage(
     userName: string,
     goal: GoalSpec,
     reportType: string,
+    patterns: AttendancePatterns,
 ): string {
     const c = scorecard.current ?? {};
     const p = scorecard.previous ?? {};
@@ -660,6 +823,13 @@ function buildUserMessage(
         top_progress: topProgress,
         most_worked_muscle: mostWorkedMuscle,
         least_worked_muscle: leastWorkedMuscle,
+
+        // Pattern di frequenza
+        attendance_streak_weeks: patterns.streak_weeks,
+        top_day: patterns.top_day,
+        top_day_share_pct: patterns.top_day_share_pct,
+        top_time_slot: patterns.top_time_slot,
+        top_time_slot_share_pct: patterns.top_time_slot_share_pct,
 
         current: { ...cRest, exercises },
         previous: pRest,
@@ -923,8 +1093,14 @@ Deno.serve(async (req) => {
         const reportType: string = scorecard.metadata?.report_type ?? "full";
         const userName: string = profile.name ?? "Cliente";
 
+        // ── Pattern di frequenza (streak + giorno/orario preferito) ───
+        // Calcolati con una query separata perché la scorecard non ha le
+        // date settimana per settimana. Non blocca: in caso di errore
+        // ritorna valori "vuoti".
+        const patterns = await computeAttendancePatterns(supabase, user_id, year_month);
+
         // ── Costruisci prompt e chiama Anthropic ──────────────────────
-        const userMessage = buildUserMessage(scorecard, userName, goal, reportType);
+        const userMessage = buildUserMessage(scorecard, userName, goal, reportType, patterns);
 
         let aiResult: AnthropicResult;
         try {
