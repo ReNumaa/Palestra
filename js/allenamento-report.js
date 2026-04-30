@@ -448,8 +448,27 @@ async function _startGenerationInternal(yearMonth, goal, force) {
     });
 
     try {
-        const { data: { session } } = await supabaseClient.auth.getSession();
-        if (!session) throw new Error('Sessione scaduta, ricarica la pagina');
+        // Forza refresh sessione: dopo il passaggio da legacy JWT a publishable
+        // key, la sessione cached può avere un access_token "vecchio formato"
+        // → la piattaforma Supabase la rifiuta con UNAUTHORIZED_NO_AUTH_HEADER.
+        // Il refresh ne emette uno nuovo allineato alla chiave attuale.
+        let session = null;
+        const sessRes = await supabaseClient.auth.getSession();
+        session = sessRes?.data?.session ?? null;
+        if (!session?.access_token) {
+            const refreshRes = await supabaseClient.auth.refreshSession();
+            session = refreshRes?.data?.session ?? null;
+        }
+        if (!session?.access_token) {
+            throw new Error('Sessione non valida. Esci e rientra dall\'app.');
+        }
+
+        // Log diagnostico: stampa solo il prefisso del token (debug temporaneo).
+        console.log('[Report] sending request', {
+            tokenPrefix: session.access_token.slice(0, 12) + '...',
+            tokenLen: session.access_token.length,
+            apikeyPrefix: (typeof SUPABASE_ANON_KEY !== 'undefined' ? SUPABASE_ANON_KEY.slice(0, 18) : 'MISSING'),
+        });
 
         // apikey è obbligatoria per la pre-validazione lato Supabase platform
         // davanti alle Edge Functions (anche se Authorization Bearer è già un
