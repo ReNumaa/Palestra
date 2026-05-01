@@ -1129,7 +1129,14 @@ Deno.serve(async (req) => {
         }
 
         // ── Idempotenza: report ESATTO (stesso user, mese, GOAL) già generato? ──
-        if (!force_regenerate) {
+        // I clienti non possono mai duplicare lo stesso goal nello stesso mese:
+        // anche con force_regenerate=true (il client passa sempre true), se esiste
+        // già un report per quella tripla ritorniamo l'esistente. Questo evita i
+        // duplicati da double-click, reload mid-generazione, o sessioni aperte su
+        // più dispositivi in parallelo.
+        // Gli admin con force_regenerate=true possono comunque rigenerare a volontà.
+        const skipExistingCheck = isAdmin && force_regenerate;
+        if (!skipExistingCheck) {
             const { data: existingList } = await supabase
                 .from("monthly_reports")
                 .select("id, status, narrative, scorecard, cost_usd, goal, tone, generated_at, model_used")
@@ -1152,7 +1159,7 @@ Deno.serve(async (req) => {
                     cost_usd: existing.cost_usd,
                     generated_at: existing.generated_at,
                     model_used: existing.model_used,
-                    message: "Report già generato per questo mese e obiettivo. Usa force_regenerate=true per rigenerare.",
+                    message: "Report già generato per questo mese e obiettivo.",
                 });
             }
         }
