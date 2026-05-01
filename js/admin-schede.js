@@ -1002,11 +1002,30 @@ function _schedeActualAddPlan(userId, clientName) {
 // ═══════════════════════════════════════════════════════════════════════════════
 // REPORT AI (lettura admin dei monthly_reports generati dai clienti)
 // ═══════════════════════════════════════════════════════════════════════════════
+// Obiettivi correnti — devono restare allineati a _GOALS in allenamento-report.js
+// e al CHECK del DB (vedi 20260430000000_monthly_reports_goal.sql).
+const _SCHEDE_REPORT_GOALS = {
+    dimagrimento:  { label: 'Dimagrimento',  icon: '🔥' },
+    massa:         { label: 'Aumento Massa', icon: '💪' },
+    tonificazione: { label: 'Tonificazione', icon: '✨' },
+    forza:         { label: 'Forza',         icon: '🏋️' },
+    salute:        { label: 'Salute',        icon: '❤️' },
+    recupero:      { label: 'Recupero',      icon: '🧘' },
+};
+
+// Toni legacy: i report generati prima del refactor toni->obiettivi (cc6c2b3)
+// hanno solo r.tone valorizzato, non r.goal. Tenuti per leggere lo storico.
 const _SCHEDE_REPORT_TONES = {
     serious:      { label: 'Serio',         icon: '🎯' },
     motivational: { label: 'Motivazionale', icon: '💪' },
     ironic:       { label: 'Ironico',       icon: '😏' }
 };
+
+function _schedeReportLabel(r) {
+    if (r.goal && _SCHEDE_REPORT_GOALS[r.goal]) return _SCHEDE_REPORT_GOALS[r.goal];
+    if (r.tone && _SCHEDE_REPORT_TONES[r.tone]) return _SCHEDE_REPORT_TONES[r.tone];
+    return { label: r.goal || r.tone || '—', icon: '📝' };
+}
 
 // Cache: userId → array di report (caricati al primo open)
 const _schedeReportsCache = {};
@@ -1043,7 +1062,7 @@ async function _schedeFetchClientReports(userId, { force = false } = {}) {
     try {
         const { data, error } = await _queryWithTimeout(supabaseClient
             .from('monthly_reports')
-            .select('id, user_id, year_month, tone, narrative, generated_at, status')
+            .select('id, user_id, year_month, goal, tone, narrative, generated_at, status')
             .eq('user_id', userId)
             .eq('status', 'generated')
             .order('year_month', { ascending: false })
@@ -1067,14 +1086,14 @@ function _schedeActualPickReport(userId) {
 }
 
 function _schedeRenderReportCard(r) {
-    const tone = _SCHEDE_REPORT_TONES[r.tone] || { label: r.tone || '—', icon: '📝' };
+    const info = _schedeReportLabel(r);
     const monthLabel = _schedeFormatYearMonth(r.year_month);
     const dateStr = r.generated_at ? new Date(r.generated_at).toLocaleDateString('it-IT') : '';
     return `<button class="schede-report-item" onclick="_schedeOpenReportModal('${_escJs(r.id)}','${_escJs(r.user_id)}')">
-        <span class="schede-report-item-icon">${tone.icon}</span>
+        <span class="schede-report-item-icon">${info.icon}</span>
         <span class="schede-report-item-body">
             <span class="schede-report-item-title">${_escHtml(monthLabel)}</span>
-            <span class="schede-report-item-meta">${_escHtml(tone.label)}${dateStr ? ' &middot; generato ' + _escHtml(dateStr) : ''}</span>
+            <span class="schede-report-item-meta">${_escHtml(info.label)}${dateStr ? ' &middot; generato ' + _escHtml(dateStr) : ''}</span>
         </span>
         <span class="schede-report-item-chev">›</span>
     </button>`;
@@ -1122,7 +1141,7 @@ function _schedeOpenReportModal(reportId, userId) {
 
     _schedeCloseReportModal();
 
-    const tone = _SCHEDE_REPORT_TONES[report.tone] || { label: report.tone || '—', icon: '📝' };
+    const info = _schedeReportLabel(report);
     const bodyHtml = _schedeReportMarkdownToHtml(report.narrative);
     const monthLabel = _schedeFormatYearMonth(report.year_month);
     const dateStr = report.generated_at
@@ -1138,7 +1157,7 @@ function _schedeOpenReportModal(reportId, userId) {
         <div class="schede-report-modal-head">
             <div>
                 <div class="schede-report-modal-eyebrow">Report ${_escHtml(monthLabel)}</div>
-                <div class="schede-report-modal-tone">${tone.icon} ${_escHtml(tone.label)}${dateStr ? ' &middot; ' + _escHtml(dateStr) : ''}</div>
+                <div class="schede-report-modal-tone">${info.icon} ${_escHtml(info.label)}${dateStr ? ' &middot; ' + _escHtml(dateStr) : ''}</div>
             </div>
             <button class="schede-report-modal-close" onclick="_schedeCloseReportModal()" aria-label="Chiudi">
                 <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
