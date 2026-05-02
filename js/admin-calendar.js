@@ -530,13 +530,10 @@ function _buildParticipantCard(booking) {
             <button class="btn-delete-booking" onclick="deleteBooking('${booking.id}','${nm}')">✕</button>
             <div class="participant-card-content">
                 <div class="participant-name">${_escHtml(booking.name)} ${_pushIcon(userRecord)}</div>
-                <div class="participant-contact">📱 ${_escHtml(booking.whatsapp)}</div>
                 ${booking.notes ? `<div class="participant-notes">📝 ${_escHtml(booking.notes)}</div>` : ''}
                 ${cancelPendingBadge}${certBadge}${cfBadge}${assicBadge}${docBadge}
                 ${hasDebts ? `<div class="debt-warning" onclick="openDebtPopup('${wa}','${em}','${nm}')">⚠️ Da pagare: €${unpaidAmount}</div>` : ''}
-                ${!isCancelPending ? (isPaid
-                    ? `<div class="payment-status paid">✓ Pagato</div>`
-                    : (!hasDebts ? `<div class="payment-status unpaid" onclick="openDebtPopup('${wa}','${em}','${nm}')">⊕ Segna pagato</div>` : '')) : ''}
+                ${!isCancelPending && isPaid ? `<div class="payment-status paid">✓ Pagato</div>` : ''}
             </div>
         </div>`;
 }
