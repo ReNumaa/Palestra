@@ -9406,7 +9406,20 @@ canvas {
     background: #dc2626;
 }
 
-/* ── Mobile: dark "week strip" + slot rows compatti (Prenotazioni v2) ── */
+/* Chevron sullo header dello slot — visibile solo su mobile (collapsable). */
+.admin-slot-chev {
+    display: none;
+    width: 9px;
+    height: 9px;
+    border-right: 2px solid #94a3b8;
+    border-bottom: 2px solid #94a3b8;
+    transform: rotate(45deg) translate(-2px, -2px);
+    margin-left: 4px;
+    flex-shrink: 0;
+    transition: transform 0.2s ease;
+}
+
+/* ── Mobile: week strip scuro + slot card snelle, separate, collapsabili ── */
 @media (max-width: 768px) {
     .bookings-week-bar {
         background: linear-gradient(180deg, #0f172a 0%, #1e293b 100%);
@@ -9474,26 +9487,125 @@ canvas {
     .admin-day-occ-fill { background: #00AEEF; }
     .admin-day-card.active .admin-day-occ-fill { background: #fff; }
 
-    /* Slot card: header più aria, pips visibili, type pill compatto */
+    /* Slot list: container trasparente, niente bordo unico, niente clip.
+       Le card vivono come elementi separati con gap tra loro. */
+    .admin-day-view {
+        background: transparent;
+        border: 0;
+        border-radius: 0;
+        box-shadow: none;
+        overflow: visible;
+        padding: 0;
+        gap: 8px;
+    }
+
+    /* Slot card snella e separata. Mostra header collassato come riga
+       singola tipo "08:00 — 09:20 · Autonomia · 4/5 · ▽". */
+    .admin-slot-card {
+        margin: 0;
+        padding: 0.7rem 0.85rem;
+        background: #fff;
+        border: 1px solid transparent;
+        border-left: 0;
+        border-bottom: 0;
+        border-radius: 12px;
+        box-shadow: 0 1px 2px rgba(15, 23, 42, 0.04);
+        transition: border-color 0.15s ease, box-shadow 0.15s ease;
+    }
+    .admin-slot-card.personal-training,
+    .admin-slot-card.small-group,
+    .admin-slot-card.group-class,
+    .admin-slot-card.cleaning {
+        background: #fff;
+    }
+    .admin-slot-card:hover,
+    .admin-slot-card.personal-training:hover,
+    .admin-slot-card.small-group:hover,
+    .admin-slot-card.group-class:hover,
+    .admin-slot-card.cleaning:hover {
+        background: #fff;
+        border-color: #e2e8f0;
+    }
+    .admin-slot-card.is-expanded {
+        background: #fff;
+        border-color: #cdecf9;
+        box-shadow: 0 4px 12px -4px rgba(26, 166, 224, 0.18), 0 1px 2px rgba(15, 23, 42, 0.04);
+    }
+
+    /* Header slot: riga singola, cliccabile. Niente wrap → si comporta come
+       una "row" compatta tipo Stripe/Linear. */
     .admin-slot-header {
-        gap: 0.4rem;
+        margin: 0;
+        padding: 0;
+        border-bottom: 0;
+        gap: 0.5rem;
+        flex-wrap: nowrap;
+        align-items: center;
+        cursor: pointer;
+        user-select: none;
     }
     .admin-slot-time {
-        font-size: 0.95rem;
+        font-size: 0.92rem;
+        white-space: nowrap;
+        flex-shrink: 0;
     }
     .admin-slot-type {
-        font-size: 0.68rem;
-        padding: 0.18rem 0.55rem;
+        font-size: 0.66rem;
+        padding: 0.15rem 0.5rem;
+        flex-shrink: 0;
     }
     .admin-slot-capacity {
         font-size: 0.72rem;
+        flex: 1 1 auto;
+        min-width: 0;
+        text-align: right;
+        white-space: nowrap;
+        overflow: hidden;
+        text-overflow: ellipsis;
+    }
+    .admin-slot-pips {
+        flex-shrink: 0;
     }
     .admin-slot-pips .pip {
         width: 5px;
         height: 12px;
     }
+    /* Bottone "+" più piccolo e meno invadente */
+    .admin-slot-header .btn-add-extra {
+        width: 1.6rem;
+        height: 1.6rem;
+        font-size: 0.95rem;
+        flex-shrink: 0;
+    }
 
-    /* Participant card: avatar leggermente più piccolo */
+    /* Chevron visibile e ruotato quando espanso */
+    .admin-slot-chev { display: inline-block; }
+    .admin-slot-card.is-expanded .admin-slot-chev {
+        transform: rotate(-135deg) translate(-2px, -2px);
+    }
+
+    /* Body collassato di default: contiene la lista partecipanti.
+       L'extra-picker e l'extras-bar restano fuori (sempre visibili). */
+    .admin-slot-body {
+        display: none;
+        padding-top: 0.7rem;
+        margin-top: 0.7rem;
+        border-top: 1px solid #f1f5f9;
+    }
+    .admin-slot-card.is-expanded .admin-slot-body {
+        display: block;
+    }
+
+    /* Participant card: layout compatto su mobile */
+    .admin-participants-grid {
+        grid-template-columns: 1fr;
+        gap: 0.5rem;
+        margin-top: 0;
+    }
+    .admin-participant-card {
+        padding: 0.6rem 0.75rem;
+        border-radius: 10px;
+    }
     .participant-avatar {
         width: 34px;
         height: 34px;

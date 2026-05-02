@@ -710,9 +710,10 @@ function createAdminSlotCard(dateInfo, scheduledSlot) {
             ${sharedBadgeHTML}
             ${capStr ? `<div class="admin-slot-capacity">${capStr}</div>` : ''}
             ${capPipsHTML}
-            <button class="btn-add-extra" onclick="toggleExtraPicker('${dE}','${tE}')" title="Aggiungi posto extra">＋</button>
+            <button class="btn-add-extra" onclick="event.stopPropagation(); _ensureSlotExpanded(this); toggleExtraPicker('${dE}','${tE}')" title="Aggiungi posto extra">＋</button>
+            <span class="admin-slot-chev" aria-hidden="true"></span>
         </div>
-        <div id="${pickerId}" class="extra-picker" style="display:none;">
+        <div id="${pickerId}" class="extra-picker" style="display:none;" onclick="event.stopPropagation()">
             <button class="extra-picker-btn personal-training" onclick="addExtraSpotToSlot('${dE}','${tE}','personal-training')">Autonomia</button>
             <button class="extra-picker-btn small-group" onclick="addExtraSpotToSlot('${dE}','${tE}','small-group')">Lezione di Gruppo</button>
             ${slotPrenBtnHTML}
@@ -761,8 +762,43 @@ function createAdminSlotCard(dateInfo, scheduledSlot) {
         participantsHTML = `<div class="admin-slot-split">${leftCol}${rightCols}</div>`;
     }
 
-    slotCard.innerHTML = headerHTML + extrasBarHTML + participantsHTML;
+    slotCard.innerHTML = headerHTML + extrasBarHTML + `<div class="admin-slot-body">${participantsHTML}</div>`;
+
+    // Stato collapse/expand: ripristina dallo stato globale (sopravvive ai re-render)
+    const slotKey = `${date}|${timeSlot}`;
+    if (_expandedAdminSlots.has(slotKey)) slotCard.classList.add('is-expanded');
+
+    // Toggle on header click — escludi click su bottoni e pickers
+    const headerEl = slotCard.querySelector('.admin-slot-header');
+    if (headerEl) {
+        headerEl.addEventListener('click', (e) => {
+            if (e.target.closest('button, .extra-picker, input, select, textarea, a')) return;
+            const expanded = slotCard.classList.toggle('is-expanded');
+            if (expanded) _expandedAdminSlots.add(slotKey);
+            else _expandedAdminSlots.delete(slotKey);
+        });
+    }
     return slotCard;
+}
+
+// Stato globale degli slot espansi (chiave: "YYYY-MM-DD|HH:MM - HH:MM").
+// Sopravvive ai re-render di renderAdminDayView.
+const _expandedAdminSlots = (window._expandedAdminSlots = window._expandedAdminSlots || new Set());
+
+// Helper: forza l'espansione dello slot che contiene l'elemento dato.
+// Usato dal "+" per mostrare il picker insieme alla lista partecipanti
+// quando si aggiunge un posto extra.
+function _ensureSlotExpanded(el) {
+    const card = el?.closest?.('.admin-slot-card');
+    if (!card) return;
+    card.classList.add('is-expanded');
+    // Persisti lo stato cosi' resta espanso anche dopo i re-render.
+    const headerTime = card.querySelector('.admin-slot-time')?.textContent
+        ?.replace('🕐', '').trim();
+    const dateInfo = window._currentAdminDate;
+    if (headerTime && dateInfo?.formatted) {
+        _expandedAdminSlots.add(`${dateInfo.formatted}|${headerTime}`);
+    }
 }
 
 
