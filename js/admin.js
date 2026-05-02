@@ -113,6 +113,9 @@ function showDashboard() {
     if (savedTab && document.getElementById(`tab-${savedTab}`)) {
         switchTab(savedTab);
     }
+    // Anti-flash: rimuove il marker setato dall'inline script in <head>,
+    // così le regole CSS non interferiscono con i cambi tab successivi.
+    document.documentElement.removeAttribute('data-initial-tab');
 }
 
 // Tab Management

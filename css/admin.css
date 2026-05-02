@@ -245,6 +245,39 @@
     display: block;
 }
 
+/* Anti-flash al refresh: lo script inline in admin.html setta
+   data-initial-tab su <html> dal sessionStorage. Queste regole nascondono
+   il tab di default (Prenotazioni) e mostrano subito il tab salvato prima
+   che admin.js parta. admin.js rimuove l'attributo dopo il primo switchTab(). */
+html[data-initial-tab] #tab-bookings.active { display: none; }
+html[data-initial-tab="payments"]  #tab-payments,
+html[data-initial-tab="analytics"] #tab-analytics,
+html[data-initial-tab="schede"]    #tab-schede,
+html[data-initial-tab="registro"]  #tab-registro,
+html[data-initial-tab="clients"]   #tab-clients,
+html[data-initial-tab="schedule"]  #tab-schedule,
+html[data-initial-tab="importa"]   #tab-importa,
+html[data-initial-tab="messaggi"]  #tab-messaggi,
+html[data-initial-tab="settings"]  #tab-settings { display: block; }
+html[data-initial-tab] .admin-tab[data-tab="bookings"].active {
+    color: #64748b;
+    background: transparent;
+    box-shadow: none;
+}
+html[data-initial-tab="payments"]  .admin-tab[data-tab="payments"],
+html[data-initial-tab="analytics"] .admin-tab[data-tab="analytics"],
+html[data-initial-tab="schede"]    .admin-tab[data-tab="schede"],
+html[data-initial-tab="registro"]  .admin-tab[data-tab="registro"],
+html[data-initial-tab="clients"]   .admin-tab[data-tab="clients"],
+html[data-initial-tab="schedule"]  .admin-tab[data-tab="schedule"],
+html[data-initial-tab="importa"]   .admin-tab[data-tab="importa"],
+html[data-initial-tab="messaggi"]  .admin-tab[data-tab="messaggi"],
+html[data-initial-tab="settings"]  .admin-tab[data-tab="settings"] {
+    color: #fff;
+    background: linear-gradient(135deg, #00AEEF, #0090cc);
+    box-shadow: 0 2px 8px rgba(0,174,239,0.3);
+}
+
 @keyframes fadeIn {
     from {
         opacity: 0;
