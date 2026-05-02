@@ -1467,6 +1467,9 @@ class BookingStorage {
                 _s(CertBookingStorage.KEY_NOT_SET, 'cert_block_not_set');
                 _s(AssicBookingStorage.KEY_EXPIRED,'assic_block_expired');
                 _s(AssicBookingStorage.KEY_NOT_SET,'assic_block_not_set');
+                _s(BookingBadgesStorage.KEY_CERT,  'show_cert_badge');
+                _s(BookingBadgesStorage.KEY_ASSIC, 'show_assic_badge');
+                _s(BookingBadgesStorage.KEY_DOC,   'show_doc_badge');
                 _s(WeekTemplateStorage.KEY,        'week_templates');
                 _s(WeekTemplateStorage.ACTIVE_KEY, 'active_week_template');
                 _s(RechargeBonusStorage.KEY_ENABLED,   'recharge_bonus_enabled');
@@ -2329,6 +2332,21 @@ class AssicBookingStorage {
     static getBlockIfNotSet()  { return localStorage.getItem(this.KEY_NOT_SET)  === 'true'; }
     static setBlockIfExpired(val) { _lsSet(this.KEY_EXPIRED, val ? 'true' : 'false'); _upsertSetting(this.KEY_EXPIRED, val ? 'true' : 'false'); }
     static setBlockIfNotSet(val)  { _lsSet(this.KEY_NOT_SET,  val ? 'true' : 'false'); _upsertSetting(this.KEY_NOT_SET,  val ? 'true' : 'false'); }
+}
+
+// Visibility toggles for participant-card badges in admin Prenotazioni tab.
+// Default true preserves prior behavior on first load.
+class BookingBadgesStorage {
+    static KEY_CERT  = 'gym_show_cert_badge';
+    static KEY_ASSIC = 'gym_show_assic_badge';
+    static KEY_DOC   = 'gym_show_doc_badge';
+    static _get(key) { const v = localStorage.getItem(key); return v === null ? true : v === 'true'; }
+    static getShowCert()  { return this._get(this.KEY_CERT); }
+    static getShowAssic() { return this._get(this.KEY_ASSIC); }
+    static getShowDoc()   { return this._get(this.KEY_DOC); }
+    static setShowCert(val)  { _lsSet(this.KEY_CERT,  val ? 'true' : 'false'); _upsertSetting(this.KEY_CERT,  val ? 'true' : 'false'); }
+    static setShowAssic(val) { _lsSet(this.KEY_ASSIC, val ? 'true' : 'false'); _upsertSetting(this.KEY_ASSIC, val ? 'true' : 'false'); }
+    static setShowDoc(val)   { _lsSet(this.KEY_DOC,   val ? 'true' : 'false'); _upsertSetting(this.KEY_DOC,   val ? 'true' : 'false'); }
 }
 
 // Week template storage — 3 named standard week templates, one active

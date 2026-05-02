@@ -482,15 +482,17 @@ function _buildParticipantCard(booking) {
 
     // Cert medico
     let certBadge = '';
-    const certMissing = !certScad;
-    if (certMissing) {
-        certBadge = `<div class="cert-expired-badge cert-expired-badge--clickable" onclick="openCertModal(this,'${emE}','${waE}','${nmE2}')">🏥 Imposta Cert. Med</div>`;
-    } else if (certScad < _todayStr) {
-        const [cy, cm, cd] = certScad.split('-');
-        certBadge = `<div class="cert-expired-badge cert-expired-badge--clickable" onclick="openCertModal(this,'${emE}','${waE}','${nmE2}')">🏥 Cert. scaduto il ${cd}/${cm}/${cy}</div>`;
-    } else if (certScad <= _today30Str) {
-        const [cy, cm, cd] = certScad.split('-');
-        certBadge = `<div class="cert-expired-badge cert-expired-badge--clickable" style="background:#fffbeb;border-color:#fde68a;color:#92400e;border-left:3px solid #f59e0b" onclick="openCertModal(this,'${emE}','${waE}','${nmE2}')">⏳ Cert. Med scade il ${cd}/${cm}/${cy}</div>`;
+    if (BookingBadgesStorage.getShowCert()) {
+        const certMissing = !certScad;
+        if (certMissing) {
+            certBadge = `<div class="cert-expired-badge cert-expired-badge--clickable" onclick="openCertModal(this,'${emE}','${waE}','${nmE2}')">🏥 Imposta Cert. Med</div>`;
+        } else if (certScad < _todayStr) {
+            const [cy, cm, cd] = certScad.split('-');
+            certBadge = `<div class="cert-expired-badge cert-expired-badge--clickable" onclick="openCertModal(this,'${emE}','${waE}','${nmE2}')">🏥 Cert. scaduto il ${cd}/${cm}/${cy}</div>`;
+        } else if (certScad <= _today30Str) {
+            const [cy, cm, cd] = certScad.split('-');
+            certBadge = `<div class="cert-expired-badge cert-expired-badge--clickable" style="background:#fffbeb;border-color:#fde68a;color:#92400e;border-left:3px solid #f59e0b" onclick="openCertModal(this,'${emE}','${waE}','${nmE2}')">⏳ Cert. Med scade il ${cd}/${cm}/${cy}</div>`;
+        }
     }
 
     // Anagrafica incompleta (CF, indirizzo)
@@ -502,19 +504,21 @@ function _buildParticipantCard(booking) {
 
     // Documento firmato
     let docBadge = '';
-    if (!userRecord?.documentoFirmato) {
+    if (BookingBadgesStorage.getShowDoc() && !userRecord?.documentoFirmato) {
         docBadge = `<div class="cert-expired-badge cert-expired-badge--clickable" onclick="openEditClientPopup(0,'${waE}','${emE}','${nmE2}')">📝 Documento non firmato</div>`;
     }
 
     let assicBadge = '';
-    if (!assicScad) {
-        assicBadge = `<div class="cert-expired-badge cert-expired-badge--clickable" style="background:#fef3c7;border-color:#fde68a;color:#92400e;border-left:3px solid #f59e0b" onclick="openAssicModal(this,'${emE}','${waE}','${nmE2}')">📋 Imposta Assicurazione</div>`;
-    } else if (assicScad < _todayStr) {
-        const [ay, am, ad] = assicScad.split('-');
-        assicBadge = `<div class="cert-expired-badge cert-expired-badge--clickable" onclick="openAssicModal(this,'${emE}','${waE}','${nmE2}')">📋 Assic. scaduta il ${ad}/${am}/${ay}</div>`;
-    } else if (assicScad <= _today30Str) {
-        const [ay, am, ad] = assicScad.split('-');
-        assicBadge = `<div class="cert-expired-badge cert-expired-badge--clickable" style="background:#fffbeb;border-color:#fde68a;color:#92400e;border-left:3px solid #f59e0b" onclick="openAssicModal(this,'${emE}','${waE}','${nmE2}')">⏳ Assic. scade il ${ad}/${am}/${ay}</div>`;
+    if (BookingBadgesStorage.getShowAssic()) {
+        if (!assicScad) {
+            assicBadge = `<div class="cert-expired-badge cert-expired-badge--clickable" style="background:#fef3c7;border-color:#fde68a;color:#92400e;border-left:3px solid #f59e0b" onclick="openAssicModal(this,'${emE}','${waE}','${nmE2}')">📋 Imposta Assicurazione</div>`;
+        } else if (assicScad < _todayStr) {
+            const [ay, am, ad] = assicScad.split('-');
+            assicBadge = `<div class="cert-expired-badge cert-expired-badge--clickable" onclick="openAssicModal(this,'${emE}','${waE}','${nmE2}')">📋 Assic. scaduta il ${ad}/${am}/${ay}</div>`;
+        } else if (assicScad <= _today30Str) {
+            const [ay, am, ad] = assicScad.split('-');
+            assicBadge = `<div class="cert-expired-badge cert-expired-badge--clickable" style="background:#fffbeb;border-color:#fde68a;color:#92400e;border-left:3px solid #f59e0b" onclick="openAssicModal(this,'${emE}','${waE}','${nmE2}')">⏳ Assic. scade il ${ad}/${am}/${ay}</div>`;
+        }
     }
     const wa  = booking.whatsapp.replace(/'/g, "\\'");
     const em  = booking.email.replace(/'/g, "\\'");

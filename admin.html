@@ -410,6 +410,52 @@
                         </div>
                     </div>
 
+                    <!-- Visualizza bottoni partecipante -->
+                    <div class="sett-card">
+                        <div class="sett-card-header sett-card-header--top">
+                            <span class="sett-card-icon sett-card-icon--cyan">👁️</span>
+                            <div>
+                                <h4 class="sett-card-title">Visualizza bottoni</h4>
+                                <p class="sett-card-desc">Mostra o nascondi i badge sulle card partecipante in tab Prenotazioni. Disattivando un toggle vengono nascoste tutte le varianti del badge (incluse "scaduto il…" e "scade il…").</p>
+                            </div>
+                        </div>
+                        <div class="sett-toggle-list">
+                            <div class="sett-toggle-row">
+                                <div class="sett-toggle-text">
+                                    <strong>🏥 Certificato medico</strong>
+                                    <span>Mostra i badge "Imposta Cert. Med", "Cert. scaduto il…" e "Cert. scade il…".</span>
+                                </div>
+                                <label class="settings-toggle-wrap">
+                                    <input type="checkbox" id="showCertBadgeToggle" onchange="saveShowCertBadge(this.checked)">
+                                    <span class="settings-toggle-track"><span class="settings-toggle-thumb"></span></span>
+                                    <span class="settings-toggle-text" id="showCertBadgeText"></span>
+                                </label>
+                            </div>
+                            <div class="sett-toggle-row">
+                                <div class="sett-toggle-text">
+                                    <strong>📋 Assicurazione</strong>
+                                    <span>Mostra i badge "Imposta Assicurazione", "Assic. scaduta il…" e "Assic. scade il…".</span>
+                                </div>
+                                <label class="settings-toggle-wrap">
+                                    <input type="checkbox" id="showAssicBadgeToggle" onchange="saveShowAssicBadge(this.checked)">
+                                    <span class="settings-toggle-track"><span class="settings-toggle-thumb"></span></span>
+                                    <span class="settings-toggle-text" id="showAssicBadgeText"></span>
+                                </label>
+                            </div>
+                            <div class="sett-toggle-row">
+                                <div class="sett-toggle-text">
+                                    <strong>📝 Documento non firmato</strong>
+                                    <span>Mostra il badge "Documento non firmato" finché il cliente non firma.</span>
+                                </div>
+                                <label class="settings-toggle-wrap">
+                                    <input type="checkbox" id="showDocBadgeToggle" onchange="saveShowDocBadge(this.checked)">
+                                    <span class="settings-toggle-track"><span class="settings-toggle-thumb"></span></span>
+                                    <span class="settings-toggle-text" id="showDocBadgeText"></span>
+                                </label>
+                            </div>
+                        </div>
+                    </div>
+
                     <!-- Bonus ricarica credito -->
                     <div class="sett-card">
                         <div class="sett-card-header">
