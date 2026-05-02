@@ -238,7 +238,7 @@ function openClientBookingPicker(date, time, pickerId) {
                 <button onclick="toggleExtraPicker('${date}','${time}')"
                     style="background:#f1f5f9;border:none;color:#475569;cursor:pointer;font-size:18px;padding:6px 10px;border-radius:8px;line-height:1">✕</button>
             </div>
-            <div id="clientSearchResults" style="display:flex;flex-direction:column;gap:6px;max-height:240px;overflow-y:auto"></div>
+            <div id="clientSearchResults" style="display:flex;flex-direction:column;gap:6px;height:240px;max-height:240px;overflow-y:auto"></div>
             <div id="clientBookingConfirm" style="display:none"></div>
         </div>
     `;
