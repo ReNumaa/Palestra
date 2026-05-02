@@ -482,7 +482,6 @@ function createClientCard(client, index) {
         return `<${tag}${tagAttr} class="cedit-cert-badge cedit-cert-ok${clickCls}"${oc}>${okPrefix} ${label}</${tag}>`;
     };
     const bonus = BonusStorage.getBonus(client.whatsapp, client.email, client.userId);
-    const bonusDisplay = `<span class="cedit-cert-badge ${bonus > 0 ? 'cedit-cert-ok' : 'cedit-cert-expiring'}">🎟️ Bonus ${bonus}/1</span>`;
     const certDisplay  = BookingBadgesStorage.getShowCert()
         ? _mkBadge(certScad, '🏥 Imposta scadenza certificato medico', '🏥 Cert. scaduto il', '⏳ Cert. scade il', '✅ Cert. valido fino al',
             `openCertModal(this,'${_emEscBadge}','${_wEscBadge}','${_nEscBadge}')`)
@@ -716,7 +715,7 @@ function createClientCard(client, index) {
                     ${client.email ? `<a class="cv2-contact-link" href="mailto:${_escHtml(client.email)}" onclick="event.stopPropagation()">✉️ ${_escHtml(client.email)}</a>` : ''}
                 </div>
                 <div class="cv2-badges-row">
-                    ${certDisplay}${assicDisplay}${anagDisplay}${bonusDisplay}${docDisplay}
+                    ${certDisplay}${assicDisplay}${anagDisplay}${docDisplay}
                 </div>
             </div>
             <div class="client-chevron">▼</div>
