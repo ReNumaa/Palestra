@@ -681,12 +681,16 @@ function createAdminSlotCard(dateInfo, scheduledSlot) {
     const hasMixedExtras = extraTypes.length > 0;
 
     // ── Header ──────────────────────────────────────────────────────────────
-    // capStr (testo "X/Y posti"): solo per personal-training e small-group.
-    // showPips (barre colorate): tutti i tipi tranne 'cleaning' → include "Slot prenotato".
-    const showCapStr = mainType !== 'group-class' && mainType !== 'cleaning';
-    const showPips   = mainType !== 'cleaning';
-    const capStr = showCapStr
-        ? `${mainConfirmed}/${mainEffCap} posti`
+    // capStr (testo "X/Y posti") e showPips (barre colorate): tutti i tipi
+    // tranne 'cleaning'. Group-class ha base capacity=0 → quando vuoto lo
+    // mostriamo come "0/1 posto" (1-on-1 di default).
+    const showPips = mainType !== 'cleaning';
+    const displayCap = (mainType === 'group-class' && mainEffCap === 0)
+        ? 1
+        : mainEffCap;
+    const slotsLabel = displayCap === 1 ? 'posto' : 'posti';
+    const capStr = (mainType !== 'cleaning' && displayCap > 0)
+        ? `${mainConfirmed}/${displayCap} ${slotsLabel}`
         : '';
 
     // Pips: prima quelli del tipo principale (colore del tipo), poi quelli
