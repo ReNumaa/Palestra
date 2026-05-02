@@ -657,14 +657,15 @@ function createClientCard(client, index) {
     const phoneRaw = (client.whatsapp || '').replace(/^\+39\s*/, '');
     const phoneTel = (client.whatsapp || '').replace(/\s+/g, '');
 
-    // 4 celle stat — sempre visibili (anche se 0), saldo cambia colore
+    // 3 celle stat: Prenot. Future / Bonus / Saldo
+    const futureBookingsCount = activeBookings.filter(b => !bookingHasPassed(b)).length;
     const saldoCls = netBalance > 0 ? 'green' : (netBalance < 0 ? 'red' : '');
     const saldoSign = netBalance > 0 ? '+' : (netBalance < 0 ? '-' : '');
     const saldoVal = `${saldoSign}€${Math.abs(netBalance)}`;
+    const bonusCls = bonus > 0 ? '' : 'red';
     const statsGridHTML = `
-        <div class="cv2-stat"><div class="v">${totalBookings}</div><div class="l">Prenot.</div></div>
-        <div class="cv2-stat ${totalAllPaid > 0 ? 'green' : ''}"><div class="v">€${totalAllPaid}</div><div class="l">Pagato</div></div>
-        <div class="cv2-stat ${totalFree > 0 ? 'pink' : ''}"><div class="v">€${totalFree}</div><div class="l">Regalate</div></div>
+        <div class="cv2-stat blue"><div class="v">${futureBookingsCount}</div><div class="l">Prenot. Future</div></div>
+        <div class="cv2-stat ${bonusCls}"><div class="v">${bonus}</div><div class="l">Bonus</div></div>
         <div class="cv2-stat ${saldoCls}"><div class="v">${saldoVal}</div><div class="l">Saldo</div></div>
     `;
 
