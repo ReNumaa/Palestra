@@ -359,7 +359,7 @@
 
 /* Tab page title (Statistiche, Pagamenti) */
 .tab-page-title {
-    margin: 0 0 1rem;
+    margin: 1.25rem 0 1.5rem;
     line-height: 1.1;
 }
 .tab-page-title h2 {
@@ -4131,7 +4131,7 @@ canvas {
        - Pagina 1: griglia 2×2 con Fatturato/Prenotazioni/Clienti/Occupazione
        - Pagina 2: solo Check Fisici (card a tutta larghezza)
        Snap completo (scroll-snap-stop: always) → uno swipe = una pagina intera. */
-    .tab-page-title { margin: 0 0 0.6rem; }
+    .tab-page-title { margin: 0.85rem 0 1rem; }
     .tab-page-title h2 { font-size: 1.35rem; }
     .tab-page-title span { font-size: 0.72rem; }
 
