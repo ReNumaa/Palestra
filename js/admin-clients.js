@@ -632,6 +632,22 @@ function createClientCard(client, index) {
     const emEsc = (client.email || '').replace(/'/g, "\\'");
     const nEsc  = client.name.replace(/'/g, "\\'");
 
+    // Avatar iniziali (max 2 lettere)
+    const initials = (client.name || '?').trim().split(/\s+/).map(w => w[0] || '').join('').toUpperCase().slice(0, 2);
+    const phoneRaw = (client.whatsapp || '').replace(/^\+39\s*/, '');
+    const phoneTel = (client.whatsapp || '').replace(/\s+/g, '');
+
+    // 4 celle stat — sempre visibili (anche se 0), saldo cambia colore
+    const saldoCls = netBalance > 0 ? 'green' : (netBalance < 0 ? 'red' : '');
+    const saldoSign = netBalance > 0 ? '+' : (netBalance < 0 ? '-' : '');
+    const saldoVal = `${saldoSign}€${Math.abs(netBalance)}`;
+    const statsGridHTML = `
+        <div class="cv2-stat"><div class="v">${totalBookings}</div><div class="l">Prenot.</div></div>
+        <div class="cv2-stat ${totalAllPaid > 0 ? 'green' : ''}"><div class="v">€${totalAllPaid}</div><div class="l">Pagato</div></div>
+        <div class="cv2-stat ${totalFree > 0 ? 'pink' : ''}"><div class="v">€${totalFree}</div><div class="l">Regalate</div></div>
+        <div class="cv2-stat ${saldoCls}"><div class="v">${saldoVal}</div><div class="l">Saldo</div></div>
+    `;
+
     let creditHTML = '';
     if (txEntries.length > 0) {
         const txTotal = txEntries.length;
@@ -671,17 +687,20 @@ function createClientCard(client, index) {
 
     card.innerHTML = `
         <div class="client-card-header" onclick="toggleClientCard('client-card-${index}', ${index})">
+            <div class="cv2-avatar" aria-hidden="true">${initials || '?'}</div>
             <div class="client-info-block">
                 <div class="client-name">${_escHtml(client.name)} <button class="btn-edit-contact-icon" onclick="event.stopPropagation(); openEditClientPopup(${index}, '${wEsc}', '${emEsc}', '${nEsc}')" title="Modifica contatto">✏️</button></div>
                 <div class="client-contacts">
-                    <span>📱 ${_escHtml((client.whatsapp || '').replace(/^\+39\s*/, ''))}</span>
-                    ${client.email ? `<span>✉️ ${_escHtml(client.email)}</span>` : ''}
+                    ${phoneRaw ? `<a class="cv2-contact-link" href="tel:${_escHtml(phoneTel)}" onclick="event.stopPropagation()">📱 ${_escHtml(phoneRaw)}</a>` : ''}
+                    ${client.email ? `<a class="cv2-contact-link" href="mailto:${_escHtml(client.email)}" onclick="event.stopPropagation()">✉️ ${_escHtml(client.email)}</a>` : ''}
+                </div>
+                <div class="cv2-badges-row">
                     ${certDisplay}${assicDisplay}${bonusDisplay}${docDisplay}
                 </div>
             </div>
-            <div class="client-stats-block">${statsHTML}</div>
             <div class="client-chevron">▼</div>
         </div>
+        <div class="client-stats-block cv2-stats-grid" onclick="toggleClientCard('client-card-${index}', ${index})">${statsGridHTML}</div>
         <div class="client-card-body">
             <div class="client-bookings-section">
                 <table class="client-bookings-table">
