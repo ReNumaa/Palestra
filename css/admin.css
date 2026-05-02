@@ -9655,31 +9655,64 @@ canvas {
     .participant-row { gap: 0.55rem; }
 }
 
-/* "+ Aggiungi posto" — pill-button dentro al body dello slot.
-   Override del .btn-add-extra esistente che era un cerchio 2x2rem. */
+/* "+ Aggiungi posto" → bottoncino "+" tondo a destra dentro al body dello slot. */
 .admin-slot-add-row {
     display: flex;
-    justify-content: flex-start;
-    margin: 0 0 0.6rem;
+    justify-content: flex-end;
+    margin: 0 0 0.55rem;
 }
 .admin-slot-add-row .btn-add-extra {
-    width: auto;
-    height: auto;
-    padding: 0.4rem 0.85rem 0.4rem 0.7rem;
-    border-radius: 999px;
-    font-size: 0.78rem;
+    width: 2rem;
+    height: 2rem;
+    padding: 0;
+    border-radius: 50%;
+    font-size: 1.1rem;
     font-weight: 700;
     background: rgba(0, 174, 239, 0.1);
     border: 0;
     color: var(--primary-cyan);
     display: inline-flex;
     align-items: center;
-    gap: 0.3rem;
+    justify-content: center;
     line-height: 1;
+    cursor: pointer;
+    transition: background 0.15s, color 0.15s, transform 0.1s;
 }
 .admin-slot-add-row .btn-add-extra:hover {
     background: var(--primary-cyan);
     color: #fff;
+}
+.admin-slot-add-row .btn-add-extra:active { transform: scale(0.94); }
+
+/* ── Day-selector: 3 settimane in scroll-snap orizzontale (swipe per cambiare settimana) ── */
+.admin-day-selector {
+    flex-wrap: nowrap;
+    overflow-x: auto;
+    overflow-y: hidden;
+    scroll-snap-type: x mandatory;
+    -webkit-overflow-scrolling: touch;
+    scrollbar-width: none;
+    /* Lo scroll-snap funziona meglio se non c'e' justify-content sui figli */
+    justify-content: flex-start;
+    /* Le pagine settimana sono full-width: niente padding interno
+       cosi' le card si distribuiscono uniformemente su tutta la larghezza */
+    padding: 0;
+}
+.admin-day-selector::-webkit-scrollbar { display: none; }
+
+.admin-week-page {
+    flex: 0 0 100%;
+    min-width: 100%;
+    width: 100%;
+    display: flex;
+    gap: 4px;
+    padding: 4px;
+    scroll-snap-align: start;
+    scroll-snap-stop: always;
+}
+.admin-week-page .admin-day-card {
+    flex: 1 0 0;
+    min-width: 0;
 }
 /* Picker che droppa sotto al bottone */
 .admin-slot-body .extra-picker {

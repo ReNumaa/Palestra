@@ -101,46 +101,88 @@ function _adminDayCapacity(dateInfo) {
     } catch { return 0; }
 }
 
-function renderAdminDaySelector(weekDates) {
+function renderAdminDaySelector(_weekDates) {
     const selector = document.getElementById('adminDaySelector');
     selector.innerHTML = '';
     const todayFormatted = formatAdminDate(new Date());
 
-    weekDates.forEach(dateInfo => {
-        const bookings = BookingStorage.getAllBookings();
-        const dayBookings = bookings.filter(b => b.date === dateInfo.formatted && b.status !== 'cancelled' && !b.id?.startsWith('_avail_'));
-        const dayBookingsCount = dayBookings.length;
-        const dayCapacity = _adminDayCapacity(dateInfo);
-        const fillPct = dayCapacity > 0 ? Math.min(100, Math.round(dayBookingsCount * 100 / dayCapacity)) : 0;
+    // Render 3 settimane: prev / current / next centrate sull'offset attuale.
+    // Lo scroll-snap orizzontale permette swipe destra/sinistra per cambiare
+    // settimana; quando lo snap atterra su una pagina esterna aggiorniamo
+    // adminWeekOffset e ri-renderiamo (la nuova settimana torna al centro).
+    [-1, 0, 1].forEach(off => {
+        const weekDates = getAdminWeekDates(adminWeekOffset + off);
+        const pageEl = document.createElement('div');
+        pageEl.className = 'admin-week-page';
+        pageEl.dataset.relOffset = String(off);
 
-        const dayCard = document.createElement('div');
-        dayCard.className = 'admin-day-card';
+        weekDates.forEach(dateInfo => {
+            const bookings = BookingStorage.getAllBookings();
+            const dayBookings = bookings.filter(b => b.date === dateInfo.formatted && b.status !== 'cancelled' && !b.id?.startsWith('_avail_'));
+            const dayBookingsCount = dayBookings.length;
+            const dayCapacity = _adminDayCapacity(dateInfo);
+            const fillPct = dayCapacity > 0 ? Math.min(100, Math.round(dayBookingsCount * 100 / dayCapacity)) : 0;
 
-        if (dateInfo.formatted === todayFormatted) {
-            dayCard.classList.add('is-today');
-        }
+            const dayCard = document.createElement('div');
+            dayCard.className = 'admin-day-card';
 
-        if (selectedAdminDay && selectedAdminDay.formatted === dateInfo.formatted) {
-            dayCard.classList.add('active');
-        }
+            if (dateInfo.formatted === todayFormatted) {
+                dayCard.classList.add('is-today');
+            }
+            if (selectedAdminDay && selectedAdminDay.formatted === dateInfo.formatted) {
+                dayCard.classList.add('active');
+            }
 
-        const shortName = dateInfo.dayName.slice(0, 3);
-        dayCard.innerHTML = `
-            <div class="admin-day-name"><span class="day-full">${dateInfo.dayName}</span><span class="day-short">${shortName}</span></div>
-            <div class="admin-day-date">${dateInfo.date.getDate()}</div>
-            <div class="admin-day-count">${dayBookingsCount} pren.</div>
-            <div class="admin-day-occ" aria-hidden="true"><div class="admin-day-occ-fill" style="width:${fillPct}%"></div></div>
-        `;
+            const shortName = dateInfo.dayName.slice(0, 3);
+            dayCard.innerHTML = `
+                <div class="admin-day-name"><span class="day-full">${dateInfo.dayName}</span><span class="day-short">${shortName}</span></div>
+                <div class="admin-day-date">${dateInfo.date.getDate()}</div>
+                <div class="admin-day-count">${dayBookingsCount} pren.</div>
+                <div class="admin-day-occ" aria-hidden="true"><div class="admin-day-occ-fill" style="width:${fillPct}%"></div></div>
+            `;
 
-        dayCard.addEventListener('click', () => {
-            selectedAdminDay = dateInfo;
-            document.querySelectorAll('.admin-day-card').forEach(card => card.classList.remove('active'));
-            dayCard.classList.add('active');
-            renderAdminDayView(dateInfo);
+            dayCard.addEventListener('click', () => {
+                selectedAdminDay = dateInfo;
+                document.querySelectorAll('.admin-day-card').forEach(card => card.classList.remove('active'));
+                dayCard.classList.add('active');
+                renderAdminDayView(dateInfo);
+            });
+
+            pageEl.appendChild(dayCard);
         });
 
-        selector.appendChild(dayCard);
+        selector.appendChild(pageEl);
     });
+
+    // Centra la pagina corrente (middle) e attacca handler swipe una sola volta.
+    requestAnimationFrame(() => {
+        const w = selector.clientWidth;
+        if (w > 0) {
+            // Disabilita lo smooth scroll su questo reset programmatico
+            const prev = selector.style.scrollBehavior;
+            selector.style.scrollBehavior = 'auto';
+            selector.scrollLeft = w;
+            selector.style.scrollBehavior = prev || '';
+        }
+    });
+
+    if (!selector._swipeHandlerAttached) {
+        selector._swipeHandlerAttached = true;
+        let scrollTimer = null;
+        selector.addEventListener('scroll', () => {
+            clearTimeout(scrollTimer);
+            scrollTimer = setTimeout(() => {
+                const pageWidth = selector.clientWidth;
+                if (!pageWidth) return;
+                const idx = Math.round(selector.scrollLeft / pageWidth);
+                if (idx === 1) return; // gia' centrato
+                const delta = idx - 1; // -1 prev, +1 next
+                adminWeekOffset += delta;
+                if (adminWeekOffset === 0) selectedAdminDay = null;
+                renderAdminCalendar();
+            }, 180);
+        });
+    }
 }
 
 // ── Extra spot management ──────────────────────────────────────────────────
@@ -759,7 +801,7 @@ function createAdminSlotCard(dateInfo, scheduledSlot) {
     // bottone non chiude il modal.
     const addControlsHTML = `
         <div class="admin-slot-add-row">
-            <button class="btn-add-extra" onclick="event.stopPropagation(); toggleExtraPicker('${dE}','${tE}')" title="Aggiungi posto extra">＋ Aggiungi posto</button>
+            <button class="btn-add-extra" onclick="event.stopPropagation(); toggleExtraPicker('${dE}','${tE}')" title="Aggiungi posto extra" aria-label="Aggiungi posto">＋</button>
         </div>
         <div id="${pickerId}" class="extra-picker" style="display:none;" onclick="toggleExtraPicker('${dE}','${tE}')">
             <div class="extra-picker-content" onclick="event.stopPropagation()">
