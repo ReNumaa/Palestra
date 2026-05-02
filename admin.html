@@ -13,7 +13,7 @@
     <link rel="icon" type="image/jpeg" href="images/logo-tb---nero.jpg">
     <link rel="stylesheet" href="css/style.css?v=8">
     <link rel="stylesheet" href="css/login.css?v=5">
-    <link rel="stylesheet" href="css/admin.css?v=87">
+    <link rel="stylesheet" href="css/admin.css?v=88">
     <script>
         // Anti-flash al refresh: legge il tab attivo dal sessionStorage e lo
         // espone come data-initial-tab su <html> prima che il body venga
@@ -176,6 +176,12 @@
 
             <!-- Tab: Clients -->
             <div id="tab-clients" class="tab-content">
+
+                <div class="tab-page-title">
+                    <h2>Clienti</h2>
+                    <span id="clientsPageSub">&nbsp;</span>
+                </div>
+
                 <div class="dashboard-card">
                     <div class="clients-search-bar" style="position:relative;">
                         <div class="clients-search-row">
@@ -212,16 +218,16 @@
                         </div>
                     </div>
                     <div class="clients-filter-result" id="clientsFilterResult" style="display:none;"></div>
-                    <div class="payments-stats clients-stats-grid" id="clientsStatsGrid">
-                        <div class="payment-stat-card payment-stat-card--clickable payment-stat-card--clients" onclick="toggleClientsTotalList()" title="Clicca per vedere la lista">
+                    <div class="payments-stats clients-stats-grid clients-kpi-grid" id="clientsStatsGrid">
+                        <div class="payment-stat-card payment-stat-card--clickable payment-stat-card--clients clients-kpi clients-kpi--blue" onclick="toggleClientsTotalList()" title="Clicca per vedere la lista">
                             <div class="payment-stat-icon">👥</div>
-                            <h4>Clienti<br>Totali</h4>
+                            <h4>Clienti Totali</h4>
                             <p class="payment-total" id="clientsTotalCount">0</p>
                             <span class="debtors-toggle-hint" id="clientsTotalHint">▼ Mostra lista</span>
                         </div>
-                        <div class="payment-stat-card payment-stat-card--clickable payment-stat-card--clients" onclick="toggleClientsActiveList()" title="Clicca per vedere la lista">
+                        <div class="payment-stat-card payment-stat-card--clickable payment-stat-card--clients clients-kpi clients-kpi--green" onclick="toggleClientsActiveList()" title="Clicca per vedere la lista">
                             <div class="payment-stat-icon">💪</div>
-                            <h4>Clienti<br>Attivi</h4>
+                            <h4>Clienti Attivi</h4>
                             <p class="payment-total" id="clientsActiveCount">0</p>
                             <span class="debtors-toggle-hint" id="clientsActiveHint">▼ Mostra lista</span>
                         </div>
@@ -1294,7 +1300,7 @@
     <script src="js/admin-schedule.js?v=2"></script>
     <script src="js/admin-settings.js?v=3"></script>
     <script src="js/admin-payments.js?v=6"></script>
-    <script src="js/admin-clients.js?v=2"></script>
+    <script src="js/admin-clients.js?v=3"></script>
     <script src="js/admin-registro.js?v=6"></script>
     <script src="js/admin-messaggi.js?v=2"></script>
     <script src="js/admin-schede.js?v=22"></script>

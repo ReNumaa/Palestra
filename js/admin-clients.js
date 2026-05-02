@@ -292,6 +292,8 @@ function renderClientsSummary() {
     const activeClients = getActiveClients();
     document.getElementById('clientsTotalCount').textContent = allClients.length;
     document.getElementById('clientsActiveCount').textContent = activeClients.length;
+    const sub = document.getElementById('clientsPageSub');
+    if (sub) sub.textContent = `${allClients.length} totali · ${activeClients.length} attivi`;
 }
 
 function toggleClientsTotalList() {
