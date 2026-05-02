@@ -177,6 +177,7 @@ function renderBookingBadgesUI() {
         ['showCertBadgeToggle',  'showCertBadgeText',  BookingBadgesStorage.getShowCert()],
         ['showAssicBadgeToggle', 'showAssicBadgeText', BookingBadgesStorage.getShowAssic()],
         ['showDocBadgeToggle',   'showDocBadgeText',   BookingBadgesStorage.getShowDoc()],
+        ['showAnagBadgeToggle',  'showAnagBadgeText',  BookingBadgesStorage.getShowAnag()],
     ];
     for (const [tId, txtId, val] of pairs) {
         const t = document.getElementById(tId);
@@ -194,6 +195,7 @@ function _setBadgeText(id, val) {
 function saveShowCertBadge(val)  { BookingBadgesStorage.setShowCert(val);  _setBadgeText('showCertBadgeText',  val); _refreshAdminCalendarIfVisible(); }
 function saveShowAssicBadge(val) { BookingBadgesStorage.setShowAssic(val); _setBadgeText('showAssicBadgeText', val); _refreshAdminCalendarIfVisible(); }
 function saveShowDocBadge(val)   { BookingBadgesStorage.setShowDoc(val);   _setBadgeText('showDocBadgeText',   val); _refreshAdminCalendarIfVisible(); }
+function saveShowAnagBadge(val)  { BookingBadgesStorage.setShowAnag(val);  _setBadgeText('showAnagBadgeText',  val); _refreshAdminCalendarIfVisible(); }
 
 function _refreshAdminCalendarIfVisible() {
     if (typeof renderAdminDayView === 'function' && window._currentAdminDate) {

@@ -1470,6 +1470,7 @@ class BookingStorage {
                 _s(BookingBadgesStorage.KEY_CERT,  'show_cert_badge');
                 _s(BookingBadgesStorage.KEY_ASSIC, 'show_assic_badge');
                 _s(BookingBadgesStorage.KEY_DOC,   'show_doc_badge');
+                _s(BookingBadgesStorage.KEY_ANAG,  'show_anag_badge');
                 _s(WeekTemplateStorage.KEY,        'week_templates');
                 _s(WeekTemplateStorage.ACTIVE_KEY, 'active_week_template');
                 _s(RechargeBonusStorage.KEY_ENABLED,   'recharge_bonus_enabled');
@@ -2340,13 +2341,16 @@ class BookingBadgesStorage {
     static KEY_CERT  = 'gym_show_cert_badge';
     static KEY_ASSIC = 'gym_show_assic_badge';
     static KEY_DOC   = 'gym_show_doc_badge';
+    static KEY_ANAG  = 'gym_show_anag_badge';
     static _get(key) { const v = localStorage.getItem(key); return v === null ? true : v === 'true'; }
     static getShowCert()  { return this._get(this.KEY_CERT); }
     static getShowAssic() { return this._get(this.KEY_ASSIC); }
     static getShowDoc()   { return this._get(this.KEY_DOC); }
+    static getShowAnag()  { return this._get(this.KEY_ANAG); }
     static setShowCert(val)  { _lsSet(this.KEY_CERT,  val ? 'true' : 'false'); _upsertSetting(this.KEY_CERT,  val ? 'true' : 'false'); }
     static setShowAssic(val) { _lsSet(this.KEY_ASSIC, val ? 'true' : 'false'); _upsertSetting(this.KEY_ASSIC, val ? 'true' : 'false'); }
     static setShowDoc(val)   { _lsSet(this.KEY_DOC,   val ? 'true' : 'false'); _upsertSetting(this.KEY_DOC,   val ? 'true' : 'false'); }
+    static setShowAnag(val)  { _lsSet(this.KEY_ANAG,  val ? 'true' : 'false'); _upsertSetting(this.KEY_ANAG,  val ? 'true' : 'false'); }
 }
 
 // Week template storage — 3 named standard week templates, one active
