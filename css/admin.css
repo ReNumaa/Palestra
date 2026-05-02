@@ -1072,6 +1072,10 @@ canvas {
     font-size: 0.88rem;
 }
 
+@media (max-width: 768px) {
+    .empty-slot { padding: 0.4rem 0.75rem; font-size: 0.82rem; }
+}
+
 /* Payment Status Badge */
 .payment-status {
     display: inline-block;
