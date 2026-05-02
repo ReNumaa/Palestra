@@ -9775,12 +9775,14 @@ canvas {
 }
 .btn-add-extra--inline:active { transform: scale(0.94); }
 
-/* Wrapper swipe-to-reveal: di default si comporta come un blocco normale
-   (desktop). Su mobile diventa un container scrollabile orizzontalmente
-   con la card a sinistra e un action box (con il "+") a destra che
-   compare con uno swipe verso sinistra. */
+/* Wrapper swipe-to-reveal: di default è un blocco normale (display: block
+   implicito) → desktop mostra la card senza modifiche. Su mobile l'@media
+   override lo trasforma in container flex scrollabile orizzontalmente.
+   NB: niente "display: block" qui, altrimenti vincerebbe sul flex mobile
+   per ordine di cascade (stessa specificità).
+   .admin-slot-actions hidden by default → su mobile la regola descendant
+   .admin-slot-card-wrap .admin-slot-actions vince per specificità (0,2,0). */
 .admin-slot-card-wrap {
-    display: block;
     position: relative;
 }
 .admin-slot-actions {
