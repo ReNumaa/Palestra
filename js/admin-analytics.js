@@ -846,18 +846,15 @@ function renderFatturatoDetail(panel) {
     const MONTH_NAMES = ['Gen','Feb','Mar','Apr','Mag','Giu','Lug','Ago','Set','Ott','Nov','Dic'];
     const barLabels = [], barValues = [], barHighlight = [], barProjected = [], barEstimate = [];
 
-    // Current-month projection for dashed extension
+    // Current-month: barra rossa = prenotazioni future confermate (matcha KPI
+    // "Prenotazioni future"). La proiezione sui giorni non programmati e' nella
+    // barra verde (barEstimate), evita di sommare due stime e gonfiare il totale.
     const cmFrom    = new Date(now.getFullYear(), now.getMonth(), 1);
     const cmTo      = new Date(now.getFullYear(), now.getMonth() + 1, 0, 23, 59, 59, 999);
     const cmActual  = allBookings.filter(b => { const d = new Date(b.date + 'T00:00:00'); return d >= cmFrom && d < pastCutoff; }).reduce(revFn, 0)
         + creditInRange(cmFrom, new Date(pastCutoff.getTime() - 1)) + moraInRange(cmFrom, new Date(pastCutoff.getTime() - 1)) + cfInRange(cmFrom, new Date(pastCutoff.getTime() - 1));
     const cmFuture  = allBookings.filter(b => { const d = new Date(b.date + 'T00:00:00'); return d >= pastCutoff && d <= cmTo; }).reduce(revFn, 0)
         + creditInRange(pastCutoff, cmTo) + moraInRange(pastCutoff, cmTo) + cfInRange(pastCutoff, cmTo);
-    const cmElapsed = Math.max(1, Math.round((Math.min(lastPastDay.getTime(), cmTo.getTime()) - cmFrom.getTime()) / 86400000) + 1);
-    const cmDays    = Math.ceil((cmTo.getTime() - cmFrom.getTime()) / 86400000);
-    const cmRate    = cmActual / cmElapsed;
-    const cmLinear  = Math.round(cmRate * Math.max(0, cmDays - cmElapsed));
-    const cmEstimate = cmActual + Math.max(cmFuture, cmLinear);
 
     // i=-11..0 = ultimi 12 mesi (corrente = i=0, rightmost), i=1 = mese successivo
     for (let i = -11; i <= 1; i++) {
@@ -872,7 +869,7 @@ function renderFatturatoDetail(panel) {
             barValues.push(cmActual);
             barHighlight.push(true);
             // In modalità Reale: niente proiezione rossa (non sai chi pagherà)
-            barProjected.push(isReale ? 0 : Math.max(0, cmEstimate - cmActual));
+            barProjected.push(isReale ? 0 : cmFuture);
         } else if (isFuture) {
             if (isReale) {
                 // Reale: solo crediti già incassati nel mese futuro
