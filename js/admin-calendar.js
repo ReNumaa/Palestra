@@ -789,7 +789,6 @@ function createAdminSlotCard(dateInfo, scheduledSlot) {
     const headerHTML = `
         <div class="admin-slot-header">
             <div class="admin-slot-time">🕐 ${timeSlot}</div>
-            ${sharedBadgeHTML}
             ${capStr ? `<div class="admin-slot-capacity">${capStr}</div>` : ''}
             ${capPipsHTML}
             <span class="admin-slot-chev" aria-hidden="true"></span>
@@ -857,7 +856,7 @@ function createAdminSlotCard(dateInfo, scheduledSlot) {
     }
 
     slotCard.innerHTML = headerHTML
-        + `<div class="admin-slot-body">${extrasBarHTML}${addControlsHTML}${participantsHTML}</div>`;
+        + `<div class="admin-slot-body">${sharedBadgeHTML}${extrasBarHTML}${addControlsHTML}${participantsHTML}</div>`;
 
     // Salva il contenuto iniziale del picker (modal con bottoni) per poterlo
     // ripristinare quando la modalita' "ricerca cliente" viene chiusa.

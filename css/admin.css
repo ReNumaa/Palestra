@@ -9834,3 +9834,18 @@ body.extra-picker-open .payments-fab {
         to { opacity: 1; transform: scale(1); }
     }
 }
+
+/* Mobile: split view (slot con tipi misti) → colonne impilate verticalmente
+   invece che affiancate. Nasconde il divider verticale tra colonne. */
+@media (max-width: 768px) {
+    .admin-slot-split {
+        flex-direction: column;
+        gap: 0.6rem;
+    }
+    .admin-slot-split .split-column {
+        padding: 0;
+    }
+    .split-col-divider-v {
+        display: none;
+    }
+}
