@@ -239,7 +239,6 @@ function selectClientFromDropdown(index) {
     header.innerHTML = '<h4>Risultato ricerca</h4><button class="btn-clear-search" onclick="clearClientsSearch()">✕ Chiudi</button>';
     container.appendChild(header);
     const card = createClientCard(client, 0);
-    card.classList.add('open');
     container.appendChild(card);
     container.style.display = '';
 
