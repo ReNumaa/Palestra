@@ -132,6 +132,27 @@ function getFilterLabel(filter) {
     }
 }
 
+// Etichetta del periodo di confronto (es. "Aprile" per filtro this-month a Maggio)
+function getPreviousFilterLabel(filter) {
+    const now = new Date();
+    const months = ['Gennaio','Febbraio','Marzo','Aprile','Maggio','Giugno','Luglio','Agosto','Settembre','Ottobre','Novembre','Dicembre'];
+    switch (filter) {
+        case 'this-month': {
+            const lm = now.getMonth() === 0 ? 11 : now.getMonth() - 1;
+            return months[lm];
+        }
+        case 'next-month':
+            return months[now.getMonth()];
+        case 'last-month': {
+            const m2 = ((now.getMonth() - 2) % 12 + 12) % 12;
+            return months[m2];
+        }
+        case 'this-year': return `${now.getFullYear() - 1}`;
+        case 'last-year': return `${now.getFullYear() - 2}`;
+        default: return 'periodo prec.';
+    }
+}
+
 let _filterSwitching = false;
 async function setAnalyticsFilter(filter, btn) {
     if (_filterSwitching) return;
@@ -330,7 +351,7 @@ function updateStatsCards(filteredBookings, allBookings) {
     function calcChange(current, prev, el) {
         if (prevRange && currentFilter !== 'custom' && currentFilter !== 'today' && prev > 0) {
             const pct = Math.round(((current - prev) / prev) * 100);
-            el.textContent = `${pct >= 0 ? '+' : ''}${pct}% vs periodo prec.`;
+            el.textContent = `${pct >= 0 ? '+' : ''}${pct}% vs ${getPreviousFilterLabel(currentFilter)}`;
             el.className = pct >= 0 ? 'stat-change positive' : 'stat-change negative';
         } else {
             el.textContent = filterLabel;
