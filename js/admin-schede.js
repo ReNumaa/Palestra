@@ -1888,10 +1888,7 @@ function _renderSchedeList(container) {
     // Templates (no user_id)
     const templates = plans.filter(p => !p.user_id);
 
-    let html = `
-        <div class="schede-header schede-header--no-title">
-            <button class="btn-primary" onclick="_schedeNewPlan()">+ Nuova Scheda</button>
-        </div>`;
+    let html = '';
 
     // Assign template to client bar (top)
     if (templates.length > 0) {
@@ -1947,6 +1944,10 @@ function _renderSchedeList(container) {
         }
         html += '</div>';
     }
+
+    // FAB rotondo "+" in basso a destra: apre _schedeNewPlan(). Posizionato
+    // fixed via CSS, sopra al dock/menu mobile (bottom: 84px su <=768px).
+    html += `<button class="schede-fab" onclick="_schedeNewPlan()" aria-label="Nuova scheda" title="Nuova scheda">+</button>`;
 
     container.innerHTML = html;
 }

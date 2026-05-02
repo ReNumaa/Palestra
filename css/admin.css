@@ -6282,6 +6282,36 @@ button.cedit-cert-badge {
     border-radius: 0;
 }
 
+/* FAB rotondo "+" per "Nuova scheda" — visibile nella sub-sezione Schede,
+   sparisce automaticamente cambiando sub-tab (re-render di #schedeInner). */
+.schede-fab {
+    position: fixed;
+    bottom: 1.5rem;
+    right: 1.5rem;
+    width: 56px;
+    height: 56px;
+    border: none;
+    border-radius: 50%;
+    background: #00AEEF;
+    color: #fff;
+    font-size: 1.85rem;
+    font-weight: 400;
+    line-height: 1;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    cursor: pointer;
+    z-index: 1000;
+    box-shadow: 0 4px 14px rgba(0,174,239,0.35);
+    transition: transform 0.15s, box-shadow 0.15s;
+    padding: 0;
+}
+.schede-fab:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 6px 20px rgba(0,174,239,0.45);
+}
+.schede-fab:active { transform: translateY(0); }
+
 /* ── Tab Schede → sezione "Actual" (slot live) ─────────────────────────────── */
 /* Carosello: 3 colonne desktop, 1 col swipeable mobile (scroll-snap). */
 .schede-actual-carousel { position: relative; }
@@ -9101,11 +9131,13 @@ button.cedit-cert-badge {
 
     /* FAB esistenti: vicini al dock di default; più in alto solo se la pill Filtri c'è */
     .scroll-slot-fab,
-    .payments-fab {
+    .payments-fab,
+    .schede-fab {
         bottom: calc(84px + env(safe-area-inset-bottom)) !important;
     }
     body:has(#admMbarFilter:not([hidden])) .scroll-slot-fab,
-    body:has(#admMbarFilter:not([hidden])) .payments-fab {
+    body:has(#admMbarFilter:not([hidden])) .payments-fab,
+    body:has(#admMbarFilter:not([hidden])) .schede-fab {
         bottom: calc(134px + env(safe-area-inset-bottom)) !important;
     }
 
