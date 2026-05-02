@@ -656,6 +656,9 @@ function renderAdminDayView(dateInfo) {
     const dayView = document.getElementById('adminDayView');
     dayView.innerHTML = '';
 
+    // Cleanup pickers orfani attaccati al body (di slot non piu' visibili)
+    document.querySelectorAll('body > .extra-picker').forEach(p => p.remove());
+
     const scheduledSlots = getScheduleForDate(dateInfo.formatted, dateInfo.dayName);
 
     if (scheduledSlots.length === 0) {
@@ -880,10 +883,22 @@ function createAdminSlotCard(dateInfo, scheduledSlot) {
         + pickerHTML
         + `<div class="admin-slot-body">${sharedBadgeHTML}${extrasBarHTML}${participantsHTML}</div>`;
 
-    // Salva il contenuto iniziale del picker (modal con bottoni) per poterlo
-    // ripristinare quando la modalita' "ricerca cliente" viene chiusa.
+    // Sposta il picker al body root per sfuggire allo stacking context di
+    // .admin-day-view (position:relative + z-index:1 + overflow:hidden su
+    // desktop). Senza questo, il modal — anche a z=9999 — paintava al
+    // livello di day-view (z=1 nel body root SC) mentre la sticky
+    // .bookings-week-bar (z=12 nel body root SC) gli passava davanti.
+    // Con il picker direttamente sotto al <body>, lo z-index 9999 e' supremo.
     const pickerEl = slotCard.querySelector('.extra-picker');
-    if (pickerEl) pickerEl._initialHtml = pickerEl.innerHTML;
+    if (pickerEl) {
+        pickerEl._initialHtml = pickerEl.innerHTML;
+        // Rimuovi eventuale vecchio picker per lo stesso slot (re-render)
+        const stale = document.getElementById(pickerId);
+        if (stale && stale !== pickerEl && stale.parentNode === document.body) {
+            stale.remove();
+        }
+        document.body.appendChild(pickerEl);
+    }
 
     // Stato collapse/expand: ripristina dallo stato globale (sopravvive ai re-render)
     const slotKey = `${date}|${timeSlot}`;
