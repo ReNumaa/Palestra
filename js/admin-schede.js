@@ -790,6 +790,22 @@ function _schedeActualSlotTypeClass(type) {
     return '';
 }
 
+// Avatar helpers — colore stabile (hash del nome) + iniziali
+function _saAvatarColor(name) {
+    const palette = ['blue', 'green', 'amber', 'purple', 'pink'];
+    const s = String(name || '');
+    let h = 0;
+    for (let i = 0; i < s.length; i++) h = (h * 31 + s.charCodeAt(i)) | 0;
+    return palette[Math.abs(h) % palette.length];
+}
+function _saInitials(name) {
+    const parts = String(name || '').trim().split(/\s+/).filter(Boolean);
+    if (parts.length === 0) return '?';
+    const a = parts[0][0] || '';
+    const b = parts.length > 1 ? (parts[parts.length - 1][0] || '') : '';
+    return (a + b).toUpperCase();
+}
+
 function _renderActualView(container) {
     const now = new Date();
     const todayFormatted = (typeof formatAdminDate === 'function')
@@ -832,113 +848,201 @@ function _renderActualView(container) {
     const nowLabel = now.toLocaleTimeString('it-IT', { hour: '2-digit', minute: '2-digit' });
     const dateLabel = now.toLocaleDateString('it-IT', { weekday: 'long', day: '2-digit', month: 'long' });
 
+    const ctx = { now, todayFormatted, usersWithActivePlan, loggedSet, reportSet };
+
     let html = `<div class="schede-actual-topbar">
         <div class="schede-actual-subtitle">${_escHtml(dateLabel)} &middot; ore ${_escHtml(nowLabel)}</div>
         <button class="schede-actual-refresh" onclick="renderSchedeTab()" title="Aggiorna">↻</button>
     </div>`;
 
-    html += '<div class="schede-actual-grid">';
-    html += _schedeActualRenderSlot('prev',    prevIdx,    todayFormatted, usersWithActivePlan, loggedSet, reportSet);
-    html += _schedeActualRenderSlot('current', currentIdx, todayFormatted, usersWithActivePlan, loggedSet, reportSet);
-    html += _schedeActualRenderSlot('next',    nextIdx,    todayFormatted, usersWithActivePlan, loggedSet, reportSet);
+    html += '<div class="schede-actual-carousel">';
+    html +=   '<div class="schede-actual-track">';
+    html +=     _schedeActualRenderSlot('prev',    prevIdx,    ctx);
+    html +=     _schedeActualRenderSlot('current', currentIdx, ctx);
+    html +=     _schedeActualRenderSlot('next',    nextIdx,    ctx);
+    html +=   '</div>';
+    html +=   '<div class="sa-dots"><span></span><span class="active"></span><span></span></div>';
     html += '</div>';
 
     container.innerHTML = html;
 
-    // Mobile: il grid e' un carosello orizzontale. Posiziona lo scroll sullo
-    // slot corrente cosi' di default si vede il LIVE; swipe a dx -> prev,
-    // swipe a sx -> next. Su desktop scrollWidth == clientWidth e si esce.
+    // Carosello mobile: posiziona scroll sullo slot LIVE al primo render e
+    // tieni allineati i puntini all'indice piu' centrato. Su desktop il
+    // grid non scrolla orizzontalmente quindi i listener restano dormienti.
     requestAnimationFrame(() => {
-        const grid = container.querySelector('.schede-actual-grid');
-        if (!grid || grid.scrollWidth <= grid.clientWidth + 1) return;
-        const cur = grid.querySelector('.schede-actual-slot--current');
-        if (!cur) return;
-        const offset = cur.offsetLeft - (grid.clientWidth - cur.clientWidth) / 2;
-        grid.scrollLeft = Math.max(0, offset);
+        const carousel = container.querySelector('.schede-actual-carousel');
+        if (!carousel) return;
+        const track = carousel.querySelector('.schede-actual-track');
+        if (!track) return;
+        const slots = track.querySelectorAll('.schede-actual-slot');
+        const dots = carousel.querySelectorAll('.sa-dots span');
+
+        if (track.scrollWidth > track.clientWidth + 1) {
+            const live = track.querySelector('.schede-actual-slot--current');
+            if (live) {
+                const offset = live.offsetLeft - (track.clientWidth - live.clientWidth) / 2;
+                track.scrollLeft = Math.max(0, offset);
+            }
+        }
+
+        const syncDots = () => {
+            if (!slots.length || !dots.length) return;
+            let nearest = 0, best = Infinity;
+            const center = track.scrollLeft + track.clientWidth / 2;
+            slots.forEach((s, i) => {
+                const c = s.offsetLeft + s.clientWidth / 2;
+                const d = Math.abs(c - center);
+                if (d < best) { best = d; nearest = i; }
+            });
+            dots.forEach((d, i) => d.classList.toggle('active', i === nearest));
+        };
+        track.addEventListener('scroll', syncDots, { passive: true });
+        syncDots();
     });
 }
 
-function _schedeActualRenderSlot(position, slotIdx, todayFormatted, usersWithActivePlan, loggedSet, reportSet) {
-    const positionLabel = position === 'prev' ? 'Slot precedente'
-                        : position === 'current' ? 'Slot attuale'
-                        : 'Slot successivo';
+function _schedeActualRenderSlot(position, slotIdx, ctx) {
+    // Pill in alto a sinistra dell'hero scuro: cambia label/colore per posizione.
+    const pillLabel = position === 'prev'    ? 'CONCLUSO'
+                    : position === 'current' ? 'LIVE'
+                    : 'PROSSIMO';
+    const pillHtml  = position === 'current'
+        ? '<span class="sa-pill sa-pill--live"><span class="sa-pulse"></span>LIVE</span>'
+        : `<span class="sa-pill sa-pill--${position}">${pillLabel}</span>`;
 
     if (slotIdx < 0 || slotIdx >= TIME_SLOTS.length) {
-        return `<div class="schede-actual-slot schede-actual-slot--${position} schede-actual-slot--empty-range">
-            <div class="schede-actual-slot-head">
-                <div class="schede-actual-pos">${_escHtml(positionLabel)}</div>
+        const emptyMsg = position === 'prev'    ? 'Nessuno slot prima'
+                       : position === 'current' ? 'Nessuno slot attivo'
+                       : 'Giornata terminata';
+        return `<div class="schede-actual-slot schede-actual-slot--${position} schede-actual-slot--empty">
+            <div class="sa-hero">
+                <div class="sa-hero-top">${pillHtml}</div>
+                <div class="sa-empty-msg">${_escHtml(emptyMsg)}</div>
             </div>
-            <div class="schede-actual-empty">—</div>
         </div>`;
     }
 
-    const slotTime = TIME_SLOTS[slotIdx];
-    const slotType = _schedeActualSlotTypeForDate(todayFormatted, slotTime);
+    const slotTime  = TIME_SLOTS[slotIdx];
+    const slotRange = _schedeActualParseSlot(slotTime);
+    const slotType  = _schedeActualSlotTypeForDate(ctx.todayFormatted, slotTime);
     const typeLabel = _schedeActualSlotTypeLabel(slotType);
     const typeClass = _schedeActualSlotTypeClass(slotType);
+    const startTime = slotTime.split(' - ')[0] || '';
+    const endTime   = slotTime.split(' - ')[1] || '';
 
     let bookings = [];
     try {
         bookings = (typeof BookingStorage !== 'undefined')
-            ? BookingStorage.getBookingsForSlot(todayFormatted, slotTime).filter(b => b.status !== 'cancelled' && !b.id?.startsWith('_avail_'))
+            ? BookingStorage.getBookingsForSlot(ctx.todayFormatted, slotTime).filter(b => b.status !== 'cancelled' && !b.id?.startsWith('_avail_'))
             : [];
     } catch (e) { console.warn('[Schede Actual] getBookingsForSlot failed:', e); }
 
-    const livePill = position === 'current'
-        ? '<span class="schede-actual-live-pill"><span class="schede-actual-live-dot"></span>LIVE</span>'
+    // Capienza: capacita' del tipo principale dello slot per "X / Y posti".
+    let cap = 0;
+    try {
+        if (typeof BookingStorage !== 'undefined' && slotType) {
+            cap = BookingStorage.getEffectiveCapacity(ctx.todayFormatted, slotTime, slotType) || 0;
+        }
+    } catch (e) { /* ignore */ }
+    const capHtml = cap > 0
+        ? `<span class="sa-cap">${bookings.length} / ${cap} posti</span>`
         : '';
 
-    let html = `<div class="schede-actual-slot schede-actual-slot--${position}">
-        <div class="schede-actual-slot-head">
-            <div class="schede-actual-pos">${_escHtml(positionLabel)}${livePill}</div>
-            <div class="schede-actual-time">${_escHtml(slotTime)}</div>
-            ${typeLabel ? `<span class="schede-actual-type ${typeClass}">${_escHtml(typeLabel)}</span>` : ''}
-        </div>`;
+    // Progress bar: 100% se concluso, % corrente se LIVE, 0% se futuro.
+    const totalMin = (slotRange && slotRange.endMin > slotRange.startMin)
+        ? (slotRange.endMin - slotRange.startMin) : 80;
+    const nowMin = ctx.now.getHours() * 60 + ctx.now.getMinutes();
+    let progressPct = 0, footMid = '';
+    if (position === 'prev') {
+        progressPct = 100;
+        footMid = 'completato';
+    } else if (position === 'current') {
+        const elapsed = Math.max(0, Math.min(totalMin, nowMin - (slotRange ? slotRange.startMin : 0)));
+        progressPct = Math.round((elapsed / totalMin) * 100);
+        footMid = `${elapsed} min · ${progressPct}%`;
+    } else {
+        progressPct = 0;
+        const minutesUntil = Math.max(0, (slotRange ? slotRange.startMin : 0) - nowMin);
+        footMid = minutesUntil >= 60
+            ? `tra ${Math.round(minutesUntil/60)}h`
+            : (minutesUntil > 0 ? `tra ${minutesUntil} min` : 'in arrivo');
+    }
 
+    // Lista persone (rimane dentro alla card per posizione: cosi' resta visibile
+    // anche per slot prev/next, non solo per LIVE come nel mockup statico).
+    let peopleHtml = '';
     if (bookings.length === 0) {
-        html += '<div class="schede-actual-empty">Nessuno in questo slot</div>';
+        peopleHtml = '<div class="sa-empty-msg sa-empty-msg--inline">Nessuno in questo slot</div>';
     } else {
         // Badge V/X solo per slot precedente e attuale: nello slot successivo
         // la sessione non e' ancora iniziata, quindi non ha senso mostrarlo.
         const showLogBadge = position === 'prev' || position === 'current';
-        html += '<div class="schede-actual-clients">';
+        peopleHtml = '<div class="sa-people">';
         for (const b of bookings) {
             const uid  = b.userId || b.user_id || '';
             const name = b.name || b.clientName || 'Sconosciuto';
             const hasUid = !!uid;
-            const noPlan = hasUid && usersWithActivePlan && !usersWithActivePlan.has(uid);
-            const classes = ['schede-actual-client'];
-            if (!hasUid) classes.push('schede-actual-client--guest');
-            if (noPlan)  classes.push('schede-actual-client--no-plan');
+            const noPlan = hasUid && ctx.usersWithActivePlan && !ctx.usersWithActivePlan.has(uid);
+            const avColor  = _saAvatarColor(name);
+            const initials = _saInitials(name);
+
+            let logBadgeHtml = '';
+            let reportBadgeHtml = '';
+            if (showLogBadge) {
+                const logged = hasUid && ctx.loggedSet && ctx.loggedSet.has(uid);
+                const cls = logged ? 'sa-status sa-status--ok' : 'sa-status sa-status--ko';
+                const title = logged ? 'Ha registrato log oggi' : 'Nessun log registrato oggi';
+                logBadgeHtml = `<span class="${cls}" title="${title}" aria-label="${title}">${logged ? '✓' : '✗'}</span>`;
+                if (hasUid && ctx.reportSet && ctx.reportSet.has(uid)) {
+                    const rTitle = 'Ha generato il report del mese scorso';
+                    reportBadgeHtml = `<span class="sa-report" title="${rTitle}" aria-label="${rTitle}">📊</span>`;
+                }
+            }
+
+            const personClasses = ['sa-person'];
+            if (!hasUid) personClasses.push('sa-person--guest');
+            if (noPlan)  personClasses.push('sa-person--no-plan');
             const titleAttr = !hasUid
                 ? 'title="Cliente senza profilo registrato"'
                 : (noPlan ? 'title="Nessuna scheda attiva assegnata"' : '');
-            let logBadge = '';
-            let reportBadge = '';
-            if (showLogBadge) {
-                const logged = hasUid && loggedSet && loggedSet.has(uid);
-                const badgeCls = logged ? 'schede-actual-client-log--ok' : 'schede-actual-client-log--ko';
-                const badgeTitle = logged ? 'Ha registrato log oggi' : 'Nessun log registrato oggi';
-                logBadge = `<span class="schede-actual-client-log ${badgeCls}" title="${badgeTitle}" aria-label="${badgeTitle}">${logged ? '✓' : '✗'}</span>`;
+            const onClickAttr = hasUid
+                ? `onclick="_schedeActualOpenClientPopup('${_escJs(uid)}','${_escJs(name)}')"`
+                : 'disabled';
 
-                if (hasUid && reportSet && reportSet.has(uid)) {
-                    const reportTitle = 'Ha generato il report del mese scorso';
-                    reportBadge = `<span class="schede-actual-client-report" title="${reportTitle}" aria-label="${reportTitle}">📊</span>`;
-                }
-            }
-            html += `<button class="${classes.join(' ')}"
-                ${hasUid ? `onclick="_schedeActualOpenClientPopup('${_escJs(uid)}','${_escJs(name)}')"` : 'disabled'} ${titleAttr}>
-                <span class="schede-actual-client-name">${_escHtml(name)}</span>
-                ${reportBadge}
-                ${logBadge}
-                ${hasUid ? '<span class="schede-actual-client-chev">›</span>' : ''}
+            peopleHtml += `<button class="${personClasses.join(' ')}" ${onClickAttr} ${titleAttr}>
+                <span class="sa-av sa-av--${avColor}">${_escHtml(initials)}</span>
+                <span class="sa-person-info">
+                    <span class="sa-person-name">${_escHtml(name)}</span>
+                    ${noPlan ? '<span class="sa-person-meta sa-person-meta--warn">Nessuna scheda attiva</span>' : ''}
+                </span>
+                ${reportBadgeHtml}
+                ${logBadgeHtml}
+                ${hasUid ? '<span class="sa-chev">›</span>' : ''}
             </button>`;
         }
-        html += '</div>';
+        peopleHtml += '</div>';
     }
 
-    html += '</div>';
-    return html;
+    return `<div class="schede-actual-slot schede-actual-slot--${position}">
+        <div class="sa-hero">
+            <div class="sa-hero-top">
+                ${pillHtml}
+                ${capHtml}
+            </div>
+            <div class="sa-time-row">
+                <div class="sa-time-now">${_escHtml(startTime)}</div>
+                <div class="sa-time-end">→ ${_escHtml(endTime)}</div>
+            </div>
+            ${typeLabel ? `<div class="sa-tag-row"><span class="sa-type ${typeClass}">${_escHtml(typeLabel)}</span></div>` : ''}
+            <div class="sa-progress"><div class="sa-progress-fill" style="width:${progressPct}%;"></div></div>
+            <div class="sa-progress-foot">
+                <span>${_escHtml(startTime)}</span>
+                <span>${_escHtml(footMid)}</span>
+                <span>${_escHtml(endTime)}</span>
+            </div>
+        </div>
+        <div class="sa-body">${peopleHtml}</div>
+    </div>`;
 }
 
 function _escJs(s) {
