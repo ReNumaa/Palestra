@@ -262,48 +262,53 @@
     font-size: 0.95rem;
 }
 
-/* Analytics Filter Bar */
+/* Analytics Filter Bar — underline tab style */
 .analytics-filter-bar {
     display: flex;
     flex-wrap: wrap;
-    gap: 4px;
+    gap: 0;
     align-items: center;
-    justify-content: center;
-    margin-bottom: 1.5rem;
-    padding: 5px;
-    background: linear-gradient(135deg, #f1f5f9, #e8ecf1);
-    border: 1px solid #e2e8f0;
-    border-radius: 14px;
-    box-shadow: 0 1px 4px rgba(0,0,0,0.04);
-}
-
-.filter-btn {
+    justify-content: flex-start;
+    margin: 0 0 1.25rem;
+    padding: 0;
     background: transparent;
     border: none;
-    padding: 0.5rem 1rem;
-    border-radius: 10px;
+    border-bottom: 1px solid #e2e8f0;
+    border-radius: 0;
+    box-shadow: none;
+}
+
+.analytics-filter-bar .filter-btn {
+    background: transparent;
+    border: none;
+    border-bottom: 3px solid transparent;
+    padding: 0.65rem 0.25rem;
+    margin: 0 1.4rem -1px 0;
+    border-radius: 0;
     cursor: pointer;
-    font-size: 0.85rem;
-    font-weight: 700;
+    font-size: 0.88rem;
+    font-weight: 600;
     font-family: inherit;
     color: #64748b;
-    transition: all 0.25s cubic-bezier(0.4,0,0.2,1);
+    transition: color 0.2s ease, border-color 0.2s ease;
     white-space: nowrap;
-    letter-spacing: 0.01em;
+    letter-spacing: 0.005em;
 }
 
-.filter-btn:hover {
+.analytics-filter-bar .filter-btn:hover:not(.active) {
     color: #334155;
-    background: rgba(255,255,255,0.7);
+    background: transparent;
 }
 
-.filter-btn.active {
-    background: linear-gradient(135deg, #00AEEF, #0090cc);
-    color: #fff;
-    box-shadow: 0 2px 8px rgba(0,174,239,0.3);
+.analytics-filter-bar .filter-btn.active {
+    color: #0b7fb0;
+    background: transparent;
+    border-bottom-color: #1aa6e0;
+    font-weight: 700;
+    box-shadow: none;
 }
 
-.filter-btn:disabled {
+.analytics-filter-bar .filter-btn:disabled {
     pointer-events: none;
     opacity: 0.5;
     cursor: wait;
@@ -4167,19 +4172,21 @@ canvas {
         overflow-x: auto;
         -webkit-overflow-scrolling: touch;
         justify-content: flex-start;
-        padding: 4px;
-        gap: 3px;
+        padding: 0;
+        gap: 0;
         scrollbar-width: none;
-        border-radius: 12px;
+        border-radius: 0;
+        margin-bottom: 1rem;
     }
 
     .analytics-filter-bar::-webkit-scrollbar { display: none; }
 
-    .filter-btn {
+    .analytics-filter-bar .filter-btn {
         flex-shrink: 0;
-        padding: 0.4rem 0.7rem;
-        font-size: 0.75rem;
-        border-radius: 8px;
+        padding: 0.55rem 0.2rem;
+        margin-right: 1.1rem;
+        font-size: 0.78rem;
+        border-radius: 0;
     }
 
     .filter-custom-dates {
@@ -4655,37 +4662,43 @@ canvas {
 .registro-subtabs {
     display: flex;
     gap: 0;
-    margin-bottom: 1.5rem;
-    padding: 4px;
-    background: linear-gradient(135deg, #f1f5f9, #e8ecf1);
-    border: 1px solid #e2e8f0;
-    border-radius: 14px;
-    box-shadow: 0 1px 4px rgba(0,0,0,0.04);
+    margin: 0 0 1.25rem;
+    padding: 0;
+    background: transparent;
+    border: none;
+    border-bottom: 1px solid #e2e8f0;
+    border-radius: 0;
+    box-shadow: none;
 }
 .registro-subtab {
-    flex: 1;
-    padding: 0.6rem 1rem;
+    flex: 0 0 auto;
+    padding: 0.65rem 0.25rem;
+    margin: 0 1.4rem 0 0;
+    margin-bottom: -1px;
     border: none;
+    border-bottom: 3px solid transparent;
     background: transparent;
     color: #64748b;
-    font-size: 0.82rem;
-    font-weight: 700;
-    border-radius: 11px;
+    font-size: 0.88rem;
+    font-weight: 600;
+    border-radius: 0;
     cursor: pointer;
-    transition: all 0.25s cubic-bezier(0.4,0,0.2,1);
+    transition: color 0.2s ease, border-color 0.2s ease;
     text-align: center;
-    letter-spacing: 0.02em;
+    letter-spacing: 0.005em;
     font-family: inherit;
     white-space: nowrap;
 }
-.registro-subtab:hover {
+.registro-subtab:hover:not(.active) {
     color: #334155;
-    background: rgba(255,255,255,0.7);
+    background: transparent;
 }
 .registro-subtab.active {
-    background: linear-gradient(135deg, #00AEEF, #0090cc);
-    color: #fff;
-    box-shadow: 0 2px 8px rgba(0,174,239,0.3);
+    color: #0b7fb0;
+    background: transparent;
+    border-bottom-color: #1aa6e0;
+    font-weight: 700;
+    box-shadow: none;
 }
 .registro-subtab-content {
     display: none;
@@ -5037,13 +5050,14 @@ canvas {
     .registro-filter-group--sm,
     .registro-filter-group--search { min-width: unset; width: 100%; }
     .registro-subtabs {
-        border-radius: 12px; padding: 3px;
+        border-radius: 0; padding: 0;
         flex-wrap: nowrap; overflow-x: auto;
         -webkit-overflow-scrolling: touch;
         scrollbar-width: none;
+        margin-bottom: 1rem;
     }
     .registro-subtabs::-webkit-scrollbar { display: none; }
-    .registro-subtab { flex-shrink: 0; padding: 0.45rem 0.6rem; font-size: 0.72rem; border-radius: 9px; }
+    .registro-subtab { flex: 0 0 auto; padding: 0.6rem 0.2rem; margin-right: 1.1rem; font-size: 0.82rem; border-radius: 0; }
     .registro-table { font-size: 0.85rem; }
     .registro-table th { font-size: 0.72rem; }
 }
