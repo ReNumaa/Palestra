@@ -258,8 +258,8 @@ function selectClientFromDropdown(index) {
 
 let clientsListMode = null; // null = hidden, 'total' | 'active'
 
-function getActiveClients() {
-    const allClients = getAllClients();
+function getActiveClients(allClientsParam) {
+    const allClients = allClientsParam || getAllClients();
     const bookings = BookingStorage.getAllBookings();
     const now = new Date();
     const twoMonthsAgo = new Date(now.getFullYear(), now.getMonth() - 2, now.getDate());
@@ -287,9 +287,9 @@ function getActiveClients() {
     });
 }
 
-function renderClientsSummary() {
-    const allClients = getAllClients();
-    const activeClients = getActiveClients();
+function renderClientsSummary(allClients, activeClients) {
+    if (!allClients) allClients = getAllClients();
+    if (!activeClients) activeClients = getActiveClients();
     document.getElementById('clientsTotalCount').textContent = allClients.length;
     document.getElementById('clientsActiveCount').textContent = activeClients.length;
     const sub = document.getElementById('clientsPageSub');
@@ -383,7 +383,10 @@ function _activeFilterLabel() {
 }
 
 function renderClientsTab() {
-    renderClientsSummary();
+    // Calcola lista clienti UNA volta sola per render (era chiamato 2-3 volte)
+    const _allClients = getAllClients();
+    const _activeClients = getActiveClients(_allClients);
+    renderClientsSummary(_allClients, _activeClients);
     // Ripristina stat cards e filtri (nascosti durante ricerca)
     const statsGrid = document.getElementById('clientsStatsGrid');
     const filterToggle = document.getElementById('clientsFilterToggle');
@@ -406,7 +409,7 @@ function renderClientsTab() {
     }
     if (listEl) listEl.style.display = '';
     // Se un filtro è attivo senza lista, usa tutti i clienti come base
-    const baseClients = clientsListMode === 'active' ? getActiveClients() : getAllClients();
+    const baseClients = clientsListMode === 'active' ? _activeClients : _allClients;
     let filtered = baseClients;
     if (clientCertFilter)  filtered = filtered.filter(clientHasCertIssue);
     if (clientAssicFilter) filtered = filtered.filter(clientHasAssicIssue);
@@ -558,16 +561,13 @@ function createClientCard(client, index) {
         : '';
 
     // Build full transaction list (same logic as renderTransazioni in prenotazioni.html)
-    const normCPhone = normalizePhone(client.whatsapp);
-    const matchCli = (w, e) =>
-        (normCPhone && normalizePhone(w) === normCPhone) ||
-        (client.email && e && e.toLowerCase() === client.email.toLowerCase());
     const txMethodMap = { contanti: '💵 Contanti', 'contanti-report': '🧾 Contanti con Report', carta: '💳 Carta', iban: '🏦 Bonifico', credito: '💳 Credito', stripe: '💳 Stripe', 'lezione-gratuita': '🎁 Gratuita' };
     const txEntries = [];
 
-    // 1. Paid bookings
-    BookingStorage.getAllBookings()
-        .filter(b => matchCli(b.whatsapp, b.email) && b.paid)
+    // 1. Paid bookings — usa client.bookings (già filtrato in getAllClients) invece
+    //    di scandire BookingStorage.getAllBookings() per cliente: O(N×M) -> O(M)
+    client.bookings
+        .filter(b => b.paid)
         .forEach(b => {
             const price = getBookingPrice(b);
             if (!price) return;
