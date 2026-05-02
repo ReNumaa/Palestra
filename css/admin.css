@@ -357,6 +357,26 @@
     transform: translateY(-1px);
 }
 
+/* Tab page title (Statistiche, Pagamenti) */
+.tab-page-title {
+    margin: 0 0 1rem;
+    line-height: 1.1;
+}
+.tab-page-title h2 {
+    margin: 0;
+    font-size: 1.65rem;
+    font-weight: 800;
+    color: #0f172a;
+    letter-spacing: -0.02em;
+}
+.tab-page-title span {
+    display: block;
+    margin-top: 0.15rem;
+    font-size: 0.8rem;
+    color: #94a3b8;
+    font-weight: 500;
+}
+
 /* Stats Grid */
 .stats-grid {
     display: grid;
@@ -4111,6 +4131,10 @@ canvas {
        - Pagina 1: griglia 2×2 con Fatturato/Prenotazioni/Clienti/Occupazione
        - Pagina 2: solo Check Fisici (card a tutta larghezza)
        Snap completo (scroll-snap-stop: always) → uno swipe = una pagina intera. */
+    .tab-page-title { margin: 0 0 0.6rem; }
+    .tab-page-title h2 { font-size: 1.35rem; }
+    .tab-page-title span { font-size: 0.72rem; }
+
     .stats-grid {
         display: flex;
         align-items: stretch;
