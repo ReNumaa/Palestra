@@ -680,7 +680,7 @@ function createAdminSlotCard(dateInfo, scheduledSlot) {
     const showCapStr = mainType !== 'group-class' && mainType !== 'cleaning';
     const showPips   = mainType !== 'cleaning';
     const capStr = showCapStr
-        ? `${mainConfirmed}/${mainEffCap} posti (${mainRemaining > 0 ? mainRemaining + ' liberi' : 'COMPLETO'})`
+        ? `${mainConfirmed}/${mainEffCap} posti`
         : '';
 
     // Pips: prima quelli del tipo principale (colore del tipo), poi quelli
