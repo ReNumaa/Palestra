@@ -659,7 +659,6 @@ function createAdminSlotCard(dateInfo, scheduledSlot) {
             <button class="btn-add-extra" onclick="toggleExtraPicker('${dE}','${tE}')" title="Aggiungi posto extra">＋</button>
         </div>
         <div id="${pickerId}" class="extra-picker" style="display:none;">
-            <span class="extra-picker-label">Aggiungi 1 posto:</span>
             <button class="extra-picker-btn personal-training" onclick="addExtraSpotToSlot('${dE}','${tE}','personal-training')">Autonomia</button>
             <button class="extra-picker-btn small-group" onclick="addExtraSpotToSlot('${dE}','${tE}','small-group')">Lezione di Gruppo</button>
             ${slotPrenBtnHTML}
