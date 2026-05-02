@@ -9769,6 +9769,19 @@ canvas {
     flex-shrink: 0;
     transition: background 0.15s, color 0.15s, transform 0.1s;
 }
+/* Su desktop l'header ha justify-content: space-between → con piu' di 2
+   elementi i pips e il "+" finiscono lontani. Forziamo i pips ad assorbire
+   tutto lo spazio libero a sinistra (margin-left: auto) cosi' pips e "+"
+   vivono attaccati a destra. Il gap dell'header da' la spaziatura corretta
+   tra di loro. Su mobile la regola non e' necessaria (capacity flex:1). */
+@media (min-width: 769px) {
+    .admin-slot-header .admin-slot-pips {
+        margin-left: auto;
+    }
+    .admin-slot-header .btn-add-extra--inline {
+        margin-left: 0;
+    }
+}
 .btn-add-extra--inline:hover {
     background: var(--primary-cyan);
     color: #fff;
