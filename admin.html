@@ -13,7 +13,7 @@
     <link rel="icon" type="image/jpeg" href="images/logo-tb---nero.jpg">
     <link rel="stylesheet" href="css/style.css?v=8">
     <link rel="stylesheet" href="css/login.css?v=5">
-    <link rel="stylesheet" href="css/admin.css?v=65">
+    <link rel="stylesheet" href="css/admin.css?v=66">
 </head>
 <body>
     <nav class="navbar">
@@ -103,28 +103,31 @@
             <div id="tab-payments" class="tab-content">
                 <div class="dashboard-card">
 
-                    <div class="payments-stats">
-                        <div class="payment-stat-card payment-stat-card--clickable payment-stat-card--debitori" onclick="toggleDebtorsList()" title="Clicca per vedere la lista">
-                            <div class="payment-stat-icon">💰</div>
-                            <h4>Totale da Incassare</h4>
-                            <p class="payment-total" id="totalUnpaid">€0</p>
-                        </div>
-                        <div class="payment-stat-card payment-stat-card--creditori">
-                            <div class="payment-stat-icon">💳</div>
-                            <h4>Totale Incasso<br>Crediti</h4>
-                            <p class="payment-total credit-total" id="totalCreditAmount">€0</p>
-                        </div>
-                        <div class="payment-stat-card payment-stat-card--clickable payment-stat-card--debitori" onclick="toggleDebtorsList()" title="Clicca per vedere la lista">
-                            <div class="payment-stat-icon">👤</div>
-                            <h4>Clienti<br>Debitori</h4>
-                            <p class="payment-total" id="totalDebtors">0</p>
-                            <span class="debtors-toggle-hint" id="debtorsToggleHint">▼ Mostra lista</span>
-                        </div>
-                        <div class="payment-stat-card payment-stat-card--clickable payment-stat-card--creditori" onclick="toggleCreditsList()" title="Clicca per vedere la lista">
-                            <div class="payment-stat-icon">⭐</div>
-                            <h4>Clienti<br>Creditori</h4>
-                            <p class="payment-total" id="totalCreditors">0</p>
-                            <span class="debtors-toggle-hint" id="creditorsToggleHint">▼ Mostra lista</span>
+                    <div class="stats-grid stats-grid--payments">
+                        <div class="stats-page">
+                            <div class="stat-card stat-card--clickable" id="statcard-tot-debt" onclick="toggleDebtorsList()" title="Clicca per vedere i debitori">
+                                <div class="stat-card-click-hint" id="totDebtHint">Dettagli ▼</div>
+                                <div class="stat-icon">💰</div>
+                                <h3>Totale da Incassare</h3>
+                                <p class="stat-value" id="totalUnpaid">€0</p>
+                            </div>
+                            <div class="stat-card" id="statcard-tot-cred">
+                                <div class="stat-icon">💳</div>
+                                <h3>Totale Incasso Crediti</h3>
+                                <p class="stat-value" id="totalCreditAmount">€0</p>
+                            </div>
+                            <div class="stat-card stat-card--clickable" id="statcard-debtors" onclick="toggleDebtorsList()" title="Clicca per vedere la lista">
+                                <div class="stat-card-click-hint" id="debtorsToggleHint">Dettagli ▼</div>
+                                <div class="stat-icon">👤</div>
+                                <h3>Clienti Debitori</h3>
+                                <p class="stat-value" id="totalDebtors">0</p>
+                            </div>
+                            <div class="stat-card stat-card--clickable" id="statcard-creditors" onclick="toggleCreditsList()" title="Clicca per vedere la lista">
+                                <div class="stat-card-click-hint" id="creditorsToggleHint">Dettagli ▼</div>
+                                <div class="stat-icon">⭐</div>
+                                <h3>Clienti Creditori</h3>
+                                <p class="stat-value" id="totalCreditors">0</p>
+                            </div>
                         </div>
                     </div>
 
@@ -1261,12 +1264,12 @@
     <script src="js/push.js?v=18"></script>
     <script src="js/chart-mini.js?v=12"></script>
     <script src="js/admin.js?v=112"></script>
-    <script src="js/admin-analytics.js?v=8"></script>
+    <script src="js/admin-analytics.js?v=9"></script>
     <script src="js/admin-backup.js?v=4"></script>
     <script src="js/admin-calendar.js?v=13"></script>
     <script src="js/admin-schedule.js?v=2"></script>
     <script src="js/admin-settings.js?v=3"></script>
-    <script src="js/admin-payments.js?v=4"></script>
+    <script src="js/admin-payments.js?v=5"></script>
     <script src="js/admin-clients.js?v=2"></script>
     <script src="js/admin-registro.js?v=6"></script>
     <script src="js/admin-messaggi.js?v=2"></script>

@@ -400,6 +400,10 @@
 #statcard-clienti::after      { background: linear-gradient(90deg, #10b981, #34d399); }
 #statcard-occupancy::after    { background: linear-gradient(90deg, #8b5cf6, #a78bfa); }
 #statcard-checkfisico::after  { background: linear-gradient(90deg, #06b6d4, #22d3ee); }
+#statcard-tot-debt::after,
+#statcard-debtors::after      { background: linear-gradient(90deg, #ef4444, #f87171); }
+#statcard-tot-cred::after,
+#statcard-creditors::after    { background: linear-gradient(90deg, #22c55e, #4ade80); }
 
 .stat-card:hover {
     transform: translateY(-3px);
@@ -411,6 +415,10 @@
 #statcard-clienti:hover      { box-shadow: 0 8px 28px rgba(16,185,129,0.14), 0 2px 6px rgba(0,0,0,0.03); }
 #statcard-occupancy:hover    { box-shadow: 0 8px 28px rgba(139,92,246,0.14), 0 2px 6px rgba(0,0,0,0.03); }
 #statcard-checkfisico:hover  { box-shadow: 0 8px 28px rgba(6,182,212,0.14), 0 2px 6px rgba(0,0,0,0.03); }
+#statcard-tot-debt:hover,
+#statcard-debtors:hover      { box-shadow: 0 8px 28px rgba(239,68,68,0.14), 0 2px 6px rgba(0,0,0,0.03); }
+#statcard-tot-cred:hover,
+#statcard-creditors:hover    { box-shadow: 0 8px 28px rgba(34,197,94,0.14), 0 2px 6px rgba(0,0,0,0.03); }
 
 .stat-icon {
     font-size: 1.5rem;
@@ -430,6 +438,16 @@
 #statcard-clienti .stat-icon      { background: rgba(16,185,129,0.10); }
 #statcard-occupancy .stat-icon    { background: rgba(139,92,246,0.10); }
 #statcard-checkfisico .stat-icon  { background: rgba(6,182,212,0.10); }
+#statcard-tot-debt .stat-icon,
+#statcard-debtors .stat-icon      { background: rgba(239,68,68,0.10); }
+#statcard-tot-cred .stat-icon,
+#statcard-creditors .stat-icon    { background: rgba(34,197,94,0.10); }
+
+/* Per-card colored stat-value (Pagamenti) */
+#statcard-tot-debt .stat-value,
+#statcard-debtors .stat-value    { color: #ef4444; }
+#statcard-tot-cred .stat-value,
+#statcard-creditors .stat-value  { color: #16a34a; }
 
 .stat-card h3 {
     font-size: 0.7rem;
@@ -5529,6 +5547,15 @@ canvas {
     border-color: #8b5cf6;
     box-shadow: 0 0 0 3px rgba(139,92,246,0.12), 0 4px 16px rgba(139,92,246,0.10);
 }
+#statcard-tot-debt.stat-card--clickable.active,
+#statcard-debtors.stat-card--clickable.active {
+    border-color: #ef4444;
+    box-shadow: 0 0 0 3px rgba(239,68,68,0.12), 0 4px 16px rgba(239,68,68,0.10);
+}
+#statcard-creditors.stat-card--clickable.active {
+    border-color: #22c55e;
+    box-shadow: 0 0 0 3px rgba(34,197,94,0.12), 0 4px 16px rgba(34,197,94,0.10);
+}
 
 .stat-card-click-hint {
     position: absolute;
@@ -5548,6 +5575,9 @@ canvas {
 #statcard-prenotazioni.stat-card--clickable.active .stat-card-click-hint { color: #3b82f6; }
 #statcard-clienti.stat-card--clickable.active .stat-card-click-hint      { color: #10b981; }
 #statcard-occupancy.stat-card--clickable.active .stat-card-click-hint    { color: #8b5cf6; }
+#statcard-tot-debt.stat-card--clickable.active .stat-card-click-hint,
+#statcard-debtors.stat-card--clickable.active .stat-card-click-hint      { color: #ef4444; }
+#statcard-creditors.stat-card--clickable.active .stat-card-click-hint    { color: #16a34a; }
 
 /* ── Skeleton loading for stat cards ─────────────────────────────────────── */
 @keyframes skeleton-pulse {

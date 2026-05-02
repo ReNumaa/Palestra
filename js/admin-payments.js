@@ -119,11 +119,16 @@ function _paintPaymentsTab(debtors, { preserveUiState }) {
         creditsListVisible = false;
         debtorsList.style.display = 'none';
         const debtorsHint = document.getElementById('debtorsToggleHint');
-        if (debtorsHint) debtorsHint.textContent = '▼ Mostra lista';
+        if (debtorsHint) debtorsHint.textContent = 'Dettagli ▼';
+        const totDebtHint = document.getElementById('totDebtHint');
+        if (totDebtHint) totDebtHint.textContent = 'Dettagli ▼';
+        document.getElementById('statcard-debtors')?.classList.remove('active');
+        document.getElementById('statcard-tot-debt')?.classList.remove('active');
         if (creditsList) {
             creditsList.style.display = 'none';
             const creditsHint = document.getElementById('creditorsToggleHint');
-            if (creditsHint) creditsHint.textContent = '▼ Mostra lista';
+            if (creditsHint) creditsHint.textContent = 'Dettagli ▼';
+            document.getElementById('statcard-creditors')?.classList.remove('active');
         }
     }
 
@@ -322,15 +327,23 @@ function toggleCreditsList() {
     creditsListVisible = !creditsListVisible;
     const creditsList = document.getElementById('creditsList');
     const hint = document.getElementById('creditorsToggleHint');
+    const card = document.getElementById('statcard-creditors');
     if (creditsList) creditsList.style.display = creditsListVisible ? 'flex' : 'none';
-    if (hint) hint.textContent = creditsListVisible ? '▲ Nascondi lista' : '▼ Mostra lista';
+    if (hint) hint.textContent = creditsListVisible ? 'Nascondi ▲' : 'Dettagli ▼';
+    if (card) card.classList.toggle('active', creditsListVisible);
     // Chiudi l'altra lista se questa viene aperta
     if (creditsListVisible && debtorsListVisible) {
         debtorsListVisible = false;
         const dl = document.getElementById('debtorsList');
         const dh = document.getElementById('debtorsToggleHint');
+        const th = document.getElementById('totDebtHint');
+        const dCard = document.getElementById('statcard-debtors');
+        const tdCard = document.getElementById('statcard-tot-debt');
         if (dl) dl.style.display = 'none';
-        if (dh) dh.textContent = '▼ Mostra lista';
+        if (dh) dh.textContent = 'Dettagli ▼';
+        if (th) th.textContent = 'Dettagli ▼';
+        if (dCard) dCard.classList.remove('active');
+        if (tdCard) tdCard.classList.remove('active');
     }
 }
 
@@ -407,15 +420,23 @@ function toggleDebtorsList() {
     debtorsListVisible = !debtorsListVisible;
     const debtorsList = document.getElementById('debtorsList');
     const hint = document.getElementById('debtorsToggleHint');
+    const totHint = document.getElementById('totDebtHint');
+    const card = document.getElementById('statcard-debtors');
+    const totCard = document.getElementById('statcard-tot-debt');
     if (debtorsList) debtorsList.style.display = debtorsListVisible ? 'flex' : 'none';
-    if (hint) hint.textContent = debtorsListVisible ? '▲ Nascondi lista' : '▼ Mostra lista';
+    if (hint) hint.textContent = debtorsListVisible ? 'Nascondi ▲' : 'Dettagli ▼';
+    if (totHint) totHint.textContent = debtorsListVisible ? 'Nascondi ▲' : 'Dettagli ▼';
+    if (card) card.classList.toggle('active', debtorsListVisible);
+    if (totCard) totCard.classList.toggle('active', debtorsListVisible);
     // Chiudi l'altra lista se questa viene aperta
     if (debtorsListVisible && creditsListVisible) {
         creditsListVisible = false;
         const cl = document.getElementById('creditsList');
         const ch = document.getElementById('creditorsToggleHint');
+        const cCard = document.getElementById('statcard-creditors');
         if (cl) cl.style.display = 'none';
-        if (ch) ch.textContent = '▼ Mostra lista';
+        if (ch) ch.textContent = 'Dettagli ▼';
+        if (cCard) cCard.classList.remove('active');
     }
 }
 
