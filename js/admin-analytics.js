@@ -396,7 +396,10 @@ function updateStatsCards(filteredBookings, allBookings) {
         .filter(b => b.paymentMethod !== 'lezione-gratuita')
         .reduce((t, b) => t + getBookingPrice(b), 0) + _moraRevenue + _cfRevenue;
     sensitiveSet('monthlyRevenue', `€${revenue}`);
+    // Esclude i cancellati: la mora e' gia' contata in _moraPrevRevenue, e il
+    // confronto deve essere simmetrico con `revenue` (che usa filteredBookings).
     const prevRevBookings = prevRange ? allBookings.filter(b => {
+        if (b.status === 'cancelled') return false;
         const d = new Date(b.date + 'T00:00:00');
         return d >= prevRange.from && d <= prevRange.to && b.paymentMethod !== 'lezione-gratuita';
     }) : [];
