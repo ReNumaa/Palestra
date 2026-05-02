@@ -3684,6 +3684,7 @@ canvas {
 
 .debt-popup-list {
     overflow-y: auto;
+    overscroll-behavior: contain;
     flex: 1;
     padding: 0.25rem 0;
 }
