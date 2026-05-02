@@ -845,17 +845,9 @@ function _renderActualView(container) {
         ? _schedeActualReportLastMonthSet
         : new Set();
 
-    const nowLabel = now.toLocaleTimeString('it-IT', { hour: '2-digit', minute: '2-digit' });
-    const dateLabel = now.toLocaleDateString('it-IT', { weekday: 'long', day: '2-digit', month: 'long' });
-
     const ctx = { now, todayFormatted, usersWithActivePlan, loggedSet, reportSet };
 
-    let html = `<div class="schede-actual-topbar">
-        <div class="schede-actual-subtitle">${_escHtml(dateLabel)} &middot; ore ${_escHtml(nowLabel)}</div>
-        <button class="schede-actual-refresh" onclick="renderSchedeTab()" title="Aggiorna">↻</button>
-    </div>`;
-
-    html += '<div class="schede-actual-carousel">';
+    let html = '<div class="schede-actual-carousel">';
     html +=   '<div class="schede-actual-track">';
     html +=     _schedeActualRenderSlot('prev',    prevIdx,    ctx);
     html +=     _schedeActualRenderSlot('current', currentIdx, ctx);

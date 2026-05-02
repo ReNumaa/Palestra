@@ -6231,40 +6231,40 @@ button.cedit-cert-badge {
     animation: schede-pulse 1.5s ease-in-out infinite;
 }
 
+/* Sub-tab Schede (Actual / Schede / Clienti) — stile underline full-width
+   ispirato al mockup: tre tab equidivisi, attivo in brand con underline 2px. */
 .schede-subnav {
     display: flex;
-    gap: 0;
-    margin: 0 0 1.25rem;
+    gap: 0.4rem;
+    margin: 0 0 1rem;
     padding: 0;
     background: transparent;
     border: none;
-    border-bottom: 1px solid #e2e8f0;
+    border-bottom: 1px solid #f1f5f9;
     border-radius: 0;
     box-shadow: none;
     max-width: none;
 }
 .schede-subnav-pill {
-    flex: 0 0 auto;
-    padding: 0.65rem 0.25rem;
-    margin: 0 1.4rem 0 0;
-    margin-bottom: -1px;
+    flex: 1 1 0;
+    padding: 0.65rem 0 0.75rem;
+    margin: 0 0 -1px;
     border: none;
-    border-bottom: 3px solid transparent;
+    border-bottom: 2px solid transparent;
     background: transparent;
     color: #64748b;
-    font-size: 0.9rem;
-    font-weight: 600;
-    letter-spacing: 0.005em;
+    font-size: 0.82rem;
+    font-weight: 700;
+    letter-spacing: 0.02em;
     border-radius: 0;
     cursor: pointer;
     transition: color 0.2s ease, border-color 0.2s ease;
     text-align: center;
 }
 .schede-subnav-pill.active {
-    color: #0b7fb0;
+    color: #1aa6e0;
     background: transparent;
     border-bottom-color: #1aa6e0;
-    font-weight: 700;
     box-shadow: none;
 }
 .schede-subnav-pill:hover:not(.active) {
@@ -6272,28 +6272,17 @@ button.cedit-cert-badge {
     background: transparent;
 }
 
-/* ── Tab Schede → sezione "Actual" (slot live) ─────────────────────────────── */
-.schede-actual-topbar {
-    display: flex; justify-content: space-between; align-items: center;
-    gap: 0.75rem; margin-bottom: 1rem;
-    padding-bottom: 0.9rem; border-bottom: 1px solid #e2e8f0;
+/* Schede tab: rimuove il "div bianco" (dashboard-card wrapper) cosi' carosello
+   e tab vivono direttamente sullo sfondo pagina, come nel mockup. Le altre sub-
+   sezioni (lista schede, clienti) hanno gia' i propri card interni. */
+#schedeContainer.dashboard-card {
+    background: transparent;
+    padding: 0;
+    box-shadow: none;
+    border-radius: 0;
 }
-.schede-actual-title {
-    margin: 0; font-size: 1.25rem; font-weight: 800;
-    color: #0f172a; letter-spacing: -0.01em;
-}
-.schede-actual-subtitle {
-    margin-top: 0.15rem; font-size: 0.82rem; color: #64748b;
-    text-transform: capitalize; font-weight: 500;
-}
-.schede-actual-refresh {
-    border: 1px solid #e2e8f0; background: #fff; color: #475569;
-    width: 36px; height: 36px; border-radius: 10px;
-    font-size: 1.1rem; cursor: pointer;
-    transition: all 0.2s; display: inline-flex; align-items: center; justify-content: center;
-}
-.schede-actual-refresh:hover { border-color: #00AEEF; color: #00AEEF; transform: rotate(90deg); }
 
+/* ── Tab Schede → sezione "Actual" (slot live) ─────────────────────────────── */
 /* Carosello: 3 colonne desktop, 1 col swipeable mobile (scroll-snap). */
 .schede-actual-carousel { position: relative; }
 .schede-actual-track {
@@ -6866,9 +6855,6 @@ button.cedit-cert-badge {
     }
     .sa-time-now { font-size: 1.6rem; }
     .sa-dots { display: flex; }
-    .schede-actual-topbar { padding-bottom: 0.7rem; margin-bottom: 0.8rem; }
-    .schede-actual-title { font-size: 1.1rem; }
-    .schede-actual-subtitle { font-size: 0.78rem; }
     .schede-actual-popup { border-radius: 16px; }
     .schede-actual-popup-head { padding: 0.95rem 1rem 0.75rem; }
     .schede-actual-popup-actions { padding: 0.85rem 1rem 1rem; }
@@ -7666,8 +7652,8 @@ button.cedit-cert-badge {
 
 /* Mobile */
 @media (max-width: 600px) {
-    .schede-subnav { margin-bottom: 1rem; }
-    .schede-subnav-pill { padding: 0.6rem 0.2rem; margin-right: 1.1rem; font-size: 0.88rem; }
+    .schede-subnav { margin-bottom: 0.85rem; }
+    .schede-subnav-pill { padding: 0.6rem 0 0.7rem; font-size: 0.8rem; }
 
     .schede-header { flex-direction: row; gap: 0.5rem; align-items: center; padding-bottom: 0.6rem; margin-bottom: 0.8rem; }
     .schede-header h3 { font-size: 1.1rem; margin: 0; }
