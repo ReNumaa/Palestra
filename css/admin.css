@@ -5996,25 +5996,44 @@ canvas {
 }
 
 .schede-subnav {
-    display: flex; gap: 0; margin-bottom: 1.5rem; padding: 4px;
-    background: linear-gradient(135deg, #f1f5f9, #e8ecf1);
-    border: 1px solid #e2e8f0;
-    border-radius: 14px; max-width: 340px;
-    box-shadow: 0 1px 4px rgba(0,0,0,0.04);
+    display: flex;
+    gap: 0;
+    margin: 0 0 1.25rem;
+    padding: 0;
+    background: transparent;
+    border: none;
+    border-bottom: 1px solid #e2e8f0;
+    border-radius: 0;
+    box-shadow: none;
+    max-width: none;
 }
 .schede-subnav-pill {
-    flex: 1; padding: 0.6rem 1.2rem; border: none; background: transparent;
-    color: #64748b; font-size: 0.9rem; font-weight: 700; border-radius: 11px;
-    cursor: pointer; transition: all 0.25s cubic-bezier(0.4,0,0.2,1);
-    text-align: center; letter-spacing: 0.02em;
+    flex: 0 0 auto;
+    padding: 0.65rem 0.25rem;
+    margin: 0 1.4rem 0 0;
+    margin-bottom: -1px;
+    border: none;
+    border-bottom: 3px solid transparent;
+    background: transparent;
+    color: #64748b;
+    font-size: 0.9rem;
+    font-weight: 600;
+    letter-spacing: 0.005em;
+    border-radius: 0;
+    cursor: pointer;
+    transition: color 0.2s ease, border-color 0.2s ease;
+    text-align: center;
 }
 .schede-subnav-pill.active {
-    background: linear-gradient(135deg, #00AEEF, #0090cc);
-    color: #fff;
-    box-shadow: 0 2px 8px rgba(0,174,239,0.3);
+    color: #0b7fb0;
+    background: transparent;
+    border-bottom-color: #1aa6e0;
+    font-weight: 700;
+    box-shadow: none;
 }
 .schede-subnav-pill:hover:not(.active) {
-    color: #334155; background: rgba(255,255,255,0.7);
+    color: #334155;
+    background: transparent;
 }
 
 /* ── Tab Schede → sezione "Actual" (slot live) ─────────────────────────────── */
@@ -7250,8 +7269,8 @@ canvas {
 
 /* Mobile */
 @media (max-width: 600px) {
-    .schede-subnav { max-width: 100%; padding: 3px; }
-    .schede-subnav-pill { padding: 0.7rem 1rem; font-size: 0.88rem; }
+    .schede-subnav { margin-bottom: 1rem; }
+    .schede-subnav-pill { padding: 0.6rem 0.2rem; margin-right: 1.1rem; font-size: 0.88rem; }
 
     .schede-header { flex-direction: row; gap: 0.5rem; align-items: center; padding-bottom: 0.6rem; margin-bottom: 0.8rem; }
     .schede-header h3 { font-size: 1.1rem; margin: 0; }
