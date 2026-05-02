@@ -223,7 +223,10 @@ function addExtraSpotToSlot(date, time, extraType) {
 // Stato picker (evita JSON inline negli onclick che causa SyntaxError).
 // forcedSlotType: se settato (es. 'group-class'), salta la scelta tra tipi
 // e conferma direttamente quel tipo (usato da "Slot prenotato").
-let _clientPickerState = { date: '', time: '', client: null, forcedSlotType: null };
+// picker: riferimento al DOM del picker attivo → tutte le query (input,
+// results, confirm) sono scoped al picker, niente conflitti di id duplicato
+// fra pickers diversi che convivono nel body root.
+let _clientPickerState = { date: '', time: '', client: null, forcedSlotType: null, picker: null };
 
 function openClientBookingPicker(date, time, pickerId) {
     const picker = document.getElementById(pickerId);
@@ -232,25 +235,29 @@ function openClientBookingPicker(date, time, pickerId) {
     _clientPickerState.time = time;
     _clientPickerState.client = null;
     _clientPickerState.forcedSlotType = null;
+    _clientPickerState.picker = picker;
 
     picker.innerHTML = `
         <div class="extra-picker-content" onclick="event.stopPropagation()">
             <div class="extra-picker-title">Aggiungi una prenotazione</div>
             <div style="display:flex;gap:8px;align-items:center">
-                <input id="clientSearchInput" type="text" placeholder="Cerca cliente…"
+                <input class="js-client-search-input" type="text" placeholder="Cerca cliente…"
                     autocomplete="off"
                     style="flex:1;padding:9px 12px;border:1px solid #e2e8f0;border-radius:10px;font-size:14px">
                 <button onclick="toggleExtraPicker('${date}','${time}')"
                     style="background:#f1f5f9;border:none;color:#475569;cursor:pointer;font-size:18px;padding:6px 10px;border-radius:8px;line-height:1">✕</button>
             </div>
-            <div id="clientSearchResults" style="display:flex;flex-direction:column;gap:6px;height:240px;max-height:240px;overflow-y:auto"></div>
-            <div id="clientBookingConfirm" style="display:none"></div>
+            <div class="js-client-search-results" style="display:flex;flex-direction:column;gap:6px;height:240px;max-height:240px;overflow-y:auto"></div>
+            <div class="js-client-booking-confirm" style="display:none"></div>
         </div>
     `;
 
-    document.getElementById('clientSearchInput').addEventListener('input', function() {
-        _filterClientList(this.value);
-    });
+    const inputEl = picker.querySelector('.js-client-search-input');
+    if (inputEl) {
+        inputEl.addEventListener('input', function() {
+            _filterClientList(this.value);
+        });
+    }
 }
 
 // Apre lo stesso picker cliente forzando "Slot prenotato" (group-class):
@@ -262,25 +269,61 @@ function openClientBookingPickerForSlotPrenotato(date, time, pickerId) {
     _clientPickerState.forcedSlotType = SLOT_TYPES.GROUP_CLASS;
 }
 
-function _filterClientList(query) {
-    const resultsEl = document.getElementById('clientSearchResults');
+let _clientPickerUsersSyncPromise = null;
+
+async function _ensureClientPickerUsersLoaded() {
+    if (UserStorage.getAll().length > 0) return;
+    if (!_clientPickerUsersSyncPromise) {
+        _clientPickerUsersSyncPromise = (async () => {
+            try {
+                if (typeof UserStorage.syncUsersFromSupabase === 'function') {
+                    await UserStorage.syncUsersFromSupabase();
+                }
+            } finally {
+                _clientPickerUsersSyncPromise = null;
+            }
+        })();
+    }
+    await _clientPickerUsersSyncPromise;
+}
+
+async function _filterClientList(query) {
+    const picker = _clientPickerState.picker;
+    if (!picker) return;
+    const resultsEl = picker.querySelector('.js-client-search-results');
     if (!resultsEl) return;
-    const q = query.toLowerCase().trim();
+    const q = (query || '').toString().toLowerCase().trim();
     if (!q) { resultsEl.innerHTML = ''; return; }
-    const clients = UserStorage.getAll().filter(c =>
-        c.name.toLowerCase().includes(q) || (c.email || '').toLowerCase().includes(q)
-    );
+    if (q.length < 2) {
+        resultsEl.innerHTML = '<div style="font-size:12px;color:#999;padding:4px 8px">Scrivi almeno 2 caratteri</div>';
+        return;
+    }
+    let clients = [];
+    try {
+        if (UserStorage.getAll().length === 0) {
+            resultsEl.innerHTML = '<div style="font-size:12px;color:#999;padding:4px 8px">Caricamento clienti...</div>';
+            await _ensureClientPickerUsersLoaded();
+            if (_clientPickerState.picker !== picker) return;
+        }
+        clients = UserStorage.search(q).slice(0, 10);
+    } catch (e) {
+        console.error('[_filterClientList] errore filtro:', e);
+        resultsEl.innerHTML = `<div style="font-size:12px;color:#999;padding:4px 8px">Errore caricamento clienti</div>`;
+        return;
+    }
     if (!clients.length) {
         resultsEl.innerHTML = `<div style="font-size:12px;color:#999;padding:4px 8px">Nessun cliente trovato</div>`;
         return;
     }
     resultsEl.innerHTML = '';
-    clients.slice(0, 10).forEach((c, idx) => {
+    clients.forEach((c) => {
         const row = document.createElement('div');
-        row.style.cssText = 'display:flex;justify-content:space-between;align-items:center;padding:6px 10px;border:1px solid #eee;border-radius:8px;cursor:pointer;background:#fff;font-size:13px';
+        row.style.cssText = 'display:flex;justify-content:space-between;align-items:center;padding:6px 10px;border:1px solid #eee;border-radius:8px;cursor:pointer;background:#fff;font-size:13px;flex-shrink:0';
+        const contact = c.email || c.whatsapp || '';
         row.innerHTML = `
             <div>
-                <div style="font-weight:600">${_escHtml(c.name)}</div>
+                <div style="font-weight:600">${_escHtml(c.name || '(senza nome)')}</div>
+                ${contact ? `<div style="font-size:11px;color:#888">${_escHtml(contact)}</div>` : ''}
             </div>
             <span style="font-size:11px;color:#aaa">›</span>
         `;
@@ -291,9 +334,11 @@ function _filterClientList(query) {
 
 function _selectClientForBooking(client) {
     _clientPickerState.client = client;
-    const confirmEl = document.getElementById('clientBookingConfirm');
-    const resultsEl = document.getElementById('clientSearchResults');
-    const inputEl   = document.getElementById('clientSearchInput');
+    const picker = _clientPickerState.picker;
+    if (!picker) return;
+    const confirmEl = picker.querySelector('.js-client-booking-confirm');
+    const resultsEl = picker.querySelector('.js-client-search-results');
+    const inputEl   = picker.querySelector('.js-client-search-input');
     if (!confirmEl || !resultsEl) return;
     resultsEl.style.display = 'none';
     if (inputEl) inputEl.style.display = 'none';
@@ -1257,4 +1302,3 @@ function deleteBooking(bookingId, bookingName) {
         }
     });
 }
-
