@@ -692,9 +692,16 @@ function createAdminSlotCard(dateInfo, scheduledSlot) {
     // Pips: prima quelli del tipo principale (colore del tipo), poi quelli
     // di ogni tipo extra (es. small-group con +1 Autonomia → 5 gialli + 1 verde).
     const pipParts = [];
-    if (showPips && mainEffCap > 0) {
-        for (let i = 0; i < mainEffCap; i++) {
-            pipParts.push(`<span class="pip ${_pipTypeClass(mainType)}${i < mainConfirmed ? '' : ' empty'}"></span>`);
+    if (showPips) {
+        if (mainEffCap > 0) {
+            for (let i = 0; i < mainEffCap; i++) {
+                pipParts.push(`<span class="pip ${_pipTypeClass(mainType)}${i < mainConfirmed ? '' : ' empty'}"></span>`);
+            }
+        } else if (mainType === 'group-class') {
+            // group-class ha base capacity 0: l'extra viene aggiunto al primo
+            // booking. Mostriamo comunque 1 pip rosso come indicatore di tipo.
+            const cls = mainConfirmed > 0 ? 'pip pip-gc' : 'pip pip-gc empty';
+            pipParts.push(`<span class="${cls}"></span>`);
         }
     }
     for (const t of extraTypes) {
