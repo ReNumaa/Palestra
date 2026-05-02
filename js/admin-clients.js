@@ -311,8 +311,8 @@ function toggleClientsActiveList() {
 function _updateClientsHints() {
     const totalHint = document.getElementById('clientsTotalHint');
     const activeHint = document.getElementById('clientsActiveHint');
-    if (totalHint) totalHint.textContent = clientsListMode === 'total' ? '▲ Nascondi lista' : '▼ Mostra lista';
-    if (activeHint) activeHint.textContent = clientsListMode === 'active' ? '▲ Nascondi lista' : '▼ Mostra lista';
+    if (totalHint) totalHint.textContent = clientsListMode === 'total' ? 'Nascondi ▲' : 'Dettagli ▼';
+    if (activeHint) activeHint.textContent = clientsListMode === 'active' ? 'Nascondi ▲' : 'Dettagli ▼';
 }
 
 async function refreshClients() {

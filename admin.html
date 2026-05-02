@@ -13,7 +13,7 @@
     <link rel="icon" type="image/jpeg" href="images/logo-tb---nero.jpg">
     <link rel="stylesheet" href="css/style.css?v=8">
     <link rel="stylesheet" href="css/login.css?v=5">
-    <link rel="stylesheet" href="css/admin.css?v=88">
+    <link rel="stylesheet" href="css/admin.css?v=89">
     <script>
         // Anti-flash al refresh: legge il tab attivo dal sessionStorage e lo
         // espone come data-initial-tab su <html> prima che il body venga
@@ -182,59 +182,60 @@
                     <span id="clientsPageSub">&nbsp;</span>
                 </div>
 
-                <div class="dashboard-card">
-                    <div class="clients-search-bar" style="position:relative;">
-                        <div class="clients-search-row">
-                            <div class="search-input-group" style="flex:1;">
-                                <input type="text" id="clientSearchInput"
-                                       placeholder="Cerca cliente.."
-                                       oninput="liveSearchClients()"
-                                       onkeydown="if(event.key==='Escape') closeClientsSearchDropdown()">
-                            </div>
-                            <button class="clients-filter-toggle" id="clientsFilterToggle" onclick="toggleClientsFiltersMenu()">
-                                <span class="filter-toggle-emoji">🔍</span><span class="filter-toggle-text"> Filtri</span> <span id="clientsFilterToggleArrow">▼</span>
-                            </button>
+                <div class="stats-grid stats-grid--payments" id="clientsStatsGrid">
+                    <div class="stats-page">
+                        <div class="stat-card stat-card--clickable" id="statcard-clienti-totali" onclick="toggleClientsTotalList()" title="Clicca per vedere la lista">
+                            <div class="stat-card-click-hint" id="clientsTotalHint">Dettagli ▼</div>
+                            <div class="stat-icon">👥</div>
+                            <h3>Clienti Totali</h3>
+                            <p class="stat-value" id="clientsTotalCount">0</p>
                         </div>
-                        <div id="clientsSearchDropdown" class="debtor-search-dropdown" style="display:none;"></div>
-                        <div class="clients-filter-chips" id="clientsFilterChips">
-                            <button class="clients-filter-chip" id="certFilterBtn" onclick="toggleCertFilter()">
-                                🏥 Senza certificato
-                            </button>
-                            <button class="clients-filter-chip" id="assicFilterBtn" onclick="toggleAssicFilter()">
-                                📋 Senza assicurazione
-                            </button>
-                            <button class="clients-filter-chip" id="anagFilterBtn" onclick="toggleAnagFilter()">
-                                📝 Senza anagrafica
-                            </button>
-                            <button class="clients-filter-chip" id="bonusFilterBtn" onclick="toggleBonusFilter()">
-                                🎁 Senza bonus
-                            </button>
-                            <button class="clients-filter-chip" id="privacyFilterBtn" onclick="togglePrivacyFilter()">
-                                🔒 Anonimi
-                            </button>
-                            <button class="clients-filter-chip" id="pushFilterBtn" onclick="togglePushFilter()">
-                                🔕 Notifiche Disattivate
-                            </button>
+                        <div class="stat-card stat-card--clickable" id="statcard-clienti-attivi" onclick="toggleClientsActiveList()" title="Clicca per vedere la lista">
+                            <div class="stat-card-click-hint" id="clientsActiveHint">Dettagli ▼</div>
+                            <div class="stat-icon">💪</div>
+                            <h3>Clienti Attivi</h3>
+                            <p class="stat-value" id="clientsActiveCount">0</p>
                         </div>
                     </div>
-                    <div class="clients-filter-result" id="clientsFilterResult" style="display:none;"></div>
-                    <div class="payments-stats clients-stats-grid clients-kpi-grid" id="clientsStatsGrid">
-                        <div class="payment-stat-card payment-stat-card--clickable payment-stat-card--clients clients-kpi clients-kpi--blue" onclick="toggleClientsTotalList()" title="Clicca per vedere la lista">
-                            <div class="payment-stat-icon">👥</div>
-                            <h4>Clienti Totali</h4>
-                            <p class="payment-total" id="clientsTotalCount">0</p>
-                            <span class="debtors-toggle-hint" id="clientsTotalHint">▼ Mostra lista</span>
+                </div>
+
+                <div class="clients-search-bar" style="position:relative;">
+                    <div class="clients-search-row">
+                        <div class="search-input-group" style="flex:1;">
+                            <input type="text" id="clientSearchInput"
+                                   placeholder="Cerca cliente.."
+                                   oninput="liveSearchClients()"
+                                   onkeydown="if(event.key==='Escape') closeClientsSearchDropdown()">
                         </div>
-                        <div class="payment-stat-card payment-stat-card--clickable payment-stat-card--clients clients-kpi clients-kpi--green" onclick="toggleClientsActiveList()" title="Clicca per vedere la lista">
-                            <div class="payment-stat-icon">💪</div>
-                            <h4>Clienti Attivi</h4>
-                            <p class="payment-total" id="clientsActiveCount">0</p>
-                            <span class="debtors-toggle-hint" id="clientsActiveHint">▼ Mostra lista</span>
-                        </div>
+                        <button class="clients-filter-toggle" id="clientsFilterToggle" onclick="toggleClientsFiltersMenu()">
+                            <span class="filter-toggle-emoji">🔍</span><span class="filter-toggle-text"> Filtri</span> <span id="clientsFilterToggleArrow">▼</span>
+                        </button>
                     </div>
-                    <div class="clients-list" id="clientsList" style="display:none;">
-                        <!-- Populated by JavaScript -->
+                    <div id="clientsSearchDropdown" class="debtor-search-dropdown" style="display:none;"></div>
+                    <div class="clients-filter-chips" id="clientsFilterChips">
+                        <button class="clients-filter-chip" id="certFilterBtn" onclick="toggleCertFilter()">
+                            🏥 Senza certificato
+                        </button>
+                        <button class="clients-filter-chip" id="assicFilterBtn" onclick="toggleAssicFilter()">
+                            📋 Senza assicurazione
+                        </button>
+                        <button class="clients-filter-chip" id="anagFilterBtn" onclick="toggleAnagFilter()">
+                            📝 Senza anagrafica
+                        </button>
+                        <button class="clients-filter-chip" id="bonusFilterBtn" onclick="toggleBonusFilter()">
+                            🎁 Senza bonus
+                        </button>
+                        <button class="clients-filter-chip" id="privacyFilterBtn" onclick="togglePrivacyFilter()">
+                            🔒 Anonimi
+                        </button>
+                        <button class="clients-filter-chip" id="pushFilterBtn" onclick="togglePushFilter()">
+                            🔕 Notifiche Disattivate
+                        </button>
                     </div>
+                </div>
+                <div class="clients-filter-result" id="clientsFilterResult" style="display:none;"></div>
+                <div class="clients-list" id="clientsList" style="display:none;">
+                    <!-- Populated by JavaScript -->
                 </div>
             </div>
 
@@ -1300,7 +1301,7 @@
     <script src="js/admin-schedule.js?v=2"></script>
     <script src="js/admin-settings.js?v=3"></script>
     <script src="js/admin-payments.js?v=6"></script>
-    <script src="js/admin-clients.js?v=3"></script>
+    <script src="js/admin-clients.js?v=4"></script>
     <script src="js/admin-registro.js?v=6"></script>
     <script src="js/admin-messaggi.js?v=2"></script>
     <script src="js/admin-schede.js?v=22"></script>
