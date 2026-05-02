@@ -9316,3 +9316,188 @@ canvas {
 
     body.adm-sheet-open { overflow: hidden; }
 }
+
+/* ───────────────────────────────────────────────────────────────────────────
+   Prenotazioni v2 — design refresh (avatar partecipante, occupancy bar nelle
+   day-card, pips capacity nello slot header). Lo styling principale resta
+   l'esistente: questi blocchi aggiungono dettagli senza rifare il layout.
+   ─────────────────────────────────────────────────────────────────────────── */
+
+/* Participant card layout: avatar + nome/stato in riga */
+.participant-row {
+    display: flex;
+    align-items: center;
+    gap: 0.65rem;
+}
+.participant-row-main {
+    flex: 1;
+    min-width: 0;
+    display: flex;
+    flex-direction: column;
+    gap: 0.3rem;
+}
+.participant-row-main { padding-right: 26px; }
+.participant-row-main .participant-name { padding-right: 0; }
+
+.participant-avatar {
+    flex-shrink: 0;
+    width: 38px;
+    height: 38px;
+    border-radius: 50%;
+    display: grid;
+    place-items: center;
+    font-size: 0.78rem;
+    font-weight: 800;
+    letter-spacing: 0.02em;
+    background: #cdecf9;
+    color: #0b7fb0;
+    user-select: none;
+}
+.participant-avatar[data-hue="0"] { background: #cdecf9; color: #0b7fb0; }
+.participant-avatar[data-hue="1"] { background: #fef3c7; color: #b45309; }
+.participant-avatar[data-hue="2"] { background: #f3e8ff; color: #7e22ce; }
+.participant-avatar[data-hue="3"] { background: #dcfce7; color: #166534; }
+.participant-avatar[data-hue="4"] { background: #fee2e2; color: #b91c1c; }
+.participant-avatar[data-hue="5"] { background: #e0f2fe; color: #075985; }
+
+.admin-participant-card.cancel-pending .participant-avatar {
+    background: #fef3c7;
+    color: #92400e;
+}
+
+/* Pips capacity nello slot header (max 12 posti) */
+.admin-slot-pips {
+    display: inline-flex;
+    gap: 3px;
+    align-items: center;
+    margin-left: 0.25rem;
+}
+.admin-slot-pips .pip {
+    width: 6px;
+    height: 14px;
+    border-radius: 2px;
+    background: #16a34a;
+}
+.admin-slot-pips .pip.empty { background: #e2e8f0; }
+.admin-slot-card.small-group .admin-slot-pips .pip { background: #f59e0b; }
+.admin-slot-card.group-class .admin-slot-pips .pip { background: #ef4444; }
+
+/* Occupancy bar nelle day-card (settimana) */
+.admin-day-occ {
+    height: 3px;
+    border-radius: 2px;
+    background: rgba(15, 23, 42, 0.08);
+    overflow: hidden;
+    margin: 4px 6px 0;
+}
+.admin-day-occ-fill {
+    height: 100%;
+    background: #00AEEF;
+    border-radius: 2px;
+    transition: width 0.25s ease;
+}
+.admin-day-card.active .admin-day-occ {
+    background: rgba(255, 255, 255, 0.25);
+}
+.admin-day-card.active .admin-day-occ-fill {
+    background: #ffffff;
+}
+.admin-day-card.is-today:not(.active) .admin-day-occ-fill {
+    background: #dc2626;
+}
+
+/* ── Mobile: dark "week strip" + slot rows compatti (Prenotazioni v2) ── */
+@media (max-width: 768px) {
+    .bookings-week-bar {
+        background: linear-gradient(180deg, #0f172a 0%, #1e293b 100%);
+        border-color: transparent;
+        padding: 0.85rem 0.85rem 0.7rem;
+        box-shadow: 0 4px 12px -4px rgba(15, 23, 42, 0.25);
+    }
+    .bookings-week-bar::before {
+        opacity: 0.65;
+    }
+    .bookings-week-bar .schedule-week-dates {
+        color: #fff;
+        font-weight: 800;
+        letter-spacing: -0.01em;
+    }
+    .bookings-week-bar .schedule-week-btn {
+        background: rgba(255, 255, 255, 0.08);
+        border-color: transparent;
+        color: #fff;
+    }
+    .bookings-week-bar .schedule-week-btn:hover {
+        background: rgba(255, 255, 255, 0.16);
+    }
+
+    .admin-day-selector {
+        background: transparent;
+        padding: 0;
+        gap: 5px;
+    }
+    .admin-day-card {
+        padding: 0.4rem 0.2rem 0.45rem;
+        background: rgba(255, 255, 255, 0.05);
+        color: rgba(255, 255, 255, 0.78);
+    }
+    .admin-day-card .admin-day-name { color: rgba(255, 255, 255, 0.55); }
+    .admin-day-card .admin-day-date { color: #fff; }
+    .admin-day-card .admin-day-count {
+        color: rgba(255, 255, 255, 0.6);
+        font-size: 0.55rem;
+    }
+    .admin-day-card + .admin-day-card::after {
+        background: rgba(255, 255, 255, 0.06);
+    }
+    .admin-day-card:hover:not(.active) {
+        background: rgba(255, 255, 255, 0.1);
+        color: #fff;
+    }
+    .admin-day-card.is-today:not(.active) {
+        background: rgba(239, 68, 68, 0.32);
+        color: #fff;
+    }
+    .admin-day-card.active {
+        background: linear-gradient(135deg, #00AEEF, #0090cc);
+        box-shadow: 0 6px 14px -3px rgba(0, 174, 239, 0.5);
+    }
+    .admin-day-card.active .admin-day-name,
+    .admin-day-card.active .admin-day-date,
+    .admin-day-card.active .admin-day-count {
+        color: #fff;
+    }
+    .admin-day-occ {
+        background: rgba(255, 255, 255, 0.1);
+        margin: 4px 4px 0;
+    }
+    .admin-day-occ-fill { background: #00AEEF; }
+    .admin-day-card.active .admin-day-occ-fill { background: #fff; }
+
+    /* Slot card: header più aria, pips visibili, type pill compatto */
+    .admin-slot-header {
+        gap: 0.4rem;
+    }
+    .admin-slot-time {
+        font-size: 0.95rem;
+    }
+    .admin-slot-type {
+        font-size: 0.68rem;
+        padding: 0.18rem 0.55rem;
+    }
+    .admin-slot-capacity {
+        font-size: 0.72rem;
+    }
+    .admin-slot-pips .pip {
+        width: 5px;
+        height: 12px;
+    }
+
+    /* Participant card: avatar leggermente più piccolo */
+    .participant-avatar {
+        width: 34px;
+        height: 34px;
+        font-size: 0.72rem;
+    }
+    .participant-row { gap: 0.55rem; }
+}

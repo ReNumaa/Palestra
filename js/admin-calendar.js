@@ -85,6 +85,22 @@ function renderAdminCalendar() {
         `${firstDate.getDate()}/${firstDate.getMonth() + 1} - ${lastDate.getDate()}/${lastDate.getMonth() + 1}/${lastDate.getFullYear()}`;
 }
 
+// Capacità giornaliera totale (somma dei posti effettivi di tutti gli slot
+// programmati per il giorno) → usata per il riempimento della barra occupazione
+// nelle day-card. Conservativo: restituisce 0 se non riusciamo a calcolarlo.
+function _adminDayCapacity(dateInfo) {
+    try {
+        if (typeof getScheduleForDate !== 'function' || typeof BookingStorage?.getEffectiveCapacity !== 'function') return 0;
+        const slots = getScheduleForDate(dateInfo.formatted, dateInfo.dayName) || [];
+        let total = 0;
+        for (const s of slots) {
+            const cap = BookingStorage.getEffectiveCapacity(dateInfo.formatted, s.time, s.type) || 0;
+            total += cap;
+        }
+        return total;
+    } catch { return 0; }
+}
+
 function renderAdminDaySelector(weekDates) {
     const selector = document.getElementById('adminDaySelector');
     selector.innerHTML = '';
@@ -92,7 +108,10 @@ function renderAdminDaySelector(weekDates) {
 
     weekDates.forEach(dateInfo => {
         const bookings = BookingStorage.getAllBookings();
-        const dayBookingsCount = bookings.filter(b => b.date === dateInfo.formatted && b.status !== 'cancelled' && !b.id?.startsWith('_avail_')).length;
+        const dayBookings = bookings.filter(b => b.date === dateInfo.formatted && b.status !== 'cancelled' && !b.id?.startsWith('_avail_'));
+        const dayBookingsCount = dayBookings.length;
+        const dayCapacity = _adminDayCapacity(dateInfo);
+        const fillPct = dayCapacity > 0 ? Math.min(100, Math.round(dayBookingsCount * 100 / dayCapacity)) : 0;
 
         const dayCard = document.createElement('div');
         dayCard.className = 'admin-day-card';
@@ -110,6 +129,7 @@ function renderAdminDaySelector(weekDates) {
             <div class="admin-day-name"><span class="day-full">${dateInfo.dayName}</span><span class="day-short">${shortName}</span></div>
             <div class="admin-day-date">${dateInfo.date.getDate()}</div>
             <div class="admin-day-count">${dayBookingsCount} pren.</div>
+            <div class="admin-day-occ" aria-hidden="true"><div class="admin-day-occ-fill" style="width:${fillPct}%"></div></div>
         `;
 
         dayCard.addEventListener('click', () => {
@@ -525,17 +545,42 @@ function _buildParticipantCard(booking) {
     const wa  = booking.whatsapp.replace(/'/g, "\\'");
     const em  = booking.email.replace(/'/g, "\\'");
     const nm  = booking.name.replace(/'/g, "\\'");
+    const initials = _participantInitials(booking.name);
+    const avatarHue = _participantAvatarHue(booking.name);
     return `
         <div class="admin-participant-card${isCancelPending ? ' cancel-pending' : ''}">
             <button class="btn-delete-booking" onclick="deleteBooking('${booking.id}','${nm}')">✕</button>
             <div class="participant-card-content">
-                <div class="participant-name">${_escHtml(booking.name)} ${_pushIcon(userRecord)}</div>
+                <div class="participant-row">
+                    <div class="participant-avatar" data-hue="${avatarHue}">${initials}</div>
+                    <div class="participant-row-main">
+                        <div class="participant-name">${_escHtml(booking.name)} ${_pushIcon(userRecord)}</div>
+                        ${cancelPendingBadge}
+                        ${hasDebts ? `<div class="debt-warning" onclick="openDebtPopup('${wa}','${em}','${nm}')">⚠️ Da pagare: €${unpaidAmount}</div>` : ''}
+                        ${!isCancelPending && isPaid ? `<div class="payment-status paid">✓ Pagato</div>` : ''}
+                    </div>
+                </div>
+                ${certBadge}${cfBadge}${assicBadge}${docBadge}
                 ${booking.notes ? `<div class="participant-notes">📝 ${_escHtml(booking.notes)}</div>` : ''}
-                ${cancelPendingBadge}${certBadge}${cfBadge}${assicBadge}${docBadge}
-                ${hasDebts ? `<div class="debt-warning" onclick="openDebtPopup('${wa}','${em}','${nm}')">⚠️ Da pagare: €${unpaidAmount}</div>` : ''}
-                ${!isCancelPending && isPaid ? `<div class="payment-status paid">✓ Pagato</div>` : ''}
             </div>
         </div>`;
+}
+
+// Helper: iniziali per avatar partecipante (max 2 lettere maiuscole)
+function _participantInitials(name) {
+    if (!name) return '?';
+    const parts = String(name).trim().split(/\s+/).filter(Boolean);
+    if (parts.length === 0) return '?';
+    if (parts.length === 1) return parts[0].slice(0, 2).toUpperCase();
+    return (parts[0][0] + parts[parts.length - 1][0]).toUpperCase();
+}
+
+// Helper: hue stabile dal nome → 6 varianti colore avatar
+function _participantAvatarHue(name) {
+    const s = String(name || '');
+    let h = 0;
+    for (let i = 0; i < s.length; i++) h = (h * 31 + s.charCodeAt(i)) >>> 0;
+    return h % 6;
 }
 
 // Helper: griglia partecipanti per una lista di booking
@@ -630,8 +675,16 @@ function createAdminSlotCard(dateInfo, scheduledSlot) {
     const hasMixedExtras = extraTypes.length > 0;
 
     // ── Header ──────────────────────────────────────────────────────────────
-    const capStr = mainType !== 'group-class' && mainType !== 'cleaning'
+    const showCap = mainType !== 'group-class' && mainType !== 'cleaning';
+    const capStr = showCap
         ? `${mainConfirmed}/${mainEffCap} posti (${mainRemaining > 0 ? mainRemaining + ' liberi' : 'COMPLETO'})`
+        : '';
+    const capPipsHTML = showCap && mainEffCap > 0 && mainEffCap <= 12
+        ? `<div class="admin-slot-pips" aria-hidden="true">${
+            Array.from({ length: mainEffCap }, (_, i) =>
+                `<span class="pip${i < mainConfirmed ? '' : ' empty'}"></span>`
+            ).join('')
+          }</div>`
         : '';
     const pickerId = 'xpick-' + date + '-' + timeSlot.replace(/[: -]/g, '');
 
@@ -656,6 +709,7 @@ function createAdminSlotCard(dateInfo, scheduledSlot) {
             <div class="admin-slot-type">${SLOT_NAMES[mainType]}</div>
             ${sharedBadgeHTML}
             ${capStr ? `<div class="admin-slot-capacity">${capStr}</div>` : ''}
+            ${capPipsHTML}
             <button class="btn-add-extra" onclick="toggleExtraPicker('${dE}','${tE}')" title="Aggiungi posto extra">＋</button>
         </div>
         <div id="${pickerId}" class="extra-picker" style="display:none;">
