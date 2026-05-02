@@ -872,8 +872,13 @@ function createAdminSlotCard(dateInfo, scheduledSlot) {
         participantsHTML = `<div class="admin-slot-split">${leftCol}${rightCols}</div>`;
     }
 
+    // Picker fuori dal body: il body collassato (mobile) ha display:none,
+    // che propaga ai figli → con il picker dentro al body, anche il modal
+    // restava invisibile quando la card era chiusa. Ora il picker è
+    // sibling del body, sempre disponibile a prescindere dallo stato.
     slotCard.innerHTML = headerHTML
-        + `<div class="admin-slot-body">${sharedBadgeHTML}${extrasBarHTML}${pickerHTML}${participantsHTML}</div>`;
+        + pickerHTML
+        + `<div class="admin-slot-body">${sharedBadgeHTML}${extrasBarHTML}${participantsHTML}</div>`;
 
     // Salva il contenuto iniziale del picker (modal con bottoni) per poterlo
     // ripristinare quando la modalita' "ricerca cliente" viene chiusa.
