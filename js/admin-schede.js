@@ -456,7 +456,7 @@ function _schedeWithTimeout(promise, ms, label) {
 function _schedeRenderShell(container, { loading }) {
     const loaderHtml = loading ? '<div class="schede-loading">Caricamento schede...</div>' : '';
     container.innerHTML = `<div class="schede-subnav">
-        <button class="schede-subnav-pill ${_schedeSection === 'actual' ? 'active' : ''}" onclick="_schedeSwitchSection('actual')">Actual</button>
+        <button class="schede-subnav-pill ${_schedeSection === 'actual' ? 'active' : ''}" onclick="_schedeSwitchSection('actual')">Live</button>
         <button class="schede-subnav-pill ${_schedeSection === 'schede' ? 'active' : ''}" onclick="_schedeSwitchSection('schede')">Schede</button>
         <button class="schede-subnav-pill ${_schedeSection === 'clienti' ? 'active' : ''}" onclick="_schedeSwitchSection('clienti')">Clienti</button>
     </div><div id="schedeInner">${loaderHtml}</div>`;
