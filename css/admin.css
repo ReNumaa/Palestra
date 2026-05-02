@@ -4225,6 +4225,9 @@ canvas {
         scroll-snap-stop: always;
     }
 
+    /* Clienti: solo 2 card, una riga sola (no spazio vuoto sotto) */
+    #clientsStatsGrid .stats-page { grid-template-rows: 1fr; }
+
     .stat-card {
         padding: 1rem 0.75rem;
     }
