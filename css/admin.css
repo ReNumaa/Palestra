@@ -9770,6 +9770,15 @@ canvas {
 body.extra-picker-open {
     overflow: hidden;
 }
+/* Quando il modal e' aperto, nascondi la barra mobile (dock "Prenotazioni"
+   + pill filtro) e i FAB cosi' non coprono il popup */
+body.extra-picker-open .adm-bottom-stack,
+body.extra-picker-open .adm-mbar,
+body.extra-picker-open .adm-dock,
+body.extra-picker-open .scroll-slot-fab,
+body.extra-picker-open .payments-fab {
+    display: none !important;
+}
 
 @keyframes extraPickerSlideUp {
     from { transform: translateY(100%); }
