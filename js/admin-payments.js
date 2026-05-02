@@ -1209,6 +1209,7 @@ function openDebtPopup(whatsapp, email, name) {
 
     document.getElementById('debtPopupOverlay').classList.add('open');
     document.getElementById('debtPopupModal').classList.add('open');
+    document.body.style.overflow = 'hidden';
 }
 
 function renderDebtPopupList(unpaid, debtInfo = null) {
@@ -1491,5 +1492,6 @@ async function paySelectedDebts() {
 function closeDebtPopup() {
     document.getElementById('debtPopupOverlay').classList.remove('open');
     document.getElementById('debtPopupModal').classList.remove('open');
+    document.body.style.overflow = '';
     currentDebtContact = null;
 }

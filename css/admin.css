@@ -3626,6 +3626,7 @@ canvas {
     opacity: 0;
     pointer-events: none;
     transition: opacity 0.22s, transform 0.22s;
+    touch-action: none;
 }
 
 .debt-popup-modal.open {
@@ -3685,9 +3686,12 @@ canvas {
 .debt-popup-list {
     overflow-y: auto;
     overscroll-behavior: contain;
+    touch-action: pan-y;
     flex: 1;
     padding: 0.25rem 0;
 }
+
+.debt-popup-overlay { touch-action: none; }
 
 .debt-popup-item {
     padding: 0 1.5rem;
