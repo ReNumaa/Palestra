@@ -199,9 +199,14 @@ function toggleExtraPicker(date, time) {
     const el = document.getElementById(id);
     if (!el) return;
     const opening = el.style.display === 'none' || el.style.display === '';
-    if (opening && el._initialHtml) {
-        // Ripristina il contenuto iniziale (bottoni) se prima era in modalita'
-        // ricerca cliente — cosi' alla riapertura mostra sempre la lista bottoni.
+    // Ripristina sempre il contenuto iniziale (bottoni) ad ogni toggle.
+    // Motivo: tutti i pickers vivono nel body root. Se un picker passa in
+    // modalita' "ricerca cliente" (innerHTML con id=clientSearchInput/Results)
+    // e poi viene chiuso senza essere resettato, e un ALTRO picker passa
+    // anch'esso in ricerca → due elementi con stesso id nel DOM →
+    // document.getElementById prende il primo (sbagliato). Resettando ad
+    // ogni toggle garantiamo che solo il picker attivo abbia quegli id.
+    if (el._initialHtml) {
         el.innerHTML = el._initialHtml;
     }
     el.style.display = opening ? 'flex' : 'none';
