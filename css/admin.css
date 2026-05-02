@@ -9365,7 +9365,8 @@ canvas {
     color: #92400e;
 }
 
-/* Pips capacity nello slot header (max 12 posti) */
+/* Pips capacity: ogni pip ha la propria classe colore di tipo, cosi'
+   uno slot small-group con +1 extra Autonomia mostra 5 gialli + 1 verde. */
 .admin-slot-pips {
     display: inline-flex;
     gap: 3px;
@@ -9376,11 +9377,51 @@ canvas {
     width: 6px;
     height: 14px;
     border-radius: 2px;
-    background: #16a34a;
+    background: #cbd5e1;
 }
+.admin-slot-pips .pip.pip-pt { background: #16a34a; }
+.admin-slot-pips .pip.pip-sg { background: #f59e0b; }
+.admin-slot-pips .pip.pip-gc { background: #ef4444; }
+.admin-slot-pips .pip.pip-cl { background: #06b6d4; }
 .admin-slot-pips .pip.empty { background: #e2e8f0; }
-.admin-slot-card.small-group .admin-slot-pips .pip { background: #f59e0b; }
-.admin-slot-card.group-class .admin-slot-pips .pip { background: #ef4444; }
+/* Empty con tinta del tipo: il pip resta riconoscibile come "verde" / "giallo"
+   anche quando vuoto (es. 4 gialli pieni + 1 giallo pallido + 1 verde pallido). */
+.admin-slot-pips .pip.empty.pip-pt { background: rgba(22, 163, 74, 0.28); }
+.admin-slot-pips .pip.empty.pip-sg { background: rgba(245, 158, 11, 0.28); }
+.admin-slot-pips .pip.empty.pip-gc { background: rgba(239, 68, 68, 0.28); }
+.admin-slot-pips .pip.empty.pip-cl { background: rgba(6, 182, 212, 0.28); }
+
+/* "Pagato" e "Da pagare" — stesso stile pill, stessa famiglia/fontsize.
+   Solo i colori cambiano (verde paid, ambra unpaid). */
+.payment-status,
+.debt-warning {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.3rem;
+    margin: 0;
+    padding: 0.22rem 0.65rem;
+    border-radius: 999px;
+    font-size: 0.75rem;
+    font-weight: 700;
+    line-height: 1.25;
+    letter-spacing: 0.02em;
+    border: 0;
+    box-shadow: none;
+    transform: none;
+}
+.payment-status.paid {
+    color: var(--success);
+    background: rgba(34, 197, 94, 0.12);
+}
+.debt-warning {
+    color: #b45309;
+    background: rgba(245, 158, 11, 0.16);
+    cursor: pointer;
+}
+.debt-warning:hover {
+    background: rgba(245, 158, 11, 0.26);
+    transform: none;
+}
 
 /* Occupancy bar nelle day-card (settimana) */
 .admin-day-occ {
@@ -9612,4 +9653,36 @@ canvas {
         font-size: 0.72rem;
     }
     .participant-row { gap: 0.55rem; }
+}
+
+/* "+ Aggiungi posto" — pill-button dentro al body dello slot.
+   Override del .btn-add-extra esistente che era un cerchio 2x2rem. */
+.admin-slot-add-row {
+    display: flex;
+    justify-content: flex-start;
+    margin: 0 0 0.6rem;
+}
+.admin-slot-add-row .btn-add-extra {
+    width: auto;
+    height: auto;
+    padding: 0.4rem 0.85rem 0.4rem 0.7rem;
+    border-radius: 999px;
+    font-size: 0.78rem;
+    font-weight: 700;
+    background: rgba(0, 174, 239, 0.1);
+    border: 0;
+    color: var(--primary-cyan);
+    display: inline-flex;
+    align-items: center;
+    gap: 0.3rem;
+    line-height: 1;
+}
+.admin-slot-add-row .btn-add-extra:hover {
+    background: var(--primary-cyan);
+    color: #fff;
+}
+/* Picker che droppa sotto al bottone */
+.admin-slot-body .extra-picker {
+    margin-top: -0.2rem;
+    margin-bottom: 0.6rem;
 }

@@ -679,12 +679,24 @@ function createAdminSlotCard(dateInfo, scheduledSlot) {
     const capStr = showCap
         ? `${mainConfirmed}/${mainEffCap} posti (${mainRemaining > 0 ? mainRemaining + ' liberi' : 'COMPLETO'})`
         : '';
-    const capPipsHTML = showCap && mainEffCap > 0 && mainEffCap <= 12
-        ? `<div class="admin-slot-pips" aria-hidden="true">${
-            Array.from({ length: mainEffCap }, (_, i) =>
-                `<span class="pip${i < mainConfirmed ? '' : ' empty'}"></span>`
-            ).join('')
-          }</div>`
+
+    // Pips: prima quelli del tipo principale (colore del tipo), poi quelli
+    // di ogni tipo extra (es. small-group con +1 Autonomia → 5 gialli + 1 verde).
+    const pipParts = [];
+    if (showCap && mainEffCap > 0) {
+        for (let i = 0; i < mainEffCap; i++) {
+            pipParts.push(`<span class="pip ${_pipTypeClass(mainType)}${i < mainConfirmed ? '' : ' empty'}"></span>`);
+        }
+    }
+    for (const t of extraTypes) {
+        const ec = BookingStorage.getEffectiveCapacity(date, timeSlot, t);
+        const eConf = realBookings.filter(b => b.slotType === t && b.status === 'confirmed').length;
+        for (let i = 0; i < ec; i++) {
+            pipParts.push(`<span class="pip ${_pipTypeClass(t)}${i < eConf ? '' : ' empty'}"></span>`);
+        }
+    }
+    const capPipsHTML = pipParts.length > 0 && pipParts.length <= 12
+        ? `<div class="admin-slot-pips" aria-hidden="true">${pipParts.join('')}</div>`
         : '';
     const pickerId = 'xpick-' + date + '-' + timeSlot.replace(/[: -]/g, '');
 
@@ -710,8 +722,14 @@ function createAdminSlotCard(dateInfo, scheduledSlot) {
             ${sharedBadgeHTML}
             ${capStr ? `<div class="admin-slot-capacity">${capStr}</div>` : ''}
             ${capPipsHTML}
-            <button class="btn-add-extra" onclick="event.stopPropagation(); _ensureSlotExpanded(this); toggleExtraPicker('${dE}','${tE}')" title="Aggiungi posto extra">＋</button>
             <span class="admin-slot-chev" aria-hidden="true"></span>
+        </div>`;
+
+    // Add controls: bottone "+ Aggiungi posto" e picker. Vivono dentro al
+    // body cosi' compaiono solo a tendina aperta.
+    const addControlsHTML = `
+        <div class="admin-slot-add-row">
+            <button class="btn-add-extra" onclick="event.stopPropagation(); toggleExtraPicker('${dE}','${tE}')" title="Aggiungi posto extra">＋ Aggiungi posto</button>
         </div>
         <div id="${pickerId}" class="extra-picker" style="display:none;" onclick="event.stopPropagation()">
             <button class="extra-picker-btn personal-training" onclick="addExtraSpotToSlot('${dE}','${tE}','personal-training')">Autonomia</button>
@@ -762,7 +780,8 @@ function createAdminSlotCard(dateInfo, scheduledSlot) {
         participantsHTML = `<div class="admin-slot-split">${leftCol}${rightCols}</div>`;
     }
 
-    slotCard.innerHTML = headerHTML + extrasBarHTML + `<div class="admin-slot-body">${participantsHTML}</div>`;
+    slotCard.innerHTML = headerHTML
+        + `<div class="admin-slot-body">${extrasBarHTML}${addControlsHTML}${participantsHTML}</div>`;
 
     // Stato collapse/expand: ripristina dallo stato globale (sopravvive ai re-render)
     const slotKey = `${date}|${timeSlot}`;
@@ -784,6 +803,19 @@ function createAdminSlotCard(dateInfo, scheduledSlot) {
 // Stato globale degli slot espansi (chiave: "YYYY-MM-DD|HH:MM - HH:MM").
 // Sopravvive ai re-render di renderAdminDayView.
 const _expandedAdminSlots = (window._expandedAdminSlots = window._expandedAdminSlots || new Set());
+
+// Helper: classe CSS colore per pip in base al tipo slot.
+// pt = personal-training (verde), sg = small-group (giallo),
+// gc = group-class (rosso), cl = cleaning (ciano).
+function _pipTypeClass(slotType) {
+    switch (slotType) {
+        case 'personal-training': return 'pip-pt';
+        case 'small-group':       return 'pip-sg';
+        case 'group-class':       return 'pip-gc';
+        case 'cleaning':          return 'pip-cl';
+        default:                  return 'pip-pt';
+    }
+}
 
 // Helper: forza l'espansione dello slot che contiene l'elemento dato.
 // Usato dal "+" per mostrare il picker insieme alla lista partecipanti
