@@ -464,22 +464,42 @@ function createClientCard(client, index) {
     const userRecord  = _getUserRecord(client.email, client.whatsapp);
     const certScad    = userRecord?.certificatoMedicoScadenza || '';
     const assicScad2  = userRecord?.assicurazioneScadenza || '';
-    const _mkBadge = (scad, missingLabel, expiredPrefix, expiringPrefix, okPrefix) => {
-        if (!scad) return `<span class="cedit-cert-badge cedit-cert-expired">${missingLabel}</span>`;
+    const _wEscBadge  = (client.whatsapp || '').replace(/'/g, "\\'");
+    const _emEscBadge = (client.email || '').replace(/'/g, "\\'");
+    const _nEscBadge  = client.name.replace(/'/g, "\\'");
+    const _mkBadge = (scad, missingLabel, expiredPrefix, expiringPrefix, okPrefix, onClickAttr) => {
+        const oc = onClickAttr ? ` onclick="event.stopPropagation(); ${onClickAttr}"` : '';
+        const tag = onClickAttr ? 'button' : 'span';
+        const tagAttr = onClickAttr ? ' type="button"' : '';
+        const clickCls = onClickAttr ? ' cedit-cert-badge--clickable' : '';
+        if (!scad) return `<${tag}${tagAttr} class="cedit-cert-badge cedit-cert-expired${clickCls}"${oc}>${missingLabel}</${tag}>`;
         const today = _localDateStr();
         const [y, m, d] = scad.split('-');
         const label = `${d}/${m}/${y}`;
-        if (scad < today) return `<span class="cedit-cert-badge cedit-cert-expired">${expiredPrefix} ${label}</span>`;
+        if (scad < today) return `<${tag}${tagAttr} class="cedit-cert-badge cedit-cert-expired${clickCls}"${oc}>${expiredPrefix} ${label}</${tag}>`;
         const daysLeft = Math.ceil((new Date(scad + 'T00:00:00') - new Date()) / 86400000);
-        if (daysLeft <= 30) return `<span class="cedit-cert-badge cedit-cert-expiring">${expiringPrefix} ${label}</span>`;
-        return `<span class="cedit-cert-badge cedit-cert-ok">${okPrefix} ${label}</span>`;
+        if (daysLeft <= 30) return `<${tag}${tagAttr} class="cedit-cert-badge cedit-cert-expiring${clickCls}"${oc}>${expiringPrefix} ${label}</${tag}>`;
+        return `<${tag}${tagAttr} class="cedit-cert-badge cedit-cert-ok${clickCls}"${oc}>${okPrefix} ${label}</${tag}>`;
     };
     const bonus = BonusStorage.getBonus(client.whatsapp, client.email, client.userId);
     const bonusDisplay = `<span class="cedit-cert-badge ${bonus > 0 ? 'cedit-cert-ok' : 'cedit-cert-expiring'}">🎟️ Bonus ${bonus}/1</span>`;
-    const certDisplay  = _mkBadge(certScad,  '🏥 Imposta scadenza certificato medico', '🏥 Cert. scaduto il', '⏳ Cert. scade il', '✅ Cert. valido fino al');
-    const assicDisplay = _mkBadge(assicScad2, '📋 Imposta scadenza assicurazione',      '📋 Assic. scaduta il', '⏳ Assic. scade il', '📋 Assic. valida fino al');
+    const certDisplay  = BookingBadgesStorage.getShowCert()
+        ? _mkBadge(certScad, '🏥 Imposta scadenza certificato medico', '🏥 Cert. scaduto il', '⏳ Cert. scade il', '✅ Cert. valido fino al',
+            `openCertModal(this,'${_emEscBadge}','${_wEscBadge}','${_nEscBadge}')`)
+        : '';
+    const assicDisplay = BookingBadgesStorage.getShowAssic()
+        ? _mkBadge(assicScad2, '📋 Imposta scadenza assicurazione', '📋 Assic. scaduta il', '⏳ Assic. scade il', '📋 Assic. valida fino al',
+            `openAssicModal(this,'${_emEscBadge}','${_wEscBadge}','${_nEscBadge}')`)
+        : '';
     const docFirmato2  = userRecord?.documentoFirmato || false;
-    const docDisplay   = `<span class="cedit-cert-badge ${docFirmato2 ? 'cedit-cert-ok' : 'cedit-cert-expired'}">${docFirmato2 ? '✅ Documento firmato' : '📝 Documento non firmato'}</span>`;
+    const docDisplay   = BookingBadgesStorage.getShowDoc()
+        ? `<button type="button" class="cedit-cert-badge cedit-cert-badge--clickable ${docFirmato2 ? 'cedit-cert-ok' : 'cedit-cert-expired'}" onclick="event.stopPropagation(); openEditClientPopup(${index},'${_wEscBadge}','${_emEscBadge}','${_nEscBadge}')">${docFirmato2 ? '✅ Documento firmato' : '📝 Documento non firmato'}</button>`
+        : '';
+    // Anagrafica incompleta (CF, indirizzo)
+    const hasAnagComplete = userRecord?.codiceFiscale && userRecord?.indirizzoVia && userRecord?.indirizzoPaese && userRecord?.indirizzoCap;
+    const anagDisplay = (BookingBadgesStorage.getShowAnag() && !hasAnagComplete)
+        ? `<button type="button" class="cedit-cert-badge cedit-cert-badge--clickable cedit-cert-expiring" onclick="event.stopPropagation(); openEditClientPopup(${index},'${_wEscBadge}','${_emEscBadge}','${_nEscBadge}')">📋 Completa anagrafica</button>`
+        : '';
 
     // Unifica: "da pagare" = booking non pagati + debito manuale - credito
     const grossDebt    = Math.round((totalUnpaid + manualDebt) * 100) / 100;
@@ -695,7 +715,7 @@ function createClientCard(client, index) {
                     ${client.email ? `<a class="cv2-contact-link" href="mailto:${_escHtml(client.email)}" onclick="event.stopPropagation()">✉️ ${_escHtml(client.email)}</a>` : ''}
                 </div>
                 <div class="cv2-badges-row">
-                    ${certDisplay}${assicDisplay}${bonusDisplay}${docDisplay}
+                    ${certDisplay}${assicDisplay}${anagDisplay}${bonusDisplay}${docDisplay}
                 </div>
             </div>
             <div class="client-chevron">▼</div>
