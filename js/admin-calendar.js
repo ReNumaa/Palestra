@@ -733,12 +733,16 @@ function createAdminSlotCard(dateInfo, scheduledSlot) {
 
     // ── Header ──────────────────────────────────────────────────────────────
     // capStr (testo "X/Y posti") e showPips (barre colorate): tutti i tipi
-    // tranne 'cleaning'. Group-class ha base capacity=0 → quando vuoto lo
-    // mostriamo come "0/1 posto" (1-on-1 di default).
+    // tranne 'cleaning'. Group-class: base capacity=0 → mostra almeno 1 posto
+    // quando vuoto, e per uno shared (2 prenotazioni) sempre 2 pips rossi
+    // anche se l'extra capacity non riflette ancora il count effettivo.
     const showPips = mainType !== 'cleaning';
-    const displayCap = (mainType === 'group-class' && mainEffCap === 0)
-        ? 1
-        : mainEffCap;
+    let displayCap;
+    if (mainType === 'group-class') {
+        displayCap = Math.max(mainEffCap, mainConfirmed, 1);
+    } else {
+        displayCap = mainEffCap;
+    }
     const slotsLabel = displayCap === 1 ? 'posto' : 'posti';
     const capStr = (mainType !== 'cleaning' && displayCap > 0)
         ? `${mainConfirmed}/${displayCap} ${slotsLabel}`
@@ -747,16 +751,9 @@ function createAdminSlotCard(dateInfo, scheduledSlot) {
     // Pips: prima quelli del tipo principale (colore del tipo), poi quelli
     // di ogni tipo extra (es. small-group con +1 Autonomia → 5 gialli + 1 verde).
     const pipParts = [];
-    if (showPips) {
-        if (mainEffCap > 0) {
-            for (let i = 0; i < mainEffCap; i++) {
-                pipParts.push(`<span class="pip ${_pipTypeClass(mainType)}${i < mainConfirmed ? '' : ' empty'}"></span>`);
-            }
-        } else if (mainType === 'group-class') {
-            // group-class ha base capacity 0: l'extra viene aggiunto al primo
-            // booking. Mostriamo comunque 1 pip rosso come indicatore di tipo.
-            const cls = mainConfirmed > 0 ? 'pip pip-gc' : 'pip pip-gc empty';
-            pipParts.push(`<span class="${cls}"></span>`);
+    if (showPips && displayCap > 0) {
+        for (let i = 0; i < displayCap; i++) {
+            pipParts.push(`<span class="pip ${_pipTypeClass(mainType)}${i < mainConfirmed ? '' : ' empty'}"></span>`);
         }
     }
     for (const t of extraTypes) {
@@ -780,7 +777,7 @@ function createAdminSlotCard(dateInfo, scheduledSlot) {
     const isSharedSlot    = mainType === SLOT_TYPES.GROUP_CLASS && groupClassActiveCount >= 2;
     const canAddSlotPren  = mainType === SLOT_TYPES.GROUP_CLASS && groupClassActiveCount === 1;
     const sharedBadgeHTML = isSharedSlot
-        ? `<div class="admin-slot-capacity" style="background:#fce7f3;color:#9f1239;border:1px solid #fbcfe8">Slot condiviso · 15€ cad.</div>`
+        ? `<div class="admin-shared-badge">Slot condiviso · 15€ cad.</div>`
         : '';
     const slotPrenBtnHTML = canAddSlotPren
         ? `<button class="extra-picker-btn" style="background:#ef4444;color:#fff;border-color:#ef4444" onclick="openClientBookingPickerForSlotPrenotato('${dE}','${tE}','${pickerId}')">Slot prenotato</button>`
@@ -844,11 +841,10 @@ function createAdminSlotCard(dateInfo, scheduledSlot) {
             const eb = realBookings.filter(b => b.slotType === t);
             const ec = BookingStorage.getEffectiveCapacity(date, timeSlot, t);
             const eConf = eb.filter(b => b.status === 'confirmed').length;
-            const eRem  = ec - eConf;
             return `
                 <div class="split-col-divider-v"></div>
                 <div class="split-column">
-                    <div class="split-col-title ${t}">${SLOT_NAMES[t]} ${eConf}/${ec}${eRem > 0 ? ` · ${eRem} liberi` : ' · COMPLETO'}</div>
+                    <div class="split-col-title ${t}">${SLOT_NAMES[t]} ${eConf}/${ec}</div>
                     ${_buildParticipantsSection(eb)}
                 </div>`;
         }).join('');
