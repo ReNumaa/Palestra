@@ -9580,6 +9580,59 @@ canvas {
         gap: 8px;
     }
 
+    /* Swipe-to-reveal: il wrap diventa un container scroll orizzontale con
+       scroll-snap. La card occupa 100% (snap a sinistra), l'action box 56px
+       a destra (snap a destra). Swipe verso sinistra → si rivela il "+". */
+    .admin-slot-card-wrap {
+        display: flex;
+        overflow-x: auto;
+        overflow-y: hidden;
+        scroll-snap-type: x mandatory;
+        -webkit-overflow-scrolling: touch;
+        scrollbar-width: none;
+        border-radius: 12px;
+    }
+    .admin-slot-card-wrap::-webkit-scrollbar { display: none; }
+    .admin-slot-card-wrap > .admin-slot-card {
+        flex: 0 0 100%;
+        min-width: 100%;
+        width: 100%;
+        scroll-snap-align: start;
+        scroll-snap-stop: always;
+    }
+    .admin-slot-card-wrap .admin-slot-actions {
+        flex: 0 0 56px;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        margin-left: 8px;
+        scroll-snap-align: end;
+        scroll-snap-stop: always;
+        background: rgba(0, 174, 239, 0.12);
+        border-radius: 12px;
+    }
+    .admin-slot-actions .btn-add-extra--swipe {
+        width: 2.5rem;
+        height: 2.5rem;
+        padding: 0;
+        border-radius: 50%;
+        background: var(--primary-cyan);
+        color: #fff;
+        border: 0;
+        font-size: 1.25rem;
+        font-weight: 700;
+        cursor: pointer;
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        line-height: 1;
+        box-shadow: 0 2px 6px rgba(0, 174, 239, 0.35);
+    }
+    /* "+" inline nel header: nascosto su mobile (usa lo swipe-reveal) */
+    .btn-add-extra--inline {
+        display: none !important;
+    }
+
     /* Slot card snella e separata. Mostra header collassato come riga
        singola tipo "08:00 — 09:20 · Autonomia · 4/5 · ▽". */
     .admin-slot-card {
@@ -9695,27 +9748,15 @@ canvas {
     .participant-row { gap: 0.55rem; }
 }
 
-/* Riga info nel body slot: extras-bar (se presente) + bottoncino "+" tondo
-   sulla stessa riga, "+" sempre a destra. Se extras-bar non c'e', il "+"
-   resta da solo allineato a destra. */
-.admin-slot-info-row {
-    display: flex;
-    align-items: center;
-    gap: 0.6rem;
-    margin: 0 0 0.55rem;
-    min-height: 2rem;
-}
-.admin-slot-info-row .admin-extras-bar {
-    flex: 1 1 auto;
-    min-width: 0;
-    margin: 0;
-}
-.admin-slot-info-row .btn-add-extra {
-    width: 2rem;
-    height: 2rem;
+/* "+" inline nell'header dello slot — visibile su desktop accanto ai pips.
+   Su mobile è nascosto (vedi @media): la stessa azione è raggiungibile
+   con uno swipe a sinistra sulla card che rivela un'action box col "+". */
+.btn-add-extra--inline {
+    width: 1.85rem;
+    height: 1.85rem;
     padding: 0;
     border-radius: 50%;
-    font-size: 1.1rem;
+    font-size: 1.05rem;
     font-weight: 700;
     background: rgba(0, 174, 239, 0.1);
     border: 0;
@@ -9725,15 +9766,26 @@ canvas {
     justify-content: center;
     line-height: 1;
     cursor: pointer;
-    margin-left: auto;
     flex-shrink: 0;
     transition: background 0.15s, color 0.15s, transform 0.1s;
 }
-.admin-slot-info-row .btn-add-extra:hover {
+.btn-add-extra--inline:hover {
     background: var(--primary-cyan);
     color: #fff;
 }
-.admin-slot-info-row .btn-add-extra:active { transform: scale(0.94); }
+.btn-add-extra--inline:active { transform: scale(0.94); }
+
+/* Wrapper swipe-to-reveal: di default si comporta come un blocco normale
+   (desktop). Su mobile diventa un container scrollabile orizzontalmente
+   con la card a sinistra e un action box (con il "+") a destra che
+   compare con uno swipe verso sinistra. */
+.admin-slot-card-wrap {
+    display: block;
+    position: relative;
+}
+.admin-slot-actions {
+    display: none;
+}
 
 /* ── Day-selector: 3 settimane in scroll-snap orizzontale (swipe per cambiare settimana) ── */
 .admin-day-selector {

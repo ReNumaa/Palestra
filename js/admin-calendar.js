@@ -801,11 +801,15 @@ function createAdminSlotCard(dateInfo, scheduledSlot) {
         ? `<button class="extra-picker-btn" style="background:#ef4444;color:#fff;border-color:#ef4444" onclick="openClientBookingPickerForSlotPrenotato('${dE}','${tE}','${pickerId}')">Slot prenotato</button>`
         : '';
 
+    // Header: su desktop il "+" sta accanto ai pips (visible). Su mobile il
+    // "+" inline è nascosto via CSS — il "+" appare facendo swipe a sinistra
+    // sulla card dello slot (vedi .admin-slot-card-wrap + .admin-slot-actions).
     const headerHTML = `
         <div class="admin-slot-header">
             <div class="admin-slot-time">🕐 ${timeSlot}</div>
             ${capStr ? `<div class="admin-slot-capacity">${capStr}</div>` : ''}
             ${capPipsHTML}
+            <button class="btn-add-extra btn-add-extra--inline" onclick="event.stopPropagation(); toggleExtraPicker('${dE}','${tE}')" title="Aggiungi posto extra" aria-label="Aggiungi posto">＋</button>
             <span class="admin-slot-chev" aria-hidden="true"></span>
         </div>`;
 
@@ -821,15 +825,6 @@ function createAdminSlotCard(dateInfo, scheduledSlot) {
         }).join('');
         extrasBarHTML = `<div class="admin-extras-bar">Extra: ${badges}</div>`;
     }
-
-    // Riga "info": extras-bar (se presente) + bottone "+" sulla stessa riga,
-    // con il "+" sempre allineato a destra. Quando non ci sono extras, il "+"
-    // resta da solo a destra.
-    const infoRowHTML = `
-        <div class="admin-slot-info-row">
-            ${extrasBarHTML}
-            <button class="btn-add-extra" onclick="event.stopPropagation(); toggleExtraPicker('${dE}','${tE}')" title="Aggiungi posto extra" aria-label="Aggiungi posto">＋</button>
-        </div>`;
 
     // Picker modal: posizionato fixed → la posizione DOM non conta.
     const pickerHTML = `
@@ -878,7 +873,7 @@ function createAdminSlotCard(dateInfo, scheduledSlot) {
     }
 
     slotCard.innerHTML = headerHTML
-        + `<div class="admin-slot-body">${sharedBadgeHTML}${infoRowHTML}${pickerHTML}${participantsHTML}</div>`;
+        + `<div class="admin-slot-body">${sharedBadgeHTML}${extrasBarHTML}${pickerHTML}${participantsHTML}</div>`;
 
     // Salva il contenuto iniziale del picker (modal con bottoni) per poterlo
     // ripristinare quando la modalita' "ricerca cliente" viene chiusa.
@@ -899,7 +894,22 @@ function createAdminSlotCard(dateInfo, scheduledSlot) {
             else _expandedAdminSlots.delete(slotKey);
         });
     }
-    return slotCard;
+
+    // Wrapper per swipe-to-reveal su mobile: la card occupa il 100% della
+    // wrap, l'action box (60px) sta a destra e si rivela con scroll/swipe
+    // orizzontale (scroll-snap). Su desktop il wrap è solo un passthrough
+    // (display: block) e l'action box è nascosta (il "+" inline nell'header
+    // basta).
+    const wrap = document.createElement('div');
+    wrap.className = 'admin-slot-card-wrap';
+    wrap.appendChild(slotCard);
+
+    const actions = document.createElement('div');
+    actions.className = 'admin-slot-actions';
+    actions.innerHTML = `<button class="btn-add-extra btn-add-extra--swipe" onclick="toggleExtraPicker('${dE}','${tE}')" title="Aggiungi posto extra" aria-label="Aggiungi posto">＋</button>`;
+    wrap.appendChild(actions);
+
+    return wrap;
 }
 
 // Stato globale degli slot espansi (chiave: "YYYY-MM-DD|HH:MM - HH:MM").
