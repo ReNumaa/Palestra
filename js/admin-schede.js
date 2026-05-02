@@ -609,6 +609,15 @@ let _schedeActualLoggedTodaySet = new Set();
 let _schedeActualLoggedTodayInflight = false;
 let _schedeActualLoggedTodayFetchedAt = 0;
 
+// Set di user_id che hanno almeno un monthly_report per il mese scorso (year_month
+// = mese precedente a quello corrente). Popolato in background da
+// _schedeActualFetchReportsLastMonth e usato per mostrare l'emoji 📊 accanto al
+// badge V/X nello slot precedente e attuale.
+let _schedeActualReportLastMonthYM = null;
+let _schedeActualReportLastMonthSet = new Set();
+let _schedeActualReportLastMonthInflight = false;
+let _schedeActualReportLastMonthFetchedAt = 0;
+
 async function _schedeActualFetchLoggedToday(todayFormatted) {
     if (_schedeActualLoggedTodayInflight) return;
     const fresh = _schedeActualLoggedTodayDate === todayFormatted
@@ -640,6 +649,48 @@ async function _schedeActualFetchLoggedToday(todayFormatted) {
         console.warn('[Schede Actual] fetch logged today exception:', e);
     } finally {
         _schedeActualLoggedTodayInflight = false;
+    }
+}
+
+// "YYYY-MM" del mese precedente a oggi (TZ locale). Allineato con
+// _getAvailableMonthForGeneration di allenamento-report.js.
+function _schedeActualLastMonthYM() {
+    const now = new Date();
+    const prev = new Date(now.getFullYear(), now.getMonth() - 1, 1);
+    return `${prev.getFullYear()}-${String(prev.getMonth() + 1).padStart(2, '0')}`;
+}
+
+async function _schedeActualFetchReportsLastMonth(yearMonth) {
+    if (_schedeActualReportLastMonthInflight) return;
+    const fresh = _schedeActualReportLastMonthYM === yearMonth
+        && (Date.now() - _schedeActualReportLastMonthFetchedAt) < 60000;
+    if (fresh) return;
+    if (typeof supabaseClient === 'undefined') return;
+    _schedeActualReportLastMonthInflight = true;
+    try {
+        const { data, error } = await _queryWithTimeout(supabaseClient
+            .from('monthly_reports')
+            .select('user_id')
+            .eq('year_month', yearMonth));
+        if (error) {
+            console.warn('[Schede Actual] fetch reports last month error:', error.message);
+            return;
+        }
+        const set = new Set();
+        for (const r of (data || [])) if (r.user_id) set.add(r.user_id);
+        _schedeActualReportLastMonthSet = set;
+        _schedeActualReportLastMonthYM = yearMonth;
+        _schedeActualReportLastMonthFetchedAt = Date.now();
+        // Re-render se siamo ancora sull'Actual (la guardia "fresh" sopra
+        // evita il loop infinito sul rerender che richiama il fetch).
+        if (_schedeSection === 'actual' && _schedeView === 'list') {
+            const inner = document.getElementById('schedeInner');
+            if (inner) _renderActualView(inner);
+        }
+    } catch (e) {
+        console.warn('[Schede Actual] fetch reports last month exception:', e);
+    } finally {
+        _schedeActualReportLastMonthInflight = false;
     }
 }
 
@@ -770,6 +821,14 @@ function _renderActualView(container) {
         ? _schedeActualLoggedTodaySet
         : new Set();
 
+    // Set user_id con monthly_report del mese scorso: usato per l'emoji 📊
+    // accanto al badge V/X (solo prev/current). Stessa logica di cache.
+    const lastMonthYM = _schedeActualLastMonthYM();
+    _schedeActualFetchReportsLastMonth(lastMonthYM);
+    const reportSet = (_schedeActualReportLastMonthYM === lastMonthYM)
+        ? _schedeActualReportLastMonthSet
+        : new Set();
+
     const nowLabel = now.toLocaleTimeString('it-IT', { hour: '2-digit', minute: '2-digit' });
     const dateLabel = now.toLocaleDateString('it-IT', { weekday: 'long', day: '2-digit', month: 'long' });
 
@@ -779,9 +838,9 @@ function _renderActualView(container) {
     </div>`;
 
     html += '<div class="schede-actual-grid">';
-    html += _schedeActualRenderSlot('prev',    prevIdx,    todayFormatted, usersWithActivePlan, loggedSet);
-    html += _schedeActualRenderSlot('current', currentIdx, todayFormatted, usersWithActivePlan, loggedSet);
-    html += _schedeActualRenderSlot('next',    nextIdx,    todayFormatted, usersWithActivePlan, loggedSet);
+    html += _schedeActualRenderSlot('prev',    prevIdx,    todayFormatted, usersWithActivePlan, loggedSet, reportSet);
+    html += _schedeActualRenderSlot('current', currentIdx, todayFormatted, usersWithActivePlan, loggedSet, reportSet);
+    html += _schedeActualRenderSlot('next',    nextIdx,    todayFormatted, usersWithActivePlan, loggedSet, reportSet);
     html += '</div>';
 
     container.innerHTML = html;
@@ -799,7 +858,7 @@ function _renderActualView(container) {
     });
 }
 
-function _schedeActualRenderSlot(position, slotIdx, todayFormatted, usersWithActivePlan, loggedSet) {
+function _schedeActualRenderSlot(position, slotIdx, todayFormatted, usersWithActivePlan, loggedSet, reportSet) {
     const positionLabel = position === 'prev' ? 'Slot precedente'
                         : position === 'current' ? 'Slot attuale'
                         : 'Slot successivo';
@@ -855,15 +914,22 @@ function _schedeActualRenderSlot(position, slotIdx, todayFormatted, usersWithAct
                 ? 'title="Cliente senza profilo registrato"'
                 : (noPlan ? 'title="Nessuna scheda attiva assegnata"' : '');
             let logBadge = '';
+            let reportBadge = '';
             if (showLogBadge) {
                 const logged = hasUid && loggedSet && loggedSet.has(uid);
                 const badgeCls = logged ? 'schede-actual-client-log--ok' : 'schede-actual-client-log--ko';
                 const badgeTitle = logged ? 'Ha registrato log oggi' : 'Nessun log registrato oggi';
                 logBadge = `<span class="schede-actual-client-log ${badgeCls}" title="${badgeTitle}" aria-label="${badgeTitle}">${logged ? '✓' : '✗'}</span>`;
+
+                if (hasUid && reportSet && reportSet.has(uid)) {
+                    const reportTitle = 'Ha generato il report del mese scorso';
+                    reportBadge = `<span class="schede-actual-client-report" title="${reportTitle}" aria-label="${reportTitle}">📊</span>`;
+                }
             }
             html += `<button class="${classes.join(' ')}"
                 ${hasUid ? `onclick="_schedeActualOpenClientPopup('${_escJs(uid)}','${_escJs(name)}')"` : 'disabled'} ${titleAttr}>
                 <span class="schede-actual-client-name">${_escHtml(name)}</span>
+                ${reportBadge}
                 ${logBadge}
                 ${hasUid ? '<span class="schede-actual-client-chev">›</span>' : ''}
             </button>`;
