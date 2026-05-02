@@ -8664,6 +8664,7 @@ canvas {
 
 /* Nascoste su desktop */
 .adm-mbar { display: none; }
+.adm-dock { display: none; }
 .adm-sheet-backdrop,
 .adm-sheet { display: none; }
 
@@ -8686,63 +8687,45 @@ canvas {
     #registroSubtab-notifiche-admin .reg-panel-filters,
     #registroSubtab-notifiche-clienti .reg-panel-filters { display: none !important; }
 
-    /* ── Barra mobile (sticky) ───────────────────────────────────────────── */
+    /* Lascia spazio al dock azzurro fisso in basso (76px dock + safe-area) */
+    #dashboardSection {
+        padding-bottom: calc(96px + env(safe-area-inset-bottom));
+    }
+
+    /* Spinge sopra il dock i FAB esistenti (in basso a destra) */
+    .scroll-slot-fab,
+    .payments-fab {
+        bottom: calc(96px + env(safe-area-inset-bottom)) !important;
+    }
+
+    /* ── Barra mobile (sticky, solo Filtri) ──────────────────────────────── */
     .adm-mbar {
         display: flex;
         gap: 0.5rem;
         align-items: center;
+        justify-content: flex-end;
         position: sticky;
         top: var(--admin-tabs-top, 72px);
         z-index: 14;
-        padding: 0.5rem;
-        background: linear-gradient(135deg, #f1f5f9, #e8ecf1);
-        border: 1px solid #e2e8f0;
-        border-radius: 14px;
-        box-shadow: 0 1px 4px rgba(0, 0, 0, 0.04), 0 4px 8px rgba(0, 0, 0, 0.06);
-        margin-bottom: 1rem;
-    }
-
-    .adm-mbar-page {
-        flex: 1 1 auto;
-        min-height: 44px;
-        display: flex;
-        align-items: center;
-        gap: 0.5rem;
-        padding: 0.55rem 0.85rem;
+        padding: 0.4rem 0.5rem;
+        background: transparent;
         border: none;
-        border-radius: 10px;
-        background: linear-gradient(135deg, #00AEEF, #0090cc);
-        color: #fff;
-        font-family: inherit;
-        font-size: 0.92rem;
-        font-weight: 700;
-        letter-spacing: 0.01em;
-        cursor: pointer;
-        box-shadow: 0 2px 8px rgba(0, 174, 239, 0.3);
-        transition: transform 0.15s ease, box-shadow 0.2s ease;
-        text-align: left;
-        overflow: hidden;
+        border-radius: 0;
+        box-shadow: none;
+        margin-bottom: 0.6rem;
     }
-    .adm-mbar-page:active { transform: scale(0.98); }
-    .adm-mbar-page-ico { font-size: 1.05rem; line-height: 1; flex-shrink: 0; }
-    .adm-mbar-page-label {
-        flex: 1 1 auto;
-        min-width: 0;
-        overflow: hidden;
-        text-overflow: ellipsis;
-        white-space: nowrap;
-    }
-    .adm-mbar-page-chevron { font-size: 0.85rem; opacity: 0.9; flex-shrink: 0; }
+    /* Se il bottone Filtri è nascosto, nascondi tutta la barra (niente vuoto) */
+    .adm-mbar:not(:has(> .adm-mbar-filter:not([hidden]))) { display: none; }
 
     .adm-mbar-filter {
         flex: 0 0 auto;
-        min-height: 44px;
+        min-height: 40px;
         display: flex;
         align-items: center;
         gap: 0.4rem;
-        padding: 0.55rem 0.85rem;
+        padding: 0.5rem 0.85rem;
         border: 1px solid #e2e8f0;
-        border-radius: 10px;
+        border-radius: 999px;
         background: #fff;
         color: #334155;
         font-family: inherit;
@@ -8770,9 +8753,87 @@ canvas {
     }
     .adm-mbar-filter[hidden] { display: none !important; }
 
-    /* Quando il bottone filtri è nascosto, la pagina occupa tutta la larghezza */
-    .adm-mbar-filter[hidden] ~ .adm-mbar-page,
-    .adm-mbar:has(.adm-mbar-filter[hidden]) .adm-mbar-page { width: 100%; }
+    /* ── Dock azzurro fisso in basso (page switcher) ─────────────────────── */
+    .adm-dock {
+        display: block;
+        position: fixed;
+        left: 12px;
+        right: 12px;
+        bottom: calc(12px + env(safe-area-inset-bottom));
+        z-index: 1090;
+        pointer-events: none;
+    }
+    .adm-dock-btn {
+        pointer-events: auto;
+        width: 100%;
+        min-height: 60px;
+        display: flex;
+        align-items: center;
+        gap: 12px;
+        padding: 10px 14px;
+        border: none;
+        border-radius: 16px;
+        background: linear-gradient(180deg, #1aa6e0 0%, #0b7fb0 100%);
+        color: #fff;
+        font-family: inherit;
+        text-align: left;
+        cursor: pointer;
+        box-shadow:
+            0 12px 24px -8px rgba(11, 127, 176, 0.45),
+            0 4px 10px -4px rgba(15, 23, 42, 0.20),
+            inset 0 1px 0 rgba(255, 255, 255, 0.25);
+        transition: transform 0.15s ease, box-shadow 0.2s ease;
+    }
+    .adm-dock-btn:active { transform: scale(0.985); }
+    .adm-dock-icon {
+        width: 38px;
+        height: 38px;
+        flex-shrink: 0;
+        border-radius: 10px;
+        background: rgba(255, 255, 255, 0.20);
+        display: grid;
+        place-items: center;
+        font-size: 1.05rem;
+        line-height: 1;
+    }
+    .adm-dock-labels {
+        flex: 1 1 auto;
+        min-width: 0;
+        display: flex;
+        flex-direction: column;
+        gap: 1px;
+        overflow: hidden;
+    }
+    .adm-dock-eyebrow {
+        font-size: 0.62rem;
+        font-weight: 700;
+        letter-spacing: 0.10em;
+        text-transform: uppercase;
+        color: rgba(255, 255, 255, 0.78);
+        line-height: 1.2;
+    }
+    .adm-dock-name {
+        font-size: 0.98rem;
+        font-weight: 800;
+        letter-spacing: 0.005em;
+        color: #fff;
+        line-height: 1.25;
+        overflow: hidden;
+        text-overflow: ellipsis;
+        white-space: nowrap;
+    }
+    .adm-dock-chev {
+        flex-shrink: 0;
+        width: 9px;
+        height: 9px;
+        margin-right: 6px;
+        border-left: 2px solid #fff;
+        border-top: 2px solid #fff;
+        transform: rotate(45deg) translate(2px, 2px);
+        opacity: 0.85;
+    }
+    /* Quando un bottom-sheet è aperto, nascondi il dock per evitare overlap */
+    body.adm-sheet-open .adm-dock { display: none; }
 
     /* ── Backdrop ────────────────────────────────────────────────────────── */
     .adm-sheet-backdrop {
