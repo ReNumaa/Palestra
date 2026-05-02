@@ -13,7 +13,7 @@
     <link rel="icon" type="image/jpeg" href="images/logo-tb---nero.jpg">
     <link rel="stylesheet" href="css/style.css?v=8">
     <link rel="stylesheet" href="css/login.css?v=5">
-    <link rel="stylesheet" href="css/admin.css?v=86">
+    <link rel="stylesheet" href="css/admin.css?v=85">
     <script>
         // Anti-flash al refresh: legge il tab attivo dal sessionStorage e lo
         // espone come data-initial-tab su <html> prima che il body venga
@@ -129,48 +129,24 @@
                 <div class="stats-grid stats-grid--payments">
                     <div class="stats-page">
                         <div class="stat-card" id="statcard-tot-debt">
-                            <div class="stat-icon">
-                                <svg viewBox="0 0 24 24" fill="currentColor" aria-hidden="true">
-                                    <ellipse cx="12" cy="6" rx="8" ry="3"/>
-                                    <path d="M4 9c0 1.66 3.58 3 8 3s8-1.34 8-3v3c0 1.66-3.58 3-8 3s-8-1.34-8-3V9z"/>
-                                    <path d="M4 14c0 1.66 3.58 3 8 3s8-1.34 8-3v3c0 1.66-3.58 3-8 3s-8-1.34-8-3v-3z"/>
-                                </svg>
-                            </div>
+                            <div class="stat-icon">💰</div>
                             <h3>Da Incassare</h3>
                             <p class="stat-value" id="totalUnpaid">€0</p>
                         </div>
                         <div class="stat-card" id="statcard-tot-cred">
-                            <div class="stat-icon">
-                                <svg viewBox="0 0 24 24" fill="currentColor" aria-hidden="true">
-                                    <path d="M3 5a2 2 0 0 0-2 2v1h22V7a2 2 0 0 0-2-2H3zm20 5H1v7a2 2 0 0 0 2 2h18a2 2 0 0 0 2-2v-7zM4 15h6v2H4v-2z"/>
-                                </svg>
-                            </div>
+                            <div class="stat-icon">💳</div>
                             <h3>Incasso Crediti</h3>
                             <p class="stat-value" id="totalCreditAmount">€0</p>
                         </div>
                         <div class="stat-card stat-card--clickable" id="statcard-debtors" onclick="toggleDebtorsList()" title="Clicca per vedere la lista">
                             <div class="stat-card-click-hint" id="debtorsToggleHint">Dettagli ▼</div>
-                            <div class="stat-icon">
-                                <svg viewBox="0 0 24 24" fill="currentColor" aria-hidden="true">
-                                    <circle cx="9" cy="7" r="4"/>
-                                    <path d="M3 21v-1a6 6 0 0 1 6-6h0a6 6 0 0 1 6 6v1H3z"/>
-                                    <circle cx="19" cy="6" r="3"/>
-                                    <rect x="18.25" y="3.5" width="1.5" height="3" rx="0.6" fill="#fff"/>
-                                    <circle cx="19" cy="8" r="0.7" fill="#fff"/>
-                                </svg>
-                            </div>
+                            <div class="stat-icon">👤</div>
                             <h3>Clienti Debitori</h3>
                             <p class="stat-value" id="totalDebtors">0</p>
                         </div>
                         <div class="stat-card stat-card--clickable" id="statcard-creditors" onclick="toggleCreditsList()" title="Clicca per vedere la lista">
                             <div class="stat-card-click-hint" id="creditorsToggleHint">Dettagli ▼</div>
-                            <div class="stat-icon">
-                                <svg viewBox="0 0 24 24" fill="currentColor" aria-hidden="true">
-                                    <circle cx="9" cy="7" r="4"/>
-                                    <path d="M3 21v-1a6 6 0 0 1 6-6h0a6 6 0 0 1 6 6v1H3z"/>
-                                    <path d="M16.5 11.5l1.8 1.8 3.7-3.7" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"/>
-                                </svg>
-                            </div>
+                            <div class="stat-icon">⭐</div>
                             <h3>Clienti Creditori</h3>
                             <p class="stat-value" id="totalCreditors">0</p>
                         </div>

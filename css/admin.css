@@ -492,15 +492,9 @@ html[data-initial-tab="settings"]  .admin-tab[data-tab="settings"] {
 #statcard-occupancy .stat-icon    { background: rgba(139,92,246,0.10); }
 #statcard-checkfisico .stat-icon  { background: rgba(6,182,212,0.10); }
 #statcard-tot-debt .stat-icon,
-#statcard-debtors .stat-icon      { background: rgba(239,68,68,0.10); color: #dc2626; }
+#statcard-debtors .stat-icon      { background: rgba(239,68,68,0.10); }
 #statcard-tot-cred .stat-icon,
-#statcard-creditors .stat-icon    { background: rgba(34,197,94,0.10); color: #16a34a; }
-
-/* Pagamenti: SVG glyphs (handoff Pagamenti Final B) */
-#statcard-tot-debt .stat-icon svg,
-#statcard-tot-cred .stat-icon svg,
-#statcard-debtors .stat-icon svg,
-#statcard-creditors .stat-icon svg { width: 1.4rem; height: 1.4rem; display: block; }
+#statcard-creditors .stat-icon    { background: rgba(34,197,94,0.10); }
 
 /* Per-card colored stat-value (Pagamenti) */
 #statcard-tot-debt .stat-value,
@@ -4670,10 +4664,6 @@ canvas {
     .stats-page { gap: 0.5rem; }
     .stat-card { padding: 0.6rem 0.55rem; }
     .stat-icon { font-size: 1.25rem; margin-bottom: 0.15rem; }
-    #statcard-tot-debt .stat-icon svg,
-    #statcard-tot-cred .stat-icon svg,
-    #statcard-debtors .stat-icon svg,
-    #statcard-creditors .stat-icon svg { width: 1.1rem; height: 1.1rem; }
     .stat-card h3 { font-size: 0.62rem; margin-bottom: 0.15rem; }
     .stat-value { font-size: 1.15rem; margin-bottom: 0.1rem; }
 
