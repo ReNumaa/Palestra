@@ -9582,26 +9582,29 @@ canvas {
 
     /* Swipe-to-reveal: il wrap diventa un container scroll orizzontale con
        scroll-snap. La card occupa 100% (snap a sinistra), l'action box 56px
-       a destra (snap a destra). Swipe verso sinistra → si rivela il "+". */
+       a destra (snap a destra). Swipe verso sinistra → si rivela il "+".
+       NB iOS: tolto -webkit-overflow-scrolling (deprecato, conflitti con
+       scroll-snap), tolto border-radius dal wrap (causava clipping del
+       touch su Safari), usata sintassi width esplicita invece di flex-basis,
+       aggiunto touch-action: pan-x pan-y per delegare correttamente i gesti. */
     .admin-slot-card-wrap {
         display: flex;
         overflow-x: auto;
         overflow-y: hidden;
         scroll-snap-type: x mandatory;
-        -webkit-overflow-scrolling: touch;
         scrollbar-width: none;
-        border-radius: 12px;
+        touch-action: pan-x pan-y;
     }
     .admin-slot-card-wrap::-webkit-scrollbar { display: none; }
     .admin-slot-card-wrap > .admin-slot-card {
-        flex: 0 0 100%;
-        min-width: 100%;
         width: 100%;
+        flex-shrink: 0;
         scroll-snap-align: start;
         scroll-snap-stop: always;
     }
-    .admin-slot-card-wrap .admin-slot-actions {
-        flex: 0 0 56px;
+    .admin-slot-card-wrap > .admin-slot-actions {
+        width: 56px;
+        flex-shrink: 0;
         display: flex;
         align-items: center;
         justify-content: center;
@@ -9627,6 +9630,8 @@ canvas {
         justify-content: center;
         line-height: 1;
         box-shadow: 0 2px 6px rgba(0, 174, 239, 0.35);
+        touch-action: manipulation;
+        -webkit-tap-highlight-color: rgba(0, 174, 239, 0.3);
     }
     /* "+" inline nel header: nascosto su mobile (usa lo swipe-reveal) */
     .btn-add-extra--inline {
