@@ -6607,6 +6607,15 @@ canvas {
 }
 .schede-header .btn-primary:hover { box-shadow: 0 4px 16px rgba(0,174,239,0.4); transform: translateY(-1px); }
 
+/* Header senza titolo (rimosso perche ridondante con la subnav): solo bottone, allineato a destra */
+.schede-header--no-title {
+    justify-content: flex-end;
+    background-image: none;
+    border-bottom: none;
+    padding-bottom: 0;
+    margin-bottom: 1rem;
+}
+
 
 .schede-search-bar { margin-bottom: 1rem; position: relative; }
 .schede-search-bar input {

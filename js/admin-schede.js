@@ -774,10 +774,7 @@ function _renderActualView(container) {
     const dateLabel = now.toLocaleDateString('it-IT', { weekday: 'long', day: '2-digit', month: 'long' });
 
     let html = `<div class="schede-actual-topbar">
-        <div>
-            <h3 class="schede-actual-title">Actual</h3>
-            <div class="schede-actual-subtitle">${_escHtml(dateLabel)} &middot; ore ${_escHtml(nowLabel)}</div>
-        </div>
+        <div class="schede-actual-subtitle">${_escHtml(dateLabel)} &middot; ore ${_escHtml(nowLabel)}</div>
         <button class="schede-actual-refresh" onclick="renderSchedeTab()" title="Aggiorna">↻</button>
     </div>`;
 
@@ -1202,9 +1199,7 @@ function _renderClientsList(container) {
         (nameMap[a] || '').localeCompare(nameMap[b] || '')
     );
 
-    let html = `<div class="schede-header">
-        <h3>Clienti</h3>
-    </div>`;
+    let html = '';
 
     html += `<div class="schede-search-bar">
         <input type="text" id="schedeClientFilterInput" placeholder="Filtra clienti con schede..."
@@ -1720,8 +1715,7 @@ function _renderSchedeList(container) {
     const templates = plans.filter(p => !p.user_id);
 
     let html = `
-        <div class="schede-header">
-            <h3>Schede</h3>
+        <div class="schede-header schede-header--no-title">
             <button class="btn-primary" onclick="_schedeNewPlan()">+ Nuova Scheda</button>
         </div>`;
 
