@@ -675,15 +675,18 @@ function createAdminSlotCard(dateInfo, scheduledSlot) {
     const hasMixedExtras = extraTypes.length > 0;
 
     // ── Header ──────────────────────────────────────────────────────────────
-    const showCap = mainType !== 'group-class' && mainType !== 'cleaning';
-    const capStr = showCap
+    // capStr (testo "X/Y posti"): solo per personal-training e small-group.
+    // showPips (barre colorate): tutti i tipi tranne 'cleaning' → include "Slot prenotato".
+    const showCapStr = mainType !== 'group-class' && mainType !== 'cleaning';
+    const showPips   = mainType !== 'cleaning';
+    const capStr = showCapStr
         ? `${mainConfirmed}/${mainEffCap} posti (${mainRemaining > 0 ? mainRemaining + ' liberi' : 'COMPLETO'})`
         : '';
 
     // Pips: prima quelli del tipo principale (colore del tipo), poi quelli
     // di ogni tipo extra (es. small-group con +1 Autonomia → 5 gialli + 1 verde).
     const pipParts = [];
-    if (showCap && mainEffCap > 0) {
+    if (showPips && mainEffCap > 0) {
         for (let i = 0; i < mainEffCap; i++) {
             pipParts.push(`<span class="pip ${_pipTypeClass(mainType)}${i < mainConfirmed ? '' : ' empty'}"></span>`);
         }
@@ -718,7 +721,6 @@ function createAdminSlotCard(dateInfo, scheduledSlot) {
     const headerHTML = `
         <div class="admin-slot-header">
             <div class="admin-slot-time">🕐 ${timeSlot}</div>
-            <div class="admin-slot-type">${SLOT_NAMES[mainType]}</div>
             ${sharedBadgeHTML}
             ${capStr ? `<div class="admin-slot-capacity">${capStr}</div>` : ''}
             ${capPipsHTML}
