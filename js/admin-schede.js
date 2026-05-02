@@ -785,6 +785,18 @@ function _renderActualView(container) {
     html += '</div>';
 
     container.innerHTML = html;
+
+    // Mobile: il grid e' un carosello orizzontale. Posiziona lo scroll sullo
+    // slot corrente cosi' di default si vede il LIVE; swipe a dx -> prev,
+    // swipe a sx -> next. Su desktop scrollWidth == clientWidth e si esce.
+    requestAnimationFrame(() => {
+        const grid = container.querySelector('.schede-actual-grid');
+        if (!grid || grid.scrollWidth <= grid.clientWidth + 1) return;
+        const cur = grid.querySelector('.schede-actual-slot--current');
+        if (!cur) return;
+        const offset = cur.offsetLeft - (grid.clientWidth - cur.clientWidth) / 2;
+        grid.scrollLeft = Math.max(0, offset);
+    });
 }
 
 function _schedeActualRenderSlot(position, slotIdx, todayFormatted, usersWithActivePlan, loggedSet) {

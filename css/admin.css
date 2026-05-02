@@ -6488,8 +6488,30 @@ canvas {
 }
 
 @media (max-width: 780px) {
-    .schede-actual-grid { grid-template-columns: 1fr; gap: 0.7rem; }
-    .schede-actual-slot { padding: 0.8rem 0.85rem; }
+    /* Carosello orizzontale: prev/current/next allineati su una riga,
+       scroll-snap centra una card alla volta. JS posiziona scrollLeft sul
+       current al primo render. */
+    .schede-actual-grid {
+        display: flex;
+        flex-direction: row;
+        grid-template-columns: none;
+        gap: 0.7rem;
+        overflow-x: auto;
+        scroll-snap-type: x mandatory;
+        -webkit-overflow-scrolling: touch;
+        scrollbar-width: none;
+        /* breathing room verticale per non clippare il box-shadow di --current */
+        padding: 4px 2px 22px;
+        margin: 0 -2px -16px;
+    }
+    .schede-actual-grid::-webkit-scrollbar { display: none; }
+    .schede-actual-slot {
+        flex: 0 0 100%;
+        min-width: 0;
+        scroll-snap-align: center;
+        scroll-snap-stop: always;
+        padding: 0.8rem 0.85rem;
+    }
     .schede-actual-slot--current { transform: none; }
     .schede-actual-time { font-size: 1.05rem; }
     .schede-actual-topbar { padding-bottom: 0.7rem; margin-bottom: 0.8rem; }
