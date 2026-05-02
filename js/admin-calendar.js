@@ -791,25 +791,6 @@ function createAdminSlotCard(dateInfo, scheduledSlot) {
             <span class="admin-slot-chev" aria-hidden="true"></span>
         </div>`;
 
-    // Add controls: bottone "+ Aggiungi posto" + picker modale.
-    // Il picker e' posizionato fixed (modal overlay), il backdrop chiude
-    // al click. Il contenuto stoppa la propagazione cosi' il click su un
-    // bottone non chiude il modal.
-    const addControlsHTML = `
-        <div class="admin-slot-add-row">
-            <button class="btn-add-extra" onclick="event.stopPropagation(); toggleExtraPicker('${dE}','${tE}')" title="Aggiungi posto extra" aria-label="Aggiungi posto">＋</button>
-        </div>
-        <div id="${pickerId}" class="extra-picker" style="display:none;" onclick="toggleExtraPicker('${dE}','${tE}')">
-            <div class="extra-picker-content" onclick="event.stopPropagation()">
-                <div class="extra-picker-title">Aggiungi posto allo slot</div>
-                <button class="extra-picker-btn personal-training" onclick="addExtraSpotToSlot('${dE}','${tE}','personal-training')">Autonomia</button>
-                <button class="extra-picker-btn small-group" onclick="addExtraSpotToSlot('${dE}','${tE}','small-group')">Lezione di Gruppo</button>
-                ${slotPrenBtnHTML}
-                <button class="extra-picker-btn" style="background:#6c5ce7;color:#fff" onclick="openClientBookingPicker('${dE}','${tE}','${pickerId}')">Persona</button>
-                <button class="extra-picker-cancel" onclick="toggleExtraPicker('${dE}','${tE}')">Annulla</button>
-            </div>
-        </div>`;
-
     // ── Extras bar ──────────────────────────────────────────────────────────
     let extrasBarHTML = '';
     if (extras.length > 0) {
@@ -822,6 +803,28 @@ function createAdminSlotCard(dateInfo, scheduledSlot) {
         }).join('');
         extrasBarHTML = `<div class="admin-extras-bar">Extra: ${badges}</div>`;
     }
+
+    // Riga "info": extras-bar (se presente) + bottone "+" sulla stessa riga,
+    // con il "+" sempre allineato a destra. Quando non ci sono extras, il "+"
+    // resta da solo a destra.
+    const infoRowHTML = `
+        <div class="admin-slot-info-row">
+            ${extrasBarHTML}
+            <button class="btn-add-extra" onclick="event.stopPropagation(); toggleExtraPicker('${dE}','${tE}')" title="Aggiungi posto extra" aria-label="Aggiungi posto">＋</button>
+        </div>`;
+
+    // Picker modal: posizionato fixed → la posizione DOM non conta.
+    const pickerHTML = `
+        <div id="${pickerId}" class="extra-picker" style="display:none;" onclick="toggleExtraPicker('${dE}','${tE}')">
+            <div class="extra-picker-content" onclick="event.stopPropagation()">
+                <div class="extra-picker-title">Aggiungi posto allo slot</div>
+                <button class="extra-picker-btn personal-training" onclick="addExtraSpotToSlot('${dE}','${tE}','personal-training')">Autonomia</button>
+                <button class="extra-picker-btn small-group" onclick="addExtraSpotToSlot('${dE}','${tE}','small-group')">Lezione di Gruppo</button>
+                ${slotPrenBtnHTML}
+                <button class="extra-picker-btn" style="background:#6c5ce7;color:#fff" onclick="openClientBookingPicker('${dE}','${tE}','${pickerId}')">Persona</button>
+                <button class="extra-picker-cancel" onclick="toggleExtraPicker('${dE}','${tE}')">Annulla</button>
+            </div>
+        </div>`;
 
     // ── Participants ─────────────────────────────────────────────────────────
     let participantsHTML;
@@ -852,7 +855,7 @@ function createAdminSlotCard(dateInfo, scheduledSlot) {
     }
 
     slotCard.innerHTML = headerHTML
-        + `<div class="admin-slot-body">${sharedBadgeHTML}${extrasBarHTML}${addControlsHTML}${participantsHTML}</div>`;
+        + `<div class="admin-slot-body">${sharedBadgeHTML}${infoRowHTML}${pickerHTML}${participantsHTML}</div>`;
 
     // Salva il contenuto iniziale del picker (modal con bottoni) per poterlo
     // ripristinare quando la modalita' "ricerca cliente" viene chiusa.

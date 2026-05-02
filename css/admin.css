@@ -9657,13 +9657,22 @@ canvas {
     .participant-row { gap: 0.55rem; }
 }
 
-/* "+ Aggiungi posto" → bottoncino "+" tondo a destra dentro al body dello slot. */
-.admin-slot-add-row {
+/* Riga info nel body slot: extras-bar (se presente) + bottoncino "+" tondo
+   sulla stessa riga, "+" sempre a destra. Se extras-bar non c'e', il "+"
+   resta da solo allineato a destra. */
+.admin-slot-info-row {
     display: flex;
-    justify-content: flex-end;
+    align-items: center;
+    gap: 0.6rem;
     margin: 0 0 0.55rem;
+    min-height: 2rem;
 }
-.admin-slot-add-row .btn-add-extra {
+.admin-slot-info-row .admin-extras-bar {
+    flex: 1 1 auto;
+    min-width: 0;
+    margin: 0;
+}
+.admin-slot-info-row .btn-add-extra {
     width: 2rem;
     height: 2rem;
     padding: 0;
@@ -9678,13 +9687,15 @@ canvas {
     justify-content: center;
     line-height: 1;
     cursor: pointer;
+    margin-left: auto;
+    flex-shrink: 0;
     transition: background 0.15s, color 0.15s, transform 0.1s;
 }
-.admin-slot-add-row .btn-add-extra:hover {
+.admin-slot-info-row .btn-add-extra:hover {
     background: var(--primary-cyan);
     color: #fff;
 }
-.admin-slot-add-row .btn-add-extra:active { transform: scale(0.94); }
+.admin-slot-info-row .btn-add-extra:active { transform: scale(0.94); }
 
 /* ── Day-selector: 3 settimane in scroll-snap orizzontale (swipe per cambiare settimana) ── */
 .admin-day-selector {
