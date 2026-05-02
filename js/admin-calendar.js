@@ -148,7 +148,15 @@ function renderAdminDaySelector(weekDates) {
 function toggleExtraPicker(date, time) {
     const id = 'xpick-' + date + '-' + time.replace(/[: -]/g, '');
     const el = document.getElementById(id);
-    if (el) el.style.display = el.style.display === 'none' ? 'flex' : 'none';
+    if (!el) return;
+    const opening = el.style.display === 'none' || el.style.display === '';
+    if (opening && el._initialHtml) {
+        // Ripristina il contenuto iniziale (bottoni) se prima era in modalita'
+        // ricerca cliente — cosi' alla riapertura mostra sempre la lista bottoni.
+        el.innerHTML = el._initialHtml;
+    }
+    el.style.display = opening ? 'flex' : 'none';
+    document.body.classList.toggle('extra-picker-open', opening);
 }
 
 function addExtraSpotToSlot(date, time, extraType) {
@@ -172,15 +180,16 @@ function openClientBookingPicker(date, time, pickerId) {
     _clientPickerState.forcedSlotType = null;
 
     picker.innerHTML = `
-        <div style="width:100%;padding:8px 0 4px;display:flex;flex-direction:column;gap:8px">
+        <div class="extra-picker-content" onclick="event.stopPropagation()">
+            <div class="extra-picker-title">Aggiungi una prenotazione</div>
             <div style="display:flex;gap:8px;align-items:center">
                 <input id="clientSearchInput" type="text" placeholder="Cerca cliente…"
                     autocomplete="off"
-                    style="flex:1;padding:7px 10px;border:1px solid #ddd;border-radius:8px;font-size:13px">
+                    style="flex:1;padding:9px 12px;border:1px solid #e2e8f0;border-radius:10px;font-size:14px">
                 <button onclick="toggleExtraPicker('${date}','${time}')"
-                    style="background:none;border:none;color:#999;cursor:pointer;font-size:18px;padding:0 4px">✕</button>
+                    style="background:#f1f5f9;border:none;color:#475569;cursor:pointer;font-size:18px;padding:6px 10px;border-radius:8px;line-height:1">✕</button>
             </div>
-            <div id="clientSearchResults" style="display:flex;flex-direction:column;gap:4px;max-height:180px;overflow-y:auto"></div>
+            <div id="clientSearchResults" style="display:flex;flex-direction:column;gap:6px;max-height:240px;overflow-y:auto"></div>
             <div id="clientBookingConfirm" style="display:none"></div>
         </div>
     `;
@@ -744,17 +753,23 @@ function createAdminSlotCard(dateInfo, scheduledSlot) {
             <span class="admin-slot-chev" aria-hidden="true"></span>
         </div>`;
 
-    // Add controls: bottone "+ Aggiungi posto" e picker. Vivono dentro al
-    // body cosi' compaiono solo a tendina aperta.
+    // Add controls: bottone "+ Aggiungi posto" + picker modale.
+    // Il picker e' posizionato fixed (modal overlay), il backdrop chiude
+    // al click. Il contenuto stoppa la propagazione cosi' il click su un
+    // bottone non chiude il modal.
     const addControlsHTML = `
         <div class="admin-slot-add-row">
             <button class="btn-add-extra" onclick="event.stopPropagation(); toggleExtraPicker('${dE}','${tE}')" title="Aggiungi posto extra">＋ Aggiungi posto</button>
         </div>
-        <div id="${pickerId}" class="extra-picker" style="display:none;" onclick="event.stopPropagation()">
-            <button class="extra-picker-btn personal-training" onclick="addExtraSpotToSlot('${dE}','${tE}','personal-training')">Autonomia</button>
-            <button class="extra-picker-btn small-group" onclick="addExtraSpotToSlot('${dE}','${tE}','small-group')">Lezione di Gruppo</button>
-            ${slotPrenBtnHTML}
-            <button class="extra-picker-btn" style="background:#6c5ce7;color:#fff" onclick="openClientBookingPicker('${dE}','${tE}','${pickerId}')">Persona</button>
+        <div id="${pickerId}" class="extra-picker" style="display:none;" onclick="toggleExtraPicker('${dE}','${tE}')">
+            <div class="extra-picker-content" onclick="event.stopPropagation()">
+                <div class="extra-picker-title">Aggiungi posto allo slot</div>
+                <button class="extra-picker-btn personal-training" onclick="addExtraSpotToSlot('${dE}','${tE}','personal-training')">Autonomia</button>
+                <button class="extra-picker-btn small-group" onclick="addExtraSpotToSlot('${dE}','${tE}','small-group')">Lezione di Gruppo</button>
+                ${slotPrenBtnHTML}
+                <button class="extra-picker-btn" style="background:#6c5ce7;color:#fff" onclick="openClientBookingPicker('${dE}','${tE}','${pickerId}')">Persona</button>
+                <button class="extra-picker-cancel" onclick="toggleExtraPicker('${dE}','${tE}')">Annulla</button>
+            </div>
         </div>`;
 
     // ── Extras bar ──────────────────────────────────────────────────────────
@@ -801,6 +816,11 @@ function createAdminSlotCard(dateInfo, scheduledSlot) {
 
     slotCard.innerHTML = headerHTML
         + `<div class="admin-slot-body">${extrasBarHTML}${addControlsHTML}${participantsHTML}</div>`;
+
+    // Salva il contenuto iniziale del picker (modal con bottoni) per poterlo
+    // ripristinare quando la modalita' "ricerca cliente" viene chiusa.
+    const pickerEl = slotCard.querySelector('.extra-picker');
+    if (pickerEl) pickerEl._initialHtml = pickerEl.innerHTML;
 
     // Stato collapse/expand: ripristina dallo stato globale (sopravvive ai re-render)
     const slotKey = `${date}|${timeSlot}`;

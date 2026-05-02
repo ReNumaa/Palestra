@@ -9686,3 +9686,109 @@ canvas {
     margin-top: -0.2rem;
     margin-bottom: 0.6rem;
 }
+
+/* ───────────────────────────────────────────────────────────────────────────
+   "+ Aggiungi posto" → modale popup (sostituisce l'inline-picker).
+   Backdrop fixed full-screen + content card. Su mobile bottom-sheet,
+   su desktop modal centrato. Click sul backdrop chiude.
+   ─────────────────────────────────────────────────────────────────────────── */
+.extra-picker {
+    /* Override del flex-row inline → ora e' un overlay backdrop */
+    background: rgba(15, 23, 42, 0.55);
+    border: 0;
+    border-radius: 0;
+    padding: 0;
+    margin: 0;
+    flex-wrap: nowrap;
+    flex-direction: column;
+    align-items: center;
+    justify-content: flex-end;
+    position: fixed;
+    inset: 0;
+    z-index: 9999;
+    -webkit-backdrop-filter: blur(2px);
+    backdrop-filter: blur(2px);
+}
+.admin-slot-body .extra-picker {
+    /* Override del margin che valeva per l'inline-picker */
+    margin: 0;
+}
+
+.extra-picker-content {
+    background: #fff;
+    border-radius: 16px 16px 0 0;
+    padding: 1.1rem 1rem 1.25rem;
+    width: 100%;
+    max-width: 500px;
+    max-height: 85vh;
+    overflow-y: auto;
+    box-shadow: 0 -8px 32px rgba(0, 0, 0, 0.2);
+    display: flex;
+    flex-direction: column;
+    gap: 0.55rem;
+    animation: extraPickerSlideUp 0.22s ease-out;
+}
+
+.extra-picker-title {
+    font-size: 0.7rem;
+    font-weight: 800;
+    color: #64748b;
+    text-transform: uppercase;
+    letter-spacing: 0.06em;
+    padding: 0 0.25rem 0.35rem;
+}
+
+/* Bottoni nel modale: full-width pill, padding generoso. Override di
+   .extra-picker-btn (originariamente piccoli per inline picker). */
+.extra-picker .extra-picker-btn {
+    padding: 0.95rem 1rem;
+    border-radius: 12px;
+    font-size: 0.92rem;
+    font-weight: 700;
+    text-align: left;
+    color: #fff;
+    box-shadow: 0 1px 3px rgba(15, 23, 42, 0.08);
+    transition: transform 0.1s ease, opacity 0.15s;
+}
+.extra-picker .extra-picker-btn:active { transform: scale(0.985); }
+
+.extra-picker-cancel {
+    background: #f1f5f9;
+    color: #475569;
+    border: 0;
+    width: 100%;
+    padding: 0.75rem;
+    border-radius: 12px;
+    font-size: 0.88rem;
+    font-weight: 600;
+    cursor: pointer;
+    margin-top: 0.25rem;
+    transition: background 0.15s;
+}
+.extra-picker-cancel:hover { background: #e2e8f0; }
+
+body.extra-picker-open {
+    overflow: hidden;
+}
+
+@keyframes extraPickerSlideUp {
+    from { transform: translateY(100%); }
+    to { transform: translateY(0); }
+}
+
+@media (min-width: 769px) {
+    .extra-picker {
+        align-items: center;
+        justify-content: center;
+        padding: 1rem;
+    }
+    .extra-picker-content {
+        border-radius: 16px;
+        max-width: 420px;
+        animation: extraPickerFadeIn 0.18s ease-out;
+    }
+    @keyframes extraPickerFadeIn {
+        from { opacity: 0; transform: scale(0.96); }
+        to { opacity: 1; transform: scale(1); }
+    }
+}
