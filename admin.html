@@ -182,23 +182,6 @@
                     <span id="clientsPageSub">&nbsp;</span>
                 </div>
 
-                <div class="stats-grid stats-grid--payments" id="clientsStatsGrid">
-                    <div class="stats-page">
-                        <div class="stat-card stat-card--clickable" id="statcard-clienti-totali" onclick="toggleClientsTotalList()" title="Clicca per vedere la lista">
-                            <div class="stat-card-click-hint" id="clientsTotalHint">Dettagli ▼</div>
-                            <div class="stat-icon">👥</div>
-                            <h3>Clienti Totali</h3>
-                            <p class="stat-value" id="clientsTotalCount">0</p>
-                        </div>
-                        <div class="stat-card stat-card--clickable" id="statcard-clienti-attivi" onclick="toggleClientsActiveList()" title="Clicca per vedere la lista">
-                            <div class="stat-card-click-hint" id="clientsActiveHint">Dettagli ▼</div>
-                            <div class="stat-icon">💪</div>
-                            <h3>Clienti Attivi</h3>
-                            <p class="stat-value" id="clientsActiveCount">0</p>
-                        </div>
-                    </div>
-                </div>
-
                 <div class="clients-search-bar" style="position:relative;">
                     <div class="clients-search-row">
                         <div class="search-input-group" style="flex:1;">
@@ -234,6 +217,23 @@
                     </div>
                 </div>
                 <div class="clients-filter-result" id="clientsFilterResult" style="display:none;"></div>
+
+                <div class="stats-grid stats-grid--payments" id="clientsStatsGrid">
+                    <div class="stats-page">
+                        <div class="stat-card stat-card--clickable" id="statcard-clienti-totali" onclick="toggleClientsTotalList()" title="Clicca per vedere la lista">
+                            <div class="stat-card-click-hint" id="clientsTotalHint">Dettagli ▼</div>
+                            <div class="stat-icon">👥</div>
+                            <h3>Clienti Totali</h3>
+                            <p class="stat-value" id="clientsTotalCount">0</p>
+                        </div>
+                        <div class="stat-card stat-card--clickable" id="statcard-clienti-attivi" onclick="toggleClientsActiveList()" title="Clicca per vedere la lista">
+                            <div class="stat-card-click-hint" id="clientsActiveHint">Dettagli ▼</div>
+                            <div class="stat-icon">💪</div>
+                            <h3>Clienti Attivi</h3>
+                            <p class="stat-value" id="clientsActiveCount">0</p>
+                        </div>
+                    </div>
+                </div>
                 <div class="clients-list" id="clientsList" style="display:none;">
                     <!-- Populated by JavaScript -->
                 </div>
