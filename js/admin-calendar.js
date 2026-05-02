@@ -638,6 +638,12 @@ function _scrollToCurrentAdminSlot(container) {
         if (!parsed) continue;
         const slotEnd = parsed.endH * 60 + parsed.endM;
         if (slotEnd > nowMinutes) {
+            // Espandi lo slot corrente + persisti lo stato (sopravvive ai re-render)
+            card.classList.add('is-expanded');
+            const dateInfo = window._currentAdminDate;
+            if (dateInfo?.formatted && text && typeof _expandedAdminSlots !== 'undefined') {
+                _expandedAdminSlots.add(`${dateInfo.formatted}|${text}`);
+            }
             setTimeout(() => {
                 const y = card.getBoundingClientRect().top + window.pageYOffset - window.innerHeight * 0.35;
                 window.scrollTo({ top: y, behavior: 'smooth' });
