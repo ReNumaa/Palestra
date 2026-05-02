@@ -8730,14 +8730,22 @@ canvas {
     #registroSubtab-notifiche-admin .reg-panel-filters,
     #registroSubtab-notifiche-clienti .reg-panel-filters { display: none !important; }
 
-    /* Lascia spazio al bottom-stack (filtro pill + dock) — fino a ~150px se entrambi visibili */
+    /* Lascia spazio al bottom-stack — base: solo dock (~100px) */
     #dashboardSection {
+        padding-bottom: calc(100px + env(safe-area-inset-bottom));
+    }
+    /* Quando la pill Filtri è visibile (Statistiche/Clienti/Registro) servono ~150px */
+    body:has(#admMbarFilter:not([hidden])) #dashboardSection {
         padding-bottom: calc(150px + env(safe-area-inset-bottom));
     }
 
-    /* Spinge sopra il bottom-stack i FAB esistenti (in basso a destra) */
+    /* FAB esistenti: vicini al dock di default; più in alto solo se la pill Filtri c'è */
     .scroll-slot-fab,
     .payments-fab {
+        bottom: calc(100px + env(safe-area-inset-bottom)) !important;
+    }
+    body:has(#admMbarFilter:not([hidden])) .scroll-slot-fab,
+    body:has(#admMbarFilter:not([hidden])) .payments-fab {
         bottom: calc(150px + env(safe-area-inset-bottom)) !important;
     }
 
