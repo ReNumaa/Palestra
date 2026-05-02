@@ -776,7 +776,9 @@ function createAdminSlotCard(dateInfo, scheduledSlot) {
     ).length;
     const isSharedSlot    = mainType === SLOT_TYPES.GROUP_CLASS && groupClassActiveCount >= 2;
     const canAddSlotPren  = mainType === SLOT_TYPES.GROUP_CLASS && groupClassActiveCount === 1;
-    const sharedBadgeHTML = isSharedSlot
+    // In split view il "Slot condiviso · 15€ cad." sostituisce il titolo
+    // della colonna group-class, quindi non mostriamo anche il badge in alto.
+    const sharedBadgeHTML = (isSharedSlot && !hasMixedExtras)
         ? `<div class="admin-shared-badge">Slot condiviso · 15€ cad.</div>`
         : '';
     const slotPrenBtnHTML = canAddSlotPren
@@ -835,9 +837,14 @@ function createAdminSlotCard(dateInfo, scheduledSlot) {
     } else {
         // Vista divisa in colonne
         const mainBookings = realBookings.filter(b => !b.slotType || b.slotType === mainType);
+        // Per group-class shared, il titolo della colonna sostituisce sia
+        // "Slot prenotato" sia il badge separato "Slot condiviso · 15€ cad."
+        const leftColLabel = (isSharedSlot && mainType === SLOT_TYPES.GROUP_CLASS)
+            ? 'Slot condiviso · 15€ cad.'
+            : SLOT_NAMES[mainType];
         const leftCol = `
             <div class="split-column">
-                <div class="split-col-title ${mainType}">${SLOT_NAMES[mainType]}</div>
+                <div class="split-col-title ${mainType}">${leftColLabel}</div>
                 ${_buildParticipantsSection(mainBookings)}
             </div>`;
         const rightCols = extraTypes.map(t => {
