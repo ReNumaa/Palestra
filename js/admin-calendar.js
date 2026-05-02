@@ -78,11 +78,19 @@ function renderAdminCalendar() {
     renderAdminDaySelector(weekDates);
     renderAdminDayView(selectedAdminDay);
 
-    // Update week display
+    // Update week display: "27 apr — 3 mag" + sotto "MAGGIO 2026"
     const firstDate = weekDates[0].date;
     const lastDate = weekDates[6].date;
-    document.getElementById('adminCurrentWeek').textContent =
-        `${firstDate.getDate()}/${firstDate.getMonth() + 1} - ${lastDate.getDate()}/${lastDate.getMonth() + 1}/${lastDate.getFullYear()}`;
+    const M_SHORT = ['gen','feb','mar','apr','mag','giu','lug','ago','set','ott','nov','dic'];
+    const M_FULL  = ['gennaio','febbraio','marzo','aprile','maggio','giugno','luglio','agosto','settembre','ottobre','novembre','dicembre'];
+    const range = `${firstDate.getDate()} ${M_SHORT[firstDate.getMonth()]} — ${lastDate.getDate()} ${M_SHORT[lastDate.getMonth()]}`;
+    document.getElementById('adminCurrentWeek').textContent = range;
+    const monthEl = document.getElementById('adminCurrentMonth');
+    if (monthEl) {
+        // Sottotitolo: usa il mese del giorno selezionato (o ultimo della settimana)
+        const refDate = selectedAdminDay?.date || lastDate;
+        monthEl.textContent = `${M_FULL[refDate.getMonth()].toUpperCase()} ${refDate.getFullYear()}`;
+    }
 }
 
 // Capacità giornaliera totale (somma dei posti effettivi di tutti gli slot
@@ -137,7 +145,6 @@ function renderAdminDaySelector(_weekDates) {
             dayCard.innerHTML = `
                 <div class="admin-day-name"><span class="day-full">${dateInfo.dayName}</span><span class="day-short">${shortName}</span></div>
                 <div class="admin-day-date">${dateInfo.date.getDate()}</div>
-                <div class="admin-day-count">${dayBookingsCount} pren.</div>
                 <div class="admin-day-occ" aria-hidden="true"><div class="admin-day-occ-fill" style="width:${fillPct}%"></div></div>
             `;
 
@@ -743,9 +750,18 @@ function createAdminSlotCard(dateInfo, scheduledSlot) {
     } else {
         displayCap = mainEffCap;
     }
-    const slotsLabel = displayCap === 1 ? 'posto' : 'posti';
-    const capStr = (mainType !== 'cleaning' && displayCap > 0)
-        ? `${mainConfirmed}/${displayCap} ${slotsLabel}`
+
+    // Capacita' e prenotati TOTALI dello slot (main + tutti gli extra di
+    // tipo diverso). Es. shared (2 group-class) + 1 autonomia → 3/3.
+    let totalCap = displayCap;
+    for (const t of extraTypes) {
+        totalCap += BookingStorage.getEffectiveCapacity(date, timeSlot, t) || 0;
+    }
+    const totalConfirmed = realBookings.filter(b => b.status === 'confirmed').length;
+
+    const slotsLabel = totalCap === 1 ? 'posto' : 'posti';
+    const capStr = (mainType !== 'cleaning' && totalCap > 0)
+        ? `${totalConfirmed}/${totalCap} ${slotsLabel}`
         : '';
 
     // Pips: prima quelli del tipo principale (colore del tipo), poi quelli
