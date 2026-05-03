@@ -9841,7 +9841,7 @@ button.cedit-cert-badge {
         border-radius: 0;
         box-shadow: none;
         overflow: visible;
-        padding: 0;
+        padding: 0 0 90px;
         gap: 8px;
     }
 
