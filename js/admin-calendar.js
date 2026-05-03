@@ -145,6 +145,7 @@ function renderAdminDaySelector(_weekDates) {
             dayCard.innerHTML = `
                 <div class="admin-day-name"><span class="day-full">${dateInfo.dayName}</span><span class="day-short">${shortName}</span></div>
                 <div class="admin-day-date">${dateInfo.date.getDate()}</div>
+                <div class="admin-day-count">${dayBookingsCount} pren.</div>
                 <div class="admin-day-occ" aria-hidden="true"><div class="admin-day-occ-fill" style="width:${fillPct}%"></div></div>
             `;
 
