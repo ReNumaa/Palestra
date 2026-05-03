@@ -9749,7 +9749,7 @@ button.cedit-cert-badge {
         /* Shift di 0.75rem (= padding-top di .dashboard-section) per
            preservare il margine chiaro tra navbar e bar anche durante lo
            scroll. Il ::after sticky riempie quell'area con il bg pagina. */
-        top: calc(var(--bookings-bar-top, 72px) + 0.75rem);
+        top: calc(var(--bookings-bar-top, 72px) + 0.35rem);
     }
     .bookings-week-bar::before {
         opacity: 0.65;
@@ -9757,10 +9757,10 @@ button.cedit-cert-badge {
     .bookings-week-bar::after {
         content: "";
         position: absolute;
-        top: calc(-0.75rem - 1px);
+        top: calc(-0.35rem - 1px);
         left: 0;
         right: 0;
-        height: calc(0.75rem + 1px);
+        height: calc(0.35rem + 1px);
         background: var(--light-gray);
     }
     .bookings-week-bar .schedule-week-dates {
