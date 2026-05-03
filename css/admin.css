@@ -686,27 +686,18 @@ canvas {
     flex-direction: column;
     gap: 0.65rem;
     padding: 0.85rem 1.3rem 0.75rem;
-    /* Estende il background bianco del bar verso l'alto fino al top del
-       viewport, così quando è sticky copre l'area sopra (sotto navbar/tabs
-       sticky) senza gap visibili. Il margin-top negativo compensa il
-       padding-top extra per non alterare la posizione visiva del contenuto. */
-    padding-top: calc(0.85rem + var(--bookings-bar-top, 122px));
-    margin-top: calc(-1 * var(--bookings-bar-top, 122px));
     background: #fff;
     border: 1px solid #e2e8f0;
     border-radius: 14px;
     box-shadow: 0 2px 8px rgba(0,0,0,0.04), 0 0 0 1px rgba(0,0,0,0.02);
     position: sticky;
-    top: 0;
+    top: var(--bookings-bar-top, 122px);
     z-index: 12;
 }
 .bookings-week-bar::before {
     content: "";
     position: absolute;
-    /* Posiziona la linea-gradiente al top visibile del bar (subito sotto
-       le sticky superiori), non al top del box (che è esteso verso l'alto). */
-    top: var(--bookings-bar-top, 122px);
-    left: 0; right: 0;
+    top: 0; left: 0; right: 0;
     height: 3px;
     background: linear-gradient(90deg, #00AEEF, #0090cc, #00AEEF);
     background-size: 200% 100%;
@@ -9753,7 +9744,6 @@ button.cedit-cert-badge {
         background: linear-gradient(180deg, #0f172a 0%, #1e293b 100%);
         border-color: transparent;
         padding: 0.85rem 0.85rem 0.35rem;
-        padding-top: calc(0.85rem + var(--bookings-bar-top, 72px));
         gap: 0.5rem;
         box-shadow: 0 4px 12px -4px rgba(15, 23, 42, 0.25);
     }
