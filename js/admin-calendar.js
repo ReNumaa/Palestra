@@ -895,7 +895,9 @@ function createAdminSlotCard(dateInfo, scheduledSlot) {
 
     // ── Participants ─────────────────────────────────────────────────────────
     let participantsHTML;
-    if (!hasMixedExtras) {
+    if (mainType === 'cleaning' && !hasMixedExtras) {
+        participantsHTML = '<div class="cleaning-slot-label">🧹 Pulizia</div>';
+    } else if (!hasMixedExtras) {
         // Vista unificata (nessun extra o solo extra dello stesso tipo)
         const mainBookings = realBookings.filter(b => !b.slotType || b.slotType === mainType);
         participantsHTML = _buildParticipantsSection(mainBookings);
