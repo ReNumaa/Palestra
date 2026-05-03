@@ -1169,18 +1169,17 @@ canvas {
     font-size: 0.88rem;
 }
 
-.cleaning-slot-label {
-    text-align: center;
-    padding: 1.25rem;
+.admin-slot-cleaning {
     color: var(--cleaning, #8b5cf6);
     font-weight: 700;
-    font-size: 1rem;
-    letter-spacing: 0.04em;
+    font-size: 0.85rem;
+    letter-spacing: 0.02em;
+    white-space: nowrap;
 }
 
 @media (max-width: 768px) {
     .empty-slot { padding: 0.4rem 0.75rem; font-size: 0.82rem; }
-    .cleaning-slot-label { padding: 0.6rem 0.75rem; font-size: 0.95rem; }
+    .admin-slot-cleaning { font-size: 0.78rem; }
 }
 
 /* Payment Status Badge */
@@ -9841,7 +9840,7 @@ button.cedit-cert-badge {
         border-radius: 0;
         box-shadow: none;
         overflow: visible;
-        padding: 0 0 90px;
+        padding: 0 0 56px;
         gap: 8px;
     }
 

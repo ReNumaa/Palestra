@@ -858,11 +858,15 @@ function createAdminSlotCard(dateInfo, scheduledSlot) {
     // Header: su desktop il "+" sta accanto ai pips (visible). Su mobile il
     // "+" inline è nascosto via CSS — il "+" appare facendo swipe a sinistra
     // sulla card dello slot (vedi .admin-slot-card-wrap + .admin-slot-actions).
+    const cleaningHeaderHTML = mainType === 'cleaning'
+        ? '<div class="admin-slot-cleaning">🧹 Pulizia</div>'
+        : '';
     const headerHTML = `
         <div class="admin-slot-header">
             <div class="admin-slot-time">🕐 ${timeSlot}</div>
             ${capStr ? `<div class="admin-slot-capacity">${capStr}</div>` : ''}
             ${capPipsHTML}
+            ${cleaningHeaderHTML}
             <button class="btn-add-extra btn-add-extra--inline" onclick="event.stopPropagation(); toggleExtraPicker('${dE}','${tE}')" title="Aggiungi posto extra" aria-label="Aggiungi posto">＋</button>
             <span class="admin-slot-chev" aria-hidden="true"></span>
         </div>`;
@@ -896,7 +900,7 @@ function createAdminSlotCard(dateInfo, scheduledSlot) {
     // ── Participants ─────────────────────────────────────────────────────────
     let participantsHTML;
     if (mainType === 'cleaning' && !hasMixedExtras) {
-        participantsHTML = '<div class="cleaning-slot-label">🧹 Pulizia</div>';
+        participantsHTML = '';
     } else if (!hasMixedExtras) {
         // Vista unificata (nessun extra o solo extra dello stesso tipo)
         const mainBookings = realBookings.filter(b => !b.slotType || b.slotType === mainType);
