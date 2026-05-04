@@ -1126,69 +1126,239 @@
     .promo-recharge-sub { font-size: 0.68rem; }
 }
 
-/* ── Banner "posto offerto" (richieste accesso slot full) ─────────────────── */
+/* ═════════════════════════════════════════════════════════════════════════
+   Banner "Slot Offer" — richieste accesso slot full (variante auto / admin)
+   ═════════════════════════════════════════════════════════════════════════ */
 #prenoSlotOfferedBanner {
     display: flex;
     flex-direction: column;
-    gap: 0.75rem;
-    margin: 12px 0 16px;
+    gap: 14px;
+    margin: 14px 0 18px;
 }
-.slot-offered-card {
-    background: linear-gradient(135deg, #d1fae5 0%, #a7f3d0 100%);
-    border: 1px solid #6ee7b7;
-    border-radius: 14px;
-    padding: 0.9rem 1rem;
-    box-shadow: 0 2px 10px rgba(16, 185, 129, 0.18);
-    color: #064e3b;
+
+.slot-offer {
+    --so-accent:       #10b981;
+    --so-accent-dark:  #047857;
+    --so-bg-from:      #ecfdf5;
+    --so-bg-to:        #d1fae5;
+    --so-border:       rgba(16, 185, 129, 0.30);
+    --so-glow:         rgba(16, 185, 129, 0.22);
+    --so-icon-bg:      linear-gradient(135deg, #10b981, #059669);
+    --so-text:         #064e3b;
+    --so-text-soft:    #065f46;
+
+    position: relative;
+    overflow: hidden;
+    display: grid;
+    grid-template-columns: auto 1fr;
+    gap: 14px;
+    padding: 16px 18px 16px 16px;
+    border-radius: 18px;
+    background:
+        linear-gradient(135deg, var(--so-bg-from) 0%, var(--so-bg-to) 100%);
+    border: 1px solid var(--so-border);
+    box-shadow:
+        0 1px 2px rgba(15, 23, 42, 0.04),
+        0 8px 24px var(--so-glow);
+    color: var(--so-text);
+    isolation: isolate;
+    animation: slotOfferIn 360ms cubic-bezier(.2,.8,.2,1);
 }
-.slot-offered-title {
+
+/* Variante: posto liberato automaticamente (verde) */
+.slot-offer--auto {
+    --so-accent:      #10b981;
+    --so-accent-dark: #047857;
+    --so-bg-from:     #ecfdf5;
+    --so-bg-to:       #d1fae5;
+    --so-border:      rgba(16, 185, 129, 0.30);
+    --so-glow:        rgba(16, 185, 129, 0.22);
+    --so-icon-bg:     linear-gradient(135deg, #10b981, #059669);
+    --so-text:        #064e3b;
+    --so-text-soft:   #065f46;
+}
+
+/* Variante: trainer ti ha aggiunto (verde-blu, più premium) */
+.slot-offer--admin {
+    --so-accent:      #2563eb;
+    --so-accent-dark: #1d4ed8;
+    --so-bg-from:     #eff6ff;
+    --so-bg-to:       #dbeafe;
+    --so-border:      rgba(37, 99, 235, 0.30);
+    --so-glow:        rgba(37, 99, 235, 0.22);
+    --so-icon-bg:     linear-gradient(135deg, #2563eb, #1e3a8a);
+    --so-text:        #1e3a8a;
+    --so-text-soft:   #1e40af;
+}
+
+/* Strip accent verticale a sinistra */
+.slot-offer::before {
+    content: '';
+    position: absolute;
+    inset: 0 auto 0 0;
+    width: 5px;
+    background: linear-gradient(180deg, var(--so-accent), var(--so-accent-dark));
+    z-index: 1;
+}
+
+/* Shine animato dietro la card (sottile) */
+.slot-offer__shine {
+    position: absolute;
+    inset: -50% -10% auto auto;
+    width: 60%;
+    height: 100%;
+    background: radial-gradient(ellipse at center, rgba(255, 255, 255, 0.55), transparent 60%);
+    transform: rotate(8deg);
+    pointer-events: none;
+    z-index: 0;
+}
+
+/* Icona-badge in cerchio gradient */
+.slot-offer__icon {
+    position: relative;
+    z-index: 2;
+    width: 48px;
+    height: 48px;
+    border-radius: 50%;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    background: var(--so-icon-bg);
+    color: #fff;
+    box-shadow:
+        0 1px 2px rgba(0, 0, 0, 0.10),
+        0 6px 14px var(--so-glow),
+        inset 0 0 0 2px rgba(255, 255, 255, 0.20);
+    flex-shrink: 0;
+    align-self: start;
+    margin-top: 2px;
+}
+.slot-offer__icon svg {
+    width: 24px;
+    height: 24px;
+    display: block;
+}
+
+/* Body */
+.slot-offer__body {
+    position: relative;
+    z-index: 2;
+    min-width: 0;
+}
+.slot-offer__eyebrow {
+    font-size: 0.7rem;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 0.07em;
+    color: var(--so-accent-dark);
+    opacity: 0.85;
+    margin-bottom: 2px;
+}
+.slot-offer__title {
+    font-size: 1.1rem;
     font-weight: 800;
-    font-size: 1.05rem;
-    margin-bottom: 0.2rem;
+    line-height: 1.25;
+    color: var(--so-text);
+    margin-bottom: 4px;
 }
-.slot-offered-subtitle {
+.slot-offer__sub {
+    font-size: 0.88rem;
+    line-height: 1.45;
+    color: var(--so-text-soft);
+    margin-bottom: 12px;
+}
+
+/* Chip con dettagli slot */
+.slot-offer__chip {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    padding: 6px 12px;
+    border-radius: 999px;
+    background: rgba(255, 255, 255, 0.75);
+    border: 1px solid rgba(255, 255, 255, 0.95);
+    color: var(--so-text);
     font-size: 0.85rem;
-    color: #065f46;
-    margin-bottom: 0.55rem;
-    opacity: 0.9;
+    font-weight: 600;
+    box-shadow: 0 1px 3px rgba(0, 0, 0, 0.04);
+    margin-bottom: 14px;
+    backdrop-filter: blur(2px);
 }
-.slot-offered-info {
-    font-size: 0.95rem;
-    margin-bottom: 0.75rem;
-    padding: 0.4rem 0.65rem;
-    background: rgba(255, 255, 255, 0.55);
-    border-radius: 8px;
-    display: inline-block;
+.slot-offer__chip-dot {
+    width: 8px;
+    height: 8px;
+    border-radius: 50%;
+    background: var(--so-accent);
+    box-shadow: 0 0 0 3px rgba(255, 255, 255, 0.6);
 }
-/* Variante offerta da admin — gradient verde→blu per distinguerla */
-.slot-offered-card--admin {
-    background: linear-gradient(135deg, #d1fae5 0%, #bfdbfe 100%);
-    border-color: #93c5fd;
-    box-shadow: 0 2px 12px rgba(59, 130, 246, 0.20);
-}
-.slot-offered-card--admin .slot-offered-subtitle { color: #1e3a8a; }
-.slot-offered-actions {
+.slot-offer__chip-name { font-weight: 700; }
+.slot-offer__chip-sep { opacity: 0.45; padding: 0 1px; }
+.slot-offer__chip-time { font-variant-numeric: tabular-nums; }
+
+/* Actions */
+.slot-offer__actions {
     display: flex;
-    gap: 0.5rem;
+    gap: 8px;
     flex-wrap: wrap;
 }
-.slot-offered-accept,
-.slot-offered-decline {
+.slot-offer__btn {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
     border: 0;
-    border-radius: 9px;
-    padding: 0.5rem 1.05rem;
+    border-radius: 10px;
+    padding: 10px 16px;
     font-weight: 700;
-    font-size: 0.9rem;
+    font-size: 0.92rem;
     cursor: pointer;
+    transition: transform 140ms ease, box-shadow 140ms ease, background 140ms ease, filter 140ms ease;
 }
-.slot-offered-accept {
-    background: linear-gradient(135deg, #10b981, #059669);
+.slot-offer__btn svg { width: 16px; height: 16px; }
+.slot-offer__btn--accept {
+    background: linear-gradient(135deg, var(--so-accent), var(--so-accent-dark));
     color: #fff;
+    box-shadow:
+        0 1px 2px rgba(0, 0, 0, 0.08),
+        0 4px 12px var(--so-glow);
 }
-.slot-offered-accept:hover { filter: brightness(1.05); }
-.slot-offered-decline {
+.slot-offer__btn--accept:hover {
+    transform: translateY(-1px);
+    box-shadow:
+        0 2px 4px rgba(0, 0, 0, 0.10),
+        0 8px 18px var(--so-glow);
+    filter: brightness(1.05);
+}
+.slot-offer__btn--accept:active { transform: translateY(0); }
+.slot-offer__btn--decline {
+    background: rgba(255, 255, 255, 0.85);
+    color: var(--so-text-soft);
+    border: 1px solid rgba(255, 255, 255, 0.95);
+    box-shadow: 0 1px 2px rgba(0, 0, 0, 0.04);
+}
+.slot-offer__btn--decline:hover {
     background: #fff;
-    color: #064e3b;
-    border: 1px solid #34d399;
+    color: var(--so-text);
 }
-.slot-offered-decline:hover { background: #f0fdf4; }
+
+/* Animazione di entrata */
+@keyframes slotOfferIn {
+    0%   { opacity: 0; transform: translateY(-6px) scale(0.98); }
+    100% { opacity: 1; transform: translateY(0)    scale(1); }
+}
+
+/* Mobile: layout più stretto, icona più piccola */
+@media (max-width: 520px) {
+    .slot-offer {
+        grid-template-columns: 40px 1fr;
+        gap: 11px;
+        padding: 14px 14px 14px 14px;
+        border-radius: 16px;
+    }
+    .slot-offer__icon { width: 40px; height: 40px; }
+    .slot-offer__icon svg { width: 20px; height: 20px; }
+    .slot-offer__title { font-size: 1.02rem; }
+    .slot-offer__sub { font-size: 0.83rem; margin-bottom: 10px; }
+    .slot-offer__chip { font-size: 0.8rem; padding: 5px 10px; }
+    .slot-offer__btn { padding: 9px 14px; font-size: 0.88rem; }
+    .slot-offer__btn--accept { flex: 1; justify-content: center; }
+}

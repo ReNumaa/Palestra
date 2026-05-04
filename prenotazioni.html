@@ -13,7 +13,7 @@
     <link rel="icon" type="image/jpeg" href="images/logo-tb---nero.jpg">
     <link rel="stylesheet" href="css/style.css?v=11">
     <link rel="stylesheet" href="css/login.css?v=4">
-    <link rel="stylesheet" href="css/prenotazioni.css?v=11">
+    <link rel="stylesheet" href="css/prenotazioni.css?v=12">
 </head>
 <body>
     <nav class="navbar">
@@ -418,24 +418,43 @@
                 el.style.display = 'none'; el.innerHTML = ''; return;
             }
             el.style.display = 'block';
+            const ICON_AUTO  = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="9"/><path d="M8 12h8M12 8v8"/></svg>';
+            const ICON_ADMIN = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 2 4 5v6c0 5 3.5 9.5 8 11 4.5-1.5 8-6 8-11V5l-8-3z"/><path d="m9 12 2 2 4-4"/></svg>';
             el.innerHTML = offered.map(r => {
                 const slotName = (typeof SLOT_NAMES !== 'undefined' && SLOT_NAMES[r.slotType]) || r.slotType;
                 const dateLabel = r.dateDisplay || formatBookingDate(r.date);
                 const fromAdmin = r.offerSource === 'admin';
+                const eyebrow = fromAdmin ? 'Approvazione del trainer' : 'Posto liberato';
                 const title = fromAdmin
-                    ? '✅ La tua richiesta è stata approvata!'
-                    : '🎉 Si è liberato un posto!';
+                    ? 'Sei stato aggiunto dal trainer'
+                    : 'Posto disponibile per te';
                 const subtitle = fromAdmin
-                    ? "Conferma per essere effettivamente aggiunto alla lezione:"
-                    : "Vuoi accettare il posto liberato?";
+                    ? "Il trainer ha approvato la tua richiesta. Conferma per ufficializzare l'iscrizione."
+                    : "Si è liberato un posto sulla lezione che avevi richiesto. Confermi l'iscrizione?";
+                const icon = fromAdmin ? ICON_ADMIN : ICON_AUTO;
                 return `
-                    <div class="slot-offered-card${fromAdmin ? ' slot-offered-card--admin' : ''}">
-                        <div class="slot-offered-title">${title}</div>
-                        <div class="slot-offered-subtitle">${subtitle}</div>
-                        <div class="slot-offered-info"><b>${slotName}</b> · ${dateLabel} · ${r.time}</div>
-                        <div class="slot-offered-actions">
-                            <button class="slot-offered-accept" data-accept="${r.id}">Conferma e iscriviti</button>
-                            <button class="slot-offered-decline" data-decline="${r.id}">Rifiuta</button>
+                    <div class="slot-offer${fromAdmin ? ' slot-offer--admin' : ' slot-offer--auto'}" role="alert">
+                        <div class="slot-offer__shine" aria-hidden="true"></div>
+                        <div class="slot-offer__icon" aria-hidden="true">${icon}</div>
+                        <div class="slot-offer__body">
+                            <div class="slot-offer__eyebrow">${eyebrow}</div>
+                            <div class="slot-offer__title">${title}</div>
+                            <div class="slot-offer__sub">${subtitle}</div>
+                            <div class="slot-offer__chip">
+                                <span class="slot-offer__chip-dot" aria-hidden="true"></span>
+                                <span class="slot-offer__chip-name">${slotName}</span>
+                                <span class="slot-offer__chip-sep">·</span>
+                                <span>${dateLabel}</span>
+                                <span class="slot-offer__chip-sep">·</span>
+                                <span class="slot-offer__chip-time">${r.time}</span>
+                            </div>
+                            <div class="slot-offer__actions">
+                                <button class="slot-offer__btn slot-offer__btn--accept" data-accept="${r.id}">
+                                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><polyline points="20 6 9 17 4 12"/></svg>
+                                    <span>Conferma e iscriviti</span>
+                                </button>
+                                <button class="slot-offer__btn slot-offer__btn--decline" data-decline="${r.id}">Rifiuta</button>
+                            </div>
                         </div>
                     </div>`;
             }).join('');
