@@ -2079,6 +2079,172 @@ class ManualDebtStorage {
     }
 }
 
+// Slot access requests — richieste di accesso a slot small-group full.
+// Ciclo: pending → offered → approved (oppure declined_user / expired).
+// Tutte le mutazioni passano da RPC SECURITY DEFINER (INSERT diretto revocato).
+class SlotAccessRequestStorage {
+    static _cache = [];
+
+    static getAll() { return this._cache; }
+
+    static async syncFromSupabase() {
+        if (typeof supabaseClient === 'undefined') return;
+        try {
+            const cutoff = new Date();
+            cutoff.setDate(cutoff.getDate() - 90);
+            const cutoffStr = cutoff.toISOString().slice(0, 10);
+            const { data, error } = await fetchAllPaginated(() => supabaseClient
+                .from('slot_access_requests')
+                .select('id, user_id, user_name, user_email, user_whatsapp, date, time, slot_type, date_display, status, created_at, offered_at, resolved_at, resolved_booking_id')
+                .gte('date', cutoffStr)
+                .order('created_at', { ascending: true }));
+            if (error) {
+                if (error.code !== 'PGRST301' && error.code !== '42P01') {
+                    console.error('[Supabase] SlotAccessRequestStorage.sync error:', error.message);
+                }
+                return;
+            }
+            this._cache = (data || []).map(r => ({
+                id:                r.id,
+                userId:            r.user_id,
+                userName:          r.user_name || '',
+                userEmail:         r.user_email || '',
+                userWhatsapp:      r.user_whatsapp || '',
+                date:              r.date,
+                time:              r.time,
+                slotType:          r.slot_type,
+                dateDisplay:       r.date_display || '',
+                status:            r.status,
+                createdAt:         r.created_at,
+                offeredAt:         r.offered_at,
+                resolvedAt:        r.resolved_at,
+                resolvedBookingId: r.resolved_booking_id,
+            }));
+        } catch (e) { console.error('[Supabase] SlotAccessRequestStorage.sync exception:', e); }
+    }
+
+    static getMyRequests(userId) {
+        if (!userId) return [];
+        return this._cache.filter(r => r.userId === userId && (r.status === 'pending' || r.status === 'offered'));
+    }
+
+    static getOfferedToMe(userId) {
+        if (!userId) return [];
+        return this._cache.filter(r => r.userId === userId && r.status === 'offered');
+    }
+
+    static getPendingForSlot(date, time, slotType) {
+        return this._cache.filter(r =>
+            r.date === date && r.time === time && r.slotType === slotType &&
+            (r.status === 'pending' || r.status === 'offered')
+        ).sort((a, b) => (a.createdAt || '').localeCompare(b.createdAt || ''));
+    }
+
+    static getAllActive() {
+        return this._cache.filter(r => r.status === 'pending' || r.status === 'offered')
+            .sort((a, b) => (a.createdAt || '').localeCompare(b.createdAt || ''));
+    }
+
+    static async createRequest(date, time, slotType, dateDisplay) {
+        if (typeof supabaseClient === 'undefined') return { ok: false, error: 'no_client' };
+        const maxCapacity = SLOT_MAX_CAPACITY[slotType] || 5;
+        try {
+            const { data, error } = await supabaseClient.rpc('create_slot_access_request', {
+                p_date:         date,
+                p_time:         time,
+                p_slot_type:    slotType,
+                p_max_capacity: maxCapacity,
+                p_date_display: dateDisplay || '',
+            });
+            if (error) return { ok: false, error: error.message };
+            if (!data?.success) return { ok: false, error: data?.error || 'unknown' };
+            await this.syncFromSupabase();
+            return { ok: true, requestId: data.request_id };
+        } catch (e) {
+            console.error('[SlotAccessRequest] createRequest exception:', e);
+            return { ok: false, error: e.message };
+        }
+    }
+
+    static async acceptOffered(id) {
+        if (typeof supabaseClient === 'undefined') return { ok: false, error: 'no_client' };
+        const req = this._cache.find(r => r.id === id);
+        const maxCapacity = SLOT_MAX_CAPACITY[req?.slotType] || 5;
+        try {
+            const { data, error } = await supabaseClient.rpc('accept_offered_request', {
+                p_request_id:   id,
+                p_max_capacity: maxCapacity,
+            });
+            if (error) return { ok: false, error: error.message };
+            if (!data?.success) return { ok: false, error: data?.error || 'unknown' };
+            await this.syncFromSupabase();
+            return { ok: true, bookingId: data.booking_id };
+        } catch (e) {
+            console.error('[SlotAccessRequest] acceptOffered exception:', e);
+            return { ok: false, error: e.message };
+        }
+    }
+
+    static async declineOffered(id) {
+        if (typeof supabaseClient === 'undefined') return { ok: false, error: 'no_client' };
+        try {
+            const { data, error } = await supabaseClient.rpc('decline_offered_request', {
+                p_request_id: id,
+            });
+            if (error) return { ok: false, error: error.message };
+            if (!data?.success) return { ok: false, error: data?.error || 'unknown' };
+            // Notifica il prossimo se è stato offerto un nuovo posto
+            if (data.offered_request && typeof notifyAccessRequestUpdate === 'function') {
+                try { await notifyAccessRequestUpdate(data.offered_request, 'slot_offered'); }
+                catch (e) { console.warn('[SlotAccessRequest] notify next exception:', e); }
+            }
+            await this.syncFromSupabase();
+            return { ok: true, offered: data.offered_request || null };
+        } catch (e) {
+            console.error('[SlotAccessRequest] declineOffered exception:', e);
+            return { ok: false, error: e.message };
+        }
+    }
+
+    static async adminApprove(id) {
+        if (typeof supabaseClient === 'undefined') return { ok: false, error: 'no_client' };
+        const req = this._cache.find(r => r.id === id);
+        const maxCapacity = SLOT_MAX_CAPACITY[req?.slotType] || 5;
+        try {
+            const { data, error } = await supabaseClient.rpc('admin_approve_access_request', {
+                p_request_id:   id,
+                p_max_capacity: maxCapacity,
+            });
+            if (error) return { ok: false, error: error.message };
+            if (!data?.success) return { ok: false, error: data?.error || 'unknown' };
+            await this.syncFromSupabase();
+            return { ok: true, bookingId: data.booking_id, request: req };
+        } catch (e) {
+            console.error('[SlotAccessRequest] adminApprove exception:', e);
+            return { ok: false, error: e.message };
+        }
+    }
+
+    static async expireStarted() {
+        if (typeof supabaseClient === 'undefined') return;
+        try {
+            await supabaseClient.rpc('expire_started_slot_requests');
+        } catch (e) { /* fire-and-forget */ }
+    }
+}
+
+// Helper centralizzato post-cancellazione: invia push offered al primo in coda
+// se la RPC ha già materializzato un offer_request.
+async function afterBookingCancelled(offeredRequestFromRpc) {
+    if (!offeredRequestFromRpc) return;
+    try {
+        if (typeof notifyAccessRequestUpdate === 'function') {
+            await notifyAccessRequestUpdate(offeredRequestFromRpc, 'slot_offered');
+        }
+        await SlotAccessRequestStorage.syncFromSupabase();
+    } catch (e) { console.warn('[afterBookingCancelled] exception:', e); }
+}
+
 // Check Fisico storage — pagamenti "secchi" non legati a prenotazioni.
 // Sono incassi che entrano nelle stats admin (fatturato, prenotazioni, metodo
 // pagamento, tipo lezione) e nel registro, ma NON toccano credito/debito del

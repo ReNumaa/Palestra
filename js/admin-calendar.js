@@ -1127,6 +1127,10 @@ function deleteBooking(bookingId, bookingName) {
         }
 
         if (typeof notifySlotAvailable === 'function') notifySlotAvailable(booking);
+        // Posto liberato → offri al primo in coda (se esiste richiesta pending)
+        if (data?.offered_request && typeof afterBookingCancelled === 'function') {
+            await afterBookingCancelled(data.offered_request);
+        }
         invalidateStatsCache();
         if (selectedAdminDay) renderAdminDayView(selectedAdminDay);
         if (typeof showToast === 'function') showToast('✅ Prenotazione annullata con successo.', 'success', 4000);

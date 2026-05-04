@@ -42,6 +42,72 @@ function initCalendar() {
     renderMobileCalendar();
     setupCalendarControls();
     setupMobileStickyOffsets();
+    if (typeof SlotAccessRequestStorage !== 'undefined' && _isLoggedIn()) {
+        SlotAccessRequestStorage.syncFromSupabase().then(() => {
+            renderCalendar();
+            if (typeof renderMobileSlots === 'function' && selectedMobileDay) renderMobileSlots(selectedMobileDay);
+        }).catch(() => {});
+        SlotAccessRequestStorage.expireStarted();
+    }
+}
+
+// Aggiunge il bottone "+" per richiedere accesso a uno slot small-group full.
+// Restituisce il wrapper (slot + bottone) da appendere al posto dello slot.
+function _wrapSlotWithRequestBtn(slotEl, dateInfo, timeSlot, mainType) {
+    if (typeof SlotAccessRequestStorage === 'undefined') return slotEl;
+    const wrap = document.createElement('div');
+    wrap.className = 'calendar-slot-wrap';
+    wrap.appendChild(slotEl);
+
+    const btn = document.createElement('button');
+    btn.className = 'slot-request-btn';
+    btn.type = 'button';
+    const user = typeof getCurrentUser === 'function' ? getCurrentUser() : null;
+    const myReq = user
+        ? SlotAccessRequestStorage.getMyRequests(user.id).find(r =>
+            r.date === dateInfo.formatted && r.time === timeSlot && r.slotType === mainType)
+        : null;
+    if (myReq) {
+        btn.classList.add('slot-request-btn--pending');
+        btn.textContent = '✓';
+        btn.disabled = true;
+        btn.title = 'Richiesta già inviata';
+    } else {
+        btn.textContent = '+';
+        btn.title = 'Richiedi accesso a questo slot';
+        btn.addEventListener('click', e => {
+            e.stopPropagation();
+            requestSlotAccess(dateInfo, timeSlot, mainType);
+        });
+    }
+    wrap.appendChild(btn);
+    return wrap;
+}
+
+async function requestSlotAccess(dateInfo, timeSlot, slotType) {
+    if (!_isLoggedIn()) return;
+    if (typeof SlotAccessRequestStorage === 'undefined') return;
+    const slotName = (typeof SLOT_NAMES !== 'undefined' && SLOT_NAMES[slotType]) || 'Lezione';
+    const dayLabel = `${dateInfo.dayName} ${dateInfo.displayDate}`;
+    if (!confirm(`Vuoi richiedere accesso a ${slotName} del ${dayLabel} alle ${timeSlot}?\n\nSe si libera un posto verrai notificato.`)) return;
+    const r = await SlotAccessRequestStorage.createRequest(
+        dateInfo.formatted, timeSlot, slotType, dayLabel
+    );
+    if (r.ok) {
+        if (typeof showToast === 'function') showToast('Richiesta inviata. Riceverai una notifica se si libera un posto.', 'success', 5000);
+        renderCalendar();
+        if (typeof renderMobileSlots === 'function' && selectedMobileDay) renderMobileSlots(selectedMobileDay);
+    } else {
+        const errMap = {
+            slot_not_full:    'Lo slot non è più pieno: prenota normalmente.',
+            already_booked:   'Sei già iscritto a questo slot.',
+            already_requested:'Hai già una richiesta attiva per questo slot.',
+            past_date:        'Non puoi richiedere accesso per date passate.',
+            unauthorized:     'Devi accedere per richiedere uno slot.',
+        };
+        const msg = errMap[r.error] || 'Errore: ' + (r.error || 'riprova');
+        if (typeof showToast === 'function') showToast(msg, 'error');
+    }
 }
 
 let _mobileStickyResizeHandler = null;
@@ -309,6 +375,11 @@ function createSlot(dateInfo, timeSlot) {
             slot.addEventListener('click', () => selectSlot(dateInfo, timeSlot, mainType, remainingSpots));
         } else {
             slot.style.cursor = 'default';
+        }
+
+        // Bottone "+" per richiedere accesso a slot small-group full
+        if (loggedIn && isFull && !enrolled && timeOk && mainType === SLOT_TYPES.SMALL_GROUP) {
+            return _wrapSlotWithRequestBtn(slot, dateInfo, timeSlot, mainType);
         }
     } else {
         // Vista divisa: metà sinistra = tipo principale, metà destra = extra diversi
@@ -583,6 +654,11 @@ function createMobileSlotCard(dateInfo, scheduledSlot) {
         });
     } else {
         slotCard.style.cursor = 'default';
+    }
+
+    // Bottone "+" per richiedere accesso a slot small-group full (mobile)
+    if (loggedIn && isFull && !enrolled && timeOk && slotType === SLOT_TYPES.SMALL_GROUP) {
+        return _wrapSlotWithRequestBtn(slotCard, dateInfo, timeSlot, slotType);
     }
 
     return slotCard;

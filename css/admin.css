@@ -10261,3 +10261,161 @@ body.extra-picker-open .payments-fab {
         padding: 0.2rem 0.65rem;
     }
 }
+
+/* ── Badge sulle tab admin (es. contatore richieste) ──────────────────────── */
+.admin-tab-badge {
+    background: #ef4444;
+    color: #fff;
+    border-radius: 10px;
+    padding: 1px 7px;
+    font-size: 0.7rem;
+    font-weight: 700;
+    margin-left: 6px;
+    line-height: 1.4;
+    vertical-align: middle;
+}
+.admin-tab-badge:empty { display: none; }
+
+/* ── Tab Richieste accesso slot ───────────────────────────────────────────── */
+.richieste-loading,
+.richieste-empty {
+    text-align: center;
+    color: #777;
+    padding: 2.5rem 1rem;
+    font-size: 0.95rem;
+}
+.richieste-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    flex-wrap: wrap;
+    gap: 0.75rem;
+    margin-bottom: 0.75rem;
+}
+.richieste-title {
+    margin: 0;
+    font-size: 1.05rem;
+    font-weight: 700;
+}
+.richieste-controls {
+    display: flex;
+    align-items: center;
+    gap: 0.75rem;
+}
+.richieste-toggle {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.4rem;
+    font-size: 0.85rem;
+    color: #444;
+    cursor: pointer;
+    user-select: none;
+}
+.richieste-toggle input { margin: 0; }
+.richieste-refresh-btn {
+    background: #f3f4f6;
+    border: 1px solid #d1d5db;
+    border-radius: 8px;
+    padding: 0.4rem 0.75rem;
+    font-size: 0.85rem;
+    cursor: pointer;
+}
+.richieste-refresh-btn:hover { background: #e5e7eb; }
+.richieste-summary {
+    color: #555;
+    font-size: 0.85rem;
+    margin-bottom: 1rem;
+}
+.richieste-groups {
+    display: flex;
+    flex-direction: column;
+    gap: 1rem;
+}
+.richieste-group {
+    border: 1px solid #e5e7eb;
+    border-radius: 12px;
+    background: #fff;
+    overflow: hidden;
+}
+.richieste-group-header {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 0.5rem 1rem;
+    padding: 0.65rem 0.9rem;
+    background: linear-gradient(135deg, #fef3c7, #fde68a);
+    border-bottom: 1px solid #e5e7eb;
+}
+.richieste-group-slot { font-weight: 700; font-size: 0.95rem; }
+.richieste-group-when { color: #444; font-size: 0.9rem; }
+.richieste-group-count {
+    margin-left: auto;
+    background: #fff;
+    border-radius: 999px;
+    padding: 0.15rem 0.6rem;
+    font-size: 0.78rem;
+    font-weight: 700;
+    color: #d97706;
+    border: 1px solid #fcd34d;
+}
+.richieste-group-list {
+    display: flex;
+    flex-direction: column;
+}
+.richieste-item {
+    display: grid;
+    grid-template-columns: 36px 1fr auto auto;
+    align-items: center;
+    gap: 0.75rem;
+    padding: 0.65rem 0.9rem;
+    border-top: 1px solid #f1f5f9;
+}
+.richieste-item:first-child { border-top: 0; }
+.richieste-item-pos {
+    font-weight: 700;
+    color: #6b7280;
+    font-size: 0.95rem;
+    text-align: center;
+}
+.richieste-item-name { font-weight: 600; }
+.richieste-item-meta {
+    font-size: 0.78rem;
+    color: #6b7280;
+}
+.richieste-item-status {
+    font-size: 0.78rem;
+    color: #444;
+    white-space: nowrap;
+}
+.richieste-item--offered .richieste-item-status { color: #1d4ed8; font-weight: 600; }
+.richieste-item--approved      { background: #f0fdf4; }
+.richieste-item--declined_user { background: #fef2f2; opacity: 0.85; }
+.richieste-item--expired       { background: #f9fafb; opacity: 0.7; }
+.richieste-approve-btn {
+    background: linear-gradient(135deg, #16a34a, #15803d);
+    color: #fff;
+    border: 0;
+    border-radius: 8px;
+    padding: 0.45rem 0.85rem;
+    font-weight: 700;
+    font-size: 0.85rem;
+    cursor: pointer;
+    white-space: nowrap;
+}
+.richieste-approve-btn:hover { filter: brightness(1.06); }
+.richieste-approve-btn:disabled { opacity: 0.6; cursor: default; }
+
+@media (max-width: 600px) {
+    .richieste-item {
+        grid-template-columns: 28px 1fr;
+        grid-template-areas:
+            "pos user"
+            "pos status"
+            ". act";
+        row-gap: 0.35rem;
+    }
+    .richieste-item-pos    { grid-area: pos; }
+    .richieste-item-user   { grid-area: user; }
+    .richieste-item-status { grid-area: status; text-align: left; }
+    .richieste-item-actions { grid-area: act; }
+}

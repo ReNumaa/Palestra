@@ -11,9 +11,9 @@
     <meta name="apple-mobile-web-app-title" content="Palestra">
     <title>Thomas Bresciani</title>
     <link rel="icon" type="image/jpeg" href="images/logo-tb---nero.jpg">
-    <link rel="stylesheet" href="css/style.css?v=8">
+    <link rel="stylesheet" href="css/style.css?v=9">
     <link rel="stylesheet" href="css/login.css?v=5">
-    <link rel="stylesheet" href="css/admin.css?v=103">
+    <link rel="stylesheet" href="css/admin.css?v=104">
     <script>
         // Anti-flash al refresh: legge il tab attivo dal sessionStorage e lo
         // espone come data-initial-tab su <html> prima che il body venga
@@ -89,6 +89,7 @@
                 <button class="admin-tab" data-tab="schedule">⚙️ Gestione Orari</button>
                 <button class="admin-tab" data-tab="importa" id="adminTabImporta">💪🏻 Importa</button>
                 <button class="admin-tab" data-tab="messaggi">📩 Messaggi</button>
+                <button class="admin-tab" data-tab="richieste">📥 Richieste<span class="admin-tab-badge" id="richiesteBadge"></span></button>
                 <button class="admin-tab" data-tab="settings">🔧 Impostazioni</button>
                 <button class="admin-tab admin-tab--privacy" id="btnToggleSensitive" onclick="toggleSensitiveData()" title="Nascondi/mostra dati sensibili">👁</button>
             </div>
@@ -1011,6 +1012,14 @@
             </div>
             <!-- End Tab: Importa -->
 
+            <!-- Tab: Richieste accesso slot -->
+            <div id="tab-richieste" class="tab-content">
+                <div class="dashboard-card" id="richiesteContainer">
+                    <div class="richieste-loading">Caricamento richieste...</div>
+                </div>
+            </div>
+            <!-- End Tab: Richieste -->
+
         </div>
     </div>
 
@@ -1290,20 +1299,21 @@
     <script src="js/supabase-client.js?v=3"></script>
     <script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js" integrity="sha384-vtjasyidUo0kW94K5MXDXntzOJpQgBKXmE7e2Ga4LG0skTTLeBi97eFAXsqewJjw" crossorigin="anonymous"></script>
     <script src="js/ui.js?v=2"></script>
-    <script src="js/data.js?v=71"></script>
+    <script src="js/data.js?v=72"></script>
     <script src="js/auth.js?v=22"></script>
-    <script src="js/push.js?v=18"></script>
+    <script src="js/push.js?v=19"></script>
     <script src="js/chart-mini.js?v=12"></script>
-    <script src="js/admin.js?v=113"></script>
+    <script src="js/admin.js?v=114"></script>
     <script src="js/admin-analytics.js?v=9"></script>
     <script src="js/admin-backup.js?v=4"></script>
-    <script src="js/admin-calendar.js?v=37"></script>
+    <script src="js/admin-calendar.js?v=38"></script>
     <script src="js/admin-schedule.js?v=2"></script>
     <script src="js/admin-settings.js?v=3"></script>
     <script src="js/admin-payments.js?v=6"></script>
-    <script src="js/admin-clients.js?v=13"></script>
+    <script src="js/admin-clients.js?v=14"></script>
     <script src="js/admin-registro.js?v=6"></script>
     <script src="js/admin-messaggi.js?v=2"></script>
+    <script src="js/admin-richieste.js?v=1"></script>
     <script src="js/admin-schede.js?v=26"></script>
     <script src="js/admin-importa.js?v=4"></script>
     <script src="js/admin-mobile-filters.js?v=2"></script>
@@ -1325,11 +1335,13 @@
                 CreditStorage.syncFromSupabase(),
                 ManualDebtStorage.syncFromSupabase(),
                 CheckFisicoStorage.syncFromSupabase(),
+                SlotAccessRequestStorage.syncFromSupabase(),
             ]);
             // ── Render subito: l'admin diventa utilizzabile ──
             if (typeof loadDashboardData === 'function') loadDashboardData();
             if (typeof renderAdminCalendar === 'function') renderAdminCalendar();
             if (typeof renderScheduleManager === 'function') renderScheduleManager();
+            if (typeof updateRichiesteBadge === 'function') updateRichiesteBadge();
             const _activeTab = document.querySelector('.admin-tab.active');
             if (_activeTab) switchTab(_activeTab.dataset.tab);
             // Push: mostra banner se permesso non ancora concesso

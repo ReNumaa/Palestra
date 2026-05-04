@@ -1,0 +1,16 @@
+-- ─── Cron expire_started_slot_requests ───────────────────────────────────────
+-- Lancia expire_started_slot_requests() ogni 5 minuti per marcare expired
+-- le richieste relative a slot già iniziati.
+--
+-- PREREQUISITO: pg_cron abilitata (vedi 20260309400000_process_pending_cancellations_cron.sql).
+--
+-- Esegui SEPARATAMENTE nel SQL Editor (dopo il push migration):
+--
+--   select cron.schedule(
+--       'expire-started-slot-requests',
+--       '*/5 * * * *',
+--       $$select expire_started_slot_requests()$$
+--   );
+--
+-- Per verificare:  select * from cron.job;
+-- Per rimuovere:   select cron.unschedule('expire-started-slot-requests');

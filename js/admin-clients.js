@@ -1368,6 +1368,11 @@ async function deleteBookingFromClients(bookingId, bookingName) {
             console.log('[admin_delete_booking_with_refund]', data);
 
             await BookingStorage.syncFromSupabase();
+
+            // Posto liberato → offri al primo in coda (se richiesta pending)
+            if (data?.offered_request && typeof afterBookingCancelled === 'function') {
+                await afterBookingCancelled(data.offered_request);
+            }
         } catch (ex) {
             console.error('[deleteBookingFromClients] unexpected error:', ex);
             showToast('Errore imprevisto. Riprova.', 'error');

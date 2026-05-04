@@ -413,6 +413,10 @@ async function handleBookingSubmit(e) {
             });
             if (fcErr) console.error('[Supabase] fulfill_pending_cancellation error:', fcErr.message);
             else if (fcResult?.found) console.log('[fulfill_pending_cancellation] annullamento soddisfatto:', fcResult);
+            // Posto eventualmente liberato → offri al primo in coda
+            if (fcResult?.offered_request && typeof afterBookingCancelled === 'function') {
+                afterBookingCancelled(fcResult.offered_request).catch(() => {});
+            }
         } catch (e) { console.error('[fulfill_pending_cancellation] exception:', e); }
     } else {
         BookingStorage.fulfillPendingCancellations(booking.date, booking.time);

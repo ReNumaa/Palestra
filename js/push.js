@@ -219,6 +219,32 @@ async function notifySlotAvailable(booking) {
     }
 }
 
+// Notifica utente target per richieste di accesso (offered o approved)
+// req: { id, user_id, date (YYYY-MM-DD), time, slot_type, date_display }
+// event: 'slot_offered' | 'approved'
+async function notifyAccessRequestUpdate(req, event) {
+    if (typeof SUPABASE_URL === 'undefined') return;
+    if (!req || !req.user_id) return;
+    const token = await _getPushAuthToken();
+    if (!token) { console.warn('[Push] notifyAccessRequestUpdate: nessun token disponibile'); return; }
+    try {
+        await fetch(`${SUPABASE_URL}/functions/v1/notify-access-request-update`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json', 'Authorization': 'Bearer ' + token },
+            body: JSON.stringify({
+                user_id:      req.user_id,
+                event,
+                date:         req.date,
+                time:         req.time,
+                slot_type:    req.slot_type,
+                date_display: req.date_display || '',
+            }),
+        });
+    } catch (e) {
+        console.warn('[Push] notifyAccessRequestUpdate error:', e);
+    }
+}
+
 // Notifica admin dopo una prenotazione confermata
 async function notifyAdminBooking(booking) {
     console.log('[Push] notifyAdminBooking chiamata', booking);
