@@ -702,13 +702,16 @@ let _messaggiPage = 0;
 const MESSAGGI_PAGE_SIZE = 50;
 
 const _MSG_TYPE_LABELS = {
-    booking:               '✔️ Prenotazione',
-    cancellation:          '❌ Annullamento',
-    proximity:             '📍 Arrivo',
-    proximity_no_booking:  '📍 Senza prenot.',
-    new_client:            '🆕 Nuovo iscritto',
-    broadcast:             '📢 Broadcast',
-    topup:                 '💰 Ricarica',
+    booking:                       '✔️ Prenotazione',
+    cancellation:                  '❌ Annullamento',
+    proximity:                     '📍 Arrivo',
+    proximity_no_booking:          '📍 Senza prenot.',
+    new_client:                    '🆕 Nuovo iscritto',
+    broadcast:                     '📢 Broadcast',
+    topup:                         '💰 Ricarica',
+    access_request_new:            '📥 Richiesta accesso',
+    access_request_user_accepted:  '📥 Richiesta confermata',
+    access_request_user_declined:  '📥 Richiesta rifiutata',
 };
 
 async function loadMessaggi() {
