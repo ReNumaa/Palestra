@@ -1143,13 +1143,30 @@
 }
 .slot-offered-title {
     font-weight: 800;
-    font-size: 1rem;
-    margin-bottom: 0.25rem;
+    font-size: 1.05rem;
+    margin-bottom: 0.2rem;
+}
+.slot-offered-subtitle {
+    font-size: 0.85rem;
+    color: #065f46;
+    margin-bottom: 0.55rem;
+    opacity: 0.9;
 }
 .slot-offered-info {
-    font-size: 0.92rem;
-    margin-bottom: 0.65rem;
+    font-size: 0.95rem;
+    margin-bottom: 0.75rem;
+    padding: 0.4rem 0.65rem;
+    background: rgba(255, 255, 255, 0.55);
+    border-radius: 8px;
+    display: inline-block;
 }
+/* Variante offerta da admin — gradient verde→blu per distinguerla */
+.slot-offered-card--admin {
+    background: linear-gradient(135deg, #d1fae5 0%, #bfdbfe 100%);
+    border-color: #93c5fd;
+    box-shadow: 0 2px 12px rgba(59, 130, 246, 0.20);
+}
+.slot-offered-card--admin .slot-offered-subtitle { color: #1e3a8a; }
 .slot-offered-actions {
     display: flex;
     gap: 0.5rem;

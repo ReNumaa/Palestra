@@ -113,13 +113,16 @@ function renderRichiesteList() {
         const sorted = [...g.items].sort((a, b) => (a.createdAt || '').localeCompare(b.createdAt || ''));
         sorted.forEach((r, idx) => {
             const isActive = r.status === 'pending' || r.status === 'offered';
-            const statusLabel = {
+            const offeredSrcSuffix = r.status === 'offered'
+                ? (r.offerSource === 'admin' ? ' (offerta admin, attesa conferma)' : ' (auto, attesa conferma)')
+                : '';
+            const statusLabel = ({
                 pending:       '🟠 In attesa',
-                offered:       '🔵 Posto offerto',
-                approved:      '✅ Approvata',
+                offered:       '🔵 Posto offerto' + offeredSrcSuffix,
+                approved:      '✅ Confermata',
                 declined_user: '🚫 Rifiutata dall\'utente',
                 expired:       '⏱ Scaduta',
-            }[r.status] || r.status;
+            }[r.status]) || r.status;
             const positionLabel = isActive ? `#${idx + 1}` : '';
             html += `<div class="richieste-item richieste-item--${r.status}">`;
             html += `  <div class="richieste-item-pos">${positionLabel}</div>`;
@@ -129,9 +132,13 @@ function renderRichiesteList() {
             html += `    <div class="richieste-item-meta">richiesta: ${_richFormatRelative(r.createdAt)}${r.offeredAt ? ' · offerta: ' + _richFormatRelative(r.offeredAt) : ''}</div>`;
             html += `  </div>`;
             html += `  <div class="richieste-item-status">${statusLabel}</div>`;
-            if (isActive) {
+            if (r.status === 'pending') {
                 html += `  <div class="richieste-item-actions">`;
-                html += `    <button class="btn-primary richieste-approve-btn" data-rid="${r.id}">Approva</button>`;
+                html += `    <button class="btn-primary richieste-approve-btn" data-rid="${r.id}">Offri posto</button>`;
+                html += `  </div>`;
+            } else if (r.status === 'offered') {
+                html += `  <div class="richieste-item-actions">`;
+                html += `    <button class="btn-primary richieste-approve-btn" data-rid="${r.id}" title="Re-invia notifica all'utente">Re-invia</button>`;
                 html += `  </div>`;
             }
             html += `</div>`;
@@ -168,27 +175,27 @@ async function approveAccessRequest(requestId, btnEl) {
     const slotName = (typeof SLOT_NAMES !== 'undefined' && SLOT_NAMES[req.slotType]) || req.slotType;
     const dateLabel = req.dateDisplay || _richFormatDate(req.date);
     const ok = confirm(
-        `Approvare richiesta di ${req.userName} per ${slotName} ${dateLabel} ${req.time}?\n\n` +
-        `Verrà creata una prenotazione anche se lo slot è pieno (over-capacity).`
+        `Inviare offerta a ${req.userName} per ${slotName} ${dateLabel} ${req.time}?\n\n` +
+        `L'utente riceverà una notifica e dovrà confermare in app per essere effettivamente aggiunto. ` +
+        `Lo slot accetterà 1 posto extra (over-capacity).`
     );
     if (!ok) return;
 
-    if (btnEl) { btnEl.disabled = true; btnEl.textContent = 'Approvazione…'; }
+    if (btnEl) { btnEl.disabled = true; btnEl.textContent = 'Invio…'; }
 
     const r = await SlotAccessRequestStorage.adminApprove(requestId);
     if (!r.ok) {
         const errMap = {
-            slot_full_already_over: 'Slot già a +1 over-capacity. Non posso aggiungere altri.',
-            already_resolved:       'La richiesta è già stata risolta.',
-            request_not_found:      'Richiesta non trovata.',
-            unauthorized:           'Non sei admin.',
+            already_resolved:  'La richiesta è già stata risolta.',
+            request_not_found: 'Richiesta non trovata.',
+            unauthorized:      'Non sei admin.',
         };
         if (typeof showToast === 'function') showToast(errMap[r.error] || 'Errore: ' + (r.error || 'sconosciuto'), 'error');
-        if (btnEl) { btnEl.disabled = false; btnEl.textContent = 'Approva'; }
+        if (btnEl) { btnEl.disabled = false; btnEl.textContent = 'Offri posto'; }
         return;
     }
 
-    // Manda push all'utente
+    // Manda push all'utente con source='admin' (titolo banner/notifica diverso)
     if (typeof notifyAccessRequestUpdate === 'function') {
         try {
             await notifyAccessRequestUpdate({
@@ -197,16 +204,12 @@ async function approveAccessRequest(requestId, btnEl) {
                 time:         req.time,
                 slot_type:    req.slotType,
                 date_display: req.dateDisplay || '',
-            }, 'approved');
-        } catch (e) { console.warn('[admin-richieste] push approved error:', e); }
+                offer_source: 'admin',
+            }, 'slot_offered');
+        } catch (e) { console.warn('[admin-richieste] push offered error:', e); }
     }
 
-    // Refresh booking + UI
-    if (typeof BookingStorage !== 'undefined') {
-        try { await BookingStorage.syncFromSupabase(); } catch {}
-    }
-    if (typeof showToast === 'function') showToast('Richiesta approvata: utente notificato.', 'success', 4000);
+    if (typeof showToast === 'function') showToast('Offerta inviata: l\'utente deve ora confermare in app.', 'success', 4500);
     renderRichiesteList();
     updateRichiesteBadge();
-    if (typeof renderAdminCalendar === 'function') renderAdminCalendar();
 }

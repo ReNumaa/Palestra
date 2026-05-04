@@ -219,9 +219,12 @@ async function notifySlotAvailable(booking) {
     }
 }
 
-// Notifica utente target per richieste di accesso (offered o approved)
-// req: { id, user_id, date (YYYY-MM-DD), time, slot_type, date_display }
+// Notifica utente target per richieste di accesso.
+// req: { id, user_id, date (YYYY-MM-DD), time, slot_type, date_display, offer_source? }
 // event: 'slot_offered' | 'approved'
+//   - 'slot_offered' + source='admin' → "La tua richiesta è stata approvata!"
+//   - 'slot_offered' + source='auto'  → "Si è liberato un posto!"
+//   - 'approved'                       → "Sei stato aggiunto" (legacy, non più usato)
 async function notifyAccessRequestUpdate(req, event) {
     if (typeof SUPABASE_URL === 'undefined') return;
     if (!req || !req.user_id) return;
@@ -234,6 +237,7 @@ async function notifyAccessRequestUpdate(req, event) {
             body: JSON.stringify({
                 user_id:      req.user_id,
                 event,
+                source:       req.offer_source || null,
                 date:         req.date,
                 time:         req.time,
                 slot_type:    req.slot_type,

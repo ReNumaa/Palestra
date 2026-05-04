@@ -256,7 +256,6 @@ html[data-initial-tab="schede"]    #tab-schede,
 html[data-initial-tab="registro"]  #tab-registro,
 html[data-initial-tab="clients"]   #tab-clients,
 html[data-initial-tab="schedule"]  #tab-schedule,
-html[data-initial-tab="importa"]   #tab-importa,
 html[data-initial-tab="messaggi"]  #tab-messaggi,
 html[data-initial-tab="settings"]  #tab-settings { display: block; }
 html[data-initial-tab] .admin-tab[data-tab="bookings"].active {
@@ -270,7 +269,6 @@ html[data-initial-tab="schede"]    .admin-tab[data-tab="schede"],
 html[data-initial-tab="registro"]  .admin-tab[data-tab="registro"],
 html[data-initial-tab="clients"]   .admin-tab[data-tab="clients"],
 html[data-initial-tab="schedule"]  .admin-tab[data-tab="schedule"],
-html[data-initial-tab="importa"]   .admin-tab[data-tab="importa"],
 html[data-initial-tab="messaggi"]  .admin-tab[data-tab="messaggi"],
 html[data-initial-tab="settings"]  .admin-tab[data-tab="settings"] {
     color: #fff;
@@ -8758,8 +8756,9 @@ button.cedit-cert-badge {
    TAB IMPORTA — Catalogo esercizi
    ═══════════════════════════════════════════════════════════════════════════════ */
 
-/* Override container max-width for importa tab (needs more room for grid) */
-#tab-importa .dashboard-card { max-width: 1100px; margin: 0 auto; }
+/* Override container max-width per la sub-sezione Importa (sta dentro tab-schede,
+   serve piu' spazio per la griglia esercizi). */
+#importaContainer.dashboard-card { max-width: 1100px; margin: 0 auto; }
 
 .importa-loading {
     text-align: center; padding: 3rem 1rem; color: #94a3b8; font-size: 0.95rem;
@@ -9065,7 +9064,7 @@ button.cedit-cert-badge {
 
 /* ── Desktop: wider grid ────────────────────────────────────────────────── */
 @media (min-width: 768px) {
-    #tab-importa .dashboard-card { max-width: 1200px; }
+    #importaContainer.dashboard-card { max-width: 1200px; }
     .importa-grid {
         grid-template-columns: repeat(auto-fill, minmax(210px, 1fr));
         gap: 1rem;

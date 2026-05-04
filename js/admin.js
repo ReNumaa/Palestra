@@ -177,7 +177,6 @@ function switchTab(tabName) {
         messaggi:  () => renderMessaggiTab(),
         richieste: () => { if (typeof renderRichiesteTab === 'function') renderRichiesteTab(); },
         schede:    () => renderSchedeTab(),
-        importa:   () => { if (typeof renderImportaTab === 'function') renderImportaTab(); },
     }[tabName];
     if (loader) setTimeout(loader, 0);
 }

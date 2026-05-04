@@ -425,7 +425,10 @@ function _schedeGetRegisteredUsers() {
 }
 
 let _schedeView = 'list';  // 'list' | 'edit' | 'progress' | 'clients' | 'client-detail' | 'actual'
-let _schedeSection = 'actual'; // 'actual' | 'schede' | 'clienti'
+let _schedeSection = (function() {
+    // Persisti l'ultima sub-sezione attiva (subnav della tab Schede) — sopravvive ai reload.
+    try { return sessionStorage.getItem('adminSchedeSection') || 'actual'; } catch (e) { return 'actual'; }
+})(); // 'actual' | 'schede' | 'clienti' | 'importa'
 let _currentPlanId = null;
 let _editingPlan = null;
 let _editDayLabels = [];
@@ -459,6 +462,7 @@ function _schedeRenderShell(container, { loading }) {
         <button class="schede-subnav-pill ${_schedeSection === 'actual' ? 'active' : ''}" onclick="_schedeSwitchSection('actual')">Live</button>
         <button class="schede-subnav-pill ${_schedeSection === 'schede' ? 'active' : ''}" onclick="_schedeSwitchSection('schede')">Schede</button>
         <button class="schede-subnav-pill ${_schedeSection === 'clienti' ? 'active' : ''}" onclick="_schedeSwitchSection('clienti')">Clienti</button>
+        <button class="schede-subnav-pill ${_schedeSection === 'importa' ? 'active' : ''}" onclick="_schedeSwitchSection('importa')">💪🏻 Importa</button>
     </div><div id="schedeInner">${loaderHtml}</div>`;
 }
 
@@ -491,6 +495,20 @@ async function renderSchedeTab() {
         // Shell UI subito: subnav sempre visibile, loader solo se cache vuota.
         // Cosi' se il sync si blocca l'utente vede comunque il tab e puo' navigare.
         _schedeRenderShell(container, { loading: !hasData });
+
+        // ── Sub-sezione "Importa" ────────────────────────────────────────────
+        // Render isolato dal resto del tab: non serve sync workout_plans, non
+        // serve _loadExercisesDB (quel cache lo riempie admin-importa.js stesso).
+        // Inietta il container e delega tutto a renderImportaTab().
+        if (_schedeSection === 'importa') {
+            _schedeActualStopAutoRefresh();
+            const inner = document.getElementById('schedeInner');
+            if (inner) {
+                inner.innerHTML = '<div class="dashboard-card" id="importaContainer"><div class="importa-loading">Caricamento catalogo esercizi...</div></div>';
+                if (typeof renderImportaTab === 'function') renderImportaTab();
+            }
+            return;
+        }
 
         // ── Exercise DB: serve SOLO per editor e picker. Le view list/actual/
         // clienti/progress NON lo usano (renderano solo WorkoutPlanStorage), quindi
@@ -593,6 +611,7 @@ function _schedeSwitchSection(section) {
     _schedeSection = section;
     _schedeView = section === 'clienti' ? 'clients' : 'list';
     _schedeClientUserId = null;
+    try { sessionStorage.setItem('adminSchedeSection', section); } catch (e) { /* noop */ }
     renderSchedeTab();
 }
 

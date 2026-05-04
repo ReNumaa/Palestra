@@ -11,9 +11,9 @@
     <meta name="apple-mobile-web-app-title" content="Palestra">
     <title>Le mie prenotazioni – Thomas Bresciani</title>
     <link rel="icon" type="image/jpeg" href="images/logo-tb---nero.jpg">
-    <link rel="stylesheet" href="css/style.css?v=9">
+    <link rel="stylesheet" href="css/style.css?v=10">
     <link rel="stylesheet" href="css/login.css?v=4">
-    <link rel="stylesheet" href="css/prenotazioni.css?v=10">
+    <link rel="stylesheet" href="css/prenotazioni.css?v=11">
 </head>
 <body>
     <nav class="navbar">
@@ -315,10 +315,10 @@
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.99.1/dist/umd/supabase.min.js" integrity="sha384-nBSomYN4UWX4we7Pw5GsQDkjtwLh2Wde+3szWl5Lzf0zuN9XncHIZLNoucos4C7f" crossorigin="anonymous"></script>
     <script src="js/supabase-client.js?v=3"></script>
     <script src="js/ui.js?v=2"></script>
-    <script src="js/data.js?v=72"></script>
+    <script src="js/data.js?v=73"></script>
     <script src="js/auth.js?v=22"></script>
     <script src="js/maintenance.js?v=1"></script>
-    <script src="js/push.js?v=19"></script>
+    <script src="js/push.js?v=20"></script>
     <script src="js/chart-mini.js?v=12"></script>
     <script>
         // ── Guard async: aspetta la sessione Supabase prima di controllare ─
@@ -421,12 +421,20 @@
             el.innerHTML = offered.map(r => {
                 const slotName = (typeof SLOT_NAMES !== 'undefined' && SLOT_NAMES[r.slotType]) || r.slotType;
                 const dateLabel = r.dateDisplay || formatBookingDate(r.date);
+                const fromAdmin = r.offerSource === 'admin';
+                const title = fromAdmin
+                    ? '✅ La tua richiesta è stata approvata!'
+                    : '🎉 Si è liberato un posto!';
+                const subtitle = fromAdmin
+                    ? "Conferma per essere effettivamente aggiunto alla lezione:"
+                    : "Vuoi accettare il posto liberato?";
                 return `
-                    <div class="slot-offered-card">
-                        <div class="slot-offered-title">🎉 Si è liberato un posto!</div>
+                    <div class="slot-offered-card${fromAdmin ? ' slot-offered-card--admin' : ''}">
+                        <div class="slot-offered-title">${title}</div>
+                        <div class="slot-offered-subtitle">${subtitle}</div>
                         <div class="slot-offered-info"><b>${slotName}</b> · ${dateLabel} · ${r.time}</div>
                         <div class="slot-offered-actions">
-                            <button class="slot-offered-accept" data-accept="${r.id}">Accetta</button>
+                            <button class="slot-offered-accept" data-accept="${r.id}">Conferma e iscriviti</button>
                             <button class="slot-offered-decline" data-decline="${r.id}">Rifiuta</button>
                         </div>
                     </div>`;

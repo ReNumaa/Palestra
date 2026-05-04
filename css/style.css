@@ -592,7 +592,7 @@ body.nav-open {
     cursor: not-allowed;
 }
 
-/* Wrapper per slot full small-group con bottone "+" richiesta accesso.
+/* Wrapper per slot full small-group con bottone "richiesta accesso".
    Il bottone è SIBLING dello slot (non figlio) per non subire il filter:grayscale. */
 .calendar-slot-wrap {
     position: relative;
@@ -605,37 +605,83 @@ body.nav-open {
     width: 100%;
 }
 
+/* Bottone "richiedi accesso" — design FAB-style minimal.
+   Posizionato in basso-destra per non coprire badge "Completo" / orari. */
 .slot-request-btn {
     position: absolute;
-    top: 4px;
-    right: 4px;
-    width: 24px;
-    height: 24px;
+    bottom: 6px;
+    right: 6px;
+    width: 30px;
+    height: 30px;
+    padding: 0;
     border: none;
     border-radius: 50%;
-    background: #fff;
-    color: #d97706;
-    font-weight: 800;
-    font-size: 1rem;
-    line-height: 1;
+    background: #ffffff;
+    color: #b45309;
     cursor: pointer;
-    z-index: 5;
-    box-shadow: 0 2px 6px rgba(0,0,0,0.3);
-    display: flex;
+    z-index: 6;
+    display: inline-flex;
     align-items: center;
     justify-content: center;
-    padding: 0;
-    transition: transform 0.15s ease, background 0.15s ease;
+    box-shadow:
+        0 1px 2px rgba(180, 83, 9, 0.18),
+        0 4px 10px rgba(180, 83, 9, 0.22),
+        inset 0 0 0 1px rgba(180, 83, 9, 0.08);
+    transition: transform 180ms cubic-bezier(.2,.8,.2,1),
+                box-shadow 180ms ease,
+                background 180ms ease;
+    animation: slotReqAppear 320ms cubic-bezier(.2,.8,.2,1);
 }
-.slot-request-btn:hover { transform: scale(1.15); }
-.slot-request-btn:disabled,
-.slot-request-btn--pending {
-    background: #10b981;
-    color: #fff;
+.slot-request-btn > svg {
+    width: 16px;
+    height: 16px;
+    display: block;
+}
+.slot-request-btn:hover {
+    transform: scale(1.10);
+    background: #fff7ed;
+    box-shadow:
+        0 2px 4px rgba(180, 83, 9, 0.20),
+        0 8px 16px rgba(180, 83, 9, 0.30),
+        inset 0 0 0 1px rgba(180, 83, 9, 0.14);
+}
+.slot-request-btn:active { transform: scale(0.96); }
+.slot-request-btn:focus-visible {
+    outline: 2px solid #f59e0b;
+    outline-offset: 2px;
+}
+
+/* Stato "richiesta inviata": cerchio verde con check */
+.slot-request-btn--pending,
+.slot-request-btn:disabled {
+    background: linear-gradient(135deg, #10b981, #059669);
+    color: #ffffff;
     cursor: default;
-    opacity: 1;
+    box-shadow:
+        0 1px 2px rgba(5, 150, 105, 0.18),
+        0 3px 8px rgba(5, 150, 105, 0.25),
+        inset 0 0 0 1px rgba(255, 255, 255, 0.18);
+    animation: none;
 }
-.slot-request-btn--pending:hover { transform: none; }
+.slot-request-btn--pending:hover { transform: none; background: linear-gradient(135deg, #10b981, #059669); }
+
+@keyframes slotReqAppear {
+    0%   { opacity: 0; transform: scale(0.4); }
+    60%  { opacity: 1; transform: scale(1.10); }
+    100% { opacity: 1; transform: scale(1.00); }
+}
+
+/* Mobile: bottone leggermente più grande (touch target 36px, AAA) */
+.calendar-slot-wrap--mobile .slot-request-btn {
+    width: 36px;
+    height: 36px;
+    bottom: 10px;
+    right: 10px;
+}
+.calendar-slot-wrap--mobile .slot-request-btn > svg {
+    width: 18px;
+    height: 18px;
+}
 
 /* "Qui ti alleni" — utente iscritto allo slot */
 .user-enrolled.slot-full {

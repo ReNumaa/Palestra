@@ -34,7 +34,7 @@ Deno.serve(async (req) => {
         return new Response(null, { status: 204, headers: corsHeaders });
     }
     try {
-        const { user_id, event, date, time, date_display, slot_type } = await req.json();
+        const { user_id, event, date, time, date_display, slot_type, source } = await req.json();
 
         if (!user_id || !event || !time) {
             return new Response(JSON.stringify({ ok: false, error: "user_id, event, time sono obbligatori" }), {
@@ -75,11 +75,17 @@ Deno.serve(async (req) => {
         let notifType: string;
 
         if (event === "slot_offered") {
-            title = "Si è liberato un posto!";
-            body  = `${slotName} · ${whenText}. Apri l'app per confermare.`;
-            tag   = `slot-offered-${user_id}-${date}-${startTime}`.replace(/\s/g, "-");
-            url   = "/prenotazioni.html";
-            notifType = "access_request_offered";
+            if (source === "admin") {
+                title = "La tua richiesta è stata approvata!";
+                body  = `Conferma per essere aggiunto a ${slotName} · ${whenText}.`;
+                notifType = "access_request_admin_offered";
+            } else {
+                title = "Si è liberato un posto!";
+                body  = `${slotName} · ${whenText}. Apri l'app per confermare.`;
+                notifType = "access_request_offered";
+            }
+            tag = `slot-offered-${user_id}-${date}-${startTime}`.replace(/\s/g, "-");
+            url = "/prenotazioni.html";
         } else {
             title = "Richiesta approvata";
             body  = `Sei stato aggiunto a ${slotName} · ${whenText}.`;

@@ -51,12 +51,17 @@ function initCalendar() {
     }
 }
 
-// Aggiunge il bottone "+" per richiedere accesso a uno slot small-group full.
+// SVG icone (Lucide-style)
+const _SVG_USER_PLUS = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><line x1="19" y1="8" x2="19" y2="14"/><line x1="22" y1="11" x2="16" y2="11"/></svg>';
+const _SVG_CHECK     = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><polyline points="20 6 9 17 4 12"/></svg>';
+
+// Aggiunge il bottone "richiedi accesso" per uno slot small-group full.
 // Restituisce il wrapper (slot + bottone) da appendere al posto dello slot.
-function _wrapSlotWithRequestBtn(slotEl, dateInfo, timeSlot, mainType) {
+function _wrapSlotWithRequestBtn(slotEl, dateInfo, timeSlot, mainType, opts = {}) {
     if (typeof SlotAccessRequestStorage === 'undefined') return slotEl;
+    const isMobile = !!opts.mobile;
     const wrap = document.createElement('div');
-    wrap.className = 'calendar-slot-wrap';
+    wrap.className = 'calendar-slot-wrap' + (isMobile ? ' calendar-slot-wrap--mobile' : '');
     wrap.appendChild(slotEl);
 
     const btn = document.createElement('button');
@@ -69,12 +74,14 @@ function _wrapSlotWithRequestBtn(slotEl, dateInfo, timeSlot, mainType) {
         : null;
     if (myReq) {
         btn.classList.add('slot-request-btn--pending');
-        btn.textContent = '✓';
+        btn.innerHTML = _SVG_CHECK;
         btn.disabled = true;
-        btn.title = 'Richiesta già inviata';
+        btn.title = 'Richiesta già inviata — sarai notificato se si libera un posto';
+        btn.setAttribute('aria-label', 'Richiesta inviata');
     } else {
-        btn.textContent = '+';
-        btn.title = 'Richiedi accesso a questo slot';
+        btn.innerHTML = _SVG_USER_PLUS;
+        btn.title = 'Richiedi accesso a questa lezione';
+        btn.setAttribute('aria-label', 'Richiedi accesso');
         btn.addEventListener('click', e => {
             e.stopPropagation();
             requestSlotAccess(dateInfo, timeSlot, mainType);
@@ -658,7 +665,7 @@ function createMobileSlotCard(dateInfo, scheduledSlot) {
 
     // Bottone "+" per richiedere accesso a slot small-group full (mobile)
     if (loggedIn && isFull && !enrolled && timeOk && slotType === SLOT_TYPES.SMALL_GROUP) {
-        return _wrapSlotWithRequestBtn(slotCard, dateInfo, timeSlot, slotType);
+        return _wrapSlotWithRequestBtn(slotCard, dateInfo, timeSlot, slotType, { mobile: true });
     }
 
     return slotCard;

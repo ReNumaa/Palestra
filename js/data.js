@@ -2095,7 +2095,7 @@ class SlotAccessRequestStorage {
             const cutoffStr = cutoff.toISOString().slice(0, 10);
             const { data, error } = await fetchAllPaginated(() => supabaseClient
                 .from('slot_access_requests')
-                .select('id, user_id, user_name, user_email, user_whatsapp, date, time, slot_type, date_display, status, created_at, offered_at, resolved_at, resolved_booking_id')
+                .select('id, user_id, user_name, user_email, user_whatsapp, date, time, slot_type, date_display, status, created_at, offered_at, resolved_at, resolved_booking_id, offer_source')
                 .gte('date', cutoffStr)
                 .order('created_at', { ascending: true }));
             if (error) {
@@ -2119,6 +2119,7 @@ class SlotAccessRequestStorage {
                 offeredAt:         r.offered_at,
                 resolvedAt:        r.resolved_at,
                 resolvedBookingId: r.resolved_booking_id,
+                offerSource:       r.offer_source || null,
             }));
         } catch (e) { console.error('[Supabase] SlotAccessRequestStorage.sync exception:', e); }
     }
