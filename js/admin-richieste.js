@@ -2,8 +2,8 @@
 // ██  TAB RICHIESTE — Gestione richieste accesso a slot small-group full
 // ══════════════════════════════════════════════════════════════════════════
 
-// Filtri stato: 'active' (default - pending+offered) | 'pending' | 'offered' | 'history'
-let _richiesteFilter = 'active';
+// Filtri stato: 'pending' (default) | 'active' (pending+offered) | 'offered' | 'history'
+let _richiesteFilter = 'pending';
 
 function setRichiesteFilter(value, btnEl) {
     _richiesteFilter = value;
