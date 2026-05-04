@@ -91,12 +91,66 @@ function _wrapSlotWithRequestBtn(slotEl, dateInfo, timeSlot, mainType, opts = {}
     return wrap;
 }
 
+// Modal custom per confermare la richiesta accesso (sostituisce confirm() nativo).
+// Ritorna Promise<boolean>.
+function _showSlotRequestModal(slotName, dayLabel, timeSlot) {
+    return new Promise(resolve => {
+        const overlay = document.createElement('div');
+        overlay.className = 'slot-req-modal-overlay';
+        overlay.innerHTML = `
+            <div class="slot-req-modal" role="dialog" aria-modal="true" aria-labelledby="srModalTitle">
+                <button class="slot-req-modal__close" type="button" aria-label="Chiudi">
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round"><path d="M6 6l12 12M18 6l-12 12"/></svg>
+                </button>
+                <div class="slot-req-modal__icon" aria-hidden="true">
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><line x1="19" y1="8" x2="19" y2="14"/><line x1="22" y1="11" x2="16" y2="11"/></svg>
+                </div>
+                <div class="slot-req-modal__eyebrow">Slot pieno</div>
+                <h3 class="slot-req-modal__title" id="srModalTitle">Richiedi accesso alla lezione</h3>
+                <p class="slot-req-modal__sub">Verrai messo in coda. Se si libera un posto o se il trainer ti aggiunge, ti arriverà una notifica e potrai confermare l'iscrizione.</p>
+                <div class="slot-req-modal__chip">
+                    <span class="slot-req-modal__chip-dot" aria-hidden="true"></span>
+                    <span class="slot-req-modal__chip-name">${slotName}</span>
+                    <span class="slot-req-modal__chip-sep">·</span>
+                    <span>${dayLabel}</span>
+                    <span class="slot-req-modal__chip-sep">·</span>
+                    <span class="slot-req-modal__chip-time">${timeSlot}</span>
+                </div>
+                <div class="slot-req-modal__actions">
+                    <button class="slot-req-modal__btn slot-req-modal__btn--cancel" type="button">Annulla</button>
+                    <button class="slot-req-modal__btn slot-req-modal__btn--confirm" type="button">
+                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
+                        <span>Invia richiesta</span>
+                    </button>
+                </div>
+            </div>`;
+        const close = (result) => {
+            overlay.classList.add('slot-req-modal-overlay--closing');
+            document.removeEventListener('keydown', onKey);
+            setTimeout(() => { overlay.remove(); resolve(result); }, 160);
+        };
+        const onKey = (e) => {
+            if (e.key === 'Escape') close(false);
+            if (e.key === 'Enter')  close(true);
+        };
+        overlay.addEventListener('click', e => { if (e.target === overlay) close(false); });
+        overlay.querySelector('.slot-req-modal__close').addEventListener('click', () => close(false));
+        overlay.querySelector('.slot-req-modal__btn--cancel').addEventListener('click', () => close(false));
+        overlay.querySelector('.slot-req-modal__btn--confirm').addEventListener('click', () => close(true));
+        document.addEventListener('keydown', onKey);
+        document.body.appendChild(overlay);
+        // Focus sul bottone primario per accessibilità + Enter
+        setTimeout(() => overlay.querySelector('.slot-req-modal__btn--confirm')?.focus(), 50);
+    });
+}
+
 async function requestSlotAccess(dateInfo, timeSlot, slotType) {
     if (!_isLoggedIn()) return;
     if (typeof SlotAccessRequestStorage === 'undefined') return;
     const slotName = (typeof SLOT_NAMES !== 'undefined' && SLOT_NAMES[slotType]) || 'Lezione';
     const dayLabel = `${dateInfo.dayName} ${dateInfo.displayDate}`;
-    if (!confirm(`Vuoi richiedere accesso a ${slotName} del ${dayLabel} alle ${timeSlot}?\n\nSe si libera un posto verrai notificato.`)) return;
+    const ok = await _showSlotRequestModal(slotName, dayLabel, timeSlot);
+    if (!ok) return;
     const r = await SlotAccessRequestStorage.createRequest(
         dateInfo.formatted, timeSlot, slotType, dayLabel
     );
