@@ -588,7 +588,6 @@ function createClientCard(client, index) {
     (creditRec2?.history || [])
         .filter(e => !e.hiddenRefund && !/^Rimborso (cancellazione|annullamento) lezione/i.test(e.note || '') &&
             !/^(Auto-pagamento|Pagamento automatico|Pagamento lezione)/i.test(e.note || '') &&
-            !/^Applicato a debito manuale/i.test(e.note || '') &&
             (e.amount !== 0 || (e.displayAmount || 0) > 0))
         .forEach(e => {
             txEntries.push({
