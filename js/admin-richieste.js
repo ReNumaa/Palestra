@@ -97,17 +97,40 @@ function renderRichiesteList() {
         return;
     }
 
+    const allBookings = (typeof BookingStorage !== 'undefined') ? BookingStorage.getAllBookings() : [];
+
     html += '<div class="richieste-groups">';
     for (const key of groupKeys) {
         const g = groups[key];
         const slotName = (typeof SLOT_NAMES !== 'undefined' && SLOT_NAMES[g.slotType]) || g.slotType;
         const dateLabel = g.dateDisplay || _richFormatDate(g.date);
         const activeItems = g.items.filter(r => r.status === 'pending' || r.status === 'offered');
+
+        // Capacità slot: occupazione attuale + cosa diventerebbe se approvi tutte le pending
+        const currentCount = allBookings.filter(b =>
+            b.date === g.date && b.time === g.time && b.slotType === g.slotType &&
+            (b.status === 'confirmed' || b.status === 'cancellation_requested')
+        ).length;
+        const maxCapacity = (typeof SLOT_MAX_CAPACITY !== 'undefined' && SLOT_MAX_CAPACITY[g.slotType]) || 5;
+        const proposedCount = currentCount + activeItems.length;
+        const overBy = Math.max(0, proposedCount - maxCapacity);
+
         html += `<div class="richieste-group">`;
         html += `<div class="richieste-group-header">`;
         html += `  <div class="richieste-group-slot">🟡 ${slotName}</div>`;
         html += `  <div class="richieste-group-when">${dateLabel} · ${g.time}</div>`;
         html += `  <div class="richieste-group-count">${activeItems.length} in coda</div>`;
+        html += `</div>`;
+        html += `<div class="richieste-group-cap">`;
+        html += `  <div class="richieste-cap-block">`;
+        html += `    <span class="richieste-cap-label">Occupazione attuale</span>`;
+        html += `    <span class="richieste-cap-value">${currentCount}/${maxCapacity}</span>`;
+        html += `  </div>`;
+        html += `  <div class="richieste-cap-arrow" aria-hidden="true">→</div>`;
+        html += `  <div class="richieste-cap-block">`;
+        html += `    <span class="richieste-cap-label">Se approvi tutte</span>`;
+        html += `    <span class="richieste-cap-value richieste-cap-value--proposed${overBy > 0 ? ' richieste-cap-value--over' : ''}">${proposedCount}/${maxCapacity}${overBy > 0 ? ` <small>(+${overBy} extra)</small>` : ''}</span>`;
+        html += `  </div>`;
         html += `</div>`;
         html += `<div class="richieste-group-list">`;
         const sorted = [...g.items].sort((a, b) => (a.createdAt || '').localeCompare(b.createdAt || ''));
@@ -124,12 +147,17 @@ function renderRichiesteList() {
                 expired:       '⏱ Scaduta',
             }[r.status]) || r.status;
             const positionLabel = isActive ? `#${idx + 1}` : '';
+            // Per questa singola richiesta, capacity proposta = current + posizione
+            const itemProposed = isActive ? currentCount + (idx + 1) : null;
             html += `<div class="richieste-item richieste-item--${r.status}">`;
             html += `  <div class="richieste-item-pos">${positionLabel}</div>`;
             html += `  <div class="richieste-item-user">`;
             html += `    <div class="richieste-item-name">${_richEscape(r.userName || '—')}</div>`;
-            html += `    <div class="richieste-item-meta">${_richEscape(r.userEmail || '')}${r.userWhatsapp ? ' · ' + _richEscape(r.userWhatsapp) : ''}</div>`;
             html += `    <div class="richieste-item-meta">richiesta: ${_richFormatRelative(r.createdAt)}${r.offeredAt ? ' · offerta: ' + _richFormatRelative(r.offeredAt) : ''}</div>`;
+            if (itemProposed !== null) {
+                const itemOver = itemProposed > maxCapacity;
+                html += `    <div class="richieste-item-impact${itemOver ? ' richieste-item-impact--over' : ''}">Se approvi → <b>${itemProposed}/${maxCapacity}</b>${itemOver ? ` (+${itemProposed - maxCapacity} oltre il limite)` : ''}</div>`;
+            }
             html += `  </div>`;
             html += `  <div class="richieste-item-status">${statusLabel}</div>`;
             if (r.status === 'pending') {
