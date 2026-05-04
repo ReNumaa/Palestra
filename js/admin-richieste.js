@@ -96,18 +96,27 @@ function renderRichiesteList() {
         return ga.time.localeCompare(gb.time);
     });
 
+    // Refresh button (icon-only) — sostituisce il vecchio "🔄 Aggiorna"
+    const ICON_REFRESH = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 12a9 9 0 0 1 15-6.7L21 8"/><polyline points="21 3 21 8 16 8"/><path d="M21 12a9 9 0 0 1-15 6.7L3 16"/><polyline points="3 21 3 16 8 16"/></svg>';
+    const ICON_USERS   = '<svg viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><circle cx="9" cy="8" r="4"/><path d="M9 14c-3.3 0-6 1.8-6 4v2h12v-2c0-2.2-2.7-4-6-4z"/><circle cx="17.5" cy="8.5" r="3"/><path d="M17.5 13.5c-1 0-1.9.2-2.6.5 1.3 1 2.1 2.4 2.1 4v2H22v-2c0-2.2-2-4.5-4.5-4.5z"/></svg>';
+    const ICON_CHECK   = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><polyline points="20 6 9 17 4 12"/></svg>';
+
     let html = `
-        <div class="richieste-header">
-            <h3 class="richieste-title">📥 Richieste accesso slot</h3>
-            <div class="richieste-controls">
-                <button class="richieste-refresh-btn" onclick="renderRichiesteTab()">🔄 Aggiorna</button>
+        <div class="rich-toolbar">
+            <div class="rich-counts">
+                <b>${counts.active}</b> attive · <b>${counts.pending}</b> in attesa · <b>${counts.offered}</b> offerte · <b>${counts.history}</b> storico
             </div>
+            <button class="rich-refresh" type="button" onclick="renderRichiesteTab()" title="Aggiorna" aria-label="Aggiorna">${ICON_REFRESH}</button>
         </div>
     `;
 
-    html += `<div class="richieste-summary">`;
-    html += `<span><b>${counts.active}</b> attive · <b>${counts.pending}</b> in attesa · <b>${counts.offered}</b> offerte · <b>${counts.history}</b> storico</span>`;
-    html += `</div>`;
+    const sectionLabel = ({
+        pending: 'In attesa di approvazione',
+        offered: 'Posto offerto · in attesa conferma utente',
+        history: 'Storico',
+        active:  'Attive',
+    })[_richiesteFilter] || 'Richieste';
+    html += `<div class="rich-section-h">${sectionLabel}</div>`;
 
     const emptyMsg = ({
         pending: 'Nessuna richiesta in attesa.',
@@ -116,21 +125,21 @@ function renderRichiesteList() {
         active:  'Nessuna richiesta attiva al momento.',
     })[_richiesteFilter] || 'Nessuna richiesta da mostrare.';
     if (groupKeys.length === 0) {
-        html += `<div class="richieste-empty">${emptyMsg}</div>`;
+        html += `<div class="rich-empty">${emptyMsg}</div>`;
         container.innerHTML = html;
         return;
     }
 
     const allBookings = (typeof BookingStorage !== 'undefined') ? BookingStorage.getAllBookings() : [];
 
-    html += '<div class="richieste-groups">';
+    html += '<div class="rich-cards">';
     for (const key of groupKeys) {
         const g = groups[key];
         const slotName = (typeof SLOT_NAMES !== 'undefined' && SLOT_NAMES[g.slotType]) || g.slotType;
         const dateLabel = g.dateDisplay || _richFormatDate(g.date);
         const activeItems = g.items.filter(r => r.status === 'pending' || r.status === 'offered');
 
-        // Capacità slot: occupazione attuale + cosa diventerebbe se approvi tutte le pending
+        // Occupazione attuale + impatto se approvi tutte le richieste attive
         const currentCount = allBookings.filter(b =>
             b.date === g.date && b.time === g.time && b.slotType === g.slotType &&
             (b.status === 'confirmed' || b.status === 'cancellation_requested')
@@ -138,64 +147,70 @@ function renderRichiesteList() {
         const maxCapacity = (typeof SLOT_MAX_CAPACITY !== 'undefined' && SLOT_MAX_CAPACITY[g.slotType]) || 5;
         const proposedCount = currentCount + activeItems.length;
         const overBy = Math.max(0, proposedCount - maxCapacity);
+        const showStrip = activeItems.length > 0;
 
-        html += `<div class="richieste-group">`;
-        html += `<div class="richieste-group-header">`;
-        html += `  <div class="richieste-group-slot">🟡 ${slotName}</div>`;
-        html += `  <div class="richieste-group-when">${dateLabel} · ${g.time}</div>`;
-        html += `  <div class="richieste-group-count">${activeItems.length} in coda</div>`;
-        html += `</div>`;
-        html += `<div class="richieste-group-cap">`;
-        html += `  <div class="richieste-cap-block">`;
-        html += `    <span class="richieste-cap-label">Occupazione attuale</span>`;
-        html += `    <span class="richieste-cap-value">${currentCount}/${maxCapacity}</span>`;
+        html += `<div class="rich-card">`;
+        html += `  <div class="rich-card-head">`;
+        html += `    <div class="rich-head-row">`;
+        html += `      <div class="rich-ic">${ICON_USERS}</div>`;
+        html += `      <div class="rich-titles">`;
+        html += `        <div class="rich-t">${slotName}</div>`;
+        html += `        <div class="rich-s">${dateLabel} · ${g.time}</div>`;
+        html += `      </div>`;
+        html += `    </div>`;
+        if (showStrip) {
+            html += `    <div class="rich-strip${overBy > 0 ? ' rich-strip--over' : ''}">`;
+            html += `      <span class="rich-strip-lbl">Posti</span>`;
+            html += `      <span class="rich-strip-now">${currentCount}/${maxCapacity}</span>`;
+            html += `      <span class="rich-strip-arr" aria-hidden="true">→</span>`;
+            html += `      <span class="rich-strip-next">${proposedCount}/${maxCapacity}</span>`;
+            if (overBy > 0) {
+                html += `      <span class="rich-strip-over">+${overBy} oltre il limite</span>`;
+            }
+            html += `    </div>`;
+        }
         html += `  </div>`;
-        html += `  <div class="richieste-cap-arrow" aria-hidden="true">→</div>`;
-        html += `  <div class="richieste-cap-block">`;
-        html += `    <span class="richieste-cap-label">Se approvi tutte</span>`;
-        html += `    <span class="richieste-cap-value richieste-cap-value--proposed${overBy > 0 ? ' richieste-cap-value--over' : ''}">${proposedCount}/${maxCapacity}${overBy > 0 ? ` <small>(+${overBy} extra)</small>` : ''}</span>`;
-        html += `  </div>`;
-        html += `</div>`;
-        html += `<div class="richieste-group-list">`;
+
         const sorted = [...g.items].sort((a, b) => (a.createdAt || '').localeCompare(b.createdAt || ''));
         sorted.forEach((r, idx) => {
             const isActive = r.status === 'pending' || r.status === 'offered';
-            const offeredSrcSuffix = r.status === 'offered'
-                ? (r.offerSource === 'admin' ? ' (offerta admin, attesa conferma)' : ' (auto, attesa conferma)')
-                : '';
-            const statusLabel = ({
-                pending:       '🟠 In attesa',
-                offered:       '🔵 Posto offerto' + offeredSrcSuffix,
-                approved:      '✅ Confermata',
-                declined_user: '🚫 Rifiutata dall\'utente',
-                expired:       '⏱ Scaduta',
-            }[r.status]) || r.status;
             const positionLabel = isActive ? `#${idx + 1}` : '';
-            // Per questa singola richiesta, capacity proposta = current + posizione
-            const itemProposed = isActive ? currentCount + (idx + 1) : null;
-            html += `<div class="richieste-item richieste-item--${r.status}">`;
-            html += `  <div class="richieste-item-pos">${positionLabel}</div>`;
-            html += `  <div class="richieste-item-user">`;
-            html += `    <div class="richieste-item-name">${_richEscape(r.userName || '—')}</div>`;
-            html += `    <div class="richieste-item-meta">richiesta: ${_richFormatRelative(r.createdAt)}${r.offeredAt ? ' · offerta: ' + _richFormatRelative(r.offeredAt) : ''}</div>`;
-            if (itemProposed !== null) {
-                const itemOver = itemProposed > maxCapacity;
-                html += `    <div class="richieste-item-impact${itemOver ? ' richieste-item-impact--over' : ''}">Se approvi → <b>${itemProposed}/${maxCapacity}</b>${itemOver ? ` (+${itemProposed - maxCapacity} oltre il limite)` : ''}</div>`;
+            const initials = _richInitials(r.userName);
+            // Status pill: pending=arancio, offered=blu, altri=neutro
+            let statusPillClass = 'rich-status--neutral';
+            let statusPillText = 'Storico';
+            if (r.status === 'pending')        { statusPillClass = 'rich-status--pending';  statusPillText = 'In attesa'; }
+            else if (r.status === 'offered')   {
+                statusPillClass = 'rich-status--offered';
+                statusPillText = (r.offerSource === 'admin') ? 'Offerto · attende conferma' : 'Auto-offerto · attende conferma';
             }
+            else if (r.status === 'approved')      { statusPillClass = 'rich-status--ok';        statusPillText = 'Confermata'; }
+            else if (r.status === 'declined_user') { statusPillClass = 'rich-status--declined';  statusPillText = 'Rifiutata dall\'utente'; }
+            else if (r.status === 'expired')       { statusPillClass = 'rich-status--neutral';   statusPillText = 'Scaduta'; }
+
+            html += `<div class="rich-req">`;
+            html += `  <div class="rich-av" aria-hidden="true">${initials}</div>`;
+            html += `  <div class="rich-rb">`;
+            html += `    <div class="rich-name-row">`;
+            html += `      <span class="rich-name">${_richEscape(r.userName || '—')}</span>`;
+            if (positionLabel) html += `<span class="rich-pos">${positionLabel}</span>`;
+            html += `    </div>`;
+            html += `    <div class="rich-time">richiesta ${_richFormatRelative(r.createdAt)}${r.offeredAt ? ' · offerta ' + _richFormatRelative(r.offeredAt) : ''}</div>`;
+            html += `    <span class="rich-status-pill ${statusPillClass}"><span class="rich-status-dot"></span>${statusPillText}</span>`;
             html += `  </div>`;
-            html += `  <div class="richieste-item-status">${statusLabel}</div>`;
-            if (r.status === 'pending') {
-                html += `  <div class="richieste-item-actions">`;
-                html += `    <button class="btn-primary richieste-approve-btn" data-rid="${r.id}">Offri posto</button>`;
-                html += `  </div>`;
-            } else if (r.status === 'offered') {
-                html += `  <div class="richieste-item-actions">`;
-                html += `    <button class="btn-primary richieste-approve-btn" data-rid="${r.id}" title="Re-invia notifica all'utente">Re-invia</button>`;
-                html += `  </div>`;
-            }
             html += `</div>`;
+
+            if (r.status === 'pending' || r.status === 'offered') {
+                html += `<div class="rich-actions">`;
+                if (r.status === 'pending') {
+                    html += `  <button class="rich-btn rich-btn--primary richieste-approve-btn" data-rid="${r.id}" type="button">${ICON_CHECK}<span>Offri posto</span></button>`;
+                } else {
+                    html += `  <button class="rich-btn rich-btn--primary richieste-approve-btn" data-rid="${r.id}" type="button" title="Re-invia notifica all'utente">${ICON_REFRESH}<span>Re-invia notifica</span></button>`;
+                }
+                html += `</div>`;
+            }
         });
-        html += `</div></div>`;
+        html += `</div>`;
     }
     html += '</div>';
 
@@ -204,6 +219,14 @@ function renderRichiesteList() {
     container.querySelectorAll('.richieste-approve-btn').forEach(btn => {
         btn.addEventListener('click', () => approveAccessRequest(btn.dataset.rid, btn));
     });
+}
+
+function _richInitials(name) {
+    if (!name) return '?';
+    const parts = String(name).trim().split(/\s+/);
+    const a = (parts[0] && parts[0][0]) || '';
+    const b = (parts[1] && parts[1][0]) || '';
+    return (a + b).toUpperCase() || '?';
 }
 
 function _richEscape(s) {
