@@ -827,10 +827,13 @@ const CN_PAGE_SIZE = 50;
 var _debouncedCnFilter = _debounce(() => renderClientNotifTable(), 250);
 
 const _CN_TYPE_LABELS = {
-    reminder_24h:    '⏰ Promemoria 24h',
-    reminder_1h:     '⏰ Promemoria 1h',
-    slot_available:  '🟢 Slot disponibile',
-    broadcast:       '📢 Broadcast',
+    reminder_24h:                    '⏰ Promemoria 24h',
+    reminder_1h:                     '⏰ Promemoria 1h',
+    slot_available:                  '🟢 Slot disponibile',
+    broadcast:                       '📢 Broadcast',
+    access_request_offered:          '🔵 Posto liberato',
+    access_request_admin_offered:    '✅ Approvato dal trainer',
+    access_request_approved:         '✅ Aggiunto allo slot',
 };
 
 const _CN_STATUS_LABELS = {

@@ -124,7 +124,7 @@
         const tabs = document.querySelectorAll('.admin-tab[data-tab]');
         tabs.forEach(tab => {
             if (tab.classList.contains('admin-tab--privacy')) return;
-            const { icon, label } = splitEmojiLabel(tab.textContent);
+            const { icon, label } = splitEmojiLabel(_adminTabPlainText(tab));
             const li = document.createElement('li');
             const btn = document.createElement('button');
             btn.type = 'button';
@@ -177,12 +177,22 @@
         }
     }
 
+    // Restituisce il testo del .admin-tab senza i badge interni (es. "Richieste1" → "Richieste").
+    // Il badge contatore è dentro il button come <span class="admin-tab-badge">,
+    // quindi textContent lo concatenava direttamente al label.
+    function _adminTabPlainText(btn) {
+        if (!btn) return '';
+        const clone = btn.cloneNode(true);
+        clone.querySelectorAll('.admin-tab-badge').forEach(b => b.remove());
+        return (clone.textContent || '').trim();
+    }
+
     function updatePageSwitcherLabel() {
         const active = document.querySelector('.admin-tab.active');
         const icoEl = $('admMbarPageIco');
         const lblEl = $('admMbarPageLabel');
         if (!active || !icoEl || !lblEl) return;
-        const { icon, label } = splitEmojiLabel(active.textContent);
+        const { icon, label } = splitEmojiLabel(_adminTabPlainText(active));
         icoEl.textContent = icon || '•';
         lblEl.textContent = label || active.dataset.tab || '';
     }
