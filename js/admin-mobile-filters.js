@@ -20,6 +20,7 @@
         settings:  { show: false },
         registro:  { show: true,  icon: '🔍',  label: 'Filtri'  },
         messaggi:  { show: false },
+        richieste: { show: true,  icon: '📥',  label: 'Stato'   },
         schede:    { show: false },
         importa:   { show: false },
     };
@@ -232,6 +233,11 @@
                 const { icon: ic, label: lb } = splitEmojiLabel(active.textContent);
                 label = lb || active.textContent.trim() || label;
                 if (ic) icon = ic;
+            }
+        } else if (tab === 'richieste') {
+            const active = document.querySelector('#richiesteFilterBar .filter-btn.active');
+            if (active) {
+                label = active.textContent.trim() || label;
             }
         } else if (tab === 'clients') {
             hasActive = countActiveClientFilters() > 0;
@@ -604,6 +610,34 @@
         };
     }
 
+    function buildRichiesteFilters(body) {
+        const group = document.createElement('div');
+        group.className = 'adm-filt-group';
+        const lbl = document.createElement('span');
+        lbl.className = 'adm-filt-label';
+        lbl.textContent = 'Stato';
+        group.appendChild(lbl);
+        const pillsWrap = document.createElement('div');
+        pillsWrap.className = 'adm-filt-pills';
+        const origBtns = document.querySelectorAll('#richiesteFilterBar .filter-btn');
+        origBtns.forEach(orig => {
+            const pill = document.createElement('button');
+            pill.type = 'button';
+            pill.className = 'adm-filt-pill';
+            pill.textContent = orig.textContent.trim();
+            if (orig.classList.contains('active')) pill.classList.add('is-active');
+            pill.addEventListener('click', () => {
+                pillsWrap.querySelectorAll('.adm-filt-pill').forEach(p => p.classList.remove('is-active'));
+                pill.classList.add('is-active');
+                orig.click();
+                setTimeout(() => closeSheet('admFiltersSheet', 'admFiltersBackdrop', 'admMbarFilter'), 150);
+            });
+            pillsWrap.appendChild(pill);
+        });
+        group.appendChild(pillsWrap);
+        body.appendChild(group);
+    }
+
     function renderFiltersSheet() {
         const body = $('admFiltersBody');
         if (!body) return;
@@ -616,6 +650,11 @@
         if (tab === 'analytics') {
             if (title) title.textContent = 'Periodo';
             buildAnalyticsFilters(body);
+            return;
+        }
+        if (tab === 'richieste') {
+            if (title) title.textContent = 'Stato richieste';
+            buildRichiesteFilters(body);
             return;
         }
         if (tab === 'clients') {

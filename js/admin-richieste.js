@@ -2,7 +2,15 @@
 // ██  TAB RICHIESTE — Gestione richieste accesso a slot small-group full
 // ══════════════════════════════════════════════════════════════════════════
 
-let _richiesteShowHistory = false;
+// Filtri stato: 'active' (default - pending+offered) | 'pending' | 'offered' | 'history'
+let _richiesteFilter = 'active';
+
+function setRichiesteFilter(value, btnEl) {
+    _richiesteFilter = value;
+    document.querySelectorAll('#richiesteFilterBar .filter-btn').forEach(b => b.classList.remove('active'));
+    if (btnEl) btnEl.classList.add('active');
+    renderRichiesteList();
+}
 
 function _richFormatDate(isoDate) {
     if (!isoDate) return '';
@@ -56,12 +64,26 @@ function renderRichiesteList() {
     if (!container) return;
 
     const all = SlotAccessRequestStorage.getAll();
-    const active = all.filter(r => r.status === 'pending' || r.status === 'offered');
-    const history = all.filter(r => r.status !== 'pending' && r.status !== 'offered');
+    const counts = {
+        active:  all.filter(r => r.status === 'pending' || r.status === 'offered').length,
+        pending: all.filter(r => r.status === 'pending').length,
+        offered: all.filter(r => r.status === 'offered').length,
+        history: all.filter(r => r.status !== 'pending' && r.status !== 'offered').length,
+    };
+
+    // Applica il filtro corrente
+    const list = all.filter(r => {
+        switch (_richiesteFilter) {
+            case 'pending': return r.status === 'pending';
+            case 'offered': return r.status === 'offered';
+            case 'history': return r.status !== 'pending' && r.status !== 'offered';
+            case 'active':
+            default:        return r.status === 'pending' || r.status === 'offered';
+        }
+    });
 
     // Raggruppa per (date, time, slot_type)
     const groups = {};
-    const list = _richiesteShowHistory ? all : active;
     list.forEach(r => {
         const key = `${r.date}||${r.time}||${r.slotType}`;
         if (!groups[key]) groups[key] = { date: r.date, time: r.time, slotType: r.slotType, dateDisplay: r.dateDisplay, items: [] };
@@ -78,21 +100,23 @@ function renderRichiesteList() {
         <div class="richieste-header">
             <h3 class="richieste-title">📥 Richieste accesso slot</h3>
             <div class="richieste-controls">
-                <label class="richieste-toggle">
-                    <input type="checkbox" ${_richiesteShowHistory ? 'checked' : ''} onchange="toggleRichiesteHistory(this.checked)">
-                    <span>Mostra storico</span>
-                </label>
                 <button class="richieste-refresh-btn" onclick="renderRichiesteTab()">🔄 Aggiorna</button>
             </div>
         </div>
     `;
 
     html += `<div class="richieste-summary">`;
-    html += `<span><b>${active.length}</b> attive · <b>${history.length}</b> storico</span>`;
+    html += `<span><b>${counts.active}</b> attive · <b>${counts.pending}</b> in attesa · <b>${counts.offered}</b> offerte · <b>${counts.history}</b> storico</span>`;
     html += `</div>`;
 
+    const emptyMsg = ({
+        pending: 'Nessuna richiesta in attesa.',
+        offered: 'Nessuna offerta in attesa di conferma utente.',
+        history: 'Nessuna richiesta nello storico.',
+        active:  'Nessuna richiesta attiva al momento.',
+    })[_richiesteFilter] || 'Nessuna richiesta da mostrare.';
     if (groupKeys.length === 0) {
-        html += `<div class="richieste-empty">${_richiesteShowHistory ? 'Nessuna richiesta nello storico.' : 'Nessuna richiesta attiva al momento.'}</div>`;
+        html += `<div class="richieste-empty">${emptyMsg}</div>`;
         container.innerHTML = html;
         return;
     }
@@ -188,8 +212,9 @@ function _richEscape(s) {
     }[c]));
 }
 
+// Mantenuto per compat retroattiva (non più usato dall'UI)
 function toggleRichiesteHistory(show) {
-    _richiesteShowHistory = !!show;
+    _richiesteFilter = show ? 'history' : 'active';
     renderRichiesteList();
 }
 

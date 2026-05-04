@@ -1011,6 +1011,19 @@
 
             <!-- Tab: Richieste accesso slot -->
             <div id="tab-richieste" class="tab-content">
+                <div class="tab-page-title">
+                    <h2>Richieste</h2>
+                    <span>accesso slot pieni</span>
+                </div>
+
+                <!-- Filter bar (stessa estetica di Statistiche & Fatturato) -->
+                <div class="analytics-filter-bar" id="richiesteFilterBar">
+                    <button class="filter-btn active" onclick="setRichiesteFilter('active', this)">Tutte le attive</button>
+                    <button class="filter-btn"        onclick="setRichiesteFilter('pending', this)">In attesa</button>
+                    <button class="filter-btn"        onclick="setRichiesteFilter('offered', this)">Offerte</button>
+                    <button class="filter-btn"        onclick="setRichiesteFilter('history', this)">Storico</button>
+                </div>
+
                 <div class="dashboard-card" id="richiesteContainer">
                     <div class="richieste-loading">Caricamento richieste...</div>
                 </div>
@@ -1310,10 +1323,10 @@
     <script src="js/admin-clients.js?v=14"></script>
     <script src="js/admin-registro.js?v=6"></script>
     <script src="js/admin-messaggi.js?v=2"></script>
-    <script src="js/admin-richieste.js?v=3"></script>
+    <script src="js/admin-richieste.js?v=4"></script>
     <script src="js/admin-schede.js?v=27"></script>
     <script src="js/admin-importa.js?v=4"></script>
-    <script src="js/admin-mobile-filters.js?v=2"></script>
+    <script src="js/admin-mobile-filters.js?v=3"></script>
     <script src="js/maintenance.js?v=1"></script>
     <script>
         // Avvia auth, sincronizza i booking da Supabase, poi aggiorna la dashboard
