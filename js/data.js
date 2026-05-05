@@ -2160,6 +2160,18 @@ class SlotAccessRequestStorage {
             if (error) return { ok: false, error: error.message };
             if (!data?.success) return { ok: false, error: data?.error || 'unknown' };
             await this.syncFromSupabase();
+
+            // Notifica push agli admin (fire-and-forget, non bloccare il flusso utente)
+            if (typeof notifyAdminAccessRequest === 'function') {
+                const justCreated = this._cache.find(r => r.id === data.request_id);
+                const userName = justCreated?.userName || (window._currentUser?.name || '');
+                notifyAdminAccessRequest('new', {
+                    name:        userName,
+                    date, time, slotType,
+                    dateDisplay: dateDisplay || '',
+                }).catch(e => console.warn('[SlotAccessRequest] notify admin new exception:', e));
+            }
+
             return { ok: true, requestId: data.request_id };
         } catch (e) {
             console.error('[SlotAccessRequest] createRequest exception:', e);
@@ -2179,6 +2191,19 @@ class SlotAccessRequestStorage {
             if (error) return { ok: false, error: error.message };
             if (!data?.success) return { ok: false, error: data?.error || 'unknown' };
             await this.syncFromSupabase();
+
+            // Notifica push agli admin (fire-and-forget)
+            if (req && typeof notifyAdminAccessRequest === 'function') {
+                notifyAdminAccessRequest('accepted', {
+                    name:         req.userName,
+                    date:         req.date,
+                    time:         req.time,
+                    slotType:     req.slotType,
+                    dateDisplay:  req.dateDisplay,
+                    offerSource:  req.offerSource,
+                }).catch(e => console.warn('[SlotAccessRequest] notify admin accepted exception:', e));
+            }
+
             return { ok: true, bookingId: data.booking_id };
         } catch (e) {
             console.error('[SlotAccessRequest] acceptOffered exception:', e);

@@ -37,7 +37,7 @@ echo ============================================================
 echo.
 
 REM Lista delle function (le stesse elencate in config.toml con verify_jwt = false)
-set FUNCTIONS=create-checkout stripe-webhook reconcile-stripe notify-admin-topup notify-admin-booking notify-admin-cancellation notify-admin-new-client notify-slot-available send-admin-message generate-monthly-report
+set FUNCTIONS=create-checkout stripe-webhook reconcile-stripe notify-admin-topup notify-admin-booking notify-admin-cancellation notify-admin-new-client notify-admin-access-request notify-slot-available send-admin-message generate-monthly-report
 
 set /a TOTAL=0
 set /a OK=0

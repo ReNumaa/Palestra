@@ -390,6 +390,9 @@ verify_jwt = false
 [functions.notify-admin-new-client]
 verify_jwt = false
 
+[functions.notify-admin-access-request]
+verify_jwt = false
+
 [functions.notify-slot-available]
 verify_jwt = false
 

@@ -253,7 +253,7 @@ async function approveAccessRequest(requestId, btnEl) {
     const ok = confirm(
         `Inviare offerta a ${req.userName} per ${slotName} ${dateLabel} ${req.time}?\n\n` +
         `L'utente riceverà una notifica e dovrà confermare in app per essere effettivamente aggiunto. ` +
-        `Lo slot accetterà 1 posto extra (over-capacity).`
+        `Lo slot accetterà fino a 2 posti extra (over-capacity).`
     );
     if (!ok) return;
 

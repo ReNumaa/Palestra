@@ -335,6 +335,45 @@ async function notifyAdminCancellation(booking, { withBonus = false, withMora = 
     }
 }
 
+// Notifica admin per eventi del flusso "richiesta accesso slot"
+//   event = 'new'      → utente ha appena creato una nuova richiesta
+//   event = 'accepted' → utente ha confermato l'offerta (nuova prenotazione)
+// L'evento 'declined' NON manda nulla (l'admin non ha azioni; la coda scorre da sé)
+async function notifyAdminAccessRequest(event, payload) {
+    console.log('[Push] notifyAdminAccessRequest chiamata', event, payload);
+    if (typeof SUPABASE_URL === 'undefined') {
+        console.warn('[Push] SUPABASE_URL non definito — notifica admin saltata');
+        return;
+    }
+    if (event !== 'new' && event !== 'accepted') {
+        console.warn('[Push] notifyAdminAccessRequest: event non valido:', event);
+        return;
+    }
+
+    const token = await _getPushAuthToken();
+    if (!token) { console.warn('[Push] notifyAdminAccessRequest: nessun token disponibile'); return; }
+
+    try {
+        const resp = await fetch(`${SUPABASE_URL}/functions/v1/notify-admin-access-request`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json', 'Authorization': 'Bearer ' + token },
+            body: JSON.stringify({
+                event,
+                name:         payload.name || '',
+                date:         payload.date || '',
+                date_display: payload.dateDisplay || payload.date_display || '',
+                time:         payload.time || '',
+                slot_type:    payload.slotType || payload.slot_type || '',
+                offer_source: payload.offerSource || payload.offer_source || null,
+            }),
+        });
+        const result = await resp.json();
+        console.log('[Push] notifyAdminAccessRequest response:', resp.status, result);
+    } catch (e) {
+        console.warn('[Push] notifyAdminAccessRequest error:', e);
+    }
+}
+
 // Notifica admin dopo una nuova registrazione
 async function notifyAdminNewClient(name) {
     console.log('[Push] notifyAdminNewClient chiamata', name);
