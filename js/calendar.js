@@ -27,6 +27,13 @@ function _isUserEnrolledOnDate(date) {
     return all.some(b => b.date === date && b.userId === user.id && b.status === 'confirmed');
 }
 
+function _userHasPendingRequestOnDate(date) {
+    if (typeof SlotAccessRequestStorage === 'undefined') return false;
+    const user = typeof getCurrentUser === 'function' ? getCurrentUser() : null;
+    if (!user) return false;
+    return SlotAccessRequestStorage.getMyRequests(user.id).some(r => r.date === date);
+}
+
 function _autoAdvanceWeek() {
     if (currentWeekOffset !== 0) return;
     const weekDates = getWeekDatesDesktop(0);
@@ -38,6 +45,11 @@ function _autoAdvanceWeek() {
 
 function initCalendar() {
     _autoAdvanceWeek();
+    // Precarica cache locale richieste accesso prima del primo render così
+    // V verde + arancio day-card sono visibili subito, senza aspettare la sync.
+    if (typeof SlotAccessRequestStorage !== 'undefined' && _isLoggedIn()) {
+        SlotAccessRequestStorage._loadFromLocal();
+    }
     renderCalendar();
     renderMobileCalendar();
     setupCalendarControls();
@@ -45,7 +57,7 @@ function initCalendar() {
     if (typeof SlotAccessRequestStorage !== 'undefined' && _isLoggedIn()) {
         SlotAccessRequestStorage.syncFromSupabase().then(() => {
             renderCalendar();
-            if (typeof renderMobileSlots === 'function' && selectedMobileDay) renderMobileSlots(selectedMobileDay);
+            renderMobileCalendar();
         }).catch(() => {});
         SlotAccessRequestStorage.expireStarted();
     }
@@ -157,7 +169,9 @@ async function requestSlotAccess(dateInfo, timeSlot, slotType) {
     if (r.ok) {
         if (typeof showToast === 'function') showToast('Richiesta inviata. Riceverai una notifica se si libera un posto.', 'success', 5000);
         renderCalendar();
-        if (typeof renderMobileSlots === 'function' && selectedMobileDay) renderMobileSlots(selectedMobileDay);
+        // renderMobileCalendar così la day-card si colora di arancione subito
+        // (oltre allo slot che mostra la V verde)
+        renderMobileCalendar();
     } else {
         const errMap = {
             slot_not_full:    'Lo slot non è più pieno: prenota normalmente.',
@@ -597,6 +611,8 @@ function renderMobileDaySelector(weekDates) {
 
         if (_isLoggedIn() && _isUserEnrolledOnDate(dateInfo.formatted)) {
             dayCard.classList.add('has-enrollment');
+        } else if (_isLoggedIn() && _userHasPendingRequestOnDate(dateInfo.formatted)) {
+            dayCard.classList.add('has-pending-request');
         }
 
         dayCard.innerHTML = `

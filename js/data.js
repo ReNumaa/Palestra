@@ -2192,8 +2192,31 @@ class ManualDebtStorage {
 // Tutte le mutazioni passano da RPC SECURITY DEFINER (INSERT diretto revocato).
 class SlotAccessRequestStorage {
     static _cache = [];
+    static _LS_KEY = 'tb_slot_access_requests_cache';
 
     static getAll() { return this._cache; }
+
+    // Persistenza locale: serve a far sopravvivere lo stato "richiesta inviata"
+    // (V verde sullo slot, arancio sulla day-card) tra reload di pagina, così
+    // il primo paint mostra già lo stato corretto senza aspettare la sync.
+    static _loadFromLocal() {
+        try {
+            const raw = localStorage.getItem(this._LS_KEY);
+            if (raw) {
+                const parsed = JSON.parse(raw);
+                if (Array.isArray(parsed)) this._cache = parsed;
+            }
+        } catch { /* parse fallito, lascia _cache invariato */ }
+    }
+
+    static _saveToLocal() {
+        try { localStorage.setItem(this._LS_KEY, JSON.stringify(this._cache)); }
+        catch { /* quota / serialization, ignore */ }
+    }
+
+    static _clearLocal() {
+        try { localStorage.removeItem(this._LS_KEY); } catch { /* ignore */ }
+    }
 
     static async syncFromSupabase() {
         if (typeof supabaseClient === 'undefined') return;
@@ -2229,6 +2252,7 @@ class SlotAccessRequestStorage {
                 resolvedBookingId: r.resolved_booking_id,
                 offerSource:       r.offer_source || null,
             }));
+            this._saveToLocal();
         } catch (e) { console.error('[Supabase] SlotAccessRequestStorage.sync exception:', e); }
     }
 

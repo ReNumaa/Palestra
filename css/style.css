@@ -1017,6 +1017,11 @@ body.nav-open {
     border-color: rgba(239, 68, 68, 0.35);
 }
 
+.mobile-day-card.has-pending-request {
+    background: rgba(245, 158, 11, 0.15);
+    border-color: rgba(245, 158, 11, 0.4);
+}
+
 .mobile-day-card.active {
     background: linear-gradient(135deg, var(--primary-cyan), var(--primary-cyan-dark));
 
@@ -1028,6 +1033,12 @@ body.nav-open {
 .mobile-day-card.has-enrollment.active {
     background: linear-gradient(135deg, #ef4444, #dc2626);
     border-color: #ef4444;
+    color: white;
+}
+
+.mobile-day-card.has-pending-request.active {
+    background: linear-gradient(135deg, #f59e0b, #d97706);
+    border-color: #f59e0b;
     color: white;
 }
 

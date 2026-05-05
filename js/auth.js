@@ -409,6 +409,10 @@ async function logoutUser() {
     ManualDebtStorage._cache = {};
     BonusStorage._cache = {};
     UserStorage._cache = [];
+    if (typeof SlotAccessRequestStorage !== 'undefined') {
+        SlotAccessRequestStorage._cache = [];
+        SlotAccessRequestStorage._clearLocal();
+    }
     // signOut con timeout: se Supabase non risponde entro 3s, procedi comunque
     try {
         await Promise.race([
