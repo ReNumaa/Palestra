@@ -1268,59 +1268,61 @@ async function saveBookingRowEdit(bookingId, clientIndex) {
     const _editPayML = { contanti: 'Contanti', 'contanti-report': 'Contanti con Report', carta: 'Carta', iban: 'Bonifico', stripe: 'Stripe' };
 
     // Helper: offset refunded credit against any manual debt
-    const _applyRefundToDebt = () => {
+    const _abortEconomicWrite = () => { if (_saveBtn) _saveBtn.disabled = false; return false; };
+    const _applyRefundToDebt = async () => {
         const dBal = ManualDebtStorage.getBalance(booking.whatsapp, booking.email);
-        if (dBal <= 0) return;
+        if (dBal <= 0) return true;
         const cBal = CreditStorage.getBalance(booking.whatsapp, booking.email);
-        if (cBal <= 0) return;
+        if (cBal <= 0) return true;
         const toOff = Math.round(Math.min(dBal, cBal) * 100) / 100;
-        ManualDebtStorage.addDebt(booking.whatsapp, booking.email, booking.name, -toOff, 'Compensato con credito');
-        CreditStorage.addCredit(booking.whatsapp, booking.email, booking.name, -toOff, 'Applicato a debito manuale');
+        if (!(await ManualDebtStorage.addDebt(booking.whatsapp, booking.email, booking.name, -toOff, 'Compensato con credito'))) return false;
+        if (!(await CreditStorage.addCredit(booking.whatsapp, booking.email, booking.name, -toOff, 'Applicato a debito manuale'))) return false;
+        return true;
     };
 
     // Credit adjustments
     if (oldPaid && oldMethod === 'credito' && !newPaid) {
         // Was paid with credit → unpaid: refund
-        CreditStorage.addCredit(booking.whatsapp, booking.email, booking.name, price,
-            `Rimborso modifica pagamento ${booking.date} ${booking.time}`);
-        _applyRefundToDebt();
+        if (!(await CreditStorage.addCredit(booking.whatsapp, booking.email, booking.name, price,
+            `Rimborso modifica pagamento ${booking.date} ${booking.time}`))) return _abortEconomicWrite();
+        if (!(await _applyRefundToDebt())) return _abortEconomicWrite();
     } else if (!oldPaid && newPaid && newMethod === 'credito') {
         // Unpaid → paid with credit: deduct
         const bal = CreditStorage.getBalance(booking.whatsapp, booking.email);
         if (bal < price) { alert(`Credito insufficiente (€${bal} < €${price})`); if (_saveBtn) _saveBtn.disabled = false; return; }
-        CreditStorage.addCredit(booking.whatsapp, booking.email, booking.name, -price,
-            `Pagamento lezione ${booking.date} ${booking.time} con credito`);
+        if (!(await CreditStorage.addCredit(booking.whatsapp, booking.email, booking.name, -price,
+            `Pagamento lezione ${booking.date} ${booking.time} con credito`))) return _abortEconomicWrite();
     } else if (oldPaid && oldMethod === 'credito' && newPaid && newMethod !== 'credito') {
         // Credit → other method: refund credit; record payment entry only if not free lesson
-        CreditStorage.addCredit(booking.whatsapp, booking.email, booking.name, price,
-            `Cambio metodo da credito — lezione ${booking.date} ${booking.time}`);
-        _applyRefundToDebt();
+        if (!(await CreditStorage.addCredit(booking.whatsapp, booking.email, booking.name, price,
+            `Cambio metodo da credito — lezione ${booking.date} ${booking.time}`))) return _abortEconomicWrite();
+        if (!(await _applyRefundToDebt())) return _abortEconomicWrite();
         if (newMethod !== 'lezione-gratuita') {
-            CreditStorage.addCredit(booking.whatsapp, booking.email, booking.name, 0,
+            if (!(await CreditStorage.addCredit(booking.whatsapp, booking.email, booking.name, 0,
                 `${_editPayML[newMethod] || newMethod} ricevuto`,
-                price, false, false, bookingId);
+                price, false, false, bookingId))) return _abortEconomicWrite();
         }
     } else if (oldPaid && oldMethod !== 'credito' && oldMethod !== 'lezione-gratuita' && newPaid && newMethod === 'credito') {
         // Cash/card/iban → credit: remove old payment entry + deduct credit
-        CreditStorage.hidePaymentEntryByBooking(booking.whatsapp, booking.email, bookingId);
+        if (!(await CreditStorage.hidePaymentEntryByBooking(booking.whatsapp, booking.email, bookingId))) return _abortEconomicWrite();
         const bal = CreditStorage.getBalance(booking.whatsapp, booking.email);
-        if (bal < price) { alert(`Credito insufficiente (€${bal} < €${price})`); return; }
-        CreditStorage.addCredit(booking.whatsapp, booking.email, booking.name, -price,
-            `Cambio metodo a credito — lezione ${booking.date} ${booking.time}`);
+        if (bal < price) { alert(`Credito insufficiente (€${bal} < €${price})`); return _abortEconomicWrite(); }
+        if (!(await CreditStorage.addCredit(booking.whatsapp, booking.email, booking.name, -price,
+            `Cambio metodo a credito — lezione ${booking.date} ${booking.time}`))) return _abortEconomicWrite();
     } else if (oldPaid && oldMethod === 'lezione-gratuita' && newPaid && newMethod === 'credito') {
         // Free lesson → credit: deduct credit (no old entry to hide)
         const bal = CreditStorage.getBalance(booking.whatsapp, booking.email);
-        if (bal < price) { alert(`Credito insufficiente (€${bal} < €${price})`); if (_saveBtn) _saveBtn.disabled = false; return; }
-        CreditStorage.addCredit(booking.whatsapp, booking.email, booking.name, -price,
-            `Cambio metodo a credito — lezione ${booking.date} ${booking.time}`);
+        if (bal < price) { alert(`Credito insufficiente (€${bal} < €${price})`); return _abortEconomicWrite(); }
+        if (!(await CreditStorage.addCredit(booking.whatsapp, booking.email, booking.name, -price,
+            `Cambio metodo a credito — lezione ${booking.date} ${booking.time}`))) return _abortEconomicWrite();
     } else if (!oldPaid && newPaid && newMethod !== 'credito' && newMethod !== 'lezione-gratuita') {
         // Unpaid → paid with cash/card/iban: record incoming payment
-        CreditStorage.addCredit(booking.whatsapp, booking.email, booking.name, 0,
+        if (!(await CreditStorage.addCredit(booking.whatsapp, booking.email, booking.name, 0,
             `${_editPayML[newMethod] || newMethod} ricevuto`,
-            price, false, false, bookingId);
+            price, false, false, bookingId))) return _abortEconomicWrite();
     } else if (oldPaid && oldMethod !== 'credito' && oldMethod !== 'lezione-gratuita' && !newPaid) {
         // Paid (cash/card/iban) → unpaid: hide the payment entry
-        CreditStorage.hidePaymentEntryByBooking(booking.whatsapp, booking.email, bookingId);
+        if (!(await CreditStorage.hidePaymentEntryByBooking(booking.whatsapp, booking.email, bookingId))) return _abortEconomicWrite();
     }
 
     const newPaidAtRaw = document.getElementById(`bedit-paidat-${bookingId}`)?.value;
@@ -1434,10 +1436,10 @@ async function deleteTxEntry(type, idOrDate, whatsappOrName, index, email) {
             const oldMethod = b.paymentMethod || '';
             const price = slotPrices[b.slotType] || 0;
             if (oldMethod === 'credito' && price > 0) {
-                CreditStorage.addCredit(b.whatsapp, b.email, b.name, price,
-                    `Rimborso annullamento pagamento ${b.date} ${b.time}`);
+                if (!(await CreditStorage.addCredit(b.whatsapp, b.email, b.name, price,
+                    `Rimborso annullamento pagamento ${b.date} ${b.time}`))) return;
             } else if (oldMethod !== 'lezione-gratuita') {
-                CreditStorage.hidePaymentEntryByBooking(b.whatsapp, b.email, b.id);
+                if (!(await CreditStorage.hidePaymentEntryByBooking(b.whatsapp, b.email, b.id))) return;
             }
             b.paid = false;
             b.paymentMethod = undefined;
@@ -1506,10 +1508,9 @@ async function deleteTxEntry(type, idOrDate, whatsappOrName, index, email) {
     }
 }
 
-function clearClientCredit(whatsapp, email, index) {
+async function clearClientCredit(whatsapp, email, index) {
     if (!confirm('Eliminare tutto lo storico credito di questo cliente?\n\nSaldo e movimenti verranno azzerati.')) return;
-    CreditStorage.clearRecord(whatsapp, email);
+    await CreditStorage.clearRecord(whatsapp, email);
     showToast('Storico credito eliminato.', 'success');
     _refreshOpenClientCard(whatsapp, email);
 }
-

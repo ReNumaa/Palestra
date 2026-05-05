@@ -697,7 +697,7 @@ async function selectSlotClient(timeSlot, index) {
 
 // Removes the associated client and booking from a group-class slot
 // Uses same cancellation logic as deleteBooking (24h threshold, bonus/mora popup)
-function clearSlotClient(timeSlot) {
+async function clearSlotClient(timeSlot) {
     if (!selectedScheduleDate) return;
 
     const overrides = BookingStorage.getScheduleOverrides();
@@ -755,11 +755,11 @@ function clearSlotClient(timeSlot) {
         const wasPaid = !isCancellationPending && (booking.paid || (booking.creditApplied || 0) > 0);
         if (wasPaid) {
             const creditToRefund = (booking.creditApplied || 0) > 0 ? booking.creditApplied : price;
-            CreditStorage.addCredit(
+            if (!(await CreditStorage.addCredit(
                 booking.whatsapp, booking.email, booking.name,
                 creditToRefund, `Rimborso lezione ${booking.date}`,
                 null, false, false, null, booking.paymentMethod || ''
-            );
+            ))) return;
         }
         allBookings[index] = {
             ...booking,
@@ -844,12 +844,12 @@ function clearSlotClient(timeSlot) {
     overlay.querySelector('.cancel-popup-btn--cancel').addEventListener('click', closePopup);
     overlay.addEventListener('click', e => { e.stopPropagation(); });
 
-    overlay.querySelector('.cancel-popup-btn--confirm').addEventListener('click', () => {
+    overlay.querySelector('.cancel-popup-btn--confirm').addEventListener('click', async () => {
         const useBonus = selectedBonus;
         const withMora = selectedMode === 'mora';
 
         if (useBonus) {
-            BonusStorage.useBonus(booking.whatsapp, booking.email, booking.name, booking.userId || null);
+            if (!(await BonusStorage.useBonus(booking.whatsapp, booking.email, booking.name, booking.userId || null))) return;
         }
 
         const isCancellationPending = booking.status === 'cancellation_requested';
@@ -859,24 +859,24 @@ function clearSlotClient(timeSlot) {
         if (withMora) {
             if (wasPaid) {
                 const refund = Math.round(price * 0.5 * 100) / 100;
-                CreditStorage.addCredit(
+                if (!(await CreditStorage.addCredit(
                     booking.whatsapp, booking.email, booking.name,
                     refund, `Rimborso parziale 50% — annullamento con mora ${booking.date} ${booking.time}`,
                     null, false, false, null, booking.paymentMethod || ''
-                );
+                ))) return;
             } else {
-                ManualDebtStorage.addDebt(booking.whatsapp, booking.email, booking.name,
-                    mora, `Mora 50% annullamento tardivo ${booking.date} ${booking.time}`);
+                if (!(await ManualDebtStorage.addDebt(booking.whatsapp, booking.email, booking.name,
+                    mora, `Mora 50% annullamento tardivo ${booking.date} ${booking.time}`))) return;
             }
             refundPct = wasPaid ? 50 : 0;
         } else {
             if (wasPaid) {
                 const creditToRefund = (booking.creditApplied || 0) > 0 ? booking.creditApplied : price;
-                CreditStorage.addCredit(
+                if (!(await CreditStorage.addCredit(
                     booking.whatsapp, booking.email, booking.name,
                     creditToRefund, `Rimborso lezione ${booking.date}`,
                     null, false, false, null, booking.paymentMethod || ''
-                );
+                ))) return;
             }
             refundPct = 100;
         }
@@ -897,4 +897,3 @@ function clearSlotClient(timeSlot) {
         closePopup();
     });
 }
-

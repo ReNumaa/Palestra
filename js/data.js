@@ -854,7 +854,7 @@ class BookingStorage {
         // in modo che getBonus(user.whatsapp, user.email, user.id) trovi sempre il record.
         // user.id è la chiave più robusta (sopravvive a cambi di email/phone del profilo).
         const _cu = typeof getCurrentUser === 'function' ? getCurrentUser() : null;
-        BonusStorage.useBonus(
+        await BonusStorage.useBonus(
             _cu?.whatsapp || booking.whatsapp,
             _cu?.email    || booking.email,
             _cu?.name     || booking.name,
@@ -1409,6 +1409,10 @@ class BookingStorage {
                     _lsSet('dataLastCleared', remoteClearedAt);
                     _lsSet('dataClearedByUser', 'true');
                     console.log('[Supabase] clearAllData ricevuto da remoto — tutte le cache svuotate');
+                    // EXIT: i dati gia' fetchati in _results sono pre-clear (race con la cancellazione
+                    // remota) — applicarli ripopolerebbe la cache appena svuotata. Aspettiamo la
+                    // prossima sync esplicita post-clear.
+                    return;
                 }
             }
 
@@ -1486,12 +1490,12 @@ class BookingStorage {
                 WEEKLY_SCHEDULE_TEMPLATE = getWeeklySchedule();
             }
 
-            // Marca come caricate le storage che questa funzione popola, così le
-            // scritture (addCredit/addDebt/useBonus/...) non aspettano una seconda sync.
-            // NOTA: il credit_history qui ha schema ridotto (manca display_amount/booking_ref/hidden);
-            // CreditStorage.syncFromSupabase() lo riempie completo nella seconda ondata del boot admin.
-            // Per Step 1 lo accettiamo: meglio scritture funzionanti con schema parziale che bloccate.
-            if (!e1) CreditStorage._loaded = true;
+            // Marca come caricate le storage il cui schema qui è canonico (ManualDebt, Bonus).
+            // CreditStorage NO: il credit_history qui ha schema ridotto (manca display_amount,
+            // booking_ref, filtro hidden=false). Settare _loaded=true farebbe partire scritture
+            // (es. hidePaymentEntryByBooking) su entries senza bookingRef → no-op silenzioso.
+            // Resta _loaded=false: il primo write su CreditStorage chiamerà ensureLoaded() che
+            // lancerà la sync canonica CreditStorage.syncFromSupabase().
             if (!e3) ManualDebtStorage._loaded = true;
             if (!e4) BonusStorage._loaded = true;
 
@@ -1621,7 +1625,7 @@ class CreditStorage {
 
     static async _save(data) {
         this._cache = data;
-        if (typeof supabaseClient === 'undefined') return;
+        if (typeof supabaseClient === 'undefined') return true;
         const rows = Object.values(data).map(r => ({
             name:         r.name,
             whatsapp:     r.whatsapp || null,
@@ -1629,18 +1633,21 @@ class CreditStorage {
             balance:      r.balance      || 0,
             free_balance: r.freeBalance  || 0,
         }));
-        if (rows.length === 0) return;
+        if (rows.length === 0) return true;
         const p = supabaseClient.from('credits')
             .upsert(rows, { onConflict: 'email' })
             .then(({ error }) => {
                 if (error) {
                     console.error('[Supabase] CreditStorage._save error:', error.message);
                     if (typeof showToast === 'function') showToast('⚠️ Errore salvataggio crediti sul server. Ricarica la pagina.', 'error', 5000);
+                    return false;
                 }
+                return true;
             });
         this._pendingSave = p;
-        await p;
+        const ok = await p;
         if (this._pendingSave === p) this._pendingSave = null;
+        return ok;
     }
 
     static async syncFromSupabase() {
@@ -1777,7 +1784,7 @@ class CreditStorage {
         // Race-safety: lavorare su _cache vuota → _save farebbe upsert con righe mancanti.
         if (!(await this.ensureLoaded())) {
             if (typeof showToast === 'function') showToast('⚠️ Dati ancora in caricamento. Attendi qualche secondo e riprova.', 'warning', 5000);
-            return;
+            return false;
         }
         // amount=0 is allowed for informational entries (payment log) that don't affect balance
         const all = this._getAll();
@@ -1799,7 +1806,8 @@ class CreditStorage {
         if (bookingRef) entry.bookingRef = bookingRef;
         if (method) entry.method = method;
         all[key].history.push(entry);
-        await this._save(all);
+        const saved = await this._save(all);
+        if (!saved) return false;
 
         // Inserisce la nuova voce in credit_history su Supabase e attende il completamento.
         if (typeof supabaseClient !== 'undefined') {
@@ -1808,16 +1816,17 @@ class CreditStorage {
             const _rec = all[key];
             await this._insertCreditHistory(_email, _rec, _entry);
         }
+        return true;
     }
 
     static async hidePaymentEntryByBooking(whatsapp, email, bookingId) {
         if (!(await this.ensureLoaded())) {
             if (typeof showToast === 'function') showToast('⚠️ Dati ancora in caricamento. Attendi qualche secondo e riprova.', 'warning', 5000);
-            return;
+            return false;
         }
         const all = this._getAll();
         const key = this._findKey(whatsapp, email);
-        if (!key || !all[key]?.history) return;
+        if (!key || !all[key]?.history) return true;
         let changed = false;
         all[key].history.forEach(entry => {
             if (entry.bookingRef === bookingId && !entry.hiddenRefund) {
@@ -1825,7 +1834,8 @@ class CreditStorage {
                 changed = true;
             }
         });
-        if (changed) await this._save(all);
+        if (changed) return await this._save(all);
+        return true;
     }
 
     static getFreeBalance(whatsapp, email) {
@@ -1862,17 +1872,17 @@ class CreditStorage {
     static async clearRecord(whatsapp, email) {
         if (!(await this.ensureLoaded())) {
             if (typeof showToast === 'function') showToast('⚠️ Dati ancora in caricamento. Attendi qualche secondo e riprova.', 'warning', 5000);
-            return;
+            return false;
         }
         const all = this._getAll();
         const key = this._findKey(whatsapp, email);
-        if (key) { delete all[key]; this._save(all); }
+        if (key) { delete all[key]; if (!(await this._save(all))) return false; }
         if (typeof supabaseClient !== 'undefined' && email) {
-            supabaseClient.from('credits').delete().eq('email', (email || '').toLowerCase())
-                .then(({ error }) => {
-                    if (error) console.error('[Supabase] CreditStorage.clearRecord error:', error.message);
-                });
+            const { error } = await supabaseClient.from('credits').delete().eq('email', (email || '').toLowerCase());
+            if (error) console.error('[Supabase] CreditStorage.clearRecord error:', error.message);
+            if (error) return false;
         }
+        return true;
     }
 
     // Elimina una singola voce di credito per data (ISO string) e ricalcola il saldo
@@ -1897,13 +1907,12 @@ class CreditStorage {
             delete all[key];
             // Elimina anche da Supabase se la history è vuota
             if (typeof supabaseClient !== 'undefined' && email) {
-                supabaseClient.from('credits').delete().eq('email', (email || '').toLowerCase())
-                    .then(({ error }) => {
-                        if (error) console.error('[Supabase] deleteCreditEntry cleanup error:', error.message);
-                    });
+                const { error } = await supabaseClient.from('credits').delete().eq('email', (email || '').toLowerCase());
+                if (error) console.error('[Supabase] deleteCreditEntry cleanup error:', error.message);
+                if (error) return false;
             }
         }
-        this._save(all);
+        if (!(await this._save(all))) return false;
         return true;
     }
 
@@ -1969,15 +1978,16 @@ class CreditStorage {
 
         if (totalApplied > 0) {
             BookingStorage.replaceAllBookings(allBookings);
-            this.addCredit(whatsapp, email, name, -totalApplied,
+            const creditSaved = await this.addCredit(whatsapp, email, name, -totalApplied,
                 `Auto-pagamento ${count} lezione${count > 1 ? 'i' : ''} con credito`);
+            if (!creditSaved) return false;
             // Reduce freeBalance separately (addCredit only handles the main balance)
             if (totalFreeApplied > 0 && credKey) {
                 const freshAll = this._getAll();
                 if (freshAll[credKey]) {
                     freshAll[credKey].freeBalance = Math.round(
                         Math.max(0, (freshAll[credKey].freeBalance || 0) - totalFreeApplied) * 100) / 100;
-                    this._save(freshAll);
+                    if (!(await this._save(freshAll))) return false;
                 }
             }
         }
@@ -2012,7 +2022,7 @@ class ManualDebtStorage {
 
     static async _save(data) {
         this._cache = data;
-        if (typeof supabaseClient === 'undefined') return;
+        if (typeof supabaseClient === 'undefined') return true;
         const rows = Object.values(data).map(r => ({
             name:     r.name,
             whatsapp: r.whatsapp || null,
@@ -2020,18 +2030,21 @@ class ManualDebtStorage {
             balance:  r.balance  || 0,
             history:  r.history  || [],
         }));
-        if (rows.length === 0) return;
+        if (rows.length === 0) return true;
         const p = supabaseClient.from('manual_debts')
             .upsert(rows, { onConflict: 'email' })
             .then(({ error }) => {
                 if (error) {
                     console.error('[Supabase] ManualDebtStorage._save error:', error.message);
                     if (typeof showToast === 'function') showToast('⚠️ Errore salvataggio debiti sul server. Ricarica la pagina.', 'error', 5000);
+                    return false;
                 }
+                return true;
             });
         this._pendingSave = p;
-        await p;
+        const ok = await p;
         if (this._pendingSave === p) this._pendingSave = null;
+        return ok;
     }
 
     static async syncFromSupabase() {
@@ -2086,10 +2099,10 @@ class ManualDebtStorage {
     // Positive amount = add debt; negative = reduce/pay debt
     // entryType: optional tag (e.g. 'mora') stored on the history entry for Registro display
     static async addDebt(whatsapp, email, name, amount, note = '', method = '', entryType = '') {
-        if (amount === 0) return;
+        if (amount === 0) return true;
         if (!(await this.ensureLoaded())) {
             if (typeof showToast === 'function') showToast('⚠️ Dati ancora in caricamento. Attendi qualche secondo e riprova.', 'warning', 5000);
-            return;
+            return false;
         }
         const all = this._getAll();
         let key = this._findKey(whatsapp, email);
@@ -2101,7 +2114,7 @@ class ManualDebtStorage {
         const entry = { date: new Date().toISOString(), amount, note, method };
         if (entryType) entry.entryType = entryType;
         all[key].history.push(entry);
-        await this._save(all);
+        return await this._save(all);
     }
 
     static getAllWithBalance() {
@@ -2118,15 +2131,17 @@ class ManualDebtStorage {
     static async clearRecord(whatsapp, email) {
         if (!(await this.ensureLoaded())) {
             if (typeof showToast === 'function') showToast('⚠️ Dati ancora in caricamento. Attendi qualche secondo e riprova.', 'warning', 5000);
-            return;
+            return false;
         }
         const all = this._getAll();
         const key = this._findKey(whatsapp, email);
-        if (key) { delete all[key]; await this._save(all); }
+        if (key) { delete all[key]; if (!(await this._save(all))) return false; }
         if (typeof supabaseClient !== 'undefined' && email) {
             const { error } = await supabaseClient.from('manual_debts').delete().eq('email', (email || '').toLowerCase());
             if (error) console.error('[Supabase] ManualDebtStorage.clearRecord error:', error.message);
+            if (error) return false;
         }
+        return true;
     }
 
     // Elimina una singola voce di debito manuale per data (ISO string) e ricalcola il saldo.
@@ -2484,9 +2499,9 @@ class BonusStorage {
         return this._loaded;
     }
 
-    static _save(data) {
+    static async _save(data) {
         this._cache = data;
-        if (typeof supabaseClient === 'undefined') return;
+        if (typeof supabaseClient === 'undefined') return true;
         // NOTA: user_id NON è incluso volutamente nel body dell'upsert.
         // PostgREST upsert esegue INSERT ... ON CONFLICT DO UPDATE settando
         // solo le colonne presenti nel body → escludendo user_id preserviamo
@@ -2502,15 +2517,15 @@ class BonusStorage {
             bonus:            r.bonus ?? 1,
             last_reset_month: r.lastResetMonth || null,
         }));
-        if (rows.length === 0) return;
-        supabaseClient.from('bonuses')
-            .upsert(rows, { onConflict: 'email' })
-            .then(({ error }) => {
-                if (error) {
-                    console.error('[Supabase] BonusStorage._save error:', error.message);
-                    if (typeof showToast === 'function') showToast('⚠️ Errore salvataggio bonus sul server. Ricarica la pagina.', 'error', 5000);
-                }
-            });
+        if (rows.length === 0) return true;
+        const { error } = await supabaseClient.from('bonuses')
+            .upsert(rows, { onConflict: 'email' });
+        if (error) {
+            console.error('[Supabase] BonusStorage._save error:', error.message);
+            if (typeof showToast === 'function') showToast('⚠️ Errore salvataggio bonus sul server. Ricarica la pagina.', 'error', 5000);
+            return false;
+        }
+        return true;
     }
 
     // Returns current month as "YYYY-MM" using JS Date (handles leap years, variable month lengths).
@@ -2601,7 +2616,7 @@ class BonusStorage {
     static async useBonus(whatsapp, email, name, userId) {
         if (!(await this.ensureLoaded())) {
             if (typeof showToast === 'function') showToast('⚠️ Dati ancora in caricamento. Attendi qualche secondo e riprova.', 'warning', 5000);
-            return;
+            return false;
         }
         const all       = this._getAll();
         const thisMonth = this._thisMonthStr();
@@ -2618,7 +2633,7 @@ class BonusStorage {
         all[key].name     = name || all[key].name;
         // Backfill userId locale se il caller lo ha fornito e il record non lo aveva
         if (userId && !all[key].userId) all[key].userId = userId;
-        this._save(all);
+        return await this._save(all);
     }
 }
 

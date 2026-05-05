@@ -1137,32 +1137,32 @@ function deleteBooking(bookingId, bookingName) {
     }
 
     // Helper: fallback locale (offline / senza _sbId)
-    function _cancelLocal(opts = {}) {
+    async function _cancelLocal(opts = {}) {
         const { useBonus = false, withMora = false, refundPct = 100 } = opts;
         const isCancellationPending = booking.status === 'cancellation_requested';
         const wasPaid = !isCancellationPending && (booking.paid || (booking.creditApplied || 0) > 0);
 
         if (useBonus) {
-            BonusStorage.useBonus(booking.whatsapp, booking.email, booking.name, booking.userId || null);
+            if (!(await BonusStorage.useBonus(booking.whatsapp, booking.email, booking.name, booking.userId || null))) return false;
         }
 
         if (withMora) {
             if (wasPaid) {
                 const refund = Math.round(price * 0.5 * 100) / 100;
-                CreditStorage.addCredit(booking.whatsapp, booking.email, booking.name,
+                if (!(await CreditStorage.addCredit(booking.whatsapp, booking.email, booking.name,
                     refund, `Rimborso parziale 50% — annullamento con mora ${booking.date} ${booking.time}`,
-                    null, false, false, null, booking.paymentMethod || '');
+                    null, false, false, null, booking.paymentMethod || ''))) return false;
             } else {
-                ManualDebtStorage.addDebt(booking.whatsapp, booking.email, booking.name,
+                if (!(await ManualDebtStorage.addDebt(booking.whatsapp, booking.email, booking.name,
                     Math.round(price * 0.5 * 100) / 100,
-                    `Mora 50% annullamento tardivo ${booking.date} ${booking.time}`);
+                    `Mora 50% annullamento tardivo ${booking.date} ${booking.time}`))) return false;
             }
         } else {
             if (wasPaid) {
                 const creditToRefund = (booking.creditApplied || 0) > 0 ? booking.creditApplied : price;
-                CreditStorage.addCredit(booking.whatsapp, booking.email, booking.name,
+                if (!(await CreditStorage.addCredit(booking.whatsapp, booking.email, booking.name,
                     creditToRefund, `Rimborso lezione ${booking.date}`,
-                    null, false, false, null, booking.paymentMethod || '');
+                    null, false, false, null, booking.paymentMethod || ''))) return false;
             }
         }
 
@@ -1192,6 +1192,7 @@ function deleteBooking(bookingId, bookingName) {
         invalidateStatsCache();
         if (selectedAdminDay) renderAdminDayView(selectedAdminDay);
         if (typeof showToast === 'function') showToast('✅ Prenotazione annullata con successo.', 'success', 4000);
+        return true;
     }
 
     const useSupabase = typeof supabaseClient !== 'undefined' && booking._sbId;
@@ -1206,7 +1207,10 @@ function deleteBooking(bookingId, bookingName) {
                 if (typeof showToast === 'function') showToast('⚠️ Errore: ' + err.message, 'error', 5000);
             });
         } else {
-            _cancelLocal({ useBonus: false, withMora: false, refundPct: 100 });
+            _cancelLocal({ useBonus: false, withMora: false, refundPct: 100 }).catch(err => {
+                console.error('[deleteBooking local] error:', err);
+                if (typeof showToast === 'function') showToast('⚠️ Errore: ' + err.message, 'error', 5000);
+            });
         }
         return;
     }
@@ -1308,8 +1312,14 @@ function deleteBooking(bookingId, bookingName) {
                 cancelBtn.disabled = false;
             }
         } else {
-            _cancelLocal({ useBonus, withMora, refundPct });
-            closePopup();
+            const ok = await _cancelLocal({ useBonus, withMora, refundPct });
+            if (ok) {
+                closePopup();
+            } else {
+                confirmBtn.disabled = false;
+                confirmBtn.textContent = 'Conferma';
+                cancelBtn.disabled = false;
+            }
         }
     });
 }
