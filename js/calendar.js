@@ -87,9 +87,12 @@ function _wrapSlotWithRequestBtn(slotEl, dateInfo, timeSlot, mainType, opts = {}
     if (myReq) {
         btn.classList.add('slot-request-btn--pending');
         btn.innerHTML = _SVG_QUESTION;
-        btn.disabled = true;
-        btn.title = 'Richiesta già inviata — sarai notificato se si libera un posto';
-        btn.setAttribute('aria-label', 'Richiesta inviata');
+        btn.title = 'Richiesta inviata — tocca per dettagli';
+        btn.setAttribute('aria-label', 'Richiesta inviata, tocca per dettagli');
+        btn.addEventListener('click', e => {
+            e.stopPropagation();
+            _showRequestPendingInfo();
+        });
     } else {
         btn.innerHTML = _SVG_USER_PLUS;
         btn.title = 'Richiedi accesso a questa lezione';
@@ -101,6 +104,44 @@ function _wrapSlotWithRequestBtn(slotEl, dateInfo, timeSlot, mainType, opts = {}
     }
     wrap.appendChild(btn);
     return wrap;
+}
+
+// Modal informativo: spiega che la richiesta è in coda e quando verrà accettata.
+// Mostrato cliccando il bottone "?" arancione su uno slot già richiesto.
+function _showRequestPendingInfo() {
+    return new Promise(resolve => {
+        const overlay = document.createElement('div');
+        overlay.className = 'slot-req-modal-overlay';
+        overlay.innerHTML = `
+            <div class="slot-req-modal" role="dialog" aria-modal="true" aria-labelledby="srInfoTitle">
+                <button class="slot-req-modal__close" type="button" aria-label="Chiudi">
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round"><path d="M6 6l12 12M18 6l-12 12"/></svg>
+                </button>
+                <div class="slot-req-modal__icon" aria-hidden="true">
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round"><path d="M9.5 9a2.5 2.5 0 1 1 3.5 2.3c-.9.4-1.5 1.2-1.5 2.2v.5"/><circle cx="12" cy="17.5" r="0.6" fill="currentColor" stroke="none"/></svg>
+                </div>
+                <div class="slot-req-modal__eyebrow">Richiesta inviata</div>
+                <h3 class="slot-req-modal__title" id="srInfoTitle">Sei in lista d'attesa</h3>
+                <p class="slot-req-modal__sub">Verrai aggiunto allo slot se:<br>• il trainer approva la tua richiesta,<br>• oppure si libera un posto: riceverai una notifica e dovrai confermare.</p>
+                <div class="slot-req-modal__actions">
+                    <button class="slot-req-modal__btn slot-req-modal__btn--confirm" type="button">Ho capito</button>
+                </div>
+            </div>`;
+        const close = () => {
+            overlay.classList.add('slot-req-modal-overlay--closing');
+            document.removeEventListener('keydown', onKey);
+            setTimeout(() => { overlay.remove(); resolve(); }, 160);
+        };
+        const onKey = (e) => {
+            if (e.key === 'Escape' || e.key === 'Enter') close();
+        };
+        overlay.addEventListener('click', e => { if (e.target === overlay) close(); });
+        overlay.querySelector('.slot-req-modal__close').addEventListener('click', close);
+        overlay.querySelector('.slot-req-modal__btn--confirm').addEventListener('click', close);
+        document.addEventListener('keydown', onKey);
+        document.body.appendChild(overlay);
+        setTimeout(() => overlay.querySelector('.slot-req-modal__btn--confirm')?.focus(), 50);
+    });
 }
 
 // Modal custom per confermare la richiesta accesso (sostituisce confirm() nativo).

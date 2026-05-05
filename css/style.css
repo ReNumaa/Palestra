@@ -651,19 +651,31 @@ body.nav-open {
     outline-offset: 2px;
 }
 
-/* Stato "richiesta inviata": cerchio arancione con punto interrogativo */
+/* Stato "richiesta inviata": cerchio arancione con punto interrogativo (cliccabile per dettagli) */
 .slot-request-btn--pending,
 .slot-request-btn:disabled {
     background: linear-gradient(135deg, #f59e0b, #d97706);
     color: #ffffff;
-    cursor: default;
+    cursor: pointer;
     box-shadow:
         0 1px 2px rgba(180, 83, 9, 0.18),
         0 3px 8px rgba(180, 83, 9, 0.28),
         inset 0 0 0 1px rgba(255, 255, 255, 0.18);
     animation: none;
 }
-.slot-request-btn--pending:hover { transform: none; background: linear-gradient(135deg, #f59e0b, #d97706); }
+.slot-request-btn--pending:hover {
+    transform: scale(1.08);
+    background: linear-gradient(135deg, #f59e0b, #d97706);
+}
+/* "?" leggermente più grande del "+" per leggibilità */
+.slot-request-btn--pending > svg {
+    width: 17px;
+    height: 17px;
+}
+.calendar-slot-wrap--mobile .slot-request-btn--pending > svg {
+    width: 21px;
+    height: 21px;
+}
 
 @keyframes slotReqAppear {
     0%   { opacity: 0; transform: scale(0.4); }
