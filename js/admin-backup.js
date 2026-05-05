@@ -832,6 +832,10 @@ async function clearAllData() {
     ManualDebtStorage._cache = {};
     BonusStorage._cache = {};
     UserStorage._cache = [];
+    // Reset _loaded — cache vuote, le scritture non devono lavorare su quelle
+    CreditStorage._loaded = false;
+    ManualDebtStorage._loaded = false;
+    BonusStorage._loaded = false;
     localStorage.removeItem(BookingStorage.STATS_KEY);
     localStorage.removeItem('scheduleOverrides');
     localStorage.setItem('dataClearedByUser', 'true');
@@ -848,7 +852,7 @@ async function clearAllData() {
     location.reload();
 }
 
-function pruneOldData() {
+async function pruneOldData() {
     const months = parseInt(prompt(
         'Eliminare dati demo e prenotazioni più vecchie di quanti mesi?\n(es. 6 = tutto ciò che precede 6 mesi fa)',
         '12'
@@ -860,6 +864,15 @@ function pruneOldData() {
     const cutoffStr = _localDateStr(cutoff);
 
     if (!confirm(`⚠️ Verranno eliminati definitivamente:\n• Tutte le prenotazioni DEMO\n• Prenotazioni reali con data precedente al ${cutoff.toLocaleDateString('it-IT')}\n• Voci di credito/transazioni precedenti a tale data\n\nI saldi credito rimangono invariati. Continuare?`)) return;
+
+    // Race-safety: pruning legge cache locale e fa upsert. Se la cache non è caricata,
+    // rischia di fare upsert con righe parziali. Aspetta che siano caricate.
+    const creditsReady = await CreditStorage.ensureLoaded();
+    const debtsReady   = await ManualDebtStorage.ensureLoaded();
+    if (!creditsReady || !debtsReady) {
+        alert('⚠️ Dati crediti/debiti non ancora caricati. Attendi qualche secondo e riprova.');
+        return;
+    }
 
     // 1. Rimuovi prenotazioni demo (sempre) + prenotazioni reali più vecchie del cutoff
     const bookings = BookingStorage.getAllBookings();

@@ -66,22 +66,12 @@ async function registerPushSubscription() {
             _pushRegisteredThisSession = true;
             return sub;
         } catch (e) {
-            // Push service error: può accadere se la rete è saturata (admin.html fa parecchi RPC).
-            // Il retry immediato sul push service di Chrome fallisce spesso con lo stesso errore —
-            // aspetta 8s + jitter prima di riprovare per lasciar ripartire il servizio.
-            console.warn('[Push] Primo tentativo fallito, riprovo fra 8s:', e.message);
-            await new Promise(r => setTimeout(r, 8000 + Math.random() * 2000));
-            try {
-                const old = await reg.pushManager.getSubscription();
-                if (old) await old.unsubscribe();
-                const sub = await reg.pushManager.subscribe({ userVisibleOnly: true, applicationServerKey: appKey });
-                await savePushSubscription(sub);
-                _pushRegisteredThisSession = true;
-                return sub;
-            } catch (e2) {
-                console.warn('[Push] Subscription fallita (ritento al prossimo page load):', e2.message);
-                return null;
-            }
+            // Niente retry nella stessa apertura: il retry immediato sul push service Chrome
+            // fallisce quasi sempre (push service ha rate limit), e gli 8s di sleep cadevano proprio
+            // mentre l'admin era in piena sync di crediti/debiti, peggiorando la congestione di rete.
+            // Riprova al prossimo page load (controllato dal flag _pushRegisteredThisSession).
+            console.warn('[Push] Subscription fallita (ritento al prossimo page load):', e.message);
+            return null;
         }
     })();
 

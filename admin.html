@@ -1315,9 +1315,9 @@
     <script src="js/supabase-client.js?v=3"></script>
     <script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js" integrity="sha384-vtjasyidUo0kW94K5MXDXntzOJpQgBKXmE7e2Ga4LG0skTTLeBi97eFAXsqewJjw" crossorigin="anonymous"></script>
     <script src="js/ui.js?v=2"></script>
-    <script src="js/data.js?v=76"></script>
+    <script src="js/data.js?v=77"></script>
     <script src="js/auth.js?v=22"></script>
-    <script src="js/push.js?v=21"></script>
+    <script src="js/push.js?v=22"></script>
     <script src="js/chart-mini.js?v=12"></script>
     <script src="js/admin.js?v=115"></script>
     <script src="js/admin-analytics.js?v=9"></script>
@@ -1419,8 +1419,13 @@
                             if (activeTab.dataset.tab === 'settings' && typeof renderSettingsTab === 'function') renderSettingsTab();
                             if (activeTab.dataset.tab === 'schede' && typeof renderSchedeTab === 'function') renderSchedeTab();
                         }
-                    }, 600);
+                    }, 1500);
                 }
+                // Debounce 1500ms (era 600ms) per assorbire i burst di postgres_changes che il DB
+                // emette ravvicinati (es. cancellazione: bookings + credits + credit_history insieme).
+                // Con 600ms partivano 2-3 full sync sovrapposte.
+                // workout_plans/exercises/logs/imported_exercises rimossi: il full re-sync NON li
+                // ricarica, quindi il loro evento triggerava solo I/O inutile.
                 supabaseClient
                     .channel('admin-rt')
                     .on('postgres_changes', { event: '*', schema: 'public', table: 'bookings' }, _adminDebouncedSync)
@@ -1432,10 +1437,6 @@
                     .on('postgres_changes', { event: '*', schema: 'public', table: 'bonuses' }, _adminDebouncedSync)
                     .on('postgres_changes', { event: '*', schema: 'public', table: 'check_fisico_payments' }, _adminDebouncedSync)
                     .on('postgres_changes', { event: '*', schema: 'public', table: 'settings' }, _adminDebouncedSync)
-                    .on('postgres_changes', { event: '*', schema: 'public', table: 'workout_plans' }, _adminDebouncedSync)
-                    .on('postgres_changes', { event: '*', schema: 'public', table: 'workout_exercises' }, _adminDebouncedSync)
-                    .on('postgres_changes', { event: '*', schema: 'public', table: 'workout_logs' }, _adminDebouncedSync)
-                    .on('postgres_changes', { event: '*', schema: 'public', table: 'imported_exercises' }, _adminDebouncedSync)
                     .subscribe();
             }
         })();

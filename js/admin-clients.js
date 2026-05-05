@@ -1468,7 +1468,7 @@ async function deleteTxEntry(type, idOrDate, whatsappOrName, index, email) {
             console.log('[deleteTxEntry] credit entry deleted:', data);
             await CreditStorage.syncFromSupabase();
         } else {
-            const ok = CreditStorage.deleteCreditEntry(whatsappOrName, email, idOrDate);
+            const ok = await CreditStorage.deleteCreditEntry(whatsappOrName, email, idOrDate);
             if (!ok) { showToast('Voce non trovata.', 'error'); return; }
         }
         showToast('Transazione (credito) eliminata.', 'success');
@@ -1493,7 +1493,7 @@ async function deleteTxEntry(type, idOrDate, whatsappOrName, index, email) {
             console.log('[deleteTxEntry] debt entry deleted:', data);
             await ManualDebtStorage.syncFromSupabase();
         } else {
-            const ok = ManualDebtStorage.deleteDebtEntry(whatsappOrName, email, idOrDate);
+            const ok = await ManualDebtStorage.deleteDebtEntry(whatsappOrName, email, idOrDate);
             if (!ok) { showToast('Voce non trovata.', 'error'); return; }
         }
         showToast('Transazione (debito) eliminata.', 'success');

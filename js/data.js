@@ -1398,6 +1398,12 @@ class BookingStorage {
                     CreditStorage._cache = {};
                     ManualDebtStorage._cache = {};
                     BonusStorage._cache = {};
+                    // Resetta _loaded: le cache sono vuote, ensureLoaded() rilancerà la sync
+                    // alla prossima azione utente (no auto-retrigger qui per non saturare la rete
+                    // proprio durante un evento globale di clear).
+                    CreditStorage._loaded = false;
+                    ManualDebtStorage._loaded = false;
+                    BonusStorage._loaded = false;
                     localStorage.removeItem('scheduleOverrides');
                     BookingStorage._scheduleOverridesCache = null;
                     _lsSet('dataLastCleared', remoteClearedAt);
@@ -3277,4 +3283,20 @@ class WorkoutLogStorage {
         );
         if (idx >= 0) this._cache[idx] = data;
         else this._cache.push(data);
-        ret
+        return data;
+    }
+
+    // Delete a single log entry
+    static async deleteLog(logId) {
+        const { error } = await _queryWithTimeout(supabaseClient
+            .from('workout_logs')
+            .delete()
+            .eq('id', logId), 15000);
+        if (error) throw error;
+        this._cache = this._cache.filter(l => l.id !== logId);
+    }
+}
+
+// processPendingCancellations() è chiamata solo da pagine admin (admin.js).
+// Il pg_cron server-side (job "process-pending-cancellations", ogni 15 min) è la fonte autorevole.
+// NON chiamare da pagine utente: replaceAllBookings usa admin_update_booking RPC che richiede is_admin().

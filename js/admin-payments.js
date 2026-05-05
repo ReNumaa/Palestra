@@ -178,11 +178,13 @@ function deleteManualDebtEntry(whatsapp, email, entryDate) {
             }
         })();
     } else {
-        const ok = ManualDebtStorage.deleteDebtEntry(whatsapp, email, entryDate);
-        if (ok) {
-            renderPaymentsTab('deleteManualDebtEntry/local');
-            showToast('Voce eliminata.', 'success');
-        }
+        (async () => {
+            const ok = await ManualDebtStorage.deleteDebtEntry(whatsapp, email, entryDate);
+            if (ok) {
+                renderPaymentsTab('deleteManualDebtEntry/local');
+                showToast('Voce eliminata.', 'success');
+            }
+        })();
     }
 }
 
@@ -311,11 +313,13 @@ function deleteCreditEntryFromCard(whatsapp, email, entryDate) {
             }
         })();
     } else {
-        const ok = CreditStorage.deleteCreditEntry(whatsapp, email, entryDate);
-        if (ok) {
-            renderPaymentsTab('deleteCreditEntry/local');
-            showToast('Voce di credito eliminata.', 'success');
-        }
+        (async () => {
+            const ok = await CreditStorage.deleteCreditEntry(whatsapp, email, entryDate);
+            if (ok) {
+                renderPaymentsTab('deleteCreditEntry/local');
+                showToast('Voce di credito eliminata.', 'success');
+            }
+        })();
     }
 }
 
