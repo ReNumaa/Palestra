@@ -65,7 +65,7 @@ function initCalendar() {
 
 // SVG icone (Lucide-style)
 const _SVG_USER_PLUS = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><line x1="19" y1="8" x2="19" y2="14"/><line x1="22" y1="11" x2="16" y2="11"/></svg>';
-const _SVG_CHECK     = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><polyline points="20 6 9 17 4 12"/></svg>';
+const _SVG_QUESTION  = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M9.5 9a2.5 2.5 0 1 1 3.5 2.3c-.9.4-1.5 1.2-1.5 2.2v.5"/><circle cx="12" cy="17.5" r="0.6" fill="currentColor" stroke="none"/></svg>';
 
 // Aggiunge il bottone "richiedi accesso" per uno slot small-group full.
 // Restituisce il wrapper (slot + bottone) da appendere al posto dello slot.
@@ -86,7 +86,7 @@ function _wrapSlotWithRequestBtn(slotEl, dateInfo, timeSlot, mainType, opts = {}
         : null;
     if (myReq) {
         btn.classList.add('slot-request-btn--pending');
-        btn.innerHTML = _SVG_CHECK;
+        btn.innerHTML = _SVG_QUESTION;
         btn.disabled = true;
         btn.title = 'Richiesta già inviata — sarai notificato se si libera un posto';
         btn.setAttribute('aria-label', 'Richiesta inviata');
