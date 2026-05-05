@@ -236,6 +236,16 @@
                 BookingStorage.syncFromSupabase(),
                 BookingStorage.syncAppSettingsFromSupabase(),
             ]);
+            // Sync richieste accesso slot (V verde + arancio day-card sopravvivono al refresh).
+            // _loadFromLocal: render immediato con cache locale; sync in background poi re-render.
+            if (typeof SlotAccessRequestStorage !== 'undefined' && getCurrentUser()) {
+                SlotAccessRequestStorage._loadFromLocal();
+                SlotAccessRequestStorage.syncFromSupabase().then(() => {
+                    if (typeof renderCalendar === 'function') renderCalendar();
+                    if (typeof renderMobileCalendar === 'function') renderMobileCalendar();
+                }).catch(() => {});
+                SlotAccessRequestStorage.expireStarted();
+            }
             // Applica credito alle lezioni passate non ancora pagate (se utente loggato)
             const _creditUser = typeof getCurrentUser === 'function' ? getCurrentUser() : null;
             if (_creditUser?.email && typeof supabaseClient !== 'undefined') {
