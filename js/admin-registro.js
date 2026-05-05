@@ -831,9 +831,10 @@ const _CN_TYPE_LABELS = {
     reminder_1h:                     '⏰ Promemoria 1h',
     slot_available:                  '🟢 Slot disponibile',
     broadcast:                       '📢 Broadcast',
-    access_request_offered:          '🔵 Posto liberato',
-    access_request_admin_offered:    '✅ Approvato dal trainer',
-    access_request_approved:         '✅ Aggiunto allo slot',
+    access_request_offered:           '🔵 Posto liberato',
+    access_request_admin_offered:     '✅ Approvato dal trainer',
+    access_request_approved:          '✅ Aggiunto allo slot',
+    access_request_cancelled_by_admin:'❌ Richiesta annullata',
 };
 
 const _CN_STATUS_LABELS = {
