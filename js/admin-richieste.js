@@ -46,24 +46,53 @@ function updateRichiesteBadge() {
 async function renderRichiesteTab() {
     const container = document.getElementById('richiesteContainer');
     if (!container) return;
-    container.innerHTML = '<div class="richieste-loading">Caricamento richieste...</div>';
     if (typeof SlotAccessRequestStorage === 'undefined') {
         container.innerHTML = '<div class="richieste-empty">Modulo richieste non disponibile.</div>';
         return;
     }
+
+    // Render cache-first: la tab non deve restare bloccata se Supabase e' lento.
+    try {
+        if (SlotAccessRequestStorage.getAll().length > 0) {
+            _renderRichiesteListSafe(container);
+            updateRichiesteBadge();
+        } else {
+            container.innerHTML = '<div class="richieste-loading">Caricamento richieste...</div>';
+        }
+    } catch (e) {
+        console.error('[Richieste] cache render error:', e);
+        container.innerHTML = '<div class="richieste-loading">Caricamento richieste...</div>';
+    }
+
     try {
         await SlotAccessRequestStorage.syncFromSupabase();
         SlotAccessRequestStorage.expireStarted().catch(() => {});
-    } catch (e) { /* ignore */ }
-    renderRichiesteList();
-    updateRichiesteBadge();
+    } catch (e) {
+        console.warn('[Richieste] sync background failed:', e);
+    }
+
+    if (_renderRichiesteListSafe(container)) updateRichiesteBadge();
+}
+
+function _renderRichiesteListSafe(container) {
+    try {
+        renderRichiesteList();
+        return true;
+    } catch (e) {
+        console.error('[Richieste] render error:', e);
+        if (container) {
+            container.innerHTML = '<div class="richieste-empty">Errore caricamento richieste. Aggiorna e riprova.</div>';
+        }
+        return false;
+    }
 }
 
 function renderRichiesteList() {
     const container = document.getElementById('richiesteContainer');
     if (!container) return;
 
-    const all = SlotAccessRequestStorage.getAll();
+    const allRaw = SlotAccessRequestStorage.getAll();
+    const all = Array.isArray(allRaw) ? allRaw : [];
     const counts = {
         active:  all.filter(r => r.status === 'pending' || r.status === 'offered').length,
         pending: all.filter(r => r.status === 'pending').length,
@@ -85,15 +114,18 @@ function renderRichiesteList() {
     // Raggruppa per (date, time, slot_type)
     const groups = {};
     list.forEach(r => {
-        const key = `${r.date}||${r.time}||${r.slotType}`;
-        if (!groups[key]) groups[key] = { date: r.date, time: r.time, slotType: r.slotType, dateDisplay: r.dateDisplay, items: [] };
+        const date = r.date || '';
+        const time = r.time || '';
+        const slotType = r.slotType || '';
+        const key = `${date}||${time}||${slotType}`;
+        if (!groups[key]) groups[key] = { date, time, slotType, dateDisplay: r.dateDisplay || '', items: [] };
         groups[key].items.push(r);
     });
 
     const groupKeys = Object.keys(groups).sort((a, b) => {
         const ga = groups[a], gb = groups[b];
-        if (ga.date !== gb.date) return ga.date.localeCompare(gb.date);
-        return ga.time.localeCompare(gb.time);
+        if (ga.date !== gb.date) return (ga.date || '').localeCompare(gb.date || '');
+        return (ga.time || '').localeCompare(gb.time || '');
     });
 
     // Refresh button (icon-only) — sostituisce il vecchio "🔄 Aggiorna"

@@ -2205,7 +2205,7 @@ class SlotAccessRequestStorage {
                 .from('slot_access_requests')
                 .select('id, user_id, user_name, user_email, user_whatsapp, date, time, slot_type, date_display, status, created_at, offered_at, resolved_at, resolved_booking_id, offer_source')
                 .gte('date', cutoffStr)
-                .order('created_at', { ascending: true }));
+                .order('created_at', { ascending: true }), { timeoutMs: 10000 });
             if (error) {
                 if (error.code !== 'PGRST301' && error.code !== '42P01') {
                     console.error('[Supabase] SlotAccessRequestStorage.sync error:', error.message);
