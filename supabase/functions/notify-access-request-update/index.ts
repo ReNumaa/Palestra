@@ -1,9 +1,11 @@
 // Edge Function: notify-access-request-update
 // Manda una push notification a UN singolo utente quando:
-//   - event = "slot_offered" → si è liberato un posto su uno slot per cui
+//   - event = "slot_offered"        → si è liberato un posto su uno slot per cui
 //     l'utente aveva una richiesta pending; ora deve confermare in app.
-//   - event = "approved"     → l'admin ha approvato manualmente la richiesta;
-//     l'utente è stato aggiunto allo slot.
+//   - event = "approved"            → l'admin ha approvato manualmente la
+//     richiesta; l'utente è stato aggiunto allo slot.
+//   - event = "cancelled_by_admin"  → l'admin ha annullato la richiesta dal
+//     tab Richieste; informa l'utente che non riceverà più offerte per quello slot.
 
 import { createClient } from "npm:@supabase/supabase-js@2";
 import webpush from "npm:web-push@3.6.7";
@@ -42,7 +44,7 @@ Deno.serve(async (req) => {
                 headers: { ...corsHeaders, "Content-Type": "application/json" },
             });
         }
-        if (event !== "slot_offered" && event !== "approved") {
+        if (event !== "slot_offered" && event !== "approved" && event !== "cancelled_by_admin") {
             return new Response(JSON.stringify({ ok: false, error: "event non valido" }), {
                 status: 400,
                 headers: { ...corsHeaders, "Content-Type": "application/json" },
@@ -86,6 +88,12 @@ Deno.serve(async (req) => {
             }
             tag = `slot-offered-${user_id}-${date}-${startTime}`.replace(/\s/g, "-");
             url = "/prenotazioni.html";
+        } else if (event === "cancelled_by_admin") {
+            title = "Richiesta annullata";
+            body  = `Lo staff ha annullato la tua richiesta per ${slotName} · ${whenText}.`;
+            tag   = `access-cancelled-${user_id}-${date}-${startTime}`.replace(/\s/g, "-");
+            url   = "/prenotazioni.html";
+            notifType = "access_request_cancelled_by_admin";
         } else {
             title = "Richiesta approvata";
             body  = `Sei stato aggiunto a ${slotName} · ${whenText}.`;

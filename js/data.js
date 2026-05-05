@@ -1480,6 +1480,15 @@ class BookingStorage {
                 WEEKLY_SCHEDULE_TEMPLATE = getWeeklySchedule();
             }
 
+            // Marca come caricate le storage che questa funzione popola, così le
+            // scritture (addCredit/addDebt/useBonus/...) non aspettano una seconda sync.
+            // NOTA: il credit_history qui ha schema ridotto (manca display_amount/booking_ref/hidden);
+            // CreditStorage.syncFromSupabase() lo riempie completo nella seconda ondata del boot admin.
+            // Per Step 1 lo accettiamo: meglio scritture funzionanti con schema parziale che bloccate.
+            if (!e1) CreditStorage._loaded = true;
+            if (!e3) ManualDebtStorage._loaded = true;
+            if (!e4) BonusStorage._loaded = true;
+
             const count = (creditsData?.length || 0) + (debtsData?.length || 0) +
                           (bonusesData?.length || 0) + (overridesData?.length || 0) + (settingsData?.length || 0);
             console.log(`[Supabase] syncAppSettings: ${count} record caricati`);
@@ -1579,12 +1588,30 @@ class BookingStorage {
 class CreditStorage {
     static CREDITS_KEY = 'gym_credits';
     static _cache = {};
+    // Race-safety: _loaded indica che la cache è stata popolata da Supabase almeno una volta.
+    // Le scritture (addCredit/clearRecord/...) chiamano ensureLoaded() prima di leggere _cache,
+    // altrimenti rischiano di lavorare su cache vuota e ricreare/perdere righe via _save().
+    static _loaded = false;
+    static _syncInFlight = null;
 
     static _getAll() {
         return this._cache;
     }
 
     static _pendingSave = null;
+
+    // Garantisce che la cache sia caricata. Se non c'è già una sync in volo ne avvia una.
+    // Ritorna true se la cache è caricata, false se sync fallita/timeout — il caller
+    // deve abortire l'operazione di scrittura per evitare upsert su dati incompleti.
+    static async ensureLoaded(timeoutMs = 15000) {
+        if (this._loaded) return true;
+        const sync = this._syncInFlight || this.syncFromSupabase();
+        await Promise.race([
+            sync,
+            new Promise(r => setTimeout(r, timeoutMs))
+        ]);
+        return this._loaded;
+    }
 
     static async _save(data) {
         this._cache = data;
@@ -1612,57 +1639,65 @@ class CreditStorage {
 
     static async syncFromSupabase() {
         if (typeof supabaseClient === 'undefined') return;
-        try {
-            // 1. Credits (1 riga per utente — paginato per sicurezza su istanze multi-tenant
-            //    o palestre con molti utenti)
-            const { data: creditsData, error: e1 } = await fetchAllPaginated(() =>
-                supabaseClient.from('credits').select('id, name, whatsapp, email, balance, free_balance')
-            );
-            if (e1) { console.error('[Supabase] CreditStorage.sync error:', e1.message); return; }
-            if (!creditsData?.length) return;
+        // Dedup: se è già in volo una sync, restituisci la stessa promise invece di
+        // partirne una seconda in parallelo (succedeva con realtime + boot + auth foreground).
+        if (this._syncInFlight) return this._syncInFlight;
+        this._syncInFlight = (async () => {
+            try {
+                // 1. Credits (1 riga per utente — paginato per sicurezza su istanze multi-tenant
+                //    o palestre con molti utenti)
+                const { data: creditsData, error: e1 } = await fetchAllPaginated(() =>
+                    supabaseClient.from('credits').select('id, name, whatsapp, email, balance, free_balance')
+                );
+                if (e1) { console.error('[Supabase] CreditStorage.sync error:', e1.message); return; }
+                if (!creditsData?.length) { this._loaded = true; return; }
 
-            // 2. credit_history: paginazione esplicita per superare il limite PostgREST
-            //    (default ~1000 righe/query). Senza questo, con >1000 entries totali, le
-            //    righe più recenti venivano silenziosamente troncate.
-            const allHist = [];
-            const BATCH = 1000;
-            const MAX_PAGES = 100; // cap di sicurezza: 100k righe
-            for (let page = 0; page < MAX_PAGES; page++) {
-                const from = page * BATCH;
-                const { data, error } = await supabaseClient.from('credit_history')
-                    .select('credit_id, amount, note, created_at, display_amount, booking_ref, hidden, method')
-                    .eq('hidden', false)
-                    .order('created_at', { ascending: true })
-                    .range(from, from + BATCH - 1);
-                if (error) {
-                    console.error('[Supabase] CreditStorage.sync credit_history page error:', error.message);
-                    break;
+                // 2. credit_history: paginazione esplicita per superare il limite PostgREST
+                //    (default ~1000 righe/query). Senza questo, con >1000 entries totali, le
+                //    righe più recenti venivano silenziosamente troncate.
+                const allHist = [];
+                const BATCH = 1000;
+                const MAX_PAGES = 100; // cap di sicurezza: 100k righe
+                for (let page = 0; page < MAX_PAGES; page++) {
+                    const from = page * BATCH;
+                    const { data, error } = await supabaseClient.from('credit_history')
+                        .select('credit_id, amount, note, created_at, display_amount, booking_ref, hidden, method')
+                        .eq('hidden', false)
+                        .order('created_at', { ascending: true })
+                        .range(from, from + BATCH - 1);
+                    if (error) {
+                        console.error('[Supabase] CreditStorage.sync credit_history page error:', error.message);
+                        break;
+                    }
+                    if (!data || data.length === 0) break;
+                    allHist.push(...data);
+                    if (data.length < BATCH) break; // ultima pagina
                 }
-                if (!data || data.length === 0) break;
-                allHist.push(...data);
-                if (data.length < BATCH) break; // ultima pagina
-            }
 
-            const histMap = {};
-            for (const h of allHist) {
-                if (!histMap[h.credit_id]) histMap[h.credit_id] = [];
-                histMap[h.credit_id].push({
-                    date: h.created_at,
-                    amount: h.amount,
-                    note: h.note || '',
-                    method: h.method || '',
-                    ...(h.display_amount != null && { displayAmount: h.display_amount }),
-                    ...(h.booking_ref && { bookingRef: h.booking_ref }),
-                });
-            }
-            const result = {};
-            for (const c of creditsData) {
-                const key = `${c.whatsapp || ''}||${c.email}`;
-                result[key] = { name: c.name, whatsapp: c.whatsapp || '', email: c.email, balance: c.balance, freeBalance: c.free_balance || 0, history: histMap[c.id] || [] };
-            }
-            this._cache = result;
-            console.log(`[Supabase] CreditStorage.sync: dati caricati (${allHist.length} history entries)`);
-        } catch (e) { console.error('[Supabase] CreditStorage.sync exception:', e); }
+                const histMap = {};
+                for (const h of allHist) {
+                    if (!histMap[h.credit_id]) histMap[h.credit_id] = [];
+                    histMap[h.credit_id].push({
+                        date: h.created_at,
+                        amount: h.amount,
+                        note: h.note || '',
+                        method: h.method || '',
+                        ...(h.display_amount != null && { displayAmount: h.display_amount }),
+                        ...(h.booking_ref && { bookingRef: h.booking_ref }),
+                    });
+                }
+                const result = {};
+                for (const c of creditsData) {
+                    const key = `${c.whatsapp || ''}||${c.email}`;
+                    result[key] = { name: c.name, whatsapp: c.whatsapp || '', email: c.email, balance: c.balance, freeBalance: c.free_balance || 0, history: histMap[c.id] || [] };
+                }
+                this._cache = result;
+                this._loaded = true;
+                console.log(`[Supabase] CreditStorage.sync: dati caricati (${allHist.length} history entries)`);
+            } catch (e) { console.error('[Supabase] CreditStorage.sync exception:', e); }
+        })();
+        try { return await this._syncInFlight; }
+        finally { this._syncInFlight = null; }
     }
 
     // Inserisce una voce credit_history su Supabase.
@@ -1733,6 +1768,11 @@ class CreditStorage {
     }
 
     static async addCredit(whatsapp, email, name, amount, note = '', displayAmount = null, freeLesson = false, hiddenRefund = false, bookingRef = null, method = '') {
+        // Race-safety: lavorare su _cache vuota → _save farebbe upsert con righe mancanti.
+        if (!(await this.ensureLoaded())) {
+            if (typeof showToast === 'function') showToast('⚠️ Dati ancora in caricamento. Attendi qualche secondo e riprova.', 'warning', 5000);
+            return;
+        }
         // amount=0 is allowed for informational entries (payment log) that don't affect balance
         const all = this._getAll();
         let key = this._findKey(whatsapp, email);
@@ -1765,6 +1805,10 @@ class CreditStorage {
     }
 
     static async hidePaymentEntryByBooking(whatsapp, email, bookingId) {
+        if (!(await this.ensureLoaded())) {
+            if (typeof showToast === 'function') showToast('⚠️ Dati ancora in caricamento. Attendi qualche secondo e riprova.', 'warning', 5000);
+            return;
+        }
         const all = this._getAll();
         const key = this._findKey(whatsapp, email);
         if (!key || !all[key]?.history) return;
@@ -1809,7 +1853,11 @@ class CreditStorage {
         return key ? this._getAll()[key] : null;
     }
 
-    static clearRecord(whatsapp, email) {
+    static async clearRecord(whatsapp, email) {
+        if (!(await this.ensureLoaded())) {
+            if (typeof showToast === 'function') showToast('⚠️ Dati ancora in caricamento. Attendi qualche secondo e riprova.', 'warning', 5000);
+            return;
+        }
         const all = this._getAll();
         const key = this._findKey(whatsapp, email);
         if (key) { delete all[key]; this._save(all); }
@@ -1822,7 +1870,11 @@ class CreditStorage {
     }
 
     // Elimina una singola voce di credito per data (ISO string) e ricalcola il saldo
-    static deleteCreditEntry(whatsapp, email, entryDate) {
+    static async deleteCreditEntry(whatsapp, email, entryDate) {
+        if (!(await this.ensureLoaded())) {
+            if (typeof showToast === 'function') showToast('⚠️ Dati ancora in caricamento. Attendi qualche secondo e riprova.', 'warning', 5000);
+            return false;
+        }
         const all = this._getAll();
         const key = this._findKey(whatsapp, email);
         if (!key || !all[key]) return false;
@@ -1850,7 +1902,11 @@ class CreditStorage {
     }
 
     // Auto-pay unpaid bookings (past and future) for this client using available credit
-    static applyToUnpaidBookings(whatsapp, email, name) {
+    static async applyToUnpaidBookings(whatsapp, email, name) {
+        if (!(await this.ensureLoaded())) {
+            if (typeof showToast === 'function') showToast('⚠️ Dati ancora in caricamento. Attendi qualche secondo e riprova.', 'warning', 5000);
+            return false;
+        }
         let balance = this.getBalance(whatsapp, email);
         if (balance <= 0) return false;
 
@@ -1928,12 +1984,25 @@ class CreditStorage {
 class ManualDebtStorage {
     static DEBTS_KEY = 'gym_manual_debts';
     static _cache = {};
+    static _loaded = false;
+    static _syncInFlight = null;
 
     static _getAll() {
         return this._cache;
     }
 
     static _pendingSave = null;
+
+    // Vedi commento in CreditStorage.ensureLoaded — stesso pattern.
+    static async ensureLoaded(timeoutMs = 15000) {
+        if (this._loaded) return true;
+        const sync = this._syncInFlight || this.syncFromSupabase();
+        await Promise.race([
+            sync,
+            new Promise(r => setTimeout(r, timeoutMs))
+        ]);
+        return this._loaded;
+    }
 
     static async _save(data) {
         this._cache = data;
@@ -1961,19 +2030,25 @@ class ManualDebtStorage {
 
     static async syncFromSupabase() {
         if (typeof supabaseClient === 'undefined') return;
-        try {
-            const { data, error } = await fetchAllPaginated(() => supabaseClient
-                .from('manual_debts').select('name, whatsapp, email, balance, history'));
-            if (error) { console.error('[Supabase] ManualDebtStorage.sync error:', error.message); return; }
-            if (!data?.length) return;
-            const result = {};
-            for (const r of data) {
-                const key = `${r.whatsapp || ''}||${r.email}`;
-                result[key] = { name: r.name, whatsapp: r.whatsapp || '', email: r.email, balance: r.balance, history: r.history || [] };
-            }
-            this._cache = result;
-            console.log('[Supabase] ManualDebtStorage.sync: dati caricati');
-        } catch (e) { console.error('[Supabase] ManualDebtStorage.sync exception:', e); }
+        if (this._syncInFlight) return this._syncInFlight;
+        this._syncInFlight = (async () => {
+            try {
+                const { data, error } = await fetchAllPaginated(() => supabaseClient
+                    .from('manual_debts').select('name, whatsapp, email, balance, history'));
+                if (error) { console.error('[Supabase] ManualDebtStorage.sync error:', error.message); return; }
+                if (!data?.length) { this._loaded = true; return; }
+                const result = {};
+                for (const r of data) {
+                    const key = `${r.whatsapp || ''}||${r.email}`;
+                    result[key] = { name: r.name, whatsapp: r.whatsapp || '', email: r.email, balance: r.balance, history: r.history || [] };
+                }
+                this._cache = result;
+                this._loaded = true;
+                console.log('[Supabase] ManualDebtStorage.sync: dati caricati');
+            } catch (e) { console.error('[Supabase] ManualDebtStorage.sync exception:', e); }
+        })();
+        try { return await this._syncInFlight; }
+        finally { this._syncInFlight = null; }
     }
 
     static _key(whatsapp, email) {
@@ -2006,6 +2081,10 @@ class ManualDebtStorage {
     // entryType: optional tag (e.g. 'mora') stored on the history entry for Registro display
     static async addDebt(whatsapp, email, name, amount, note = '', method = '', entryType = '') {
         if (amount === 0) return;
+        if (!(await this.ensureLoaded())) {
+            if (typeof showToast === 'function') showToast('⚠️ Dati ancora in caricamento. Attendi qualche secondo e riprova.', 'warning', 5000);
+            return;
+        }
         const all = this._getAll();
         let key = this._findKey(whatsapp, email);
         if (!key) key = this._key(whatsapp, email);
@@ -2031,6 +2110,10 @@ class ManualDebtStorage {
     }
 
     static async clearRecord(whatsapp, email) {
+        if (!(await this.ensureLoaded())) {
+            if (typeof showToast === 'function') showToast('⚠️ Dati ancora in caricamento. Attendi qualche secondo e riprova.', 'warning', 5000);
+            return;
+        }
         const all = this._getAll();
         const key = this._findKey(whatsapp, email);
         if (key) { delete all[key]; await this._save(all); }
@@ -2043,6 +2126,10 @@ class ManualDebtStorage {
     // Elimina una singola voce di debito manuale per data (ISO string) e ricalcola il saldo.
     // Rimuove anche eventuali voci di saldamento orfane (amount < 0) se la somma diventa negativa.
     static async deleteDebtEntry(whatsapp, email, entryDate) {
+        if (!(await this.ensureLoaded())) {
+            if (typeof showToast === 'function') showToast('⚠️ Dati ancora in caricamento. Attendi qualche secondo e riprova.', 'warning', 5000);
+            return false;
+        }
         const all = this._getAll();
         const key = this._findKey(whatsapp, email);
         if (!key || !all[key]) return false;
@@ -2253,12 +2340,28 @@ class SlotAccessRequestStorage {
 
     static async adminDecline(id) {
         if (typeof supabaseClient === 'undefined') return { ok: false, error: 'no_client' };
+        // Snapshot della richiesta prima della RPC, serve per notificare l'utente annullato
+        const cancelled = this._cache.find(r => r.id === id);
         try {
             const { data, error } = await supabaseClient.rpc('admin_decline_access_request', {
                 p_request_id: id,
             });
             if (error) return { ok: false, error: error.message };
             if (!data?.success) return { ok: false, error: data?.error || 'unknown' };
+
+            // Notifica push all'utente che ha visto la propria richiesta annullata
+            if (cancelled && typeof notifyAccessRequestUpdate === 'function') {
+                try {
+                    await notifyAccessRequestUpdate({
+                        user_id:      cancelled.userId,
+                        date:         cancelled.date,
+                        time:         cancelled.time,
+                        slot_type:    cancelled.slotType,
+                        date_display: cancelled.dateDisplay || '',
+                    }, 'cancelled_by_admin');
+                } catch (e) { console.warn('[SlotAccessRequest] notify cancelled exception:', e); }
+            }
+
             // Se chiudendo un'offerta è stato offerto al prossimo, manda push utente
             if (data.offered_request && typeof notifyAccessRequestUpdate === 'function') {
                 try { await notifyAccessRequestUpdate(data.offered_request, 'slot_offered'); }
@@ -2358,9 +2461,21 @@ class CheckFisicoStorage {
 class BonusStorage {
     static BONUS_KEY = 'gym_bonus';
     static _cache = {};
+    static _loaded = false;
+    static _syncInFlight = null;
 
     static _getAll() {
         return this._cache;
+    }
+
+    static async ensureLoaded(timeoutMs = 15000) {
+        if (this._loaded) return true;
+        const sync = this._syncInFlight || this.syncFromSupabase();
+        await Promise.race([
+            sync,
+            new Promise(r => setTimeout(r, timeoutMs))
+        ]);
+        return this._loaded;
     }
 
     static _save(data) {
@@ -2447,31 +2562,41 @@ class BonusStorage {
 
     static async syncFromSupabase() {
         if (typeof supabaseClient === 'undefined') return;
-        try {
-            const { data, error } = await _queryWithTimeout(supabaseClient
-                .from('bonuses')
-                .select('user_id, name, whatsapp, email, bonus, last_reset_month'));
-            if (error) { console.error('[Supabase] BonusStorage.syncFromSupabase error:', error.message); return; }
-            const all = {};
-            (data || []).forEach(r => {
-                const key = `${normalizePhone(r.whatsapp) || ''}||${(r.email || '').toLowerCase()}`;
-                all[key] = {
-                    userId:         r.user_id || null,
-                    name:           r.name || '',
-                    whatsapp:       normalizePhone(r.whatsapp) || '',
-                    email:          (r.email || '').toLowerCase(),
-                    bonus:          r.bonus ?? 1,
-                    lastResetMonth: r.last_reset_month || null,
-                };
-            });
-            this._cache = all;
-        } catch (e) { console.error('[Supabase] BonusStorage.syncFromSupabase exception:', e); }
+        if (this._syncInFlight) return this._syncInFlight;
+        this._syncInFlight = (async () => {
+            try {
+                const { data, error } = await _queryWithTimeout(supabaseClient
+                    .from('bonuses')
+                    .select('user_id, name, whatsapp, email, bonus, last_reset_month'));
+                if (error) { console.error('[Supabase] BonusStorage.syncFromSupabase error:', error.message); return; }
+                const all = {};
+                (data || []).forEach(r => {
+                    const key = `${normalizePhone(r.whatsapp) || ''}||${(r.email || '').toLowerCase()}`;
+                    all[key] = {
+                        userId:         r.user_id || null,
+                        name:           r.name || '',
+                        whatsapp:       normalizePhone(r.whatsapp) || '',
+                        email:          (r.email || '').toLowerCase(),
+                        bonus:          r.bonus ?? 1,
+                        lastResetMonth: r.last_reset_month || null,
+                    };
+                });
+                this._cache = all;
+                this._loaded = true;
+            } catch (e) { console.error('[Supabase] BonusStorage.syncFromSupabase exception:', e); }
+        })();
+        try { return await this._syncInFlight; }
+        finally { this._syncInFlight = null; }
     }
 
     // Consume the bonus (1 → 0)
     // `userId` opzionale: popolato nella cache locale per permettere lookup autoritativo
     // nella stessa sessione prima che la sync da Supabase riporti il user_id dal DB.
-    static useBonus(whatsapp, email, name, userId) {
+    static async useBonus(whatsapp, email, name, userId) {
+        if (!(await this.ensureLoaded())) {
+            if (typeof showToast === 'function') showToast('⚠️ Dati ancora in caricamento. Attendi qualche secondo e riprova.', 'warning', 5000);
+            return;
+        }
         const all       = this._getAll();
         const thisMonth = this._thisMonthStr();
         // Normalizza per garantire che getBonus() trovi sempre il record con gli stessi input
@@ -3152,20 +3277,4 @@ class WorkoutLogStorage {
         );
         if (idx >= 0) this._cache[idx] = data;
         else this._cache.push(data);
-        return data;
-    }
-
-    // Delete a single log entry
-    static async deleteLog(logId) {
-        const { error } = await _queryWithTimeout(supabaseClient
-            .from('workout_logs')
-            .delete()
-            .eq('id', logId), 15000);
-        if (error) throw error;
-        this._cache = this._cache.filter(l => l.id !== logId);
-    }
-}
-
-// processPendingCancellations() è chiamata solo da pagine admin (admin.js).
-// Il pg_cron server-side (job "process-pending-cancellations", ogni 15 min) è la fonte autorevole.
-// NON chiamare da pagine utente: replaceAllBookings usa admin_update_booking RPC che richiede is_admin().
+        ret

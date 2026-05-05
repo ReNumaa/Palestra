@@ -187,7 +187,7 @@ function renderRichiesteList() {
             }
             else if (r.status === 'approved')       { statusPillClass = 'rich-status--ok';        statusPillText = 'Confermata'; }
             else if (r.status === 'declined_user')  { statusPillClass = 'rich-status--declined';  statusPillText = 'Rifiutata dall\'utente'; }
-            else if (r.status === 'declined_admin') { statusPillClass = 'rich-status--declined';  statusPillText = 'Chiusa dall\'admin'; }
+            else if (r.status === 'declined_admin') { statusPillClass = 'rich-status--declined';  statusPillText = 'Annullata dall\'admin'; }
             else if (r.status === 'expired')        { statusPillClass = 'rich-status--neutral';   statusPillText = 'Scaduta'; }
 
             html += `<div class="rich-req">`;
@@ -209,7 +209,7 @@ function renderRichiesteList() {
                 } else {
                     html += `  <button class="rich-btn rich-btn--primary richieste-approve-btn" data-rid="${r.id}" type="button" title="Re-invia notifica all'utente">${ICON_REFRESH}<span>Re-invia notifica</span></button>`;
                 }
-                html += `  <button class="rich-btn rich-btn--ghost richieste-decline-btn" data-rid="${r.id}" type="button" title="Chiudi/rifiuta richiesta">${ICON_CLOSE}<span>Chiudi</span></button>`;
+                html += `  <button class="rich-btn rich-btn--ghost richieste-decline-btn" data-rid="${r.id}" type="button" title="Annulla richiesta">${ICON_CLOSE}<span>Annulla</span></button>`;
                 html += `</div>`;
             }
         });
@@ -307,8 +307,9 @@ async function declineAccessRequest(requestId, btnEl) {
     const dateLabel = req.dateDisplay || _richFormatDate(req.date);
     const wasOffer = req.status === 'offered';
     const ok = confirm(
-        `Chiudere la richiesta di ${req.userName} per ${slotName} ${dateLabel} ${req.time}?` +
-        (wasOffer ? '\n\nL\'offerta verrà ritirata e il posto offerto al prossimo in coda.' : '')
+        `Annullare la richiesta di ${req.userName} per ${slotName} ${dateLabel} ${req.time}?\n\n` +
+        `L'utente riceverà una notifica.` +
+        (wasOffer ? '\nL\'offerta verrà ritirata e il posto offerto al prossimo in coda.' : '')
     );
     if (!ok) return;
 
@@ -327,8 +328,8 @@ async function declineAccessRequest(requestId, btnEl) {
     }
 
     const msg = r.offered
-        ? 'Richiesta chiusa. Posto offerto al prossimo in coda.'
-        : 'Richiesta chiusa.';
+        ? 'Richiesta annullata. Posto offerto al prossimo in coda.'
+        : 'Richiesta annullata. Notifica inviata all\'utente.';
     if (typeof showToast === 'function') showToast(msg, 'success', 3500);
     renderRichiesteList();
     updateRichiesteBadge();
