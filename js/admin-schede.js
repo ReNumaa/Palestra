@@ -462,7 +462,7 @@ function _schedeRenderShell(container, { loading }) {
         <button class="schede-subnav-pill ${_schedeSection === 'actual' ? 'active' : ''}" onclick="_schedeSwitchSection('actual')">Live</button>
         <button class="schede-subnav-pill ${_schedeSection === 'schede' ? 'active' : ''}" onclick="_schedeSwitchSection('schede')">Schede</button>
         <button class="schede-subnav-pill ${_schedeSection === 'clienti' ? 'active' : ''}" onclick="_schedeSwitchSection('clienti')">Clienti</button>
-        <button class="schede-subnav-pill ${_schedeSection === 'importa' ? 'active' : ''}" onclick="_schedeSwitchSection('importa')">💪🏻 Importa</button>
+        <button class="schede-subnav-pill ${_schedeSection === 'importa' ? 'active' : ''}" onclick="_schedeSwitchSection('importa')">Importa</button>
     </div><div id="schedeInner">${loaderHtml}</div>`;
 }
 
