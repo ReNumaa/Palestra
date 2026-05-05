@@ -19,6 +19,7 @@ let _paymentsRpcInFlight = false;
 function _reopenContactCard(name, whatsapp, email) {
     // Simula la ricerca per riaprire la card del contatto
     const dropdown = document.getElementById('debtorSearchDropdown');
+    if (!dropdown) return;
     const normPhone = normalizePhone(whatsapp);
     const emailLow = (email || '').toLowerCase();
     const matches = _searchAllContacts(name);
@@ -30,6 +31,14 @@ function _reopenContactCard(name, whatsapp, email) {
     if (match) {
         dropdown._matches = [match];
         selectDebtorFromDropdown(0);
+    }
+}
+
+async function _syncPaymentCachesAfterSave(tasks, label) {
+    const results = await Promise.allSettled(tasks);
+    const failed = results.filter(r => r.status === 'rejected');
+    if (failed.length) {
+        console.warn(`[Payments] sync post-save parziale (${label}):`, failed.map(r => r.reason?.message || r.reason));
     }
 }
 
@@ -169,7 +178,9 @@ function deleteManualDebtEntry(whatsapp, email, entryDate) {
                     return;
                 }
                 console.log('[admin_delete_debt_entry]', data);
-                await ManualDebtStorage.syncFromSupabase();
+                await _syncPaymentCachesAfterSave([
+                    ManualDebtStorage.syncFromSupabase(),
+                ], 'debt');
                 renderPaymentsTab('deleteManualDebtEntry/supabase');
                 showToast('Voce eliminata.', 'success');
             } catch (ex) {
@@ -1076,7 +1087,9 @@ async function saveManualEntry() {
                 return;
             }
             console.log('[admin_add_check_fisico]', data);
-            await CheckFisicoStorage.syncFromSupabase();
+            await _syncPaymentCachesAfterSave([
+                CheckFisicoStorage.syncFromSupabase(),
+            ], 'checkfisico');
             closeManualEntryPopup();
             showToast('Check Fisico registrato', 'success');
             // Invalida cache stats e ridisegna sia il tab Pagamenti sia la dashboard
@@ -1142,12 +1155,13 @@ async function saveManualEntry() {
                 }
             }
 
-            // Risincronizza tutto da Supabase
-            await Promise.all([
+            // Risincronizza tutto da Supabase best-effort: la RPC credito Ã¨ giÃ  riuscita.
+            // Un timeout nel refresh non deve trasformare un salvataggio riuscito in errore UX.
+            await _syncPaymentCachesAfterSave([
                 BookingStorage.syncFromSupabase(),
                 CreditStorage.syncFromSupabase(),
                 ManualDebtStorage.syncFromSupabase(),
-            ]);
+            ], 'credit');
 
             closeManualEntryPopup();
             const bonusMsg = rechargeBonus > 0 ? ` + ${rechargeBonus}€ bonus gratuito` : '';

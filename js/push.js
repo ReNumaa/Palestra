@@ -20,6 +20,7 @@ function urlBase64ToUint8Array(base64String) {
 // con rete saturata causano "Registration failed - push service error").
 let _pushInFlight = null;
 let _pushRegisteredThisSession = false;
+let _pushFailedThisSession = false;
 
 async function registerPushSubscription() {
     if (!('PushManager' in window) || !navigator.serviceWorker) return null;
@@ -27,7 +28,7 @@ async function registerPushSubscription() {
     if (_pushInFlight) return _pushInFlight;
     // Se in questa sessione è già andata a buon fine, evita riregistrazioni
     // (la subscription esiste già lato browser ed è salvata su Supabase)
-    if (_pushRegisteredThisSession) return null;
+    if (_pushRegisteredThisSession || _pushFailedThisSession) return null;
 
     _pushInFlight = (async () => {
         const reg = await navigator.serviceWorker.ready;
@@ -64,12 +65,14 @@ async function registerPushSubscription() {
             const sub = await _subscribe();
             await savePushSubscription(sub);
             _pushRegisteredThisSession = true;
+            _pushFailedThisSession = false;
             return sub;
         } catch (e) {
             // Niente retry nella stessa apertura: il retry immediato sul push service Chrome
             // fallisce quasi sempre (push service ha rate limit), e gli 8s di sleep cadevano proprio
             // mentre l'admin era in piena sync di crediti/debiti, peggiorando la congestione di rete.
             // Riprova al prossimo page load (controllato dal flag _pushRegisteredThisSession).
+            _pushFailedThisSession = true;
             console.warn('[Push] Subscription fallita (ritento al prossimo page load):', e.message);
             return null;
         }
