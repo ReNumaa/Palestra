@@ -91,7 +91,7 @@ function _wrapSlotWithRequestBtn(slotEl, dateInfo, timeSlot, mainType, opts = {}
         btn.setAttribute('aria-label', 'Richiesta inviata, tocca per dettagli');
         btn.addEventListener('click', e => {
             e.stopPropagation();
-            _showRequestPendingInfo();
+            _showRequestPendingInfo(myReq);
         });
     } else {
         btn.innerHTML = _SVG_USER_PLUS;
@@ -106,12 +106,16 @@ function _wrapSlotWithRequestBtn(slotEl, dateInfo, timeSlot, mainType, opts = {}
     return wrap;
 }
 
-// Modal informativo: spiega che la richiesta è in coda e quando verrà accettata.
-// Mostrato cliccando il bottone "?" arancione su uno slot già richiesto.
-function _showRequestPendingInfo() {
+// Modal informativo: spiega che la richiesta è in coda e dà la possibilità
+// di annullarla. Mostrato cliccando il "?" arancione su uno slot già richiesto.
+function _showRequestPendingInfo(myReq) {
     return new Promise(resolve => {
         const overlay = document.createElement('div');
         overlay.className = 'slot-req-modal-overlay';
+        // Solo le richieste in stato pending sono annullabili da qui.
+        // Per offered c'è già il banner "Posto offerto" su prenotazioni.html
+        // con i bottoni Accetta/Rifiuta dedicati.
+        const canCancel = !!(myReq && myReq.status === 'pending');
         overlay.innerHTML = `
             <div class="slot-req-modal" role="dialog" aria-modal="true" aria-labelledby="srInfoTitle">
                 <button class="slot-req-modal__close" type="button" aria-label="Chiudi">
@@ -124,6 +128,7 @@ function _showRequestPendingInfo() {
                 <h3 class="slot-req-modal__title" id="srInfoTitle">Sei in lista d'attesa</h3>
                 <p class="slot-req-modal__sub">Verrai aggiunto allo slot se:<br>• il trainer approva la tua richiesta,<br>• oppure si libera un posto: riceverai una notifica e dovrai confermare.</p>
                 <div class="slot-req-modal__actions">
+                    ${canCancel ? '<button class="slot-req-modal__btn slot-req-modal__btn--cancel" type="button" data-action="cancel-req">Annulla richiesta</button>' : ''}
                     <button class="slot-req-modal__btn slot-req-modal__btn--confirm" type="button">Ho capito</button>
                 </div>
             </div>`;
@@ -138,6 +143,28 @@ function _showRequestPendingInfo() {
         overlay.addEventListener('click', e => { if (e.target === overlay) close(); });
         overlay.querySelector('.slot-req-modal__close').addEventListener('click', close);
         overlay.querySelector('.slot-req-modal__btn--confirm').addEventListener('click', close);
+        const cancelBtn = overlay.querySelector('[data-action="cancel-req"]');
+        if (cancelBtn) {
+            cancelBtn.addEventListener('click', async () => {
+                if (!confirm('Sicuro di voler annullare la richiesta? Uscirai dalla lista d\'attesa.')) return;
+                cancelBtn.disabled = true;
+                cancelBtn.textContent = 'Annullo...';
+                const r = await SlotAccessRequestStorage.cancelMyPending(myReq.id);
+                if (r.ok) {
+                    if (typeof showToast === 'function') showToast('Richiesta annullata.', 'success', 3500);
+                    close();
+                    renderCalendar();
+                    renderMobileCalendar();
+                } else {
+                    const msg = r.error === 'not_pending'
+                        ? 'La richiesta è già stata gestita: aggiorna la pagina.'
+                        : 'Errore: ' + (r.error || 'riprova');
+                    if (typeof showToast === 'function') showToast(msg, 'error');
+                    cancelBtn.disabled = false;
+                    cancelBtn.textContent = 'Annulla richiesta';
+                }
+            });
+        }
         document.addEventListener('keydown', onKey);
         document.body.appendChild(overlay);
         setTimeout(() => overlay.querySelector('.slot-req-modal__btn--confirm')?.focus(), 50);

@@ -2426,6 +2426,24 @@ class SlotAccessRequestStorage {
             await supabaseClient.rpc('expire_started_slot_requests');
         } catch (e) { /* fire-and-forget */ }
     }
+
+    // Utente annulla una propria richiesta in stato `pending`. Per `offered`
+    // esiste declineOffered (riassegna il posto al prossimo in coda).
+    static async cancelMyPending(id) {
+        if (typeof supabaseClient === 'undefined') return { ok: false, error: 'no_client' };
+        try {
+            const { data, error } = await supabaseClient.rpc('cancel_my_pending_request', {
+                p_request_id: id,
+            });
+            if (error) return { ok: false, error: error.message };
+            if (!data?.success) return { ok: false, error: data?.error || 'unknown' };
+            await this.syncFromSupabase();
+            return { ok: true };
+        } catch (e) {
+            console.error('[SlotAccessRequest] cancelMyPending exception:', e);
+            return { ok: false, error: e.message };
+        }
+    }
 }
 
 // Helper centralizzato post-cancellazione: invia push offered al primo in coda
