@@ -139,9 +139,15 @@
                 </div>
 
                 <form id="registerForm" class="auth-form">
-                    <div class="form-group">
-                        <label for="regName">Nome Completo *</label>
-                        <input type="text" id="regName" placeholder="Mario Rossi" autocomplete="name">
+                    <div class="form-group" style="display:flex; gap:0.75rem;">
+                        <div style="flex:1">
+                            <label for="regNome">Nome *</label>
+                            <input type="text" id="regNome" placeholder="Mario" autocomplete="given-name" maxlength="40">
+                        </div>
+                        <div style="flex:1">
+                            <label for="regCognome">Cognome *</label>
+                            <input type="text" id="regCognome" placeholder="Rossi" autocomplete="family-name" maxlength="40">
+                        </div>
                     </div>
                     <div class="form-group">
                         <label for="regEmail">Email *</label>
@@ -325,7 +331,8 @@
         // ── Registration ──────────────────────────────────────────────────
         document.getElementById('registerForm').addEventListener('submit', async e => {
             e.preventDefault();
-            const name     = document.getElementById('regName').value.trim();
+            const nome     = document.getElementById('regNome').value.trim().replace(/\s+/g, ' ');
+            const cognome  = document.getElementById('regCognome').value.trim().replace(/\s+/g, ' ');
             const email    = document.getElementById('regEmail').value.trim();
             const whatsapp = normalizePhone(document.getElementById('regWhatsapp').value.trim());
             const codiceFiscale = document.getElementById('regCodiceFiscale').value.trim().toUpperCase();
@@ -338,11 +345,24 @@
             const btn      = e.target.querySelector('button[type="submit"]');
             errEl.style.display = 'none';
 
-            if (!name || !email || !whatsapp || !codiceFiscale || !via || !paese || !cap || !password || !confirm) {
+            if (!nome || !cognome || !email || !whatsapp || !codiceFiscale || !via || !paese || !cap || !password || !confirm) {
                 errEl.textContent = 'Compila tutti i campi obbligatori.';
                 errEl.style.display = 'block';
                 return;
             }
+            // Caratteri validi nome/cognome: lettere (incluse accentate), apostrofo, spazio, trattino. Min 2 char.
+            const nameRegex = /^[\p{L}][\p{L}\s'-]{1,}$/u;
+            if (!nameRegex.test(nome)) {
+                errEl.textContent = 'Nome non valido. Usa solo lettere, apostrofi e trattini (min. 2 caratteri).';
+                errEl.style.display = 'block';
+                return;
+            }
+            if (!nameRegex.test(cognome)) {
+                errEl.textContent = 'Cognome non valido. Usa solo lettere, apostrofi e trattini (min. 2 caratteri).';
+                errEl.style.display = 'block';
+                return;
+            }
+            const name = `${nome} ${cognome}`;
             if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) {
                 errEl.textContent = 'Inserisci un indirizzo email valido.';
                 errEl.style.display = 'block';

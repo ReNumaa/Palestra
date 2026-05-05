@@ -9,13 +9,17 @@ let _isManualLogout = false;
 
 // ── Phone normalization ───────────────────────────────────────────────────────
 // Returns E.164 format (+39XXXXXXXXXX) for WhatsApp API compatibility.
+// NOTA: la regola "starts with 39" considera il prefisso paese SOLO se la
+// lunghezza totale è 12 (39 + 10 cifre cellulare). Senza questo controllo, un
+// cellulare 10-digit che inizia per 39X (es. 392, 393, 395...) verrebbe
+// erroneamente interpretato come "ha già il +39" e perderebbe le prime 2 cifre.
 function normalizePhone(raw) {
     if (!raw) return '';
     let n = raw.replace(/[\s\-().]/g, '');
-    if      (n.startsWith('0039'))               n = '+39' + n.slice(4);
-    else if (n.startsWith('39') && n[0] !== '+') n = '+' + n;
-    else if (n.startsWith('0'))                  n = '+39' + n.slice(1);
-    else if (!n.startsWith('+'))                 n = '+39' + n;
+    if      (n.startsWith('0039'))                                      n = '+39' + n.slice(4);
+    else if (n.startsWith('39') && n.length === 12 && n[0] !== '+')     n = '+' + n;
+    else if (n.startsWith('0'))                                         n = '+39' + n.slice(1);
+    else if (!n.startsWith('+'))                                        n = '+39' + n;
     return n;
 }
 
