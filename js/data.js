@@ -2251,6 +2251,27 @@ class SlotAccessRequestStorage {
         }
     }
 
+    static async adminDecline(id) {
+        if (typeof supabaseClient === 'undefined') return { ok: false, error: 'no_client' };
+        try {
+            const { data, error } = await supabaseClient.rpc('admin_decline_access_request', {
+                p_request_id: id,
+            });
+            if (error) return { ok: false, error: error.message };
+            if (!data?.success) return { ok: false, error: data?.error || 'unknown' };
+            // Se chiudendo un'offerta è stato offerto al prossimo, manda push utente
+            if (data.offered_request && typeof notifyAccessRequestUpdate === 'function') {
+                try { await notifyAccessRequestUpdate(data.offered_request, 'slot_offered'); }
+                catch (e) { console.warn('[SlotAccessRequest] notify next exception:', e); }
+            }
+            await this.syncFromSupabase();
+            return { ok: true, offered: data.offered_request || null };
+        } catch (e) {
+            console.error('[SlotAccessRequest] adminDecline exception:', e);
+            return { ok: false, error: e.message };
+        }
+    }
+
     static async expireStarted() {
         if (typeof supabaseClient === 'undefined') return;
         try {

@@ -100,6 +100,7 @@ function renderRichiesteList() {
     const ICON_REFRESH = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 12a9 9 0 0 1 15-6.7L21 8"/><polyline points="21 3 21 8 16 8"/><path d="M21 12a9 9 0 0 1-15 6.7L3 16"/><polyline points="3 21 3 16 8 16"/></svg>';
     const ICON_USERS   = '<svg viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><circle cx="9" cy="8" r="4"/><path d="M9 14c-3.3 0-6 1.8-6 4v2h12v-2c0-2.2-2.7-4-6-4z"/><circle cx="17.5" cy="8.5" r="3"/><path d="M17.5 13.5c-1 0-1.9.2-2.6.5 1.3 1 2.1 2.4 2.1 4v2H22v-2c0-2.2-2-4.5-4.5-4.5z"/></svg>';
     const ICON_CHECK   = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><polyline points="20 6 9 17 4 12"/></svg>';
+    const ICON_CLOSE   = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>';
 
     let html = `
         <div class="rich-toolbar">
@@ -184,9 +185,10 @@ function renderRichiesteList() {
                 statusPillClass = 'rich-status--offered';
                 statusPillText = (r.offerSource === 'admin') ? 'Offerto · attende conferma' : 'Auto-offerto · attende conferma';
             }
-            else if (r.status === 'approved')      { statusPillClass = 'rich-status--ok';        statusPillText = 'Confermata'; }
-            else if (r.status === 'declined_user') { statusPillClass = 'rich-status--declined';  statusPillText = 'Rifiutata dall\'utente'; }
-            else if (r.status === 'expired')       { statusPillClass = 'rich-status--neutral';   statusPillText = 'Scaduta'; }
+            else if (r.status === 'approved')       { statusPillClass = 'rich-status--ok';        statusPillText = 'Confermata'; }
+            else if (r.status === 'declined_user')  { statusPillClass = 'rich-status--declined';  statusPillText = 'Rifiutata dall\'utente'; }
+            else if (r.status === 'declined_admin') { statusPillClass = 'rich-status--declined';  statusPillText = 'Chiusa dall\'admin'; }
+            else if (r.status === 'expired')        { statusPillClass = 'rich-status--neutral';   statusPillText = 'Scaduta'; }
 
             html += `<div class="rich-req">`;
             html += `  <div class="rich-av" aria-hidden="true">${initials}</div>`;
@@ -207,6 +209,7 @@ function renderRichiesteList() {
                 } else {
                     html += `  <button class="rich-btn rich-btn--primary richieste-approve-btn" data-rid="${r.id}" type="button" title="Re-invia notifica all'utente">${ICON_REFRESH}<span>Re-invia notifica</span></button>`;
                 }
+                html += `  <button class="rich-btn rich-btn--ghost richieste-decline-btn" data-rid="${r.id}" type="button" title="Chiudi/rifiuta richiesta">${ICON_CLOSE}<span>Chiudi</span></button>`;
                 html += `</div>`;
             }
         });
@@ -218,6 +221,9 @@ function renderRichiesteList() {
 
     container.querySelectorAll('.richieste-approve-btn').forEach(btn => {
         btn.addEventListener('click', () => approveAccessRequest(btn.dataset.rid, btn));
+    });
+    container.querySelectorAll('.richieste-decline-btn').forEach(btn => {
+        btn.addEventListener('click', () => declineAccessRequest(btn.dataset.rid, btn));
     });
 }
 
@@ -286,6 +292,44 @@ async function approveAccessRequest(requestId, btnEl) {
     }
 
     if (typeof showToast === 'function') showToast('Offerta inviata: l\'utente deve ora confermare in app.', 'success', 4500);
+    renderRichiesteList();
+    updateRichiesteBadge();
+}
+
+async function declineAccessRequest(requestId, btnEl) {
+    if (!requestId) return;
+    const req = SlotAccessRequestStorage.getAll().find(r => r.id === requestId);
+    if (!req) {
+        if (typeof showToast === 'function') showToast('Richiesta non trovata. Aggiorna.', 'error');
+        return;
+    }
+    const slotName = (typeof SLOT_NAMES !== 'undefined' && SLOT_NAMES[req.slotType]) || req.slotType;
+    const dateLabel = req.dateDisplay || _richFormatDate(req.date);
+    const wasOffer = req.status === 'offered';
+    const ok = confirm(
+        `Chiudere la richiesta di ${req.userName} per ${slotName} ${dateLabel} ${req.time}?` +
+        (wasOffer ? '\n\nL\'offerta verrà ritirata e il posto offerto al prossimo in coda.' : '')
+    );
+    if (!ok) return;
+
+    if (btnEl) { btnEl.disabled = true; }
+
+    const r = await SlotAccessRequestStorage.adminDecline(requestId);
+    if (!r.ok) {
+        const errMap = {
+            already_resolved:  'La richiesta è già stata risolta.',
+            request_not_found: 'Richiesta non trovata.',
+            unauthorized:      'Non sei admin.',
+        };
+        if (typeof showToast === 'function') showToast(errMap[r.error] || 'Errore: ' + (r.error || 'sconosciuto'), 'error');
+        if (btnEl) { btnEl.disabled = false; }
+        return;
+    }
+
+    const msg = r.offered
+        ? 'Richiesta chiusa. Posto offerto al prossimo in coda.'
+        : 'Richiesta chiusa.';
+    if (typeof showToast === 'function') showToast(msg, 'success', 3500);
     renderRichiesteList();
     updateRichiesteBadge();
 }

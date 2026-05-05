@@ -61,11 +61,12 @@ Deno.serve(async (req) => {
             });
         }
 
-        const slotName  = SLOT_NAMES[slot_type] || slot_type || "Lezione";
         const startTime = (time as string).split(" - ")[0]?.trim() ?? time;
-        const whenText  = (date_display && date_display.length > 0)
-            ? `${date_display} alle ${startTime}`
-            : `${date} alle ${startTime}`;
+        // Data sintetica D/M (es. "9/5"). Fallback: date_display o date raw.
+        const dParts = (date as string || "").split("-");
+        const shortDate = (dParts.length === 3)
+            ? `${parseInt(dParts[2], 10)}/${parseInt(dParts[1], 10)}`
+            : (date_display || date || "");
 
         let title: string;
         let body:  string;
@@ -76,19 +77,18 @@ Deno.serve(async (req) => {
 
         if (event === "new") {
             title    = `🔔 ${name}`;
-            body     = `Chiede accesso a ${slotName} · ${whenText}`;
+            body     = `Chiede un posto (${shortDate})`;
             tag      = `admin-access-new-${date}-${startTime}-${name}`.replace(/\s/g, "-");
             logType  = "access_request_new";
-            logTitle = "Nuova richiesta accesso slot";
-            logBody  = `${name} ha richiesto accesso a ${slot_type} del ${date_display || date} alle ${time}`;
+            logTitle = "Nuova richiesta accesso";
+            logBody  = `${name} chiede un posto (${shortDate})`;
         } else { // accepted
             title    = `✔️ ${name}`;
-            body     = `Confermato · ${slotName} · ${whenText}`;
+            body     = `Ha confermato (${shortDate})`;
             tag      = `admin-access-acc-${date}-${startTime}-${name}`.replace(/\s/g, "-");
             logType  = "access_request_user_accepted";
             logTitle = "Richiesta accesso confermata";
-            logBody  = `${name} ha confermato l'offerta per ${slot_type} del ${date_display || date} alle ${time}` +
-                       (offer_source ? ` (offerta da: ${offer_source})` : "");
+            logBody  = `${name} ha confermato (${shortDate})`;
         }
 
         const payload = JSON.stringify({

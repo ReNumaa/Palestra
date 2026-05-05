@@ -10511,6 +10511,13 @@ body.extra-picker-open .payments-fab {
     color: #ffffff;
     box-shadow: 0 1px 2px rgba(15, 23, 42, 0.06), 0 4px 12px rgba(22, 163, 74, 0.20);
 }
+.rich-btn--ghost {
+    background: #ffffff;
+    color: #475569;
+    border: 1px solid #e2e8f0;
+    box-shadow: 0 1px 2px rgba(15, 23, 42, 0.04);
+}
+.rich-btn--ghost:hover { background: #f8fafc; color: #b91c1c; border-color: #fecaca; }
 
 /* Desktop: card su griglia 2 colonne per non sembrare troppo larghe */
 @media (min-width: 900px) {
