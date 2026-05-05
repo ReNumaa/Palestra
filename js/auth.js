@@ -98,12 +98,19 @@ async function ensureValidSession({ timeoutMs = 12000, force = false } = {}) {
     };
 
     // Step 1 — storage
-    if (!force) {
-        const s = await readSession();
-        if (isFresh(s)) {
-            console.log(`[Auth] ensureValidSession: storage OK (expires in ${s.expires_at - Math.floor(Date.now()/1000)}s)`);
-            return s;
-        }
+    const stored = await readSession();
+    if (!force && isFresh(stored)) {
+        console.log(`[Auth] ensureValidSession: storage OK (expires in ${stored.expires_at - Math.floor(Date.now()/1000)}s)`);
+        return stored;
+    }
+
+    // Pre-check: se non c'è proprio una sessione in storage, NON è una "scadenza"
+    // — è un utente non autenticato (es. su /login.html). Non ha senso tentare un
+    // refresh (non c'è refresh_token) né scatenare il fail-closed che mostra il
+    // toast "Sessione scaduta". Bail silenzioso.
+    if (!stored) {
+        console.log('[Auth] ensureValidSession: nessuna sessione in storage → null silenzioso');
+        return null;
     }
 
     // Step 2 — in-flight: attendi con cap, poi fallback getSession
