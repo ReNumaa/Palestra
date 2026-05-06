@@ -13,7 +13,7 @@
     <link rel="icon" type="image/jpeg" href="images/logo-tb---nero.jpg">
     <link rel="stylesheet" href="css/style.css?v=15">
     <link rel="stylesheet" href="css/login.css?v=4">
-    <link rel="stylesheet" href="css/allenamento.css?v=29">
+    <link rel="stylesheet" href="css/allenamento.css?v=30">
 </head>
 <body class="allenamento-body">
     <nav class="navbar">
@@ -47,13 +47,20 @@
 
     <main class="all-page">
         <div class="container" style="padding-top:1rem;">
-            <!-- Mobile bar (<= 768px): un solo bottone che apre lo sheet "Vai a" -->
-            <div class="all-mbar" id="allMbar" role="toolbar" aria-label="Sezioni allenamento">
-                <button class="all-mbar-page" id="allMbarPage" aria-haspopup="dialog" aria-expanded="false" aria-label="Cambia sezione">
-                    <span class="all-mbar-page-ico" id="allMbarPageIco" aria-hidden="true">📋</span>
-                    <span class="all-mbar-page-label" id="allMbarPageLabel">Scheda</span>
-                    <span class="all-mbar-page-chevron" aria-hidden="true">▾</span>
-                </button>
+            <!-- Mobile bottom stack: dock page-switcher (solo <= 768px) -->
+            <div class="all-bottom-stack" id="allBottomStack">
+                <div class="all-dock" id="allDock" role="navigation" aria-label="Sezione corrente">
+                    <button class="all-dock-btn" id="allMbarPage" aria-haspopup="dialog" aria-expanded="false" aria-label="Cambia sezione">
+                        <span class="all-dock-icon" aria-hidden="true">
+                            <span id="allMbarPageIco">📋</span>
+                        </span>
+                        <span class="all-dock-labels">
+                            <span class="all-dock-eyebrow">Sezione</span>
+                            <span class="all-dock-name" id="allMbarPageLabel">Scheda</span>
+                        </span>
+                        <span class="all-dock-chev" aria-hidden="true"></span>
+                    </button>
+                </div>
             </div>
 
             <!-- Navigation pills (desktop) -->

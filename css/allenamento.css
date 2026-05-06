@@ -3329,6 +3329,8 @@ body.all-modal-open .all-modal-overlay {
 
 /* Nascoste su desktop */
 .all-mbar { display: none; }
+.all-bottom-stack { display: none; }
+.all-dock { display: none; }
 .all-sheet-backdrop,
 .all-sheet { display: none; }
 
@@ -3336,51 +3338,119 @@ body.all-modal-open .all-modal-overlay {
     /* Sostituisce i pill desktop con la barra mobile */
     .all-nav { display: none !important; }
 
-    /* ── Barra mobile ────────────────────────────────────────────────── */
-    .all-mbar {
-        display: flex;
-        gap: 0.5rem;
-        align-items: center;
-        padding: 0.5rem;
-        background: linear-gradient(135deg, #f1f5f9, #e8ecf1);
-        border: 1px solid #e2e8f0;
-        border-radius: 14px;
-        box-shadow: 0 1px 4px rgba(0, 0, 0, 0.04), 0 4px 8px rgba(0, 0, 0, 0.06);
-        margin: 0.5rem 0 1rem;
+    /* Spazio in fondo per non far passare il contenuto sotto il dock */
+    #allContent {
+        padding-bottom: calc(100px + env(safe-area-inset-bottom));
     }
 
-    .all-mbar-page {
-        flex: 1 1 auto;
+    /* FAB sollevato sopra il dock fisso (parità con admin: 84px) */
+    .all-fab {
+        bottom: calc(84px + env(safe-area-inset-bottom)) !important;
+    }
+
+    /* ── Bottom stack: contenitore fisso con backdrop sfumato ────────── */
+    .all-bottom-stack {
+        display: flex;
+        flex-direction: column;
+        gap: 10px;
+        position: fixed;
+        left: 0;
+        right: 0;
+        bottom: 0;
+        padding: 18px 12px calc(12px + env(safe-area-inset-bottom));
+        z-index: 1090;
+        pointer-events: none;
+        background: linear-gradient(
+            180deg,
+            rgba(248, 250, 252, 0) 0%,
+            rgba(248, 250, 252, 0.92) 35%,
+            rgba(248, 250, 252, 1) 100%
+        );
+    }
+    .all-bottom-stack > * { pointer-events: auto; }
+
+    /* ── Dock azzurro (page-switcher) ────────────────────────────────── */
+    .all-dock {
+        display: block;
+        position: relative;
+        pointer-events: auto;
+    }
+    .all-dock-btn {
+        pointer-events: auto;
         width: 100%;
-        min-height: 44px;
+        min-height: 60px;
         display: flex;
         align-items: center;
-        gap: 0.5rem;
-        padding: 0.55rem 0.85rem;
+        gap: 12px;
+        padding: 0 12px;
         border: none;
-        border-radius: 10px;
-        background: linear-gradient(135deg, #00AEEF, #0090cc);
+        border-radius: 12px;
+        background: linear-gradient(135deg, #0b7fb0, #1aa6e0);
         color: #fff;
         font-family: inherit;
-        font-size: 0.92rem;
         font-weight: 700;
-        letter-spacing: 0.01em;
-        cursor: pointer;
-        box-shadow: 0 2px 8px rgba(0, 174, 239, 0.3);
-        transition: transform 0.15s ease, box-shadow 0.2s ease;
+        font-size: 0.98rem;
         text-align: left;
-        overflow: hidden;
+        cursor: pointer;
+        box-shadow:
+            0 8px 32px -8px rgba(11, 127, 176, 0.35),
+            0 12px 24px -8px rgba(11, 127, 176, 0.45),
+            0 4px 10px -4px rgba(15, 23, 42, 0.20),
+            inset 0 1px 0 rgba(255, 255, 255, 0.25);
+        transition: transform 0.15s ease, box-shadow 0.2s ease;
     }
-    .all-mbar-page:active { transform: scale(0.98); }
-    .all-mbar-page-ico { font-size: 1.05rem; line-height: 1; flex-shrink: 0; }
-    .all-mbar-page-label {
+    .all-dock-btn:active { transform: scale(0.985); }
+
+    .all-dock-icon {
+        width: 38px;
+        height: 38px;
+        flex-shrink: 0;
+        border-radius: 10px;
+        background: rgba(255, 255, 255, 0.20);
+        display: grid;
+        place-items: center;
+        font-size: 1.05rem;
+        line-height: 1;
+    }
+    .all-dock-labels {
         flex: 1 1 auto;
         min-width: 0;
+        display: flex;
+        flex-direction: column;
+        gap: 1px;
+        overflow: hidden;
+    }
+    .all-dock-eyebrow {
+        font-size: 0.62rem;
+        font-weight: 700;
+        letter-spacing: 0.10em;
+        text-transform: uppercase;
+        color: rgba(255, 255, 255, 0.78);
+        line-height: 1.2;
+    }
+    .all-dock-name {
+        font-size: 0.98rem;
+        font-weight: 800;
+        letter-spacing: 0.005em;
+        color: #fff;
+        line-height: 1.25;
         overflow: hidden;
         text-overflow: ellipsis;
         white-space: nowrap;
     }
-    .all-mbar-page-chevron { font-size: 0.85rem; opacity: 0.9; flex-shrink: 0; }
+    .all-dock-chev {
+        flex-shrink: 0;
+        width: 9px;
+        height: 9px;
+        margin-right: 6px;
+        border-left: 2px solid #fff;
+        border-top: 2px solid #fff;
+        transform: rotate(45deg) translate(2px, 2px);
+        opacity: 0.85;
+    }
+
+    /* Quando il bottom-sheet è aperto, nasconde il dock per evitare overlap */
+    body.all-sheet-open .all-bottom-stack { display: none; }
 
     /* ── Backdrop ────────────────────────────────────────────────────── */
     .all-sheet-backdrop {
