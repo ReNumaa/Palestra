@@ -1807,6 +1807,200 @@
     line-height: 1.5;
 }
 
+/* ── PDF Preview view (anteprima pagine scrollabili) ──────────────────────── */
+.all-pdf-view {
+    display: flex;
+    flex-direction: column;
+    gap: 0.6rem;
+    padding: 0.5rem 0 6rem; /* bottom space leaves room for the floating download button */
+    animation: allFadeUp 0.4s ease-out;
+}
+
+.all-pdf-preview-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 0.6rem;
+    padding: 0 0.25rem;
+}
+
+.all-pdf-preview-title {
+    font-size: 1rem;
+    font-weight: 800;
+    color: var(--all-navy);
+    margin: 0;
+}
+
+.all-pdf-preview-hint {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.25rem;
+    font-size: 0.72rem;
+    font-weight: 700;
+    color: var(--all-cyan-dark);
+    background: var(--all-cyan-glow);
+    padding: 0.22rem 0.6rem;
+    border-radius: 999px;
+    transition: opacity 0.4s ease;
+    animation: allPdfHintNudge 1.6s ease-in-out infinite;
+}
+.all-pdf-preview-hint.hide { opacity: 0; pointer-events: none; }
+
+@keyframes allPdfHintNudge {
+    0%, 100% { transform: translateX(0); }
+    50% { transform: translateX(4px); }
+}
+
+.all-pdf-preview-scroller {
+    display: flex;
+    flex-direction: row;
+    gap: 1rem;
+    overflow-x: auto;
+    overflow-y: hidden;
+    scroll-snap-type: x mandatory;
+    -webkit-overflow-scrolling: touch;
+    scrollbar-width: thin;
+    /* Right padding lets the next page peek in, signalling that the row is scrollable. */
+    padding: 0.4rem 18% 0.8rem 0.4rem;
+    margin: 0 -0.4rem;
+}
+.all-pdf-preview-scroller::-webkit-scrollbar { height: 6px; }
+.all-pdf-preview-scroller::-webkit-scrollbar-thumb {
+    background: #cbd5e1;
+    border-radius: 3px;
+}
+.all-pdf-preview-scroller::-webkit-scrollbar-track { background: transparent; }
+
+.all-pdf-preview-page {
+    flex: 0 0 auto;
+    width: min(78vw, 420px);
+    aspect-ratio: 210 / 297;
+    background: #fff;
+    border-radius: 10px;
+    border: 1.5px solid var(--all-border);
+    box-shadow: 0 6px 20px -6px rgba(15, 23, 42, 0.18), 0 2px 6px -2px rgba(15, 23, 42, 0.10);
+    overflow: hidden;
+    position: relative;
+    scroll-snap-align: start;
+}
+
+.all-pdf-preview-page canvas {
+    display: block;
+    width: 100% !important;
+    height: 100% !important;
+    object-fit: contain;
+}
+
+.all-pdf-preview-pagenum {
+    position: absolute;
+    top: 8px;
+    right: 8px;
+    background: rgba(15, 23, 42, 0.78);
+    color: #fff;
+    font-size: 0.7rem;
+    font-weight: 700;
+    padding: 0.18rem 0.5rem;
+    border-radius: 999px;
+    backdrop-filter: blur(4px);
+    -webkit-backdrop-filter: blur(4px);
+}
+
+.all-pdf-preview-loading {
+    flex: 0 0 100%;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    gap: 0.7rem;
+    min-height: 280px;
+    color: var(--all-muted);
+    font-size: 0.85rem;
+    font-weight: 600;
+}
+.all-pdf-preview-spinner {
+    width: 28px; height: 28px;
+    border: 3px solid var(--all-border);
+    border-top-color: var(--all-cyan);
+    border-radius: 50%;
+    animation: allPdfSpin 0.8s linear infinite;
+}
+@keyframes allPdfSpin {
+    to { transform: rotate(360deg); }
+}
+
+.all-pdf-preview-error {
+    flex: 0 0 100%;
+    text-align: center;
+    color: var(--all-muted);
+    padding: 2rem 1rem;
+    font-size: 0.85rem;
+    line-height: 1.5;
+}
+
+.all-pdf-preview-dots {
+    display: flex;
+    gap: 6px;
+    justify-content: center;
+    padding: 0.2rem 0 0.4rem;
+}
+.all-pdf-preview-dot {
+    width: 7px; height: 7px;
+    border-radius: 50%;
+    background: var(--all-border);
+    transition: all 0.2s ease;
+}
+.all-pdf-preview-dot.active {
+    background: var(--all-cyan);
+    transform: scale(1.3);
+}
+
+/* ── Floating "Scarica PDF" button (in basso a destra, sopra il dock mobile) */
+.all-pdf-download-fab {
+    position: fixed;
+    bottom: 1.5rem;
+    right: 1.5rem;
+    display: inline-flex;
+    align-items: center;
+    gap: 0.5rem;
+    padding: 0.85rem 1.2rem;
+    border: none;
+    border-radius: 999px;
+    background: linear-gradient(135deg, var(--all-cyan) 0%, var(--all-cyan-dark) 100%);
+    color: #fff;
+    font-family: inherit;
+    font-size: 0.92rem;
+    font-weight: 800;
+    letter-spacing: 0.01em;
+    cursor: pointer;
+    box-shadow:
+        0 8px 24px -6px rgba(0, 174, 239, 0.55),
+        0 4px 10px -3px rgba(15, 23, 42, 0.20);
+    transition: transform 0.18s ease, box-shadow 0.2s ease, opacity 0.2s ease;
+    /* Sopra al gradient del bottom-stack (z 1090), sotto i bottom-sheet (1100). */
+    z-index: 1095;
+    -webkit-tap-highlight-color: transparent;
+}
+.all-pdf-download-fab:hover {
+    transform: translateY(-1px);
+    box-shadow:
+        0 12px 32px -6px rgba(0, 174, 239, 0.6),
+        0 6px 14px -4px rgba(15, 23, 42, 0.22);
+}
+.all-pdf-download-fab:active { transform: scale(0.97); }
+.all-pdf-download-fab[disabled] {
+    opacity: 0.7;
+    cursor: progress;
+    transform: none;
+}
+
+@media (max-width: 768px) {
+    /* Sopra al dock mobile (84px parità con .all-fab) */
+    .all-pdf-download-fab {
+        bottom: calc(84px + env(safe-area-inset-bottom));
+        right: 1rem;
+    }
+}
+
 /* ── Next booking inside day tab ──────────────────────────────────────────── */
 .all-day-tab-next {
     font-size: 0.68rem;
@@ -3740,4 +3934,217 @@ body.all-modal-open .all-modal-overlay {
 
     /* Body lock quando sheet aperto */
     body.all-sheet-open { overflow: hidden; }
+}
+
+/* ═══════════════════════════════════════════════════════════════════════════
+   PROGRESSI Mobile v2 — design "Progressi Mobile v2.html" da Claude Design
+   Hero scuro con KPI + segmented Tutto/Cardio/Forza/Core + card immagine+grafico.
+   Solo mobile: <=768px.
+   ═══════════════════════════════════════════════════════════════════════════ */
+@media (max-width: 768px) {
+    .prog2-wrap { padding-bottom: 8px; }
+
+    .prog2-hero {
+        margin: 0 0 12px;
+        padding: 16px 18px 14px;
+        background: linear-gradient(155deg, #0b1220 0%, #0e1f33 60%, #0b7fb0 130%);
+        border-radius: 18px;
+        color: #fff;
+        position: relative;
+        overflow: hidden;
+    }
+    .prog2-hero::after {
+        content: "";
+        position: absolute;
+        inset: auto -50px -70px auto;
+        width: 200px; height: 200px;
+        border-radius: 50%;
+        background: radial-gradient(circle, rgba(26, 166, 224, 0.4) 0%, transparent 70%);
+        pointer-events: none;
+    }
+    .prog2-hero-row {
+        display: flex; align-items: center; justify-content: space-between; gap: 10px;
+        position: relative; z-index: 1;
+    }
+    .prog2-eye {
+        font-size: 11px; font-weight: 800; color: #1aa6e0;
+        letter-spacing: 0.18em; text-transform: uppercase;
+    }
+    .prog2-iconbtn {
+        width: 32px; height: 32px; border-radius: 9px;
+        background: rgba(255, 255, 255, 0.12);
+        display: grid; place-items: center; color: #fff;
+        border: 1px solid rgba(255, 255, 255, 0.16);
+        cursor: pointer; padding: 0;
+    }
+    .prog2-iconbtn:active { transform: scale(0.95); }
+    .prog2-iconbtn svg { width: 13px; height: 13px; }
+    .prog2-hero-kpis {
+        margin-top: 14px; display: grid; grid-template-columns: repeat(3, 1fr); gap: 10px;
+        position: relative; z-index: 1;
+    }
+    .prog2-hk {
+        background: rgba(255, 255, 255, 0.06);
+        border: 1px solid rgba(255, 255, 255, 0.1);
+        border-radius: 12px; padding: 10px 8px; text-align: center;
+        backdrop-filter: blur(4px); -webkit-backdrop-filter: blur(4px);
+    }
+    .prog2-hk-val { font-size: 22px; font-weight: 800; color: #fff; letter-spacing: -0.01em; line-height: 1.1; }
+    .prog2-hk-lbl { font-size: 9.5px; font-weight: 800; color: #94a3b8; letter-spacing: 0.08em; text-transform: uppercase; margin-top: 2px; }
+
+    .prog2-seg {
+        margin: 6px 0 0; display: flex; gap: 0; padding: 3px;
+        background: #f1f5f9; border-radius: 12px;
+    }
+    .prog2-seg-btn {
+        flex: 1; padding: 8px 6px; border-radius: 9px;
+        font-size: 12px; font-weight: 700; color: #64748b;
+        cursor: pointer; text-align: center; background: transparent; border: 0;
+        font-family: inherit; transition: background 0.12s ease, color 0.12s ease;
+    }
+    .prog2-seg-btn.active {
+        background: #fff; color: #0f172a;
+        box-shadow: 0 1px 2px rgba(15, 23, 42, 0.08);
+    }
+    .prog2-seg-btn:active { transform: scale(0.97); }
+
+    .prog2-section-h {
+        padding: 14px 0 6px; display: flex; align-items: baseline; justify-content: space-between;
+    }
+    .prog2-section-h .t {
+        font-size: 11px; font-weight: 800; color: #64748b;
+        letter-spacing: 0.08em; text-transform: uppercase;
+    }
+    .prog2-section-h .c {
+        font-size: 11px; font-weight: 700; color: #334155;
+        background: #f1f5f9; padding: 2px 8px; border-radius: 999px;
+    }
+
+    .prog2-empty {
+        margin: 8px 0;
+        padding: 24px 16px;
+        background: #fff;
+        border-radius: 14px;
+        text-align: center;
+        color: #64748b;
+        font-size: 13px;
+        font-weight: 600;
+    }
+
+    .prog2-ex {
+        margin: 8px 0 0;
+        background: #fff;
+        border-radius: 14px;
+        padding: 12px;
+        box-shadow: 0 1px 2px rgba(15, 23, 42, 0.04);
+    }
+    .prog2-ex-top {
+        display: flex; align-items: flex-start; justify-content: space-between; gap: 10px; margin-bottom: 10px;
+    }
+    .prog2-ex-titles { min-width: 0; }
+    .prog2-ex-name {
+        font-size: 14.5px; font-weight: 800; letter-spacing: -0.005em; color: #0f172a; line-height: 1.15;
+    }
+    .prog2-ex-target { font-size: 11px; color: #64748b; font-weight: 600; margin-top: 2px; }
+    .prog2-ex-sess {
+        flex-shrink: 0; font-size: 10px; font-weight: 800;
+        color: #0b7fb0; background: #e6f6fd;
+        padding: 3px 8px; border-radius: 999px; letter-spacing: 0.04em;
+        white-space: nowrap;
+    }
+    .prog2-ex-body {
+        display: grid; grid-template-columns: 84px 1fr; gap: 10px; align-items: stretch;
+    }
+    .prog2-ex-img {
+        width: 84px; height: 84px; border-radius: 10px;
+        background: linear-gradient(135deg, #e0e7ef 0%, #cbd5e1 100%);
+        display: grid; place-items: center; color: #64748b;
+        position: relative; overflow: hidden;
+    }
+    .prog2-ex-img-pic { width: 100%; height: 100%; object-fit: cover; display: block; }
+    .prog2-ex-img-ph { width: 34px; height: 34px; opacity: 0.7; }
+    .prog2-zoom {
+        position: absolute; top: 5px; right: 5px;
+        width: 22px; height: 22px; border-radius: 6px;
+        background: rgba(15, 23, 42, 0.7); color: #fff;
+        display: grid; place-items: center; cursor: pointer; border: 0; padding: 0;
+        z-index: 1;
+    }
+    .prog2-zoom:active { transform: scale(0.92); }
+    .prog2-zoom svg { width: 11px; height: 11px; }
+    .prog2-chart {
+        position: relative; border-radius: 10px;
+        background: linear-gradient(180deg, #f8fafc, #fff);
+        overflow: hidden;
+        min-height: 84px;
+    }
+    .prog2-chart svg { display: block; width: 100%; height: 100%; }
+    .prog2-badge {
+        position: absolute; background: #0f172a; color: #fff;
+        font-size: 10px; font-weight: 800; padding: 3px 7px; border-radius: 999px;
+        top: 5px; right: 6px;
+        white-space: nowrap;
+    }
+    .prog2-ex-foot {
+        margin-top: 10px; display: flex; align-items: center; gap: 6px; flex-wrap: wrap;
+    }
+    .prog2-stat {
+        display: inline-flex; align-items: baseline; gap: 4px;
+        font-size: 11px; color: #64748b; font-weight: 600;
+    }
+    .prog2-stat b { color: #0f172a; font-weight: 800; font-size: 12.5px; }
+    .prog2-stat.all-trend-up, .prog2-stat.all-trend-up b { color: #166534; }
+    .prog2-stat.all-trend-down, .prog2-stat.all-trend-down b { color: #ef4444; }
+    .prog2-sep { color: #cbd5e1; margin: 0 2px; font-size: 11px; }
+
+    /* Modal zoom */
+    .prog2-modal {
+        position: fixed; inset: 0; z-index: 9999;
+        background: rgba(8, 12, 22, 0.75);
+        -webkit-backdrop-filter: blur(4px); backdrop-filter: blur(4px);
+        display: none; align-items: center; justify-content: center; padding: 20px;
+    }
+    .prog2-modal.open { display: flex; }
+    .prog2-modal-card {
+        width: 100%; max-width: 420px; background: #fff; border-radius: 18px; overflow: hidden;
+        box-shadow: 0 20px 40px -10px rgba(0, 0, 0, 0.4);
+        max-height: 90vh; display: flex; flex-direction: column;
+    }
+    .prog2-modal-head {
+        display: flex; align-items: center; justify-content: space-between;
+        padding: 14px 16px 10px;
+    }
+    .prog2-modal-name { font-size: 15px; font-weight: 800; letter-spacing: -0.005em; color: #0f172a; }
+    .prog2-modal-target { font-size: 11px; color: #64748b; font-weight: 600; margin-top: 2px; }
+    .prog2-modal-close {
+        width: 30px; height: 30px; border-radius: 8px;
+        background: #f1f5f9; color: #334155;
+        display: grid; place-items: center; cursor: pointer; border: 0; padding: 0;
+        flex-shrink: 0;
+    }
+    .prog2-modal-close:active { transform: scale(0.92); }
+    .prog2-modal-close svg { width: 14px; height: 14px; }
+    .prog2-modal-img {
+        margin: 0 16px; height: 200px; border-radius: 12px;
+        background: linear-gradient(135deg, #e0e7ef 0%, #cbd5e1 100%);
+        display: grid; place-items: center; color: #64748b;
+        overflow: hidden;
+    }
+    .prog2-modal-pic, .prog2-modal-video { width: 100%; height: 100%; object-fit: cover; display: block; }
+    .prog2-modal-ph { width: 54px; height: 54px; opacity: 0.7; }
+    .prog2-modal-chart {
+        margin: 14px 16px 16px; height: 160px;
+        background: linear-gradient(180deg, #f8fafc, #fff);
+        border-radius: 12px; border: 1px solid #f1f5f9;
+        position: relative; overflow: hidden;
+    }
+    .prog2-modal-chart svg { display: block; width: 100%; height: 100%; }
+    .prog2-modal-chart .prog2-badge {
+        font-size: 11px; padding: 4px 9px; top: 10px; right: 10px;
+    }
+    .prog2-modal-foot {
+        padding: 0 16px 16px; display: flex; align-items: center; gap: 8px; flex-wrap: wrap;
+    }
+
+    body.prog2-modal-locked { overflow: hidden; }
 }

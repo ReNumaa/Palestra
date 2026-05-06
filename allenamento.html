@@ -13,7 +13,7 @@
     <link rel="icon" type="image/jpeg" href="images/logo-tb---nero.jpg">
     <link rel="stylesheet" href="css/style.css?v=15">
     <link rel="stylesheet" href="css/login.css?v=4">
-    <link rel="stylesheet" href="css/allenamento.css?v=35">
+    <link rel="stylesheet" href="css/allenamento.css?v=36">
 </head>
 <body class="allenamento-body">
     <nav class="navbar">
@@ -2128,8 +2128,9 @@
         function _renderProgressiMobileV2(container, ctx) {
             const { logs, idToGroupKey, groupKeyToName, groupKeyToMuscle, groupKeyToEx, nameToMuscle, targetByName } = ctx;
 
-            // Reset cache esercizi modal (nuovo render → nuovi id)
+            // Reset cache esercizi modal (nuovo render → nuovi id) + cleanup body lock
             for (const k in _progressiExData) delete _progressiExData[k];
+            document.body.classList.remove('prog2-modal-locked');
 
             // Filtro temporale fisso: ultimi 30 giorni (come da design)
             const now = new Date();
