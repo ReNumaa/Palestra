@@ -2132,11 +2132,10 @@
     gap: 0.7rem;
 }
 
-/* ── Body fissa quando si e' sulla view PDF (niente bounce/scroll parassita) */
-body.all-view-pdf-fixed {
-    overflow: hidden;
-    overscroll-behavior: none;
-}
+/* ── View PDF: niente padding-bottom inutile (le pagine cap a 60vh entrano
+   nel viewport, non serve far spazio extra al dock dato che il bottone
+   Scarica e il dock sono fixed). Lasciamo l'overflow naturale cosi' il
+   pull-to-refresh continua a funzionare. */
 body.all-view-pdf-fixed .all-page {
     padding-bottom: 0;
 }
@@ -3839,11 +3838,13 @@ body.all-modal-open .all-modal-overlay {
         padding: 18px 12px calc(12px + env(safe-area-inset-bottom));
         z-index: 1090;
         pointer-events: none;
+        /* Sfumato che termina sul colore --all-bg (#f1f5f9) della pagina, cosi'
+           non si vede una banda piu' chiara sotto al dock. */
         background: linear-gradient(
             180deg,
-            rgba(248, 250, 252, 0) 0%,
-            rgba(248, 250, 252, 0.92) 35%,
-            rgba(248, 250, 252, 1) 100%
+            rgba(241, 245, 249, 0) 0%,
+            rgba(241, 245, 249, 0.92) 35%,
+            rgba(241, 245, 249, 1) 100%
         );
     }
     .all-bottom-stack > * { pointer-events: auto; }
@@ -4135,31 +4136,35 @@ body.all-modal-open .all-modal-overlay {
     .prog2-hk-val { font-size: 22px; font-weight: 800; color: #fff; letter-spacing: -0.01em; line-height: 1.1; }
     .prog2-hk-lbl { font-size: 9.5px; font-weight: 800; color: #94a3b8; letter-spacing: 0.08em; text-transform: uppercase; margin-top: 2px; }
 
-    /* Filter chip nell'hero (mostra muscolo corrente, apre bottom sheet) */
-    .prog2-hero-actions {
-        display: flex; gap: 8px; align-items: center;
-        position: relative; z-index: 1;
-        flex-shrink: 0;
-    }
-    .prog2-filter-chip {
-        display: inline-flex; align-items: center; gap: 4px;
-        padding: 7px 10px;
-        border-radius: 9px;
-        background: rgba(255, 255, 255, 0.12);
-        border: 1px solid rgba(255, 255, 255, 0.16);
+    /* Filter FAB fisso in basso a destra, sopra il dock mobile (84px parità con .all-fab) */
+    .prog2-filter-fab {
+        position: fixed;
+        right: 1rem;
+        bottom: calc(84px + env(safe-area-inset-bottom));
+        z-index: 90;
+        display: inline-flex; align-items: center; gap: 6px;
+        padding: 9px 12px 9px 11px;
+        border-radius: 999px;
+        background: linear-gradient(135deg, #1aa6e0, #0b7fb0);
         color: #fff;
-        font-size: 12px; font-weight: 700;
-        cursor: pointer;
+        font-size: 13px; font-weight: 700;
         font-family: inherit;
-        max-width: 130px;
+        cursor: pointer;
+        border: 0;
+        box-shadow:
+            0 6px 16px -4px rgba(11, 127, 176, 0.45),
+            0 3px 8px -2px rgba(15, 23, 42, 0.18),
+            inset 0 1px 0 rgba(255, 255, 255, 0.22);
+        max-width: calc(100vw - 2rem);
         line-height: 1.1;
     }
-    .prog2-filter-chip:active { transform: scale(0.96); }
-    .prog2-filter-chip-lbl {
+    .prog2-filter-fab:active { transform: scale(0.96); }
+    .prog2-filter-fab-ico { width: 14px; height: 14px; flex-shrink: 0; }
+    .prog2-filter-fab-chev { width: 13px; height: 13px; flex-shrink: 0; opacity: 0.9; }
+    .prog2-filter-fab-lbl {
         white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
-        max-width: 100px;
+        max-width: 140px;
     }
-    .prog2-filter-chip-chev { width: 12px; height: 12px; flex-shrink: 0; opacity: 0.85; }
 
     /* Bottom sheet filtro muscolo (stile admin Statistiche & Fatturato) */
     .prog2-filter-backdrop {
