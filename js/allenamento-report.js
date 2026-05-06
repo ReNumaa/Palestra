@@ -186,53 +186,64 @@ async function renderReport() {
 
     let html = '<div class="all-report-section">';
 
-    // Header
+    // ── Hero card: eyebrow / mese / sub / quota generazioni ──
+    const used = availableMonthReports.length;
+    const total = MAX_GENERATIONS_PER_MONTH;
+    const remaining = Math.max(0, total - used);
+    const fillPct = total > 0 ? Math.round((remaining / total) * 100) : 0;
     html += `
-        <div class="all-report-header">
-            <h2 class="all-report-title">📊 I tuoi Report Mensili</h2>
-        </div>
-    `;
-
-    // CTA: 6 card obiettivo (3x2). Click → genera il report di quel mese
-    // sull'obiettivo scelto. Se l'obiettivo è già stato generato per quel
-    // mese, la card è in stato "fatto" (cliccabile per riaprire).
-    html += `
-        <div class="all-report-generate-card">
-            <div class="all-report-generate-title">Genera il report di ${availableMonthLabel}</div>
-            <div class="all-report-generate-desc">Scegli l'obiettivo del mese: il report verrà costruito intorno a quello.</div>
-            <div class="all-report-goal-grid">
-                ${_GOALS.map(g => {
-                    const alreadyGenerated = goalsGenerated.has(g.value);
-                    const blockedByLimit = reachedRegenLimit && !alreadyGenerated;
-                    const disabled = blockedByLimit;
-                    let onclick = '';
-                    if (alreadyGenerated) {
-                        const existingId = availableMonthReports.find(r => r.goal === g.value)?.id;
-                        onclick = existingId ? `openReportDetail('${existingId}')` : '';
-                    } else if (!disabled) {
-                        onclick = `_generateGoal('${availableMonth}', '${g.value}')`;
-                    }
-                    const stateClass = alreadyGenerated
-                        ? 'all-report-goal-card--done'
-                        : (disabled ? 'all-report-goal-card--disabled' : '');
-                    return `
-                        <button class="all-report-goal-card ${stateClass}"
-                                ${disabled ? 'disabled aria-disabled="true"' : ''}
-                                onclick="${onclick}">
-                            <div class="all-report-goal-card-icon">${g.icon}</div>
-                            <div class="all-report-goal-card-label">${g.label}</div>
-                            <div class="all-report-goal-card-desc">${alreadyGenerated ? '✓ Generato — apri' : g.desc}</div>
-                        </button>
-                    `;
-                }).join('')}
+        <div class="all-report-hero">
+            <div class="all-report-hero-eyebrow">Report mensile</div>
+            <div class="all-report-hero-month">${availableMonthLabel}</div>
+            <div class="all-report-hero-sub">Scegli l'obiettivo del mese: il report verrà costruito intorno a quello.</div>
+            <div class="all-report-hero-quota">
+                <span>Generazioni</span>
+                <div class="all-report-hero-quota-bar"><div class="all-report-hero-quota-fill" style="width:${fillPct}%"></div></div>
+                <b>${remaining} / ${total}</b>
             </div>
-            ${reachedRegenLimit
-                ? `<div class="all-report-generate-limit">Hai usato tutte e ${MAX_GENERATIONS_PER_MONTH} le generazioni per ${availableMonthLabel}.</div>`
-                : ''}
         </div>
     `;
 
-    // Lista report raggruppata per mese
+    // ── Section header: "Obiettivo del mese" ──
+    html += `
+        <div class="all-report-section-h"><span class="t">Obiettivo del mese</span></div>
+    `;
+
+    // ── Goal grid 3×2: una card per obiettivo. Stato "done" cliccabile per riaprire ──
+    html += `<div class="all-report-goal-grid">`;
+    for (const g of _GOALS) {
+        const alreadyGenerated = goalsGenerated.has(g.value);
+        const blockedByLimit = reachedRegenLimit && !alreadyGenerated;
+        const disabled = blockedByLimit;
+        let onclick = '';
+        if (alreadyGenerated) {
+            const existingId = availableMonthReports.find(r => r.goal === g.value)?.id;
+            onclick = existingId ? `openReportDetail('${existingId}')` : '';
+        } else if (!disabled) {
+            onclick = `_generateGoal('${availableMonth}', '${g.value}')`;
+        }
+        const stateClass = alreadyGenerated
+            ? 'all-report-goal-card--done'
+            : (disabled ? 'all-report-goal-card--disabled' : '');
+        const descText = alreadyGenerated ? '✓ Generato — apri' : g.desc;
+        html += `
+            <button class="all-report-goal-card ${stateClass}"
+                    ${disabled ? 'disabled aria-disabled="true"' : ''}
+                    onclick="${onclick}">
+                <div class="all-report-goal-card-icon">${g.icon}</div>
+                <div class="all-report-goal-card-label">${g.label}</div>
+                <div class="all-report-goal-card-desc">${descText}</div>
+            </button>
+        `;
+    }
+    html += `</div>`;
+
+    if (reachedRegenLimit) {
+        html += `<div class="all-report-generate-limit">Hai usato tutte e ${MAX_GENERATIONS_PER_MONTH} le generazioni per ${availableMonthLabel}.</div>`;
+    }
+
+    // ── Archivio ──
+    html += `<div class="all-report-archive-h"><h2>Archivio</h2></div>`;
     html += '<div class="all-report-list">';
     if (reports.length === 0) {
         html += `
@@ -241,7 +252,6 @@ async function renderReport() {
             </div>
         `;
     } else {
-        html += '<h3 class="all-report-list-title">Archivio</h3>';
         for (const ym of sortedMonths) {
             const monthReports = reportsByMonth[ym];
             const monthLabel = _formatYearMonth(ym);
@@ -261,7 +271,7 @@ async function renderReport() {
                         <span class="all-report-variant-icon">${icon}</span>
                         <span class="all-report-variant-label">${label}</span>
                         <span class="all-report-variant-date">${dateStr}</span>
-                        <span class="all-report-variant-arrow">›</span>
+                        <span class="all-report-variant-arrow"></span>
                     </button>
                 `;
             }
