@@ -13,7 +13,7 @@
     <link rel="icon" type="image/jpeg" href="images/logo-tb---nero.jpg">
     <link rel="stylesheet" href="css/style.css?v=15">
     <link rel="stylesheet" href="css/login.css?v=4">
-    <link rel="stylesheet" href="css/allenamento.css?v=40">
+    <link rel="stylesheet" href="css/allenamento.css?v=43">
 </head>
 <body class="allenamento-body">
     <nav class="navbar">
@@ -2126,11 +2126,17 @@
             for (const k in _progressiExData) delete _progressiExData[k];
             document.body.classList.remove('prog2-modal-locked');
 
-            // Filtro temporale fisso: ultimi 30 giorni (come da design)
-            const now = new Date();
-            const cutoff = new Date(now.getTime() - 30 * 86400000);
-            const cutoffStr = _localDateStr(cutoff);
-            const filteredLogs = logs.filter(l => l.log_date >= cutoffStr);
+            // Filtro temporale: usa _filterPeriod ('all' | '7d' | '30d' | '90d')
+            const period = _filterPeriod;
+            let filteredLogs = logs;
+            if (period !== 'all') {
+                const days = period === '7d' ? 7 : period === '30d' ? 30 : period === '90d' ? 90 : null;
+                if (days != null) {
+                    const cutoff = new Date(Date.now() - days * 86400000);
+                    const cutoffStr = _localDateStr(cutoff);
+                    filteredLogs = logs.filter(l => l.log_date >= cutoffStr);
+                }
+            }
 
             const filteredByName = {};
             for (const l of filteredLogs) {
@@ -2162,11 +2168,16 @@
 
             let html = '<div class="prog2-wrap">';
 
-            // Hero (eye-label + storico icon a destra)
+            // Hero (eye-label cliccabile per periodo + storico icon a destra)
+            const periodSuffix = _progressiPeriodLabel(period);
+            const eyeText = 'PROGRESSI' + (periodSuffix ? ' · ' + periodSuffix : '');
             html += `
                 <div class="prog2-hero">
                     <div class="prog2-hero-row">
-                        <div class="prog2-eye">PROGRESSI · ULTIMI 30 GG</div>
+                        <button class="prog2-eye-btn" type="button" onclick="_progressiOpenPeriodSheet()" aria-haspopup="dialog" aria-expanded="false" aria-label="Filtra per periodo">
+                            <span class="prog2-eye">${_escHtml(eyeText)}</span>
+                            <svg class="prog2-eye-chev" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="6 9 12 15 18 9"/></svg>
+                        </button>
                         <button class="prog2-iconbtn" type="button" onclick="switchAllView('storico')" aria-label="Storico allenamenti" title="Storico">
                             <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 12a9 9 0 1 0 3-6.7"/><polyline points="3 4 3 10 9 10"/><polyline points="12 7 12 12 16 14"/></svg>
                         </button>
@@ -2190,9 +2201,11 @@
             html += `<div class="prog2-section-h"><span class="t">Esercizi</span><span class="c">${exerciseNames.length}</span></div>`;
 
             if (!exerciseNames.length) {
+                const periodLbl = periodSuffix ? periodSuffix.toLowerCase() : '';
+                const scopeText = periodLbl ? `negli ${periodLbl}` : 'registrati';
                 const emptyMsg = muscle === 'all'
-                    ? 'Nessun esercizio negli ultimi 30 giorni.'
-                    : `Nessun esercizio per "${_escHtml(muscle)}" negli ultimi 30 giorni.`;
+                    ? `Nessun esercizio ${scopeText}.`
+                    : `Nessun esercizio per "${_escHtml(muscle)}" ${scopeText}.`;
                 html += `<div class="prog2-empty">${emptyMsg}</div>`;
             }
 
@@ -2276,7 +2289,58 @@
             }
 
             html += '</div>';
-            container.innerHTML = html + filterFabHtml + _progressiModalShellHtml() + _progressiFilterSheetHtml(muscleGroups, muscle);
+            container.innerHTML = html + filterFabHtml + _progressiModalShellHtml() + _progressiFilterSheetHtml(muscleGroups, muscle) + _progressiPeriodSheetHtml(period);
+        }
+
+        function _progressiPeriodLabel(p) {
+            switch (p) {
+                case '7d': return 'ULTIMI 7 GG';
+                case '30d': return 'ULTIMI 30 GG';
+                case '90d': return 'ULTIMI 3 MESI';
+                default: return ''; // 'all' → nessun suffisso
+            }
+        }
+
+        function _progressiPeriodSheetHtml(current) {
+            const items = [
+                ['all', 'Tutto'],
+                ['7d', 'Ultimi 7 giorni'],
+                ['30d', 'Ultimi 30 giorni'],
+                ['90d', 'Ultimi 3 mesi']
+            ];
+            const buttons = items.map(([v, lbl]) =>
+                `<button type="button" class="prog2-filter-tab${current === v ? ' active' : ''}" onclick="_progressiSetPeriod('${v}')">${_escHtml(lbl)}</button>`
+            ).join('');
+            return `
+                <div class="prog2-filter-backdrop" id="prog2PeriodBackdrop" onclick="_progressiClosePeriodSheet()"></div>
+                <aside class="prog2-filter-sheet" id="prog2PeriodSheet" role="dialog" aria-modal="true" aria-labelledby="prog2PeriodTitle" aria-hidden="true">
+                    <div class="prog2-filter-grabber" aria-hidden="true"></div>
+                    <h3 class="prog2-filter-title" id="prog2PeriodTitle">Periodo</h3>
+                    <div class="prog2-filter-list" role="tablist">${buttons}</div>
+                </aside>`;
+        }
+
+        function _progressiOpenPeriodSheet() {
+            const s = document.getElementById('prog2PeriodSheet');
+            const b = document.getElementById('prog2PeriodBackdrop');
+            if (s) { s.classList.add('open'); s.setAttribute('aria-hidden', 'false'); }
+            if (b) b.classList.add('open');
+            document.body.classList.add('prog2-modal-locked');
+        }
+
+        function _progressiClosePeriodSheet() {
+            const s = document.getElementById('prog2PeriodSheet');
+            const b = document.getElementById('prog2PeriodBackdrop');
+            if (s) { s.classList.remove('open'); s.setAttribute('aria-hidden', 'true'); }
+            if (b) b.classList.remove('open');
+            document.body.classList.remove('prog2-modal-locked');
+        }
+
+        function _progressiSetPeriod(v) {
+            if (_filterPeriod === v) { _progressiClosePeriodSheet(); return; }
+            _filterPeriod = v;
+            _progressiClosePeriodSheet();
+            renderProgressi();
         }
 
         function _progressiFilterSheetHtml(muscleGroups, current) {
@@ -4233,7 +4297,7 @@
             });
         }
     </script>
-    <script src="js/allenamento-report.js?v=2"></script>
+    <script src="js/allenamento-report.js?v=3"></script>
     <script src="js/sw-update.js"></script>
     <script src="js/pwa-install.js"></script>
 

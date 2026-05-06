@@ -3115,189 +3115,296 @@ body.all-modal-open .all-modal-overlay {
    surface #ffffff, surface-alt #fafaf7 (warm white), text #1e1b2e, muted #6b6673.
    ══════════════════════════════════════════════════════════════════════════ */
 
+/* Design tokens locali (allineati a "Report Mobile.html" — palette cyan/navy) */
 .all-report-section {
+    --rep-ink-900: #0f172a;
+    --rep-ink-700: #334155;
+    --rep-ink-500: #64748b;
+    --rep-ink-400: #94a3b8;
+    --rep-ink-300: #cbd5e1;
+    --rep-ink-200: #e2e8f0;
+    --rep-ink-100: #f1f5f9;
+    --rep-brand: #1aa6e0;
+    --rep-brand-strong: #0b7fb0;
+    --rep-header-ink: #0b1220;
+    --rep-green: #16a34a;
+    --rep-green-bg: #dcfce7;
+    --rep-green-ink: #166534;
     padding: 0.25rem 0 2.5rem;
-}
-
-/* ── Header ─────────────────────────────────────────────────────────────── */
-.all-report-header {
-    margin-bottom: 1.75rem;
-}
-
-.all-report-title {
-    margin: 0 0 0.4rem;
-    font-size: 1.45rem;
-    font-weight: 700;
-    letter-spacing: -0.01em;
-    color: #1e1b2e;
-}
-
-.all-report-subtitle {
-    margin: 0;
-    font-size: 0.92rem;
-    color: #6b6673;
-    line-height: 1.5;
+    color: var(--rep-ink-900);
 }
 
 /* ══════════════════════════════════════════════════════════════════════════
-   CTA: card "Genera report" con 3 bottoni tono
+   Hero — card scura con eyebrow / mese / sub / quota generazioni
    ══════════════════════════════════════════════════════════════════════════ */
-
-.all-report-generate-card {
-    background: linear-gradient(135deg, #fdfcff 0%, #faf5ff 100%);
-    border: 1px solid rgba(124, 58, 237, 0.12);
-    border-radius: 20px;
-    padding: 1.5rem 1.4rem;
-    margin-bottom: 2rem;
+.all-report-hero {
+    position: relative;
+    overflow: hidden;
+    margin: 0 0 0.9rem;
+    padding: 1.05rem 1.15rem 1.1rem;
+    border-radius: 18px;
+    color: #fff;
+    background: linear-gradient(155deg, #0b1220 0%, #0e1f33 60%, #0b7fb0 130%);
     box-shadow:
-        0 1px 2px rgba(30, 27, 46, 0.04),
-        0 8px 24px rgba(124, 58, 237, 0.06);
+        0 1px 2px rgba(15, 23, 42, 0.06),
+        0 12px 28px -10px rgba(15, 23, 42, 0.18);
 }
 
-.all-report-generate-title {
-    font-size: 1.05rem;
+.all-report-hero::after {
+    content: "";
+    position: absolute;
+    inset: auto -50px -70px auto;
+    width: 200px;
+    height: 200px;
+    border-radius: 50%;
+    background: radial-gradient(circle, rgba(26, 166, 224, 0.4) 0%, transparent 70%);
+    pointer-events: none;
+}
+
+.all-report-hero-eyebrow {
+    position: relative;
+    z-index: 1;
+    font-size: 0.7rem;
+    font-weight: 800;
+    color: var(--rep-brand);
+    letter-spacing: 0.18em;
+    text-transform: uppercase;
+}
+
+.all-report-hero-month {
+    position: relative;
+    z-index: 1;
+    margin-top: 0.15rem;
+    font-size: 1.55rem;
+    font-weight: 800;
+    letter-spacing: -0.015em;
+    line-height: 1.15;
+}
+
+.all-report-hero-sub {
+    position: relative;
+    z-index: 1;
+    margin-top: 0.4rem;
+    font-size: 0.82rem;
+    line-height: 1.4;
+    color: #cbd5e1;
+}
+
+.all-report-hero-quota {
+    position: relative;
+    z-index: 1;
+    margin-top: 0.85rem;
+    display: flex;
+    align-items: center;
+    gap: 0.55rem;
+    font-size: 0.7rem;
     font-weight: 700;
-    color: #1e1b2e;
-    margin-bottom: 0.35rem;
-    letter-spacing: -0.005em;
+    color: #e2e8f0;
 }
 
-.all-report-generate-desc {
-    font-size: 0.88rem;
-    color: #6b6673;
-    line-height: 1.5;
-    margin-bottom: 1.25rem;
+.all-report-hero-quota-bar {
+    flex: 1;
+    height: 5px;
+    border-radius: 999px;
+    background: rgba(255, 255, 255, 0.12);
+    overflow: hidden;
 }
 
+.all-report-hero-quota-fill {
+    height: 100%;
+    border-radius: 999px;
+    background: linear-gradient(90deg, var(--rep-brand) 0%, #86efac 100%);
+}
+
+.all-report-hero-quota b {
+    color: #fff;
+    font-weight: 800;
+}
+
+/* ══════════════════════════════════════════════════════════════════════════
+   Section header (eyebrow grigio uppercase) — "Obiettivo del mese"
+   ══════════════════════════════════════════════════════════════════════════ */
+.all-report-section-h {
+    padding: 0.5rem 0 0.4rem;
+    display: flex;
+    align-items: baseline;
+    justify-content: space-between;
+}
+
+.all-report-section-h .t {
+    font-size: 0.7rem;
+    font-weight: 800;
+    color: var(--rep-ink-500);
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+}
+
+/* ══════════════════════════════════════════════════════════════════════════
+   Goal grid — 3 colonne, card compatte con icona "tile"
+   ══════════════════════════════════════════════════════════════════════════ */
 .all-report-goal-grid {
     display: grid;
     grid-template-columns: repeat(3, 1fr);
-    gap: 0.65rem;
+    gap: 0.5rem;
 }
 
 .all-report-goal-card {
+    position: relative;
     background: #fff;
-    border: 1.5px solid rgba(124, 58, 237, 0.15);
-    border-radius: 14px;
-    padding: 1rem 0.8rem;
+    border: 1.5px solid transparent;
+    border-radius: 12px;
+    padding: 0.75rem 0.5rem 0.7rem;
     cursor: pointer;
     text-align: center;
-    transition: transform 0.18s ease, border-color 0.18s ease, box-shadow 0.18s ease, background 0.18s ease;
-    min-height: 110px;
+    transition: transform 0.15s ease, border-color 0.15s ease, box-shadow 0.15s ease, background 0.15s ease;
+    box-shadow: 0 1px 2px rgba(15, 23, 42, 0.04);
     display: flex;
     flex-direction: column;
     align-items: center;
-    justify-content: center;
-    gap: 0.3rem;
+    gap: 0.15rem;
 }
 
 .all-report-goal-card:hover:not(:disabled) {
-    border-color: #7c3aed;
-    transform: translateY(-2px);
+    border-color: rgba(26, 166, 224, 0.5);
+    transform: translateY(-1px);
     box-shadow:
-        0 4px 12px rgba(124, 58, 237, 0.12),
-        0 1px 3px rgba(124, 58, 237, 0.08);
+        0 4px 12px rgba(15, 23, 42, 0.06),
+        0 1px 2px rgba(15, 23, 42, 0.04);
 }
 
 .all-report-goal-card:active:not(:disabled) {
     transform: translateY(0);
 }
 
-/* "Generato": resta CLICCABILE (riapre il report). Bordo verde + tinta. */
+/* "Generato": resta cliccabile per riaprire — bordo verde + leggera tinta */
 .all-report-goal-card--done {
-    background: #f0fdf4;
-    border-color: rgba(22, 163, 74, 0.45);
+    background: linear-gradient(180deg, #f0fdf4 0%, #fff 100%);
+    border-color: #86efac;
 }
 
 .all-report-goal-card--done:hover:not(:disabled) {
-    border-color: #16a34a;
-    box-shadow: 0 4px 12px rgba(22, 163, 74, 0.14);
+    border-color: var(--rep-green);
+    box-shadow: 0 4px 12px rgba(22, 163, 74, 0.12);
 }
 
-/* "Disabled": rate-limit raggiunto, niente più generazioni. */
+/* "Disabled": rate-limit raggiunto */
 .all-report-goal-card--disabled {
-    background: #f5f3f0;
-    border-color: rgba(30, 27, 46, 0.08);
-    color: rgba(30, 27, 46, 0.4);
+    background: #f5f7fa;
+    border-color: rgba(15, 23, 42, 0.06);
+    color: rgba(15, 23, 42, 0.4);
     cursor: not-allowed;
 }
 
 .all-report-goal-card--disabled:hover {
     transform: none;
-    box-shadow: none;
+    box-shadow: 0 1px 2px rgba(15, 23, 42, 0.04);
 }
 
 .all-report-goal-card--disabled .all-report-goal-card-icon {
     filter: grayscale(1);
-    opacity: 0.5;
+    opacity: 0.45;
 }
 
 .all-report-goal-card-icon {
-    font-size: 1.6rem;
+    width: 32px;
+    height: 32px;
+    border-radius: 9px;
+    margin: 0 auto 0.25rem;
+    display: grid;
+    place-items: center;
+    background: var(--rep-ink-100);
+    color: var(--rep-ink-700);
+    font-size: 1rem;
     line-height: 1;
 }
 
+.all-report-goal-card--done .all-report-goal-card-icon {
+    background: var(--rep-green-bg);
+    color: var(--rep-green-ink);
+}
+
 .all-report-goal-card-label {
-    font-size: 0.92rem;
-    font-weight: 600;
-    color: inherit;
+    font-size: 0.75rem;
+    font-weight: 800;
+    color: var(--rep-ink-900);
+    letter-spacing: -0.005em;
+    line-height: 1.15;
 }
 
 .all-report-goal-card-desc {
-    font-size: 0.72rem;
-    color: #6b6673;
-    line-height: 1.3;
+    font-size: 0.625rem;
+    font-weight: 600;
+    color: var(--rep-ink-500);
+    line-height: 1.2;
+    margin-top: 0.1rem;
 }
 
+/* "Generato — apri" diventa un mini-badge verde (sostituisce il desc) */
 .all-report-goal-card--done .all-report-goal-card-desc {
-    color: #16a34a;
-    font-weight: 600;
+    color: var(--rep-green-ink);
+    font-weight: 800;
+    letter-spacing: 0.04em;
+    font-size: 0.58rem;
+    margin-top: 0.2rem;
+    text-transform: uppercase;
 }
 
 .all-report-generate-limit {
-    margin-top: 1rem;
-    font-size: 0.82rem;
-    color: #6b6673;
+    margin: 0.9rem 0 0;
+    font-size: 0.78rem;
+    color: var(--rep-ink-500);
     text-align: center;
-    padding-top: 1rem;
-    border-top: 1px solid rgba(30, 27, 46, 0.06);
+    padding: 0.7rem 0.9rem;
+    background: #fff;
+    border-radius: 12px;
+    border: 1px dashed rgba(15, 23, 42, 0.1);
 }
 
 /* ══════════════════════════════════════════════════════════════════════════
-   Lista archivio — raggruppata per mese
+   Archivio — header "Archivio" + card per mese
    ══════════════════════════════════════════════════════════════════════════ */
+.all-report-archive-h {
+    padding: 1.1rem 0 0.45rem;
+    display: flex;
+    align-items: baseline;
+    justify-content: space-between;
+}
+
+.all-report-archive-h h2 {
+    margin: 0;
+    font-size: 1.125rem;
+    font-weight: 800;
+    letter-spacing: -0.01em;
+    color: var(--rep-ink-900);
+}
 
 .all-report-list {
     display: flex;
     flex-direction: column;
-    gap: 1.5rem;
+    gap: 0.625rem;
 }
 
+/* Compat: mantenuto per non rompere altri usi */
 .all-report-list-title {
-    margin: 0 0 0.9rem;
-    font-size: 1.1rem;
-    font-weight: 700;
-    color: #1e1b2e;
-    letter-spacing: -0.005em;
+    display: none;
 }
 
 .all-report-month-group {
     background: #fff;
-    border: 1px solid rgba(30, 27, 46, 0.06);
-    border-radius: 16px;
+    border-radius: 14px;
     overflow: hidden;
-    box-shadow:
-        0 1px 2px rgba(30, 27, 46, 0.02),
-        0 4px 12px rgba(30, 27, 46, 0.03);
+    box-shadow: 0 1px 2px rgba(15, 23, 42, 0.04);
+    border: 0;
 }
 
 .all-report-month-group-title {
-    font-size: 0.95rem;
-    font-weight: 700;
-    color: #1e1b2e;
-    padding: 0.9rem 1.1rem 0.7rem;
-    border-bottom: 1px solid rgba(30, 27, 46, 0.05);
-    background: linear-gradient(180deg, #fdfcff, #fff);
+    font-size: 0.82rem;
+    font-weight: 800;
+    color: var(--rep-ink-700);
+    padding: 0.7rem 0.9rem 0.5rem;
+    border-bottom: 1px solid var(--rep-ink-100);
+    background: #fff;
+    letter-spacing: -0.005em;
 }
 
 .all-report-month-group-list {
@@ -3310,47 +3417,62 @@ body.all-modal-open .all-modal-overlay {
     align-items: center;
     gap: 0.7rem;
     width: 100%;
-    padding: 0.9rem 1.1rem;
+    padding: 0.7rem 0.9rem;
     background: transparent;
     border: 0;
-    border-top: 1px solid rgba(30, 27, 46, 0.04);
+    border-top: 1px solid var(--rep-ink-100);
     cursor: pointer;
     text-align: left;
     transition: background 0.15s ease;
-    color: #1e1b2e;
+    color: var(--rep-ink-900);
 }
 
-.all-report-variant:first-child {
+.all-report-variant:first-of-type {
     border-top: 0;
 }
 
 .all-report-variant:hover {
-    background: rgba(124, 58, 237, 0.04);
+    background: rgba(26, 166, 224, 0.05);
 }
 
 .all-report-variant-icon {
-    font-size: 1.2rem;
-    line-height: 1;
+    width: 30px;
+    height: 30px;
+    border-radius: 8px;
+    background: var(--rep-ink-100);
+    color: var(--rep-ink-500);
+    display: grid;
+    place-items: center;
     flex-shrink: 0;
+    font-size: 0.95rem;
+    line-height: 1;
 }
 
 .all-report-variant-label {
-    font-size: 0.92rem;
-    font-weight: 600;
     flex: 1;
+    min-width: 0;
+    font-size: 0.85rem;
+    font-weight: 700;
+    color: var(--rep-ink-900);
 }
 
 .all-report-variant-date {
-    font-size: 0.78rem;
-    color: #9a949f;
+    font-size: 0.7rem;
+    font-weight: 600;
+    color: var(--rep-ink-500);
     font-variant-numeric: tabular-nums;
 }
 
 .all-report-variant-arrow {
-    font-size: 1.2rem;
-    color: #c9c4cd;
-    font-weight: 400;
-    line-height: 1;
+    width: 6px;
+    height: 6px;
+    border-right: 1.5px solid var(--rep-ink-400);
+    border-top: 1.5px solid var(--rep-ink-400);
+    transform: rotate(45deg);
+    margin-left: 0.25rem;
+    color: transparent;
+    font-size: 0;
+    flex-shrink: 0;
 }
 
 /* ══════════════════════════════════════════════════════════════════════════
@@ -3826,7 +3948,7 @@ body.all-modal-open .all-modal-overlay {
         bottom: calc(84px + env(safe-area-inset-bottom)) !important;
     }
 
-    /* ── Bottom stack: contenitore fisso con backdrop sfumato ────────── */
+    /* ── Bottom stack: contenitore fisso (nessun backdrop) ──────────── */
     .all-bottom-stack {
         display: flex;
         flex-direction: column;
@@ -3838,14 +3960,10 @@ body.all-modal-open .all-modal-overlay {
         padding: 18px 12px calc(12px + env(safe-area-inset-bottom));
         z-index: 1090;
         pointer-events: none;
-        /* Sfumato che termina sul colore --all-bg (#f1f5f9) della pagina, cosi'
-           non si vede una banda piu' chiara sotto al dock. */
-        background: linear-gradient(
-            180deg,
-            rgba(241, 245, 249, 0) 0%,
-            rgba(241, 245, 249, 0.92) 35%,
-            rgba(241, 245, 249, 1) 100%
-        );
+        /* Niente sfumatura/backdrop: il dock cyan e' opaco con la sua ombra.
+           La sfumatura qui creava una fascia visibile contro le card bianche
+           del contenuto al di sopra (tutti i view). */
+        background: transparent;
     }
     .all-bottom-stack > * { pointer-events: auto; }
 
@@ -4110,9 +4228,27 @@ body.all-modal-open .all-modal-overlay {
         display: flex; align-items: center; justify-content: space-between; gap: 10px;
         position: relative; z-index: 1;
     }
+    .prog2-eye-btn {
+        display: inline-flex; align-items: center; gap: 4px;
+        background: transparent; border: 0; padding: 2px 0;
+        cursor: pointer;
+        font-family: inherit;
+        color: #1aa6e0;
+        min-width: 0;
+        max-width: calc(100% - 44px);
+    }
+    .prog2-eye-btn:active { opacity: 0.7; }
     .prog2-eye {
         font-size: 11px; font-weight: 800; color: #1aa6e0;
         letter-spacing: 0.18em; text-transform: uppercase;
+        white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+        text-align: left;
+    }
+    .prog2-eye-chev {
+        width: 11px; height: 11px;
+        flex-shrink: 0;
+        opacity: 0.85;
+        margin-top: 1px;
     }
     .prog2-iconbtn {
         width: 32px; height: 32px; border-radius: 9px;
