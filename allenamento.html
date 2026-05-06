@@ -13,7 +13,7 @@
     <link rel="icon" type="image/jpeg" href="images/logo-tb---nero.jpg">
     <link rel="stylesheet" href="css/style.css?v=15">
     <link rel="stylesheet" href="css/login.css?v=4">
-    <link rel="stylesheet" href="css/allenamento.css?v=33">
+    <link rel="stylesheet" href="css/allenamento.css?v=34">
 </head>
 <body class="allenamento-body">
     <nav class="navbar">
@@ -934,10 +934,13 @@
                     </button>
                 </div>
                 <div class="scheda-hero__days" role="tablist" aria-label="Giorni di allenamento">`;
-            // Ruota l'array così che il giorno attivo sia primo, poi gli altri in ordine
-            const _activeIdx = days.indexOf(_activeDay);
-            const heroDays = _activeIdx >= 0
-                ? [...days.slice(_activeIdx), ...days.slice(0, _activeIdx)]
+            // Ruota l'array così che il giorno "da fare" (basato sui log) sia primo.
+            // Pivot = _suggestDay(days), aggiornato solo quando i log cambiano —
+            // selezionare un giorno via tap NON cambia l'ordine, solo l'highlight.
+            const _pivotDay = _suggestDay(days);
+            const _pivotIdx = days.indexOf(_pivotDay);
+            const heroDays = _pivotIdx >= 0
+                ? [...days.slice(_pivotIdx), ...days.slice(0, _pivotIdx)]
                 : days;
             for (const day of heroDays) {
                 const isActive = day === _activeDay;
@@ -3092,19 +3095,24 @@
                 return;
             }
             container.innerHTML = `
-                <div class="all-tablet-qr-view">
-                    <div class="all-tablet-pdf-card">
-                        <div class="all-tablet-pdf-icon">
-                            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" width="36" height="36"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><path d="M12 18v-6"/><path d="M9 15l3 3 3-3"/></svg>
-                        </div>
-                        <h3 class="all-tablet-pdf-title">Scarica Scheda PDF</h3>
-                        <p class="all-tablet-pdf-desc">Tutti gli esercizi con immagini, serie impostate e spazi per compilare a mano</p>
-                        <button class="all-tablet-qr-btn" id="pdfDownloadBtn" onclick="_downloadSchedaPDF()">
-                            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="18" height="18"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
-                            Scarica PDF
-                        </button>
+                <div class="all-pdf-view">
+                    <div class="all-pdf-preview-header">
+                        <h3 class="all-pdf-preview-title">Anteprima Scheda</h3>
+                        <span class="all-pdf-preview-hint" id="pdfPreviewHint" aria-hidden="true">scorri →</span>
                     </div>
-                </div>`;
+                    <div class="all-pdf-preview-scroller" id="pdfPreviewScroller" tabindex="0" aria-label="Anteprima pagine PDF">
+                        <div class="all-pdf-preview-loading">
+                            <div class="all-pdf-preview-spinner" aria-hidden="true"></div>
+                            <span>Generazione anteprima…</span>
+                        </div>
+                    </div>
+                    <div class="all-pdf-preview-dots" id="pdfPreviewDots" aria-hidden="true"></div>
+                </div>
+                <button class="all-pdf-download-fab" id="pdfDownloadBtn" type="button" onclick="_downloadSchedaPDF()" aria-label="Scarica PDF">
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" width="20" height="20"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
+                    <span>Scarica PDF</span>
+                </button>`;
+            _renderPdfPreview();
         }
 
         // ── Tablet QR Code view ──────────────────────────────────────────
@@ -3210,6 +3218,15 @@
             await _loadPdfScript('https://cdn.jsdelivr.net/npm/jspdf-autotable@3.8.4/dist/jspdf.plugin.autotable.min.js');
         }
 
+        async function _ensurePdfJs() {
+            if (window.pdfjsLib) return;
+            await _loadPdfScript('https://cdn.jsdelivr.net/npm/pdfjs-dist@3.11.174/legacy/build/pdf.min.js');
+            if (window.pdfjsLib) {
+                window.pdfjsLib.GlobalWorkerOptions.workerSrc =
+                    'https://cdn.jsdelivr.net/npm/pdfjs-dist@3.11.174/legacy/build/pdf.worker.min.js';
+            }
+        }
+
         const _IMG_PROXY = 'https://ppymuuyoveyyoswcimck.supabase.co/functions/v1/image-proxy?url=';
 
         async function _imgToBase64(url) {
@@ -3236,33 +3253,37 @@
             return null;
         }
 
-        async function _downloadSchedaPDF() {
-            if (!_allPlan) {
-                if (typeof showToast === 'function') showToast('Nessuna scheda disponibile', 'error');
-                return;
-            }
-            const btn = document.getElementById('pdfDownloadBtn');
-            const origHTML = btn ? btn.innerHTML : '';
-            if (btn) { btn.disabled = true; btn.innerHTML = 'Caricamento immagini\u2026'; }
+        // Cache: evita di ricostruire il PDF tra anteprima e download.
+        // Invalidato implicitamente da una signature che cambia se la scheda cambia.
+        let _pdfBuildCache = null; // { sig, doc, fname }
 
-            try {
-                await _ensureJsPDF();
-                const { jsPDF } = window.jspdf;
+        function _planSig() {
+            if (!_allPlan) return '';
+            const exs = _allPlan.workout_exercises || [];
+            const exsSig = exs.map(e => (e.id || '') + ':' + (e.updated_at || '')).join('|');
+            return [_allPlan.id || '', _allPlan.updated_at || '', _allPlan.name || '', exs.length, exsSig].join('\u00a7');
+        }
 
-                // Pre-load exercise images
-                const exercises = _allPlan.workout_exercises || [];
-                const imgCache = {};
-                await Promise.all(exercises.map(async ex => {
-                    const db = _findEx(ex.exercise_name);
-                    if (db && db.immagine_url_small) {
-                        const b64 = await _imgToBase64(db.immagine_url_small);
-                        if (b64) imgCache[ex.exercise_name] = b64;
-                    }
-                }));
+        async function _buildSchedaPDF() {
+            if (!_allPlan) throw new Error('Nessuna scheda disponibile');
+            const sig = _planSig();
+            if (_pdfBuildCache && _pdfBuildCache.sig === sig) return _pdfBuildCache;
 
-                if (btn) btn.innerHTML = 'Generazione PDF\u2026';
+            await _ensureJsPDF();
+            const { jsPDF } = window.jspdf;
 
-                const doc = new jsPDF('p', 'mm', 'a4');
+            // Pre-load exercise images
+            const exercises = _allPlan.workout_exercises || [];
+            const imgCache = {};
+            await Promise.all(exercises.map(async ex => {
+                const db = _findEx(ex.exercise_name);
+                if (db && db.immagine_url_small) {
+                    const b64 = await _imgToBase64(db.immagine_url_small);
+                    if (b64) imgCache[ex.exercise_name] = b64;
+                }
+            }));
+
+            const doc = new jsPDF('p', 'mm', 'a4');
                 const pw = 210, ph = 297, m = 14, cw = pw - m * 2;
                 let y = m;
                 const CYAN = [0, 174, 239], NAVY = [15, 23, 42], GRAY = [100, 116, 139];
