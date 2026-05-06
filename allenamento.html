@@ -13,7 +13,7 @@
     <link rel="icon" type="image/jpeg" href="images/logo-tb---nero.jpg">
     <link rel="stylesheet" href="css/style.css?v=15">
     <link rel="stylesheet" href="css/login.css?v=4">
-    <link rel="stylesheet" href="css/allenamento.css?v=32">
+    <link rel="stylesheet" href="css/allenamento.css?v=33">
 </head>
 <body class="allenamento-body">
     <nav class="navbar">
@@ -934,7 +934,12 @@
                     </button>
                 </div>
                 <div class="scheda-hero__days" role="tablist" aria-label="Giorni di allenamento">`;
-            for (const day of days) {
+            // Ruota l'array così che il giorno attivo sia primo, poi gli altri in ordine
+            const _activeIdx = days.indexOf(_activeDay);
+            const heroDays = _activeIdx >= 0
+                ? [...days.slice(_activeIdx), ...days.slice(0, _activeIdx)]
+                : days;
+            for (const day of heroDays) {
                 const isActive = day === _activeDay;
                 const lastDone = _dayLastDone(day);
                 const lastStr = _dayDoneToday(day) ? 'oggi' : lastDone ? _fmtDateAll(lastDone) : 'mai';
