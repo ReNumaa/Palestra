@@ -3487,11 +3487,19 @@ body.all-modal-open .all-modal-overlay {
    Modal dettaglio report — layout reading-optimized
    ══════════════════════════════════════════════════════════════════════════ */
 
+/* Overlay specifico del dettaglio report: respiro sopra, spazio per il dock sotto.
+   Le altre overlay (consent, generating) restano col padding base 1rem. */
+.all-report-modal {
+    padding-top: 2rem;
+    padding-bottom: 6.5rem;
+}
+
 .all-report-modal-box {
     max-width: 560px;
-    max-height: 88vh;
+    /* Box compatto: solo barra di scroll, niente aria sprecata sopra/sotto */
+    max-height: calc(100vh - 8.5rem);
     overflow-y: auto;
-    padding: 1.4rem 1.4rem 1.75rem;
+    padding: 1rem 1.1rem 1.2rem;
     border-radius: 18px;
     overscroll-behavior: contain;
     -webkit-overflow-scrolling: touch;
@@ -3505,11 +3513,11 @@ body.all-modal-open .all-modal-overlay {
     display: flex;
     flex-direction: column;
     align-items: flex-start;
-    gap: 0.35rem;
+    gap: 0.25rem;
     /* Spazio a destra per non finire sotto la X */
-    padding: 0 2.5rem 0.9rem 0;
+    padding: 0 2.5rem 0.65rem 0;
     border-bottom: 1px solid rgba(30, 27, 46, 0.06);
-    margin-bottom: 1rem;
+    margin-bottom: 0.75rem;
 }
 
 .all-report-modal-month {
@@ -3753,15 +3761,20 @@ body.all-modal-open .all-modal-overlay {
     .all-report-goal-card-label { font-size: 0.8rem; }
     .all-report-goal-card-desc { font-size: 0.66rem; }
 
+    .all-report-modal {
+        padding-top: 1.25rem;
+        padding-bottom: 6rem;
+    }
     .all-report-modal-box {
-        max-height: 92vh;
-        padding: 1.05rem 1rem 1.35rem;
+        /* dvh = dynamic viewport: tiene conto della address-bar mobile */
+        max-height: calc(100dvh - 7.25rem);
+        padding: 0.85rem 0.95rem 1rem;
         border-radius: 16px;
     }
     .all-report-modal-meta {
-        padding: 0 2.25rem 0.7rem 0;
-        margin-bottom: 0.85rem;
-        gap: 0.3rem;
+        padding: 0 2.25rem 0.55rem 0;
+        margin-bottom: 0.65rem;
+        gap: 0.25rem;
     }
     .all-report-modal-month { font-size: 1.05rem; }
     .all-report-modal-tone { font-size: 0.72rem; padding: 0.18rem 0.6rem; }
