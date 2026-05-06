@@ -13,7 +13,7 @@
     <link rel="icon" type="image/jpeg" href="images/logo-tb---nero.jpg">
     <link rel="stylesheet" href="css/style.css?v=15">
     <link rel="stylesheet" href="css/login.css?v=4">
-    <link rel="stylesheet" href="css/allenamento.css?v=36">
+    <link rel="stylesheet" href="css/allenamento.css?v=37">
 </head>
 <body class="allenamento-body">
     <nav class="navbar">
@@ -3938,7 +3938,10 @@
 
                     const wrap = document.createElement('div');
                     wrap.className = 'all-pdf-preview-page';
-                    wrap.setAttribute('aria-label', 'Pagina ' + i + ' di ' + numPages);
+                    wrap.setAttribute('role', 'button');
+                    wrap.setAttribute('tabindex', '0');
+                    wrap.setAttribute('aria-label', 'Pagina ' + i + ' di ' + numPages + ' — tocca per ingrandire');
+                    wrap.dataset.pageIdx = String(i);
 
                     const canvas = document.createElement('canvas');
                     canvas.width = viewport.width;
@@ -3949,6 +3952,20 @@
                     num.className = 'all-pdf-preview-pagenum';
                     num.textContent = i + ' / ' + numPages;
                     wrap.appendChild(num);
+
+                    const zicon = document.createElement('span');
+                    zicon.className = 'all-pdf-preview-zoomicon';
+                    zicon.setAttribute('aria-hidden', 'true');
+                    zicon.innerHTML = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" width="16" height="16"><circle cx="11" cy="11" r="7"/><line x1="21" y1="21" x2="16.65" y2="16.65"/><line x1="11" y1="8" x2="11" y2="14"/><line x1="8" y1="11" x2="14" y2="11"/></svg>';
+                    wrap.appendChild(zicon);
+
+                    wrap.addEventListener('click', () => _openPdfZoom(parseInt(wrap.dataset.pageIdx, 10)));
+                    wrap.addEventListener('keydown', (e) => {
+                        if (e.key === 'Enter' || e.key === ' ') {
+                            e.preventDefault();
+                            _openPdfZoom(parseInt(wrap.dataset.pageIdx, 10));
+                        }
+                    });
 
                     scroller.appendChild(wrap);
                     await page.render({ canvasContext: canvas.getContext('2d'), viewport }).promise;
@@ -4001,6 +4018,102 @@
             const onScroll = () => { if (scroller.scrollLeft > 6) hide(); };
             scroller.addEventListener('scroll', onScroll, { passive: true });
             setTimeout(hide, 6000);
+        }
+
+        // ── Lightbox zoom: apre la pagina PDF a tutto schermo con +/- ───────
+        async function _openPdfZoom(pageIdx) {
+            // Crea overlay
+            const overlay = document.createElement('div');
+            overlay.className = 'all-pdf-zoom-overlay';
+            overlay.innerHTML =
+                '<div class="all-pdf-zoom-toolbar">' +
+                  '<div class="all-pdf-zoom-controls">' +
+                    '<button type="button" class="all-pdf-zoom-btn" id="pdfZoomOut" aria-label="Riduci zoom">−</button>' +
+                    '<span class="all-pdf-zoom-level" id="pdfZoomLevel">100%</span>' +
+                    '<button type="button" class="all-pdf-zoom-btn" id="pdfZoomIn" aria-label="Aumenta zoom">+</button>' +
+                  '</div>' +
+                  '<button type="button" class="all-pdf-zoom-close" id="pdfZoomClose" aria-label="Chiudi">✕</button>' +
+                '</div>' +
+                '<div class="all-pdf-zoom-canvas-wrap" id="pdfZoomWrap">' +
+                  '<div class="all-pdf-zoom-loading"><div class="all-pdf-preview-spinner" aria-hidden="true"></div><span>Apertura pagina…</span></div>' +
+                '</div>';
+            document.body.appendChild(overlay);
+            const prevOverflow = document.body.style.overflow;
+            document.body.style.overflow = 'hidden';
+
+            const close = () => {
+                overlay.remove();
+                document.body.style.overflow = prevOverflow;
+                document.removeEventListener('keydown', onKey);
+            };
+            const onKey = (e) => {
+                if (e.key === 'Escape') close();
+                else if (e.key === '+' || e.key === '=') zoomIn();
+                else if (e.key === '-' || e.key === '_') zoomOut();
+            };
+            document.addEventListener('keydown', onKey);
+            overlay.querySelector('#pdfZoomClose').onclick = close;
+            // Click su sfondo (toolbar/wrap) chiude solo se non si clicca su un controllo
+            overlay.addEventListener('click', (e) => {
+                if (e.target === overlay || e.target.id === 'pdfZoomWrap') close();
+            });
+
+            let zoom = 1;
+            const ZOOM_MIN = 0.5, ZOOM_MAX = 4, ZOOM_STEP = 0.25;
+            const levelEl = overlay.querySelector('#pdfZoomLevel');
+            const btnIn = overlay.querySelector('#pdfZoomIn');
+            const btnOut = overlay.querySelector('#pdfZoomOut');
+
+            let canvas = null;
+            const applyZoom = () => {
+                if (!canvas) return;
+                canvas.style.transform = 'scale(' + zoom + ')';
+                levelEl.textContent = Math.round(zoom * 100) + '%';
+                btnIn.disabled = zoom >= ZOOM_MAX - 0.001;
+                btnOut.disabled = zoom <= ZOOM_MIN + 0.001;
+            };
+            const zoomIn = () => { zoom = Math.min(ZOOM_MAX, zoom + ZOOM_STEP); applyZoom(); };
+            const zoomOut = () => { zoom = Math.max(ZOOM_MIN, zoom - ZOOM_STEP); applyZoom(); };
+            btnIn.onclick = zoomIn;
+            btnOut.onclick = zoomOut;
+
+            // Render pagina ad alta risoluzione
+            try {
+                const { doc } = await _buildSchedaPDF();
+                await _ensurePdfJs();
+                if (!window.pdfjsLib) throw new Error('PDF.js non disponibile');
+                const arrayBuffer = doc.output('arraybuffer');
+                const pdfDoc = await window.pdfjsLib.getDocument({ data: new Uint8Array(arrayBuffer) }).promise;
+                if (!document.body.contains(overlay)) return; // closed during load
+                const page = await pdfDoc.getPage(pageIdx);
+                const baseViewport = page.getViewport({ scale: 1 });
+                // Punta a una larghezza render adeguata: 2x lo schermo, ma cap a 1600px
+                // per non sprecare memoria su tablet/desktop large.
+                const dpr = Math.min(window.devicePixelRatio || 1, 2);
+                const targetW = Math.min(1600, Math.max(720, window.innerWidth * dpr));
+                const scale = targetW / baseViewport.width;
+                const viewport = page.getViewport({ scale });
+
+                canvas = document.createElement('canvas');
+                canvas.width = viewport.width;
+                canvas.height = viewport.height;
+                // CSS size: il canvas si adatta al wrap mantenendo l'aspect ratio.
+                // Il transform: scale lavora sopra questo per lo zoom utente.
+                canvas.style.maxWidth = '100%';
+                canvas.style.maxHeight = '100%';
+                canvas.style.width = 'auto';
+                canvas.style.height = 'auto';
+
+                const wrap = overlay.querySelector('#pdfZoomWrap');
+                wrap.innerHTML = '';
+                wrap.appendChild(canvas);
+                await page.render({ canvasContext: canvas.getContext('2d'), viewport }).promise;
+                applyZoom();
+            } catch (e) {
+                console.error('[PDF zoom] Errore:', e);
+                const wrap = overlay.querySelector('#pdfZoomWrap');
+                if (wrap) wrap.innerHTML = '<div class="all-pdf-zoom-loading">Errore caricamento pagina.</div>';
+            }
         }
 
         function _downloadTabletQR() {

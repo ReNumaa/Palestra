@@ -1812,7 +1812,9 @@
     display: flex;
     flex-direction: column;
     gap: 0.6rem;
-    padding: 0.5rem 0 6rem; /* bottom space leaves room for the floating download button */
+    /* Niente padding-bottom inutile: il bottone Scarica e' fixed e le pagine
+       sono cap a 60vh, cosi' la pagina sottostante non scrolla in giu'. */
+    padding: 0.5rem 0 0.25rem;
     animation: allFadeUp 0.4s ease-out;
 }
 
@@ -1873,7 +1875,10 @@
 
 .all-pdf-preview-page {
     flex: 0 0 auto;
-    width: min(78vw, 420px);
+    /* Altezza decisa dal piu' piccolo fra: 60% viewport (cap utile),
+       altezza derivata da 78% viewport-width (cosi' resta < 78vw di larghezza),
+       e 600px assoluto. La aspect-ratio deriva la width corrispondente. */
+    height: min(60vh, calc(78vw * 297 / 210), 600px);
     aspect-ratio: 210 / 297;
     background: #fff;
     border-radius: 10px;
@@ -1882,13 +1887,41 @@
     overflow: hidden;
     position: relative;
     scroll-snap-align: start;
+    /* Forza lo stop ad ogni snap point: nessuno swipe puo' saltare piu' di una
+       pagina. (Senza questa, scroll-snap-type: mandatory permette swipe veloci
+       di scorrere oltre il prossimo snap.) */
+    scroll-snap-stop: always;
+    cursor: zoom-in;
+    transition: transform 0.18s ease, box-shadow 0.2s ease;
+    -webkit-tap-highlight-color: transparent;
 }
+.all-pdf-preview-page:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 10px 28px -8px rgba(15, 23, 42, 0.25), 0 4px 10px -3px rgba(15, 23, 42, 0.12);
+}
+.all-pdf-preview-page:active { transform: scale(0.985); }
 
 .all-pdf-preview-page canvas {
     display: block;
     width: 100% !important;
     height: 100% !important;
     object-fit: contain;
+}
+
+.all-pdf-preview-zoomicon {
+    position: absolute;
+    bottom: 8px;
+    left: 8px;
+    width: 28px;
+    height: 28px;
+    border-radius: 50%;
+    background: rgba(15, 23, 42, 0.78);
+    color: #fff;
+    display: grid;
+    place-items: center;
+    pointer-events: none;
+    backdrop-filter: blur(4px);
+    -webkit-backdrop-filter: blur(4px);
 }
 
 .all-pdf-preview-pagenum {
@@ -1999,6 +2032,103 @@
         bottom: calc(84px + env(safe-area-inset-bottom));
         right: 1rem;
     }
+}
+
+/* ── Lightbox zoom pagina PDF ─────────────────────────────────────────────── */
+.all-pdf-zoom-overlay {
+    position: fixed;
+    inset: 0;
+    background: rgba(0, 0, 0, 0.92);
+    z-index: 10000;
+    display: flex;
+    flex-direction: column;
+    animation: allPdfZoomFadeIn 0.18s ease-out;
+}
+@keyframes allPdfZoomFadeIn {
+    from { opacity: 0; }
+    to   { opacity: 1; }
+}
+
+.all-pdf-zoom-toolbar {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 1rem;
+    padding: 0.8rem 1rem calc(0.8rem + env(safe-area-inset-top));
+    padding-top: calc(0.8rem + env(safe-area-inset-top));
+    background: rgba(15, 23, 42, 0.85);
+    color: #fff;
+    backdrop-filter: blur(10px);
+    -webkit-backdrop-filter: blur(10px);
+    flex: 0 0 auto;
+}
+
+.all-pdf-zoom-controls {
+    display: flex;
+    align-items: center;
+    gap: 0.6rem;
+}
+
+.all-pdf-zoom-btn,
+.all-pdf-zoom-close {
+    width: 40px;
+    height: 40px;
+    border: none;
+    border-radius: 50%;
+    background: rgba(255, 255, 255, 0.15);
+    color: #fff;
+    font-size: 1.3rem;
+    font-weight: 700;
+    cursor: pointer;
+    display: grid;
+    place-items: center;
+    transition: background 0.15s ease, transform 0.15s ease;
+    -webkit-tap-highlight-color: transparent;
+}
+.all-pdf-zoom-btn:hover,
+.all-pdf-zoom-close:hover { background: rgba(255, 255, 255, 0.25); }
+.all-pdf-zoom-btn:active,
+.all-pdf-zoom-close:active { transform: scale(0.92); }
+.all-pdf-zoom-btn[disabled] { opacity: 0.4; cursor: default; transform: none; }
+
+.all-pdf-zoom-level {
+    font-size: 0.9rem;
+    font-weight: 700;
+    min-width: 4ch;
+    text-align: center;
+    color: #fff;
+    letter-spacing: 0.02em;
+}
+
+.all-pdf-zoom-canvas-wrap {
+    flex: 1 1 auto;
+    overflow: auto;
+    -webkit-overflow-scrolling: touch;
+    display: flex;
+    align-items: flex-start;
+    justify-content: center;
+    padding: 1rem;
+    padding-bottom: calc(1rem + env(safe-area-inset-bottom));
+    /* Permetti pinch-zoom nativo su iOS oltre a pan. */
+    touch-action: pinch-zoom;
+}
+.all-pdf-zoom-canvas-wrap canvas {
+    display: block;
+    transform-origin: top center;
+    transition: transform 0.18s ease;
+    box-shadow: 0 12px 40px rgba(0, 0, 0, 0.45);
+    background: #fff;
+}
+
+.all-pdf-zoom-loading {
+    color: #fff;
+    font-size: 0.9rem;
+    font-weight: 600;
+    margin: auto;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 0.7rem;
 }
 
 /* ── Next booking inside day tab ──────────────────────────────────────────── */
