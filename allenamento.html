@@ -13,7 +13,7 @@
     <link rel="icon" type="image/jpeg" href="images/logo-tb---nero.jpg">
     <link rel="stylesheet" href="css/style.css?v=15">
     <link rel="stylesheet" href="css/login.css?v=4">
-    <link rel="stylesheet" href="css/allenamento.css?v=30">
+    <link rel="stylesheet" href="css/allenamento.css?v=31">
 </head>
 <body class="allenamento-body">
     <nav class="navbar">
@@ -923,7 +923,30 @@
                 }
             }
 
-            // ── Day selector tabs ────────────────────────────────────────
+            // ── Hero card (mobile only — sostituisce plan selector + day tabs) ─
+            const planNameEsc = _escHtml(_allPlan.name || 'Allenamento');
+            html += `<header class="scheda-hero">
+                <span class="scheda-hero__eye">Scheda</span>
+                <div class="scheda-hero__name-row">
+                    <h1 class="scheda-hero__name">${planNameEsc}</h1>
+                    <button class="scheda-hero__edit" onclick="renamePlan()" aria-label="Modifica nome scheda" title="Rinomina scheda">
+                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" width="14" height="14"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/><path d="M18.5 2.5a2.1 2.1 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/></svg>
+                    </button>
+                </div>
+                <div class="scheda-hero__days" role="tablist" aria-label="Giorni di allenamento">`;
+            for (const day of days) {
+                const isActive = day === _activeDay;
+                const lastDone = _dayLastDone(day);
+                const lastStr = _dayDoneToday(day) ? 'oggi' : lastDone ? _fmtDateAll(lastDone) : 'mai';
+                html += `<button class="day ${isActive ? 'is-active' : ''}" role="tab" aria-selected="${isActive}" data-day="${_escHtml(day)}" onclick="switchDay('${_escHtml(day)}')">
+                    <span class="day__nm">${_escHtml(day)}</span>
+                    <span class="day__meta">ultimo · ${lastStr}</span>
+                </button>`;
+            }
+            html += `<button class="day day--add" aria-label="Aggiungi giorno" onclick="addDayToScheda()">+</button>`;
+            html += `</div></header>`;
+
+            // ── Day selector tabs (desktop) ──────────────────────────────
             html += '<div class="all-day-tabs" role="tablist" aria-label="Giorni di allenamento">';
             for (const day of days) {
                 const isActive = day === _activeDay;
