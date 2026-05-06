@@ -13,7 +13,7 @@
     <link rel="icon" type="image/jpeg" href="images/logo-tb---nero.jpg">
     <link rel="stylesheet" href="css/style.css?v=15">
     <link rel="stylesheet" href="css/login.css?v=4">
-    <link rel="stylesheet" href="css/allenamento.css?v=44">
+    <link rel="stylesheet" href="css/allenamento.css?v=45">
 </head>
 <body class="allenamento-body">
     <nav class="navbar">
@@ -159,8 +159,10 @@
         let _allLogs = [];
         let _activeDay = null;  // giorno selezionato (session picker)
         let _nextBookings = []; // prossime prenotazioni confermate
-        let _filterPeriod = 'all';
+        let _filterPeriod = '30d';
         let _filterMuscle = 'all';
+        // Date di prenotazioni passate confermate (per KPI "Allenamenti" Progressi mobile)
+        let _pastBookingDates = [];
         // Mobile v2: cache esercizi correnti per il modal zoom (ricostruita ad ogni render).
         let _progressiExIdSeq = 0;
         const _progressiExData = {};
@@ -546,7 +548,7 @@
 
                 // Fetch plans + next booking in parallel (timeout 15s ciascuna)
                 const today = _localDateStr();
-                const [plansRes, bookingRes] = await Promise.all([
+                const [plansRes, bookingRes, pastBookingRes] = await Promise.all([
                     _queryWithTimeout(supabaseClient
                         .from('workout_plans')
                         .select('*, workout_exercises(*)')
@@ -561,11 +563,20 @@
                         .gte('date', today)
                         .order('date', { ascending: true })
                         .order('time', { ascending: true })
-                        .limit(20), 15000)
+                        .limit(20), 15000),
+                    _queryWithTimeout(supabaseClient
+                        .from('bookings')
+                        .select('date')
+                        .eq('user_id', user.id)
+                        .eq('status', 'confirmed')
+                        .lt('date', today)
+                        .order('date', { ascending: false })
+                        .limit(2000), 15000)
                 ]);
 
                 const { data: plans, error } = plansRes;
                 _nextBookings = bookingRes.data || [];
+                _pastBookingDates = (pastBookingRes?.data || []).map(b => b.date);
                 if (error) throw error;
                 if (!plans?.length) {
                     document.getElementById('allContent').innerHTML =
@@ -2128,15 +2139,18 @@
 
             // Filtro temporale: usa _filterPeriod ('all' | '7d' | '30d' | '90d')
             const period = _filterPeriod;
-            let filteredLogs = logs;
+            let cutoffStr = null;
             if (period !== 'all') {
                 const days = period === '7d' ? 7 : period === '30d' ? 30 : period === '90d' ? 90 : null;
                 if (days != null) {
-                    const cutoff = new Date(Date.now() - days * 86400000);
-                    const cutoffStr = _localDateStr(cutoff);
-                    filteredLogs = logs.filter(l => l.log_date >= cutoffStr);
+                    cutoffStr = _localDateStr(new Date(Date.now() - days * 86400000));
                 }
             }
+            const filteredLogs = cutoffStr ? logs.filter(l => l.log_date >= cutoffStr) : logs;
+            const filteredBookingDates = cutoffStr
+                ? _pastBookingDates.filter(d => d >= cutoffStr)
+                : _pastBookingDates;
+            const totalAllenamenti = new Set(filteredBookingDates).size;
 
             const filteredByName = {};
             for (const l of filteredLogs) {
@@ -2182,7 +2196,8 @@
                             <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 12a9 9 0 1 0 3-6.7"/><polyline points="3 4 3 10 9 10"/><polyline points="12 7 12 12 16 14"/></svg>
                         </button>
                     </div>
-                    <div class="prog2-hero-kpis">
+                    <div class="prog2-hero-kpis prog2-hero-kpis--four">
+                        <div class="prog2-hk"><div class="prog2-hk-val">${totalAllenamenti}</div><div class="prog2-hk-lbl">Allenamenti</div></div>
                         <div class="prog2-hk"><div class="prog2-hk-val">${totalSessions}</div><div class="prog2-hk-lbl">Sessioni</div></div>
                         <div class="prog2-hk"><div class="prog2-hk-val">${totalSets}</div><div class="prog2-hk-lbl">Serie</div></div>
                         <div class="prog2-hk"><div class="prog2-hk-val">${_escHtml(volStr)}</div><div class="prog2-hk-lbl">Volume</div></div>
@@ -2201,8 +2216,11 @@
             html += `<div class="prog2-section-h"><span class="t">Esercizi</span><span class="c">${exerciseNames.length}</span></div>`;
 
             if (!exerciseNames.length) {
-                const periodLbl = periodSuffix ? periodSuffix.toLowerCase() : '';
-                const scopeText = periodLbl ? `negli ${periodLbl}` : 'registrati';
+                const scopeText = period === 'all' ? 'registrati'
+                    : period === '7d' ? 'negli ultimi 7 giorni'
+                    : period === '30d' ? 'negli ultimi 30 giorni'
+                    : period === '90d' ? 'negli ultimi 3 mesi'
+                    : 'registrati';
                 const emptyMsg = muscle === 'all'
                     ? `Nessun esercizio ${scopeText}.`
                     : `Nessun esercizio per "${_escHtml(muscle)}" ${scopeText}.`;
@@ -2297,7 +2315,7 @@
                 case '7d': return 'ULTIMI 7 GG';
                 case '30d': return 'ULTIMI 30 GG';
                 case '90d': return 'ULTIMI 3 MESI';
-                default: return ''; // 'all' → nessun suffisso
+                default: return 'TUTTO';
             }
         }
 
