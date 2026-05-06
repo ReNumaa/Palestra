@@ -1781,7 +1781,7 @@
                 // Raggruppa per identità logica (slug stabile o nome
                 // normalizzato): rinomine e duplicati confluiscono in un
                 // unico esercizio. Display name = quello della scheda attiva.
-                const { idToGroupKey, groupKeyToName, groupKeyToMuscle } = _buildExGroupingMaps(allExercises, _allPlan);
+                const { idToGroupKey, groupKeyToName, groupKeyToMuscle, groupKeyToEx } = _buildExGroupingMaps(allExercises, _allPlan);
 
                 // Map display name → muscle_group
                 const nameToMuscle = {};
