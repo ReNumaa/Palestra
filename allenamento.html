@@ -13,7 +13,7 @@
     <link rel="icon" type="image/jpeg" href="images/logo-tb---nero.jpg">
     <link rel="stylesheet" href="css/style.css?v=15">
     <link rel="stylesheet" href="css/login.css?v=4">
-    <link rel="stylesheet" href="css/allenamento.css?v=34">
+    <link rel="stylesheet" href="css/allenamento.css?v=35">
 </head>
 <body class="allenamento-body">
     <nav class="navbar">
@@ -161,6 +161,11 @@
         let _nextBookings = []; // prossime prenotazioni confermate
         let _filterPeriod = 'all';
         let _filterMuscle = 'all';
+        // Mobile v2: categoria segmented control (Tutto / Cardio / Forza / Core).
+        // Indipendente da _filterMuscle (usato dal layout desktop con dropdown muscolo).
+        let _progressiCategory = 'all';
+        let _progressiExIdSeq = 0;
+        const _progressiExData = {};
         let _allLastRefreshTs = Date.now(); // aggiornato ad ogni _refreshAllenamentoData
         // Incrementato ogni volta che l'app va in background.
         // I catch di saveLog/saveEditExercise lo confrontano col valore
@@ -1804,6 +1809,16 @@
                 // Available muscle groups (from data)
                 const muscleGroups = [...new Set(Object.values(nameToMuscle).filter(Boolean))].sort();
 
+                // Mobile v2: branch verso layout dedicato (hero + segmented + card immagine/grafico).
+                // Guard: se la funzione non è ancora implementata, fallback al layout legacy.
+                if (window.matchMedia('(max-width:768px)').matches && typeof _renderProgressiMobileV2 === 'function') {
+                    _renderProgressiMobileV2(container, {
+                        logs, idToGroupKey, groupKeyToName, groupKeyToMuscle, groupKeyToEx,
+                        nameToMuscle, targetByName
+                    });
+                    return;
+                }
+
                 // Read active filters from persistent state
                 const filterPeriod = _filterPeriod;
                 const filterMuscle = _filterMuscle;
@@ -2003,6 +2018,320 @@
             const d = new Date(iso + 'T00:00:00');
             return d.toLocaleDateString('it-IT', { day: '2-digit', month: 'short' });
         }
+
+        // ── Progressi Mobile v2 (design Claude Design) ────────────────────
+        // Hero scuro con KPI integrate + segmented Tutto/Cardio/Forza/Core +
+        // card esercizio con immagine a sinistra e grafico a destra + popup zoom.
+        function _exCategoryFromMuscle(muscle) {
+            const s = (muscle || '').toLowerCase();
+            if (s.includes('cardio')) return 'cardio';
+            if (s.includes('core') || s.includes('addomin')) return 'core';
+            return 'forza';
+        }
+
+        function _progressiPathFromValues(values, w, h, padL, padR, padT, padB) {
+            const n = values.length;
+            if (n === 0) return { lineD: '', areaD: '', points: [] };
+            if (n === 1) {
+                const y = padT + (h - padT - padB) / 2;
+                return {
+                    lineD: `M${padL},${y} L${w - padR},${y}`,
+                    areaD: `M${padL},${y} L${w - padR},${y} L${w - padR},${h} L${padL},${h} Z`,
+                    points: [{ x: padL, y }, { x: w - padR, y }]
+                };
+            }
+            const vMin = Math.min(...values);
+            const vMax = Math.max(...values);
+            const rng = vMax - vMin || 1;
+            const innerW = w - padL - padR;
+            const innerH = h - padT - padB;
+            let lineD = '';
+            const points = [];
+            for (let i = 0; i < n; i++) {
+                const x = padL + innerW * i / (n - 1);
+                const y = padT + innerH * (1 - (values[i] - vMin) / rng);
+                points.push({ x, y });
+                lineD += (i === 0 ? 'M' : 'L') + x.toFixed(2) + ',' + y.toFixed(2);
+            }
+            const areaD = lineD + ` L${(w - padR).toFixed(2)},${h} L${padL},${h} Z`;
+            return { lineD, areaD, points };
+        }
+
+        function _progressiBuildMiniChartSvg(values) {
+            const w = 200, h = 84;
+            const path = _progressiPathFromValues(values, w, h, 5, 5, 12, 8);
+            if (!path.points.length) return '';
+            const first = path.points[0];
+            const last = path.points[path.points.length - 1];
+            const gid = 'p2g-' + (++_progressiExIdSeq);
+            let dots = `<circle cx="${last.x.toFixed(2)}" cy="${last.y.toFixed(2)}" r="4" fill="#1aa6e0" stroke="#fff" stroke-width="2"/>`;
+            if (path.points.length > 1) {
+                dots = `<circle cx="${first.x.toFixed(2)}" cy="${first.y.toFixed(2)}" r="4" fill="#1aa6e0" stroke="#fff" stroke-width="2"/>` + dots;
+            }
+            return `<svg viewBox="0 0 ${w} ${h}" preserveAspectRatio="none">
+                <defs><linearGradient id="${gid}" x1="0" x2="0" y1="0" y2="1"><stop offset="0%" stop-color="#1aa6e0" stop-opacity="0.25"/><stop offset="100%" stop-color="#1aa6e0" stop-opacity="0"/></linearGradient></defs>
+                <path d="${path.areaD}" fill="url(#${gid})"/>
+                <path d="${path.lineD}" stroke="#1aa6e0" stroke-width="2" fill="none" stroke-linecap="round" stroke-linejoin="round"/>
+                ${dots}
+            </svg>`;
+        }
+
+        function _progressiBuildModalChartSvg(values) {
+            const w = 400, h = 160;
+            const path = _progressiPathFromValues(values, w, h, 20, 20, 30, 30);
+            if (!path.points.length) return '';
+            const first = path.points[0];
+            const last = path.points[path.points.length - 1];
+            const gid = 'p2gm-' + (++_progressiExIdSeq);
+            const grid = `
+                <line x1="20" y1="40" x2="380" y2="40" stroke="#e2e8f0" stroke-width="1" stroke-dasharray="3 4"/>
+                <line x1="20" y1="80" x2="380" y2="80" stroke="#e2e8f0" stroke-width="1" stroke-dasharray="3 4"/>
+                <line x1="20" y1="120" x2="380" y2="120" stroke="#e2e8f0" stroke-width="1" stroke-dasharray="3 4"/>`;
+            let dots = `<circle cx="${last.x.toFixed(2)}" cy="${last.y.toFixed(2)}" r="5" fill="#1aa6e0" stroke="#fff" stroke-width="2"/>`;
+            if (path.points.length > 1) {
+                dots = `<circle cx="${first.x.toFixed(2)}" cy="${first.y.toFixed(2)}" r="5" fill="#1aa6e0" stroke="#fff" stroke-width="2"/>` + dots;
+            }
+            return `<svg viewBox="0 0 ${w} ${h}" preserveAspectRatio="none">
+                <defs><linearGradient id="${gid}" x1="0" x2="0" y1="0" y2="1"><stop offset="0%" stop-color="#1aa6e0" stop-opacity="0.3"/><stop offset="100%" stop-color="#1aa6e0" stop-opacity="0"/></linearGradient></defs>
+                ${grid}
+                <path d="${path.areaD}" fill="url(#${gid})"/>
+                <path d="${path.lineD}" stroke="#1aa6e0" stroke-width="2.5" fill="none" stroke-linecap="round" stroke-linejoin="round"/>
+                ${dots}
+            </svg>`;
+        }
+
+        function _progressiModalShellHtml() {
+            return `
+                <div class="prog2-modal" id="prog2Modal" onclick="if(event.target===this)_progressiCloseZoom()">
+                    <div class="prog2-modal-card" role="dialog" aria-modal="true" aria-labelledby="prog2ModalName">
+                        <div class="prog2-modal-head">
+                            <div>
+                                <div class="prog2-modal-name" id="prog2ModalName"></div>
+                                <div class="prog2-modal-target" id="prog2ModalTarget"></div>
+                            </div>
+                            <button class="prog2-modal-close" type="button" onclick="_progressiCloseZoom()" aria-label="Chiudi">
+                                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
+                            </button>
+                        </div>
+                        <div class="prog2-modal-img" id="prog2ModalImg"></div>
+                        <div class="prog2-modal-chart" id="prog2ModalChart"></div>
+                        <div class="prog2-modal-foot" id="prog2ModalFoot"></div>
+                    </div>
+                </div>`;
+        }
+
+        function _progressiPlaceholderSvg(small) {
+            const cls = small ? 'prog2-ex-img-ph' : 'prog2-modal-ph';
+            return `<svg class="${cls}" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="6" r="2.5"/><path d="M12 8.5v6"/><path d="M12 14.5l-3 6"/><path d="M12 14.5l3 6"/><path d="M9 11h6"/></svg>`;
+        }
+
+        function _renderProgressiMobileV2(container, ctx) {
+            const { logs, idToGroupKey, groupKeyToName, groupKeyToMuscle, groupKeyToEx, nameToMuscle, targetByName } = ctx;
+
+            // Reset cache esercizi modal (nuovo render → nuovi id)
+            for (const k in _progressiExData) delete _progressiExData[k];
+
+            // Filtro temporale fisso: ultimi 30 giorni (come da design)
+            const now = new Date();
+            const cutoff = new Date(now.getTime() - 30 * 86400000);
+            const cutoffStr = _localDateStr(cutoff);
+            const filteredLogs = logs.filter(l => l.log_date >= cutoffStr);
+
+            const filteredByName = {};
+            for (const l of filteredLogs) {
+                const k = idToGroupKey[l.exercise_id];
+                const name = (k && groupKeyToName[k]) || 'Sconosciuto';
+                if (!filteredByName[name]) filteredByName[name] = [];
+                filteredByName[name].push(l);
+            }
+
+            const cat = _progressiCategory;
+            let exerciseNames = Object.keys(filteredByName).sort();
+            if (cat !== 'all') {
+                exerciseNames = exerciseNames.filter(n => _exCategoryFromMuscle(nameToMuscle[n]) === cat);
+            }
+
+            // KPI: filtrate per 30gg + categoria selezionata
+            const statsLogs = cat === 'all' ? filteredLogs
+                : filteredLogs.filter(l => {
+                    const k = idToGroupKey[l.exercise_id];
+                    return k && _exCategoryFromMuscle(groupKeyToMuscle[k]) === cat;
+                });
+            const totalSessions = new Set(statsLogs.map(l => l.exercise_id + '|' + l.log_date)).size;
+            const totalSets = statsLogs.length;
+            const totalVolume = statsLogs.reduce((sum, l) => sum + ((l.weight_done || 0) * (l.reps_done || 0)), 0);
+            const volStr = totalVolume >= 1000 ? (totalVolume / 1000).toFixed(1) + 't' : (totalVolume + 'kg');
+
+            let html = '<div class="prog2-wrap">';
+
+            // Hero
+            html += `
+                <div class="prog2-hero">
+                    <div class="prog2-hero-row">
+                        <div class="prog2-eye">PROGRESSI · ULTIMI 30 GG</div>
+                        <button class="prog2-iconbtn" type="button" onclick="switchAllView('storico')" aria-label="Storico allenamenti" title="Storico">
+                            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 12a9 9 0 1 0 3-6.7"/><polyline points="3 4 3 10 9 10"/><polyline points="12 7 12 12 16 14"/></svg>
+                        </button>
+                    </div>
+                    <div class="prog2-hero-kpis">
+                        <div class="prog2-hk"><div class="prog2-hk-val">${totalSessions}</div><div class="prog2-hk-lbl">Sessioni</div></div>
+                        <div class="prog2-hk"><div class="prog2-hk-val">${totalSets}</div><div class="prog2-hk-lbl">Serie</div></div>
+                        <div class="prog2-hk"><div class="prog2-hk-val">${_escHtml(volStr)}</div><div class="prog2-hk-lbl">Volume</div></div>
+                    </div>
+                </div>`;
+
+            // Segmented filter
+            const cats = [['all', 'Tutto'], ['cardio', 'Cardio'], ['forza', 'Forza'], ['core', 'Core']];
+            html += '<div class="prog2-seg" role="tablist">' + cats.map(([v, lbl]) =>
+                `<button type="button" class="prog2-seg-btn${cat === v ? ' active' : ''}" role="tab" aria-selected="${cat === v}" onclick="_progressiSetCategory('${v}')">${lbl}</button>`
+            ).join('') + '</div>';
+
+            // Section header
+            html += `<div class="prog2-section-h"><span class="t">Esercizi</span><span class="c">${exerciseNames.length}</span></div>`;
+
+            if (!exerciseNames.length) {
+                html += '<div class="prog2-empty">Nessun esercizio negli ultimi 30 giorni.</div>';
+                html += '</div>';
+                container.innerHTML = html + _progressiModalShellHtml();
+                return;
+            }
+
+            for (const exName of exerciseNames) {
+                const exLogs = filteredByName[exName];
+                if (!exLogs?.length) continue;
+
+                const isCardio = (nameToMuscle[exName] || '').toLowerCase() === 'cardio';
+                const unit = isCardio ? 'min' : 'kg';
+
+                // Una sessione = (exercise_id, log_date), valore = max
+                const sessionMap = {};
+                for (const l of exLogs) {
+                    const val = isCardio ? l.reps_done : l.weight_done;
+                    if (val == null) continue;
+                    const key = l.exercise_id + '|' + l.log_date;
+                    if (!sessionMap[key] || val > sessionMap[key].value) {
+                        sessionMap[key] = { date: l.log_date, value: val };
+                    }
+                }
+                const sessions = Object.values(sessionMap).sort((a, b) => a.date.localeCompare(b.date) || a.value - b.value);
+                if (!sessions.length) continue;
+
+                const values = sessions.map(s => s.value);
+                const maxW = Math.max(...values);
+                const lastW = values[values.length - 1];
+                const trend = values.length >= 2 ? lastW - values[0] : 0;
+                const trendSign = trend > 0 ? '+' : '';
+                const trendClass = trend > 0 ? 'all-trend-up' : trend < 0 ? 'all-trend-down' : '';
+                const target = targetByName[exName];
+                const targetStr = target
+                    ? (isCardio ? `Target ${target.reps} min` : `Target ${target.sets}×${target.reps}${target.weight_kg != null ? ' · ' + target.weight_kg + 'kg' : ''}`)
+                    : '';
+
+                // Lookup immagine/video da _allExDB tramite slug o nome
+                const groupKey = Object.keys(groupKeyToName).find(k => groupKeyToName[k] === exName);
+                const ex = groupKey ? groupKeyToEx[groupKey] : null;
+                const dbEx = ex ? _findExForCard(ex) : null;
+                const imgUrl = dbEx?.immagine_url_small || dbEx?.immagine_url || '';
+                const videoUrl = dbEx?.video_url || '';
+
+                const exId = 'pex' + (++_progressiExIdSeq);
+                _progressiExData[exId] = {
+                    name: exName, target: targetStr,
+                    values, isCardio, maxW, lastW, trend, unit,
+                    imgUrl, videoUrl
+                };
+
+                const imgHtml = imgUrl
+                    ? `<img class="prog2-ex-img-pic" src="${_escHtml(imgUrl)}" alt="${_escHtml(exName)}" loading="lazy" onerror="this.style.display='none'">`
+                    : _progressiPlaceholderSvg(true);
+
+                const miniSvg = _progressiBuildMiniChartSvg(values);
+
+                html += `<div class="prog2-ex">
+                    <div class="prog2-ex-top">
+                        <div class="prog2-ex-titles">
+                            <div class="prog2-ex-name">${_escHtml(exName)}</div>
+                            ${targetStr ? `<div class="prog2-ex-target">${_escHtml(targetStr)}</div>` : ''}
+                        </div>
+                        <span class="prog2-ex-sess">${sessions.length} sess</span>
+                    </div>
+                    <div class="prog2-ex-body">
+                        <div class="prog2-ex-img">
+                            ${imgHtml}
+                            <button class="prog2-zoom" type="button" onclick="_progressiOpenZoom('${exId}')" aria-label="Zoom esercizio">
+                                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><polyline points="15 3 21 3 21 9"/><polyline points="9 21 3 21 3 15"/><line x1="21" y1="3" x2="14" y2="10"/><line x1="3" y1="21" x2="10" y2="14"/></svg>
+                            </button>
+                        </div>
+                        <div class="prog2-chart">
+                            ${miniSvg}
+                            <span class="prog2-badge">${lastW}${unit}</span>
+                        </div>
+                    </div>
+                    <div class="prog2-ex-foot">
+                        <span class="prog2-stat">Max <b>${maxW}${unit}</b></span><span class="prog2-sep">·</span>
+                        <span class="prog2-stat">Ultimo <b>${lastW}${unit}</b></span><span class="prog2-sep">·</span>
+                        <span class="prog2-stat ${trendClass}">Trend <b>${trendSign}${trend.toFixed(1)}${unit}</b></span>
+                    </div>
+                </div>`;
+            }
+
+            html += '</div>';
+            container.innerHTML = html + _progressiModalShellHtml();
+        }
+
+        function _progressiSetCategory(cat) {
+            if (_progressiCategory === cat) return;
+            _progressiCategory = cat;
+            renderProgressi();
+        }
+
+        function _progressiOpenZoom(exId) {
+            const d = _progressiExData[exId];
+            if (!d) return;
+            const modal = document.getElementById('prog2Modal');
+            if (!modal) return;
+            document.getElementById('prog2ModalName').textContent = d.name;
+            document.getElementById('prog2ModalTarget').textContent = d.target || '';
+
+            const imgEl = document.getElementById('prog2ModalImg');
+            if (d.videoUrl) {
+                imgEl.innerHTML = `<video class="prog2-modal-video" src="${_escHtml(d.videoUrl)}" autoplay loop muted playsinline preload="auto"></video>`;
+            } else if (d.imgUrl) {
+                imgEl.innerHTML = `<img class="prog2-modal-pic" src="${_escHtml(d.imgUrl)}" alt="${_escHtml(d.name)}">`;
+            } else {
+                imgEl.innerHTML = _progressiPlaceholderSvg(false);
+            }
+
+            const chartEl = document.getElementById('prog2ModalChart');
+            chartEl.innerHTML = _progressiBuildModalChartSvg(d.values) +
+                `<span class="prog2-badge">${d.lastW}${d.unit}</span>`;
+
+            const trendSign = d.trend > 0 ? '+' : '';
+            const trendClass = d.trend > 0 ? 'all-trend-up' : d.trend < 0 ? 'all-trend-down' : '';
+            document.getElementById('prog2ModalFoot').innerHTML =
+                `<span class="prog2-stat">Max <b>${d.maxW}${d.unit}</b></span><span class="prog2-sep">·</span>
+                 <span class="prog2-stat">Ultimo <b>${d.lastW}${d.unit}</b></span><span class="prog2-sep">·</span>
+                 <span class="prog2-stat ${trendClass}">Trend <b>${trendSign}${d.trend.toFixed(1)}${d.unit}</b></span>`;
+
+            modal.classList.add('open');
+            document.body.classList.add('prog2-modal-locked');
+        }
+
+        function _progressiCloseZoom() {
+            const m = document.getElementById('prog2Modal');
+            if (m) m.classList.remove('open');
+            document.body.classList.remove('prog2-modal-locked');
+            const v = document.querySelector('#prog2ModalImg video');
+            if (v) { try { v.pause(); v.removeAttribute('src'); v.load(); } catch (e) { } }
+        }
+
+        // Re-render Progressi quando si attraversa il breakpoint mobile/desktop
+        try {
+            const _mqProg = window.matchMedia('(max-width:768px)');
+            const _onMqProgChange = () => { if (_allView === 'progressi') renderProgressi(); };
+            if (_mqProg.addEventListener) _mqProg.addEventListener('change', _onMqProgChange);
+            else if (_mqProg.addListener) _mqProg.addListener(_onMqProgChange);
+        } catch (e) { /* noop */ }
 
 
         // ── Refined line chart (canvas) ──────────────────────────────────
@@ -3555,6 +3884,23 @@
                 }
 
                 const fname = 'scheda-' + (_allPlan.name || 'allenamento').replace(/[^a-zA-Z0-9]+/g, '-').toLowerCase() + '.pdf';
+                _pdfBuildCache = { sig, doc, fname };
+                return _pdfBuildCache;
+        }
+
+        async function _downloadSchedaPDF() {
+            if (!_allPlan) {
+                if (typeof showToast === 'function') showToast('Nessuna scheda disponibile', 'error');
+                return;
+            }
+            const btn = document.getElementById('pdfDownloadBtn');
+            const origHTML = btn ? btn.innerHTML : '';
+            if (btn) {
+                btn.disabled = true;
+                btn.innerHTML = '<span>Generazione…</span>';
+            }
+            try {
+                const { doc, fname } = await _buildSchedaPDF();
                 doc.save(fname);
                 if (typeof showToast === 'function') showToast('PDF scaricato!', 'success');
             } catch (e) {
@@ -3563,6 +3909,97 @@
             } finally {
                 if (btn) { btn.disabled = false; btn.innerHTML = origHTML; }
             }
+        }
+
+        // ── PDF Preview (anteprima pagine scrollabili) ─────────────────────
+        async function _renderPdfPreview() {
+            const scroller = document.getElementById('pdfPreviewScroller');
+            if (!scroller) return;
+            try {
+                const { doc } = await _buildSchedaPDF();
+                await _ensurePdfJs();
+                if (!window.pdfjsLib) throw new Error('PDF.js non disponibile');
+
+                const arrayBuffer = doc.output('arraybuffer');
+                const pdfDoc = await window.pdfjsLib.getDocument({ data: new Uint8Array(arrayBuffer) }).promise;
+                const numPages = pdfDoc.numPages;
+
+                if (!document.getElementById('pdfPreviewScroller')) return; // view changed
+                scroller.innerHTML = '';
+
+                const dpr = Math.min(window.devicePixelRatio || 1, 2);
+                for (let i = 1; i <= numPages; i++) {
+                    const page = await pdfDoc.getPage(i);
+                    const baseViewport = page.getViewport({ scale: 1 });
+                    const targetWidth = 720;
+                    const scale = (targetWidth / baseViewport.width) * dpr;
+                    const viewport = page.getViewport({ scale });
+
+                    const wrap = document.createElement('div');
+                    wrap.className = 'all-pdf-preview-page';
+                    wrap.setAttribute('aria-label', 'Pagina ' + i + ' di ' + numPages);
+
+                    const canvas = document.createElement('canvas');
+                    canvas.width = viewport.width;
+                    canvas.height = viewport.height;
+                    wrap.appendChild(canvas);
+
+                    const num = document.createElement('span');
+                    num.className = 'all-pdf-preview-pagenum';
+                    num.textContent = i + ' / ' + numPages;
+                    wrap.appendChild(num);
+
+                    scroller.appendChild(wrap);
+                    await page.render({ canvasContext: canvas.getContext('2d'), viewport }).promise;
+                    if (!document.getElementById('pdfPreviewScroller')) return; // view changed
+                }
+
+                _setupPdfPreviewDots(numPages);
+                _setupPdfPreviewHintAutohide();
+            } catch (e) {
+                console.error('[PDF preview] Errore:', e);
+                if (scroller) scroller.innerHTML = '<div class="all-pdf-preview-error">Anteprima non disponibile.<br>Puoi comunque scaricare il PDF qui sotto.</div>';
+            }
+        }
+
+        function _setupPdfPreviewDots(n) {
+            const dots = document.getElementById('pdfPreviewDots');
+            const scroller = document.getElementById('pdfPreviewScroller');
+            if (!dots || !scroller) return;
+            if (n <= 1) { dots.style.display = 'none'; return; }
+            dots.innerHTML = '';
+            for (let i = 0; i < n; i++) {
+                const d = document.createElement('span');
+                d.className = 'all-pdf-preview-dot' + (i === 0 ? ' active' : '');
+                dots.appendChild(d);
+            }
+            const update = () => {
+                const pages = scroller.querySelectorAll('.all-pdf-preview-page');
+                if (!pages.length) return;
+                const sl = scroller.scrollLeft;
+                const first = pages[0].getBoundingClientRect();
+                const second = pages[1] ? pages[1].getBoundingClientRect() : null;
+                const step = second ? (second.left - first.left) : first.width;
+                const idx = Math.min(n - 1, Math.max(0, Math.round(sl / Math.max(1, step))));
+                dots.querySelectorAll('.all-pdf-preview-dot').forEach((el, i) => el.classList.toggle('active', i === idx));
+            };
+            scroller.addEventListener('scroll', update, { passive: true });
+        }
+
+        function _setupPdfPreviewHintAutohide() {
+            const hint = document.getElementById('pdfPreviewHint');
+            const scroller = document.getElementById('pdfPreviewScroller');
+            if (!hint || !scroller) return;
+            let hidden = false;
+            const hide = () => {
+                if (hidden) return;
+                hidden = true;
+                hint.classList.add('hide');
+                scroller.removeEventListener('scroll', onScroll);
+            };
+            const onScroll = () => { if (scroller.scrollLeft > 6) hide(); };
+            scroller.addEventListener('scroll', onScroll, { passive: true });
+            setTimeout(hide, 6000);
         }
 
         function _downloadTabletQR() {
