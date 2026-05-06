@@ -3347,7 +3347,8 @@ body.all-modal-open .all-modal-overlay {
     .scheda-hero {
         display: block;
         position: relative;
-        margin: 0 16px 16px;
+        /* Sfora il padding del container (max(20px, safe-area)) per arrivare quasi ai bordi */
+        margin: 0 -16px 16px;
         padding: 16px 16px 14px;
         border-radius: 18px;
         background: linear-gradient(135deg, #0b1220 0%, #0e2a3f 60%, #0b7fb0 130%);
