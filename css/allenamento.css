@@ -4284,7 +4284,13 @@ body.all-modal-open .all-modal-overlay {
         margin-top: 14px; display: grid; grid-template-columns: repeat(3, 1fr); gap: 10px;
         position: relative; z-index: 1;
     }
-    .prog2-hero-kpis--four { grid-template-columns: repeat(2, 1fr); }
+    .prog2-hero-kpis--four {
+        grid-template-columns: repeat(4, 1fr);
+        gap: 6px;
+    }
+    .prog2-hero-kpis--four .prog2-hk { padding: 9px 3px; }
+    .prog2-hero-kpis--four .prog2-hk-val { font-size: 18px; }
+    .prog2-hero-kpis--four .prog2-hk-lbl { font-size: 8.5px; letter-spacing: 0.06em; }
     .prog2-hk {
         background: rgba(255, 255, 255, 0.06);
         border: 1px solid rgba(255, 255, 255, 0.1);
