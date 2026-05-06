@@ -2034,91 +2034,92 @@
     }
 }
 
-/* ── Lightbox zoom pagina PDF ─────────────────────────────────────────────── */
+/* ── Lightbox zoom pagina PDF (pinch-to-zoom) ─────────────────────────────── */
 .all-pdf-zoom-overlay {
     position: fixed;
     inset: 0;
-    background: rgba(0, 0, 0, 0.92);
+    background: rgba(0, 0, 0, 0.94);
     z-index: 10000;
     display: flex;
     flex-direction: column;
     animation: allPdfZoomFadeIn 0.18s ease-out;
+    overscroll-behavior: contain;
+    touch-action: none;
 }
 @keyframes allPdfZoomFadeIn {
     from { opacity: 0; }
     to   { opacity: 1; }
 }
 
-.all-pdf-zoom-toolbar {
-    display: flex;
-    align-items: center;
-    justify-content: space-between;
-    gap: 1rem;
-    padding: 0.8rem 1rem calc(0.8rem + env(safe-area-inset-top));
-    padding-top: calc(0.8rem + env(safe-area-inset-top));
-    background: rgba(15, 23, 42, 0.85);
-    color: #fff;
-    backdrop-filter: blur(10px);
-    -webkit-backdrop-filter: blur(10px);
-    flex: 0 0 auto;
-}
-
-.all-pdf-zoom-controls {
-    display: flex;
-    align-items: center;
-    gap: 0.6rem;
-}
-
-.all-pdf-zoom-btn,
 .all-pdf-zoom-close {
-    width: 40px;
-    height: 40px;
+    position: absolute;
+    top: calc(0.8rem + env(safe-area-inset-top));
+    right: calc(0.8rem + env(safe-area-inset-right));
+    width: 44px;
+    height: 44px;
     border: none;
     border-radius: 50%;
-    background: rgba(255, 255, 255, 0.15);
+    background: rgba(15, 23, 42, 0.7);
     color: #fff;
-    font-size: 1.3rem;
+    font-size: 1.2rem;
     font-weight: 700;
     cursor: pointer;
     display: grid;
     place-items: center;
     transition: background 0.15s ease, transform 0.15s ease;
     -webkit-tap-highlight-color: transparent;
+    z-index: 2;
+    backdrop-filter: blur(10px);
+    -webkit-backdrop-filter: blur(10px);
 }
-.all-pdf-zoom-btn:hover,
-.all-pdf-zoom-close:hover { background: rgba(255, 255, 255, 0.25); }
-.all-pdf-zoom-btn:active,
+.all-pdf-zoom-close:hover { background: rgba(15, 23, 42, 0.9); }
 .all-pdf-zoom-close:active { transform: scale(0.92); }
-.all-pdf-zoom-btn[disabled] { opacity: 0.4; cursor: default; transform: none; }
 
-.all-pdf-zoom-level {
-    font-size: 0.9rem;
-    font-weight: 700;
-    min-width: 4ch;
-    text-align: center;
+.all-pdf-zoom-hint {
+    position: absolute;
+    bottom: calc(1rem + env(safe-area-inset-bottom));
+    left: 50%;
+    transform: translateX(-50%);
+    background: rgba(15, 23, 42, 0.7);
     color: #fff;
-    letter-spacing: 0.02em;
+    font-size: 0.78rem;
+    font-weight: 600;
+    padding: 0.4rem 0.9rem;
+    border-radius: 999px;
+    backdrop-filter: blur(10px);
+    -webkit-backdrop-filter: blur(10px);
+    pointer-events: none;
+    transition: opacity 0.4s ease;
+    z-index: 2;
+    white-space: nowrap;
 }
+.all-pdf-zoom-hint.hide { opacity: 0; }
 
 .all-pdf-zoom-canvas-wrap {
     flex: 1 1 auto;
-    overflow: auto;
-    -webkit-overflow-scrolling: touch;
+    overflow: hidden; /* gestiamo pan+pinch via JS, niente scroll nativo */
     display: flex;
-    align-items: flex-start;
+    align-items: center;
     justify-content: center;
-    padding: 1rem;
-    padding-bottom: calc(1rem + env(safe-area-inset-bottom));
-    /* Permetti pinch-zoom nativo su iOS oltre a pan. */
-    touch-action: pinch-zoom;
+    /* Disabilita gesture nativi del browser su questa area: gestiamo tutto via PointerEvents. */
+    touch-action: none;
+    user-select: none;
+    -webkit-user-select: none;
+    cursor: grab;
 }
+.all-pdf-zoom-canvas-wrap.is-panning { cursor: grabbing; }
 .all-pdf-zoom-canvas-wrap canvas {
     display: block;
-    transform-origin: top center;
-    transition: transform 0.18s ease;
+    max-width: 100%;
+    max-height: 100%;
+    transform-origin: center center;
+    /* niente transition durante il drag, applicata solo per i reset via JS */
     box-shadow: 0 12px 40px rgba(0, 0, 0, 0.45);
     background: #fff;
+    will-change: transform;
+    pointer-events: none; /* gli eventi vanno al wrap */
 }
+.all-pdf-zoom-canvas-wrap canvas.smooth { transition: transform 0.22s ease; }
 
 .all-pdf-zoom-loading {
     color: #fff;
@@ -2129,6 +2130,18 @@
     flex-direction: column;
     align-items: center;
     gap: 0.7rem;
+}
+
+/* ── Body fissa quando si e' sulla view PDF (niente bounce/scroll parassita) */
+body.all-view-pdf-fixed {
+    overflow: hidden;
+    overscroll-behavior: none;
+}
+body.all-view-pdf-fixed .all-page {
+    padding-bottom: 0;
+}
+body.all-view-pdf-fixed #allContent {
+    padding-bottom: 0 !important; /* override del padding mobile per il dock */
 }
 
 /* ── Next booking inside day tab ──────────────────────────────────────────── */
@@ -4122,21 +4135,88 @@ body.all-modal-open .all-modal-overlay {
     .prog2-hk-val { font-size: 22px; font-weight: 800; color: #fff; letter-spacing: -0.01em; line-height: 1.1; }
     .prog2-hk-lbl { font-size: 9.5px; font-weight: 800; color: #94a3b8; letter-spacing: 0.08em; text-transform: uppercase; margin-top: 2px; }
 
-    .prog2-seg {
-        margin: 6px 0 0; display: flex; gap: 0; padding: 3px;
-        background: #f1f5f9; border-radius: 12px;
+    /* Filter chip nell'hero (mostra muscolo corrente, apre bottom sheet) */
+    .prog2-hero-actions {
+        display: flex; gap: 8px; align-items: center;
+        position: relative; z-index: 1;
+        flex-shrink: 0;
     }
-    .prog2-seg-btn {
-        flex: 1; padding: 8px 6px; border-radius: 9px;
-        font-size: 12px; font-weight: 700; color: #64748b;
-        cursor: pointer; text-align: center; background: transparent; border: 0;
-        font-family: inherit; transition: background 0.12s ease, color 0.12s ease;
+    .prog2-filter-chip {
+        display: inline-flex; align-items: center; gap: 4px;
+        padding: 7px 10px;
+        border-radius: 9px;
+        background: rgba(255, 255, 255, 0.12);
+        border: 1px solid rgba(255, 255, 255, 0.16);
+        color: #fff;
+        font-size: 12px; font-weight: 700;
+        cursor: pointer;
+        font-family: inherit;
+        max-width: 130px;
+        line-height: 1.1;
     }
-    .prog2-seg-btn.active {
-        background: #fff; color: #0f172a;
-        box-shadow: 0 1px 2px rgba(15, 23, 42, 0.08);
+    .prog2-filter-chip:active { transform: scale(0.96); }
+    .prog2-filter-chip-lbl {
+        white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+        max-width: 100px;
     }
-    .prog2-seg-btn:active { transform: scale(0.97); }
+    .prog2-filter-chip-chev { width: 12px; height: 12px; flex-shrink: 0; opacity: 0.85; }
+
+    /* Bottom sheet filtro muscolo (stile admin Statistiche & Fatturato) */
+    .prog2-filter-backdrop {
+        position: fixed; inset: 0; z-index: 9998;
+        background: rgba(8, 12, 22, 0.5);
+        -webkit-backdrop-filter: blur(4px); backdrop-filter: blur(4px);
+        opacity: 0; pointer-events: none;
+        transition: opacity 0.2s ease;
+    }
+    .prog2-filter-backdrop.open { opacity: 1; pointer-events: auto; }
+    .prog2-filter-sheet {
+        position: fixed; left: 0; right: 0; bottom: 0;
+        z-index: 9999;
+        background: #fff;
+        border-radius: 18px 18px 0 0;
+        padding: 10px 16px calc(20px + env(safe-area-inset-bottom));
+        transform: translateY(100%);
+        transition: transform 0.25s cubic-bezier(0.4, 0, 0.2, 1);
+        max-height: 70vh; overflow-y: auto;
+        box-shadow: 0 -8px 24px rgba(0, 0, 0, 0.18);
+    }
+    .prog2-filter-sheet.open { transform: translateY(0); }
+    .prog2-filter-grabber {
+        width: 40px; height: 4px;
+        border-radius: 2px;
+        background: #cbd5e1;
+        margin: 0 auto 12px;
+    }
+    .prog2-filter-title {
+        font-size: 11px; font-weight: 800; color: #64748b;
+        letter-spacing: 0.08em; text-transform: uppercase;
+        margin: 0 0 8px;
+    }
+    .prog2-filter-list {
+        display: flex; flex-wrap: wrap; align-items: center;
+        border-bottom: 1px solid #e2e8f0;
+        padding: 0;
+    }
+    .prog2-filter-tab {
+        background: transparent;
+        border: 0;
+        border-bottom: 3px solid transparent;
+        padding: 10px 0.25rem;
+        margin: 0 1.4rem -1px 0;
+        cursor: pointer;
+        font-size: 14px; font-weight: 600;
+        font-family: inherit;
+        color: #64748b;
+        transition: color 0.2s ease, border-color 0.2s ease;
+        white-space: nowrap;
+    }
+    .prog2-filter-tab:hover:not(.active) { color: #334155; }
+    .prog2-filter-tab.active {
+        color: #0b7fb0;
+        border-bottom-color: #1aa6e0;
+        font-weight: 700;
+    }
 
     .prog2-section-h {
         padding: 14px 0 6px; display: flex; align-items: baseline; justify-content: space-between;

@@ -13,7 +13,7 @@
     <link rel="icon" type="image/jpeg" href="images/logo-tb---nero.jpg">
     <link rel="stylesheet" href="css/style.css?v=15">
     <link rel="stylesheet" href="css/login.css?v=4">
-    <link rel="stylesheet" href="css/allenamento.css?v=37">
+    <link rel="stylesheet" href="css/allenamento.css?v=39">
 </head>
 <body class="allenamento-body">
     <nav class="navbar">
@@ -161,9 +161,7 @@
         let _nextBookings = []; // prossime prenotazioni confermate
         let _filterPeriod = 'all';
         let _filterMuscle = 'all';
-        // Mobile v2: categoria segmented control (Tutto / Cardio / Forza / Core).
-        // Indipendente da _filterMuscle (usato dal layout desktop con dropdown muscolo).
-        let _progressiCategory = 'all';
+        // Mobile v2: cache esercizi correnti per il modal zoom (ricostruita ad ogni render).
         let _progressiExIdSeq = 0;
         const _progressiExData = {};
         let _allLastRefreshTs = Date.now(); // aggiornato ad ogni _refreshAllenamentoData
@@ -517,6 +515,9 @@
             _allView = view;
             try { sessionStorage.setItem('allView', view); } catch {}
             _syncAllViewUI();
+            // Blocca lo scroll del body solo sulla view PDF: tutto entra nel
+            // viewport, non vogliamo bounce/scroll parassita sotto il dock.
+            document.body.classList.toggle('all-view-pdf-fixed', view === 'pdf');
             if (view === 'scheda') renderScheda();
             else if (view === 'storico') renderStorico();
             else if (view === 'progressi') renderProgressi();
@@ -1814,7 +1815,7 @@
                 if (window.matchMedia('(max-width:768px)').matches && typeof _renderProgressiMobileV2 === 'function') {
                     _renderProgressiMobileV2(container, {
                         logs, idToGroupKey, groupKeyToName, groupKeyToMuscle, groupKeyToEx,
-                        nameToMuscle, targetByName
+                        nameToMuscle, targetByName, muscleGroups
                     });
                     return;
                 }
@@ -2020,15 +2021,8 @@
         }
 
         // ── Progressi Mobile v2 (design Claude Design) ────────────────────
-        // Hero scuro con KPI integrate + segmented Tutto/Cardio/Forza/Core +
-        // card esercizio con immagine a sinistra e grafico a destra + popup zoom.
-        function _exCategoryFromMuscle(muscle) {
-            const s = (muscle || '').toLowerCase();
-            if (s.includes('cardio')) return 'cardio';
-            if (s.includes('core') || s.includes('addomin')) return 'core';
-            return 'forza';
-        }
-
+        // Hero scuro con KPI integrate + filter chip (apre bottom sheet con
+        // muscoli stile admin/Statistiche) + card esercizio immagine/grafico + popup zoom.
         function _progressiPathFromValues(values, w, h, padL, padR, padT, padB) {
             const n = values.length;
             if (n === 0) return { lineD: '', areaD: '', points: [] };
@@ -2126,7 +2120,7 @@
         }
 
         function _renderProgressiMobileV2(container, ctx) {
-            const { logs, idToGroupKey, groupKeyToName, groupKeyToMuscle, groupKeyToEx, nameToMuscle, targetByName } = ctx;
+            const { logs, idToGroupKey, groupKeyToName, groupKeyToMuscle, groupKeyToEx, nameToMuscle, targetByName, muscleGroups } = ctx;
 
             // Reset cache esercizi modal (nuovo render → nuovi id) + cleanup body lock
             for (const k in _progressiExData) delete _progressiExData[k];
@@ -2146,33 +2140,42 @@
                 filteredByName[name].push(l);
             }
 
-            const cat = _progressiCategory;
+            // Filtro muscolo: usa _filterMuscle (condiviso con desktop). 'all' = nessun filtro.
+            const muscle = _filterMuscle;
             let exerciseNames = Object.keys(filteredByName).sort();
-            if (cat !== 'all') {
-                exerciseNames = exerciseNames.filter(n => _exCategoryFromMuscle(nameToMuscle[n]) === cat);
+            if (muscle !== 'all') {
+                exerciseNames = exerciseNames.filter(n => nameToMuscle[n] === muscle);
             }
 
-            // KPI: filtrate per 30gg + categoria selezionata
-            const statsLogs = cat === 'all' ? filteredLogs
+            // KPI: filtrate per 30gg + muscolo selezionato
+            const statsLogs = muscle === 'all' ? filteredLogs
                 : filteredLogs.filter(l => {
                     const k = idToGroupKey[l.exercise_id];
-                    return k && _exCategoryFromMuscle(groupKeyToMuscle[k]) === cat;
+                    return k && groupKeyToMuscle[k] === muscle;
                 });
             const totalSessions = new Set(statsLogs.map(l => l.exercise_id + '|' + l.log_date)).size;
             const totalSets = statsLogs.length;
             const totalVolume = statsLogs.reduce((sum, l) => sum + ((l.weight_done || 0) * (l.reps_done || 0)), 0);
             const volStr = totalVolume >= 1000 ? (totalVolume / 1000).toFixed(1) + 't' : (totalVolume + 'kg');
 
+            const filterLabel = muscle === 'all' ? 'Tutto' : muscle;
+
             let html = '<div class="prog2-wrap">';
 
-            // Hero
+            // Hero (eye-label + filter chip + storico icon a destra)
             html += `
                 <div class="prog2-hero">
                     <div class="prog2-hero-row">
                         <div class="prog2-eye">PROGRESSI · ULTIMI 30 GG</div>
-                        <button class="prog2-iconbtn" type="button" onclick="switchAllView('storico')" aria-label="Storico allenamenti" title="Storico">
-                            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 12a9 9 0 1 0 3-6.7"/><polyline points="3 4 3 10 9 10"/><polyline points="12 7 12 12 16 14"/></svg>
-                        </button>
+                        <div class="prog2-hero-actions">
+                            <button class="prog2-filter-chip" type="button" onclick="_progressiOpenFilterSheet()" aria-haspopup="dialog" aria-expanded="false">
+                                <span class="prog2-filter-chip-lbl">${_escHtml(filterLabel)}</span>
+                                <svg class="prog2-filter-chip-chev" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="6 9 12 15 18 9"/></svg>
+                            </button>
+                            <button class="prog2-iconbtn" type="button" onclick="switchAllView('storico')" aria-label="Storico allenamenti" title="Storico">
+                                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 12a9 9 0 1 0 3-6.7"/><polyline points="3 4 3 10 9 10"/><polyline points="12 7 12 12 16 14"/></svg>
+                            </button>
+                        </div>
                     </div>
                     <div class="prog2-hero-kpis">
                         <div class="prog2-hk"><div class="prog2-hk-val">${totalSessions}</div><div class="prog2-hk-lbl">Sessioni</div></div>
@@ -2181,20 +2184,14 @@
                     </div>
                 </div>`;
 
-            // Segmented filter
-            const cats = [['all', 'Tutto'], ['cardio', 'Cardio'], ['forza', 'Forza'], ['core', 'Core']];
-            html += '<div class="prog2-seg" role="tablist">' + cats.map(([v, lbl]) =>
-                `<button type="button" class="prog2-seg-btn${cat === v ? ' active' : ''}" role="tab" aria-selected="${cat === v}" onclick="_progressiSetCategory('${v}')">${lbl}</button>`
-            ).join('') + '</div>';
-
             // Section header
             html += `<div class="prog2-section-h"><span class="t">Esercizi</span><span class="c">${exerciseNames.length}</span></div>`;
 
             if (!exerciseNames.length) {
-                html += '<div class="prog2-empty">Nessun esercizio negli ultimi 30 giorni.</div>';
-                html += '</div>';
-                container.innerHTML = html + _progressiModalShellHtml();
-                return;
+                const emptyMsg = muscle === 'all'
+                    ? 'Nessun esercizio negli ultimi 30 giorni.'
+                    : `Nessun esercizio per "${_escHtml(muscle)}" negli ultimi 30 giorni.`;
+                html += `<div class="prog2-empty">${emptyMsg}</div>`;
             }
 
             for (const exName of exerciseNames) {
@@ -2277,12 +2274,47 @@
             }
 
             html += '</div>';
-            container.innerHTML = html + _progressiModalShellHtml();
+            container.innerHTML = html + _progressiModalShellHtml() + _progressiFilterSheetHtml(muscleGroups, muscle);
         }
 
-        function _progressiSetCategory(cat) {
-            if (_progressiCategory === cat) return;
-            _progressiCategory = cat;
+        function _progressiFilterSheetHtml(muscleGroups, current) {
+            const items = [['all', 'Tutto'], ...((muscleGroups || []).map(mg => [mg, mg]))];
+            const buttons = items.map(([v, lbl]) =>
+                `<button type="button" class="prog2-filter-tab${current === v ? ' active' : ''}" onclick="_progressiSetMuscle('${_escAttr(v)}')">${_escHtml(lbl)}</button>`
+            ).join('');
+            return `
+                <div class="prog2-filter-backdrop" id="prog2FilterBackdrop" onclick="_progressiCloseFilterSheet()"></div>
+                <aside class="prog2-filter-sheet" id="prog2FilterSheet" role="dialog" aria-modal="true" aria-labelledby="prog2FilterTitle" aria-hidden="true">
+                    <div class="prog2-filter-grabber" aria-hidden="true"></div>
+                    <h3 class="prog2-filter-title" id="prog2FilterTitle">Filtra per muscolo</h3>
+                    <div class="prog2-filter-list" role="tablist">${buttons}</div>
+                </aside>`;
+        }
+
+        function _escAttr(s) {
+            return String(s == null ? '' : s).replace(/&/g, '&amp;').replace(/'/g, '&#39;').replace(/"/g, '&quot;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
+        }
+
+        function _progressiOpenFilterSheet() {
+            const s = document.getElementById('prog2FilterSheet');
+            const b = document.getElementById('prog2FilterBackdrop');
+            if (s) { s.classList.add('open'); s.setAttribute('aria-hidden', 'false'); }
+            if (b) b.classList.add('open');
+            document.body.classList.add('prog2-modal-locked');
+        }
+
+        function _progressiCloseFilterSheet() {
+            const s = document.getElementById('prog2FilterSheet');
+            const b = document.getElementById('prog2FilterBackdrop');
+            if (s) { s.classList.remove('open'); s.setAttribute('aria-hidden', 'true'); }
+            if (b) b.classList.remove('open');
+            document.body.classList.remove('prog2-modal-locked');
+        }
+
+        function _progressiSetMuscle(v) {
+            if (_filterMuscle === v) { _progressiCloseFilterSheet(); return; }
+            _filterMuscle = v;
+            _progressiCloseFilterSheet();
             renderProgressi();
         }
 
@@ -3420,6 +3452,9 @@
         // ── PDF Download view ─────────────────────────────────────────────
         function renderPdfDownload() {
             const container = document.getElementById('allContent');
+            // Idempotente: anche se entriamo via _refreshAllenamentoData (non
+            // passa da switchAllView) il body resta correttamente fissato.
+            document.body.classList.add('all-view-pdf-fixed');
             if (!_allPlan) {
                 container.innerHTML = '<div class="all-empty">Nessuna scheda da scaricare.</div>';
                 return;
@@ -4020,26 +4055,38 @@
             setTimeout(hide, 6000);
         }
 
-        // ── Lightbox zoom: apre la pagina PDF a tutto schermo con +/- ───────
+        // ── Lightbox zoom: apre la pagina PDF a tutto schermo con pinch+pan ─
         async function _openPdfZoom(pageIdx) {
-            // Crea overlay
             const overlay = document.createElement('div');
             overlay.className = 'all-pdf-zoom-overlay';
             overlay.innerHTML =
-                '<div class="all-pdf-zoom-toolbar">' +
-                  '<div class="all-pdf-zoom-controls">' +
-                    '<button type="button" class="all-pdf-zoom-btn" id="pdfZoomOut" aria-label="Riduci zoom">−</button>' +
-                    '<span class="all-pdf-zoom-level" id="pdfZoomLevel">100%</span>' +
-                    '<button type="button" class="all-pdf-zoom-btn" id="pdfZoomIn" aria-label="Aumenta zoom">+</button>' +
-                  '</div>' +
-                  '<button type="button" class="all-pdf-zoom-close" id="pdfZoomClose" aria-label="Chiudi">✕</button>' +
-                '</div>' +
+                '<button type="button" class="all-pdf-zoom-close" id="pdfZoomClose" aria-label="Chiudi">✕</button>' +
                 '<div class="all-pdf-zoom-canvas-wrap" id="pdfZoomWrap">' +
                   '<div class="all-pdf-zoom-loading"><div class="all-pdf-preview-spinner" aria-hidden="true"></div><span>Apertura pagina…</span></div>' +
-                '</div>';
+                '</div>' +
+                '<div class="all-pdf-zoom-hint" id="pdfZoomHint">Pizzica per ingrandire · doppio tap per reset</div>';
             document.body.appendChild(overlay);
             const prevOverflow = document.body.style.overflow;
             document.body.style.overflow = 'hidden';
+
+            const wrap = overlay.querySelector('#pdfZoomWrap');
+            const hint = overlay.querySelector('#pdfZoomHint');
+            let canvas = null;
+
+            // Stato gesture
+            let zoom = 1, tx = 0, ty = 0;
+            const ZMIN = 1, ZMAX = 5;
+            const pointers = new Map();
+            let pinch = null; // { d0, z0, tx0, ty0 }
+            let pan = null;   // { x0, y0, tx0, ty0, pid }
+            let lastTap = 0;
+
+            const apply = (smooth) => {
+                if (!canvas) return;
+                canvas.classList.toggle('smooth', !!smooth);
+                canvas.style.transform = 'translate(' + tx + 'px, ' + ty + 'px) scale(' + zoom + ')';
+            };
+            const reset = () => { zoom = 1; tx = 0; ty = 0; apply(true); };
 
             const close = () => {
                 overlay.remove();
@@ -4048,34 +4095,91 @@
             };
             const onKey = (e) => {
                 if (e.key === 'Escape') close();
-                else if (e.key === '+' || e.key === '=') zoomIn();
-                else if (e.key === '-' || e.key === '_') zoomOut();
+                else if (e.key === '0') reset();
             };
             document.addEventListener('keydown', onKey);
             overlay.querySelector('#pdfZoomClose').onclick = close;
-            // Click su sfondo (toolbar/wrap) chiude solo se non si clicca su un controllo
-            overlay.addEventListener('click', (e) => {
-                if (e.target === overlay || e.target.id === 'pdfZoomWrap') close();
+
+            // Hint auto-hide
+            const hideHint = () => { if (hint) hint.classList.add('hide'); };
+            const hintTimer = setTimeout(hideHint, 3500);
+
+            // PointerEvents: pinch (2 dita), pan (1 dito quando zoomato),
+            // double-tap reset, wheel zoom desktop.
+            const onPointerDown = (e) => {
+                if (e.pointerType === 'mouse' && e.button !== 0) return;
+                try { wrap.setPointerCapture && wrap.setPointerCapture(e.pointerId); } catch (_) {}
+                pointers.set(e.pointerId, { x: e.clientX, y: e.clientY });
+                hideHint(); clearTimeout(hintTimer);
+
+                if (pointers.size === 2) {
+                    const [a, b] = [...pointers.values()];
+                    pinch = {
+                        d0: Math.hypot(a.x - b.x, a.y - b.y) || 1,
+                        z0: zoom, tx0: tx, ty0: ty
+                    };
+                    pan = null;
+                } else if (pointers.size === 1 && zoom > 1.001) {
+                    pan = { x0: e.clientX, y0: e.clientY, tx0: tx, ty0: ty, pid: e.pointerId };
+                    wrap.classList.add('is-panning');
+                    pinch = null;
+                }
+            };
+
+            const onPointerMove = (e) => {
+                if (!pointers.has(e.pointerId)) return;
+                pointers.set(e.pointerId, { x: e.clientX, y: e.clientY });
+
+                if (pointers.size === 2 && pinch) {
+                    const [a, b] = [...pointers.values()];
+                    const d = Math.hypot(a.x - b.x, a.y - b.y);
+                    zoom = Math.max(ZMIN, Math.min(ZMAX, pinch.z0 * (d / pinch.d0)));
+                    apply(false);
+                } else if (pointers.size === 1 && pan && pan.pid === e.pointerId) {
+                    tx = pan.tx0 + (e.clientX - pan.x0);
+                    ty = pan.ty0 + (e.clientY - pan.y0);
+                    apply(false);
+                }
+            };
+
+            const onPointerUp = (e) => {
+                pointers.delete(e.pointerId);
+                if (pointers.size < 2) pinch = null;
+                if (pointers.size === 0) {
+                    pan = null;
+                    wrap.classList.remove('is-panning');
+                    if (zoom < 1) reset();
+                }
+            };
+
+            wrap.addEventListener('pointerdown', onPointerDown);
+            wrap.addEventListener('pointermove', onPointerMove);
+            wrap.addEventListener('pointerup', onPointerUp);
+            wrap.addEventListener('pointercancel', onPointerUp);
+            wrap.addEventListener('pointerleave', onPointerUp);
+
+            // Double-tap / double-click → toggle 1x ↔ 2.5x
+            wrap.addEventListener('click', (e) => {
+                const now = Date.now();
+                if (now - lastTap < 320) {
+                    if (zoom > 1.05) reset();
+                    else { zoom = 2.5; apply(true); }
+                    e.preventDefault();
+                    e.stopPropagation();
+                    lastTap = 0;
+                    return;
+                }
+                lastTap = now;
             });
 
-            let zoom = 1;
-            const ZOOM_MIN = 0.5, ZOOM_MAX = 4, ZOOM_STEP = 0.25;
-            const levelEl = overlay.querySelector('#pdfZoomLevel');
-            const btnIn = overlay.querySelector('#pdfZoomIn');
-            const btnOut = overlay.querySelector('#pdfZoomOut');
-
-            let canvas = null;
-            const applyZoom = () => {
-                if (!canvas) return;
-                canvas.style.transform = 'scale(' + zoom + ')';
-                levelEl.textContent = Math.round(zoom * 100) + '%';
-                btnIn.disabled = zoom >= ZOOM_MAX - 0.001;
-                btnOut.disabled = zoom <= ZOOM_MIN + 0.001;
-            };
-            const zoomIn = () => { zoom = Math.min(ZOOM_MAX, zoom + ZOOM_STEP); applyZoom(); };
-            const zoomOut = () => { zoom = Math.max(ZOOM_MIN, zoom - ZOOM_STEP); applyZoom(); };
-            btnIn.onclick = zoomIn;
-            btnOut.onclick = zoomOut;
+            // Wheel zoom (desktop)
+            wrap.addEventListener('wheel', (e) => {
+                e.preventDefault();
+                hideHint();
+                const factor = e.deltaY < 0 ? 1.18 : 1 / 1.18;
+                zoom = Math.max(ZMIN, Math.min(ZMAX, zoom * factor));
+                apply(false);
+            }, { passive: false });
 
             // Render pagina ad alta risoluzione
             try {
@@ -4084,35 +4188,26 @@
                 if (!window.pdfjsLib) throw new Error('PDF.js non disponibile');
                 const arrayBuffer = doc.output('arraybuffer');
                 const pdfDoc = await window.pdfjsLib.getDocument({ data: new Uint8Array(arrayBuffer) }).promise;
-                if (!document.body.contains(overlay)) return; // closed during load
+                if (!document.body.contains(overlay)) return;
                 const page = await pdfDoc.getPage(pageIdx);
                 const baseViewport = page.getViewport({ scale: 1 });
-                // Punta a una larghezza render adeguata: 2x lo schermo, ma cap a 1600px
-                // per non sprecare memoria su tablet/desktop large.
                 const dpr = Math.min(window.devicePixelRatio || 1, 2);
-                const targetW = Math.min(1600, Math.max(720, window.innerWidth * dpr));
+                // Render piu' alto (max 5x zoom): vogliamo nitidezza al massimo zoom.
+                const targetW = Math.min(2200, Math.max(900, window.innerWidth * dpr * 1.5));
                 const scale = targetW / baseViewport.width;
                 const viewport = page.getViewport({ scale });
 
                 canvas = document.createElement('canvas');
                 canvas.width = viewport.width;
                 canvas.height = viewport.height;
-                // CSS size: il canvas si adatta al wrap mantenendo l'aspect ratio.
-                // Il transform: scale lavora sopra questo per lo zoom utente.
-                canvas.style.maxWidth = '100%';
-                canvas.style.maxHeight = '100%';
-                canvas.style.width = 'auto';
-                canvas.style.height = 'auto';
 
-                const wrap = overlay.querySelector('#pdfZoomWrap');
                 wrap.innerHTML = '';
                 wrap.appendChild(canvas);
                 await page.render({ canvasContext: canvas.getContext('2d'), viewport }).promise;
-                applyZoom();
+                apply(false);
             } catch (e) {
                 console.error('[PDF zoom] Errore:', e);
-                const wrap = overlay.querySelector('#pdfZoomWrap');
-                if (wrap) wrap.innerHTML = '<div class="all-pdf-zoom-loading">Errore caricamento pagina.</div>';
+                wrap.innerHTML = '<div class="all-pdf-zoom-loading">Errore caricamento pagina.</div>';
             }
         }
 
