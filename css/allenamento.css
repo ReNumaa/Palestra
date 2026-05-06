@@ -1252,6 +1252,14 @@
 /* ── Footer ────────────────────────────────────────────────────────────────── */
 .allenamento-body .footer { margin-top: 2rem; }
 
+/* Su mobile il dock fisso assume il ruolo di "fondo pagina": il footer scuro
+   con copyright + Privacy/Termini diventa una banda nera sotto al dock.
+   Lo nascondiamo su <=768px (Privacy/Termini restano accessibili da
+   prenotazioni / index / link diretto). */
+@media (max-width: 768px) {
+    .allenamento-body .footer { display: none; }
+}
+
 /* ═══════════════════════════════════════════════════════════════════════════════
    RESPONSIVE — Mobile first, then desktop enhancements
    ═══════════════════════════════════════════════════════════════════════════════ */
